@@ -524,10 +524,11 @@ select {
 }
 
 .schedule-course {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 6px 10px 6px 8px;
   margin-bottom: 4px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
@@ -537,6 +538,7 @@ select {
   color: var(--text-primary);
   cursor: pointer;
   transition: all var(--transition);
+  overflow: hidden;
 }
 
 .schedule-course:hover {
@@ -559,6 +561,107 @@ select {
 .schedule-course .lock-icon {
   font-size: 0.7rem;
   opacity: 0.6;
+}
+
+/* ── Degree color bars ── */
+.degree-bar-container {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px 0 0 6px;
+  overflow: hidden;
+}
+
+.degree-bar-stripe {
+  flex: 1;
+  min-height: 0;
+}
+
+.schedule-course-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  padding-left: 4px;
+  cursor: pointer;
+}
+
+.course-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.course-info-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.65rem;
+  padding: 0 2px;
+  opacity: 0.5;
+  transition: opacity var(--transition);
+  line-height: 1;
+}
+
+.course-info-btn:hover {
+  opacity: 1;
+}
+
+/* ── Info popup ── */
+.course-info-popup {
+  z-index: 1000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  padding: 10px 14px;
+  min-width: 180px;
+  max-width: 280px;
+  backdrop-filter: blur(12px);
+  animation: fadeIn 0.15s ease-out;
+}
+
+.course-info-popup-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent-teal);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.course-info-popup-row {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 2px 0;
+  line-height: 1.4;
+}
+
+/* ── Degree legend ── */
+.degree-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 8px 4px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.degree-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.degree-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 /* ============ SEMESTER ASSIGN SELECT ============ */

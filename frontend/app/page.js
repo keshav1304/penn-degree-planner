@@ -27,6 +27,7 @@ function saveState(state) {
       takenCourses: state.takenCourses,
       frozenCourses: state.frozenCourses,
       assignedCourses: state.assignedCourses,
+      allowSummer: state.allowSummer,
     }));
   } catch { }
 }
@@ -42,6 +43,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [activeDragId, setActiveDragId] = useState(null);
+  const [allowSummer, setAllowSummer] = useState(true);
   const debounceRef = useRef(null);
 
   // Require 8px movement before starting drag (so clicks still work)
@@ -59,6 +61,7 @@ export default function Home() {
       setTakenCourses(saved.takenCourses || []);
       setFrozenCourses(saved.frozenCourses || []);
       setAssignedCourses(saved.assignedCourses || []);
+      if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
     }
 
     fetch(`${API_BASE}/all_courses`)
@@ -74,8 +77,8 @@ export default function Home() {
 
   // Auto-save on changes
   useEffect(() => {
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses]);
+    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer });
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
@@ -110,6 +113,7 @@ export default function Home() {
             concentration: d.concentration || null,
           })),
           frozen: allFrozen,
+          allow_summer: allowSummer,
         }),
       });
       const data = await response.json();
@@ -119,7 +123,7 @@ export default function Home() {
       console.error("Schedule generation failed:", err);
     }
     setLoading(false);
-  }, [degrees, takenCourses, frozenCourses, assignedCourses]);
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -154,6 +158,21 @@ export default function Home() {
         return prev.filter(f => f.courseId !== courseId);
       }
       return [...prev, { courseId, year, semester }];
+    });
+  };
+
+  // Orange → Green: mark a frozen course as taken (locked in place)
+  const markTaken = (courseId, year, semester) => {
+    // Add to taken courses if not already there
+    if (!takenCourses.includes(courseId)) {
+      setTakenCourses(prev => [...prev, courseId]);
+    }
+    // Remove from frozen
+    setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
+    // Add to assigned
+    setAssignedCourses(prev => {
+      const filtered = prev.filter(a => a.courseId !== courseId);
+      return [...filtered, { courseId, year, semester }];
     });
   };
 
@@ -228,6 +247,37 @@ export default function Home() {
     setActiveDragId(null);
   };
 
+  // ─── Build course → degree and course → requirement maps ───
+  const { courseDegreesMap, courseRequirementMap } = (() => {
+    const degMap = {};
+    const reqMap = {};
+    if (scheduleData?.degree_results) {
+      scheduleData.degree_results.forEach((result, i) => {
+        const degreeLabel = `${result.school}-${result.major}`;
+        const addCourse = (courseId, category) => {
+          if (!degMap[courseId]) degMap[courseId] = [];
+          if (!degMap[courseId].includes(degreeLabel)) degMap[courseId].push(degreeLabel);
+          if (category) {
+            if (!reqMap[courseId]) reqMap[courseId] = [];
+            const entry = `${degreeLabel}: ${category}`;
+            if (!reqMap[courseId].includes(entry)) reqMap[courseId].push(entry);
+          }
+        };
+        // Fulfilled requirements
+        result.fulfilled_requirements?.forEach(req => {
+          const cat = req.requirement?.category || getCategoryFromReq(req.requirement);
+          req.course_ids?.forEach(c => addCourse(c, cat));
+        });
+        // Suggested for unfulfilled
+        result.suggested_for_unfulfilled?.forEach(req => {
+          const cat = getCategoryFromReq(req.requirement);
+          req.course_ids?.forEach(c => addCourse(c, cat));
+        });
+      });
+    }
+    return { courseDegreesMap: degMap, courseRequirementMap: reqMap };
+  })();
+
   return (
     <DndContext
       sensors={sensors}
@@ -273,12 +323,23 @@ export default function Home() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div className="panel" style={{ flex: 1 }}>
               <div className="panel-header">
-                <h2>📅 4-Year Schedule</h2>
-                {degrees.length > 0 && (
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                    {assignedCourses.length} placed · {frozenCourses.length} frozen
-                  </span>
-                )}
+                <h2>📅 Schedule</h2>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <label className="summer-toggle" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer", userSelect: "none" }}>
+                    <input
+                      type="checkbox"
+                      checked={allowSummer}
+                      onChange={e => setAllowSummer(e.target.checked)}
+                      style={{ accentColor: "var(--accent-teal)" }}
+                    />
+                    ☀️ Summer courses
+                  </label>
+                  {degrees.length > 0 && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                      {assignedCourses.length} placed · {frozenCourses.length} frozen
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="panel-body">
                 <ScheduleGrid
@@ -286,7 +347,11 @@ export default function Home() {
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
                   onToggleFreeze={toggleFreeze}
+                  onMarkTaken={markTaken}
                   degrees={degrees}
+                  courseDegreesMap={courseDegreesMap}
+                  courseRequirementMap={courseRequirementMap}
+                  allowSummer={allowSummer}
                 />
               </div>
             </div>
@@ -316,4 +381,20 @@ export default function Home() {
       </DragOverlay>
     </DndContext>
   );
+}
+
+// Extract category name from serialized Rust Requirement enum
+function getCategoryFromReq(req) {
+  if (!req) return "Unknown Requirement";
+  if (req.category) return req.category;
+  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
+  for (const v of variants) {
+    if (req[v]) return req[v].category || v;
+  }
+  if (typeof req === "object") {
+    for (const key of Object.keys(req)) {
+      if (typeof req[key] === "object" && req[key]?.category) return req[key].category;
+    }
+  }
+  return "Requirement";
 }

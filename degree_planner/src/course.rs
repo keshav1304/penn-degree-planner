@@ -16,18 +16,6 @@ pub struct Course {
     pub coreq: Option<String>,
 }
 
-pub fn read_courses(path: &str) -> Result<Vec<Course>, Error> {
-    let file = File::open(path)?;
-    let mut csv_reader = csv::Reader::from_reader(file);
-    let mut courses = Vec::new();
-
-    for result in csv_reader.deserialize::<Course>() {
-        courses.push(result?);
-    }
-
-    Ok(courses)
-}
-
 pub fn find_course(path: &str, query: &str) -> Result<Option<Course>, Error> {
     let file = File::open(path)?;
     let mut csv_reader = csv::Reader::from_reader(file);
@@ -45,4 +33,16 @@ pub fn find_course(path: &str, query: &str) -> Result<Option<Course>, Error> {
     }
 
     Ok(None)
+}
+
+pub fn is_valid_course_code(s: &str) -> bool {
+    if let Some((prefix, suffix)) = s.split_once(' ') {
+        let is_letters = !prefix.is_empty() && prefix.chars().all(|c| c.is_alphabetic());
+        
+        let is_numbers = !suffix.is_empty() && suffix.chars().all(|c| c.is_numeric());
+
+        is_letters && is_numbers
+    } else {
+        false
+    }
 }
