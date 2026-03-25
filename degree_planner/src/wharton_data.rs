@@ -178,7 +178,7 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
 
 pub fn create_wh_fl_major(concentration_name: String) -> Major {
     let wh_concentrations = create_wh_concentrations();
-    let mut bb_options = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"].map(String::from).to_vec();
+    let mut bb_options = ["ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST", "FNCE"].map(String::from).to_vec();
     bb_options.retain(|x| *x != concentration_name);
 
     let mut bb_requirement_options = Vec::new();

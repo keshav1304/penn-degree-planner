@@ -114,13 +114,14 @@ export default function ScheduleGrid({
 
         const handleClick = () => {
             if (assigned) {
-                // Green → Orange: un-mark taken
+                // Green → Orange: freeze in place
+                onUnmarkTaken(courseId);
                 onToggleFreeze(courseId, year, sem);
             } else if (frozen) {
-                // Orange → Default: mark as taken
+                // Orange → Default: remove freeze
                 onUnmarkTaken(courseId);
             } else {
-                // Default → Green: freeze in place
+                // Default → Green: mark as taken
                 onMarkTaken(courseId, year, sem);
             }
         };
@@ -137,9 +138,9 @@ export default function ScheduleGrid({
                         className="schedule-course-content"
                         onClick={handleClick}
                         title={
-                            assigned ? "Click to un-mark (back to suggested)"
-                                : frozen ? "Click to mark as taken (green)"
-                                    : "Click to freeze (orange) — drag to move"
+                            assigned ? "Click to freeze (orange)"
+                                : frozen ? "Click to un-mark (default)"
+                                    : "Click to mark taken (green)"
                         }
                     >
                         <span>{courseId}</span>
