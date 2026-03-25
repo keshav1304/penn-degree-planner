@@ -404,34 +404,38 @@ pub fn create_cis_major() -> Major {
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4010".to_string(), "CIS 4110".to_string(), ] },
 
             Requirement::AnyOf {
-                possibilities: {
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                }
-            }
+                category: Some("Engineering".to_string()), 
+                possibilities: vec![
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                ]
+            },
             Requirement::AnyOf {
-                possibilities: {
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                }
-            }
+                category: Some("Engineering".to_string()), 
+                possibilities: vec![
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                ]
+            },
             Requirement::AnyOf {
-                possibilities: {
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                }
-            }
+                category: Some("Engineering".to_string()), 
+                possibilities: vec![
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                ]
+            },
             Requirement::AnyOf {
-                possibilities: {
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                    Requirement::Restriction { category: Some("Technical Electives - CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
-                }
-            }
+                category: Some("Engineering".to_string()), 
+                possibilities: vec![
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("CIS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                    Requirement::Restriction { category: Some("CIS Elective".to_string()), department: Some("NETS".to_string()), cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
+                ]
+            },
             
             // Math and Natural Science
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1400".to_string()] },
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1410".to_string(), "MATH 1610".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 2400".to_string(), "ESE 2030".to_string(), , "MATH 2600".to_string(), , "MATH 3120".to_string(), , "MATH 3130".to_string(), , "MATH 3140".to_string()] },
+            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 2400".to_string(), "ESE 2030".to_string(),"MATH 2600".to_string(), "MATH 3120".to_string(), "MATH 3130".to_string(), "MATH 3140".to_string()] },
             Requirement::Restriction { category: Some("Math and Natural Science - Math/Science Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUMA".to_string(), "EUNS".to_string()]), number: 1, excluding: None, no_school: None },
             
             Requirement::SingleCourse { category: Some("Math and Natural Science - E&M".to_string()), possibilities: vec!["PHYS 0151".to_string(), "PHYS 0171".to_string(), "ESE 1120".to_string()] },
