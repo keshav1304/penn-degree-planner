@@ -28,6 +28,7 @@ function saveState(state) {
       frozenCourses: state.frozenCourses,
       assignedCourses: state.assignedCourses,
       allowSummer: state.allowSummer,
+      maxPerSemester: state.maxPerSemester,
     }));
   } catch { }
 }
@@ -44,6 +45,7 @@ export default function Home() {
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [activeDragId, setActiveDragId] = useState(null);
   const [allowSummer, setAllowSummer] = useState(true);
+  const [maxPerSemester, setMaxPerSemester] = useState(5);
   const debounceRef = useRef(null);
 
   // Require 8px movement before starting drag (so clicks still work)
@@ -62,6 +64,7 @@ export default function Home() {
       setFrozenCourses(saved.frozenCourses || []);
       setAssignedCourses(saved.assignedCourses || []);
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
+      if (saved.maxPerSemester !== undefined) setMaxPerSemester(saved.maxPerSemester);
     }
 
     fetch(`${API_BASE}/all_courses`)
@@ -77,8 +80,8 @@ export default function Home() {
 
   // Auto-save on changes
   useEffect(() => {
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer]);
+    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxPerSemester });
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxPerSemester]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
@@ -114,6 +117,7 @@ export default function Home() {
           })),
           frozen: allFrozen,
           allow_summer: allowSummer,
+          max_per_semester: parseInt(maxPerSemester) || 5,
         }),
       });
       const data = await response.json();
@@ -123,7 +127,7 @@ export default function Home() {
       console.error("Schedule generation failed:", err);
     }
     setLoading(false);
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer]);
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxPerSemester]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -342,6 +346,22 @@ export default function Home() {
                       style={{ accentColor: "var(--accent-teal)" }}
                     />
                     ☀️ Summer courses
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                    Max/sem:
+                    <input
+                      type="number"
+                      min="1"
+                      max="8"
+                      value={maxPerSemester}
+                      onChange={e => setMaxPerSemester(e.target.value)}
+                      style={{
+                        width: 40, padding: "2px 4px", fontSize: "0.75rem",
+                        background: "var(--bg-secondary)", color: "var(--text-primary)",
+                        border: "1px solid var(--border-glass)", borderRadius: 4,
+                        textAlign: "center",
+                      }}
+                    />
                   </label>
                   {degrees.length > 0 && (
                     <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>

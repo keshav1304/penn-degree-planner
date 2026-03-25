@@ -55,7 +55,7 @@ struct SimpleResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct SampleInput {
+struct RootPostInput {
     taken: Vec<String>,
     major: String,
     school: String,
@@ -63,7 +63,7 @@ struct SampleInput {
 }
 
 #[derive(Serialize)]
-struct ApiOutput {
+struct RootPostOutput {
     fulfilled_requirements: Vec<MappedRequirement>,
     unfulfilled_requirements: Vec<Requirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
@@ -83,7 +83,7 @@ async fn root_get() -> Json<SimpleResponse> {
 use major::resolve_major;
 
 #[debug_handler]
-async fn root_post(Json(payload): Json<SampleInput>) -> Json<ApiOutput> {
+async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
     println!("POST / request made");
 
     let taken = payload.taken;
@@ -93,7 +93,7 @@ async fn root_post(Json(payload): Json<SampleInput>) -> Json<ApiOutput> {
 
     let major_req: Option<Major> = resolve_major(&school, &major, &concentration);
 
-    let response: ApiOutput;
+    let response: RootPostOutput;
 
     if let Some(major_req_unwrapped) = major_req {
         let (mut fulfilled_requirements, unfulfilled_requirements) = requirement::validate_courses_for_degree(major_req_unwrapped.requirements.clone(), &taken);
@@ -109,12 +109,12 @@ async fn root_post(Json(payload): Json<SampleInput>) -> Json<ApiOutput> {
                 }
             }
         }
-        response = ApiOutput {
+        response = RootPostOutput {
             fulfilled_requirements, unfulfilled_requirements, suggested_for_unfulfilled, unapplicable_courses,
             error: None
         };
     } else {
-        response = ApiOutput { 
+        response = RootPostOutput { 
             fulfilled_requirements: vec![], unfulfilled_requirements: vec![], 
             suggested_for_unfulfilled: vec![], unapplicable_courses: vec![],
             error: Some("Major provided is not valid or has no data associated with it yet!".to_string()),
@@ -217,6 +217,7 @@ struct ScheduleInput {
     degrees: Vec<DegreeInput>,
     frozen: Vec<FrozenCourse>,
     allow_summer: Option<bool>,
+    max_per_semester: Option<usize>,
 }
 
 #[derive(Serialize)]
@@ -249,6 +250,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     println!("POST /generate_schedule request made");
 
     let taken = &payload.taken;
+    taken.extend(&payload.frozen);
     let mut degree_results: Vec<DegreeResult> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
 
@@ -305,7 +307,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
     // Build schedule dynamically — expand semesters until ALL courses fit
     let allow_summer = payload.allow_summer.unwrap_or(true);
-    let max_fall_spring = 5usize;
+    let max_fall_spring = payload.max_per_semester.unwrap_or(5);
     let max_summer = 2usize;
 
     // Helper: ensure schedule has semesters for a given year
