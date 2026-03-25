@@ -290,6 +290,15 @@ export default function Home() {
           <h1>🎓 Penn Degree Planner</h1>
           <div className="header-actions">
             {loading && <div className="loading-spinner" />}
+            <a
+              href="https://forms.gle/tFzvnx3iNFVWk8PX8"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost btn-sm"
+              style={{ textDecoration: "none" }}
+            >
+              📝 Feedback / Bug Report
+            </a>
             <button className="btn btn-ghost btn-sm" onClick={clearAll}>
               Clear All
             </button>
