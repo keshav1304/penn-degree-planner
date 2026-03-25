@@ -398,8 +398,8 @@ pub fn create_cis_major() -> Major {
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 2400".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 2620".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 3200".to_string()] },
-            Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4480".to_string()] },
-            Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4710".to_string()] },
+            Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4480".to_string(), "CIS 5480".to_string()] },
+            Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4710".to_string(), "CIS 5710".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4000".to_string(), "CIS 4100".to_string(), ] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 4010".to_string(), "CIS 4110".to_string(), ] },
 
@@ -460,7 +460,7 @@ pub fn create_cis_major() -> Major {
             Requirement::Restriction { category: Some("Technical Electives".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUNG".to_string()]), number: 1, excluding: None, no_school: None },
 
             // General Electives
-            Requirement::SingleCourse { category: Some("General Electives".to_string()), possibilities: vec!["EAS 2030".to_string()] },
+            Requirement::SingleCourse { category: Some("General Electives".to_string()), possibilities: vec!["EAS 2030".to_string(), "CIS 4230".to_string(), "CIS 5230".to_string(), "LAWM 5060".to_string()] },
             Requirement::Restriction { category: Some("General Electives".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]), number: 1, excluding: None, no_school: None },
             Requirement::Restriction { category: Some("General Electives".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]), number: 1, excluding: None, no_school: None },
             Requirement::Restriction { category: Some("General Electives".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]), number: 1, excluding: None, no_school: None },
