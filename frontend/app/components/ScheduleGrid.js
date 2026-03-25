@@ -4,7 +4,7 @@ import { useState } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
 
-const YEAR_NAMES = { 0: "Freshman", 1: "Sophomore", 2: "Junior", 3: "Senior", 4: "5th Year" };
+const YEAR_NAMES = {};
 
 const DEGREE_COLORS = [
     "#a51c30",  // Penn red
