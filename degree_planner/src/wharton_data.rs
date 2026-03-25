@@ -168,7 +168,7 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                     cu: None, level: None, attr: Some(vec!["WUBC".to_string()]), excluding: None, number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - BUAN"), department: None, 
+                    category: Some("Concentration - BUAN".to_string()), department: None, 
                     cu: None, level: None, attr: Some(vec!["WUBD".to_string(), "WUBC".to_string(), "WUBO".to_string(), "WUBN".to_string()]), excluding: None, number: 1, no_school: None 
                 },
             ]

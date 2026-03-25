@@ -249,8 +249,9 @@ struct ScheduleOutput {
 async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<ScheduleOutput> {
     println!("POST /generate_schedule request made");
 
-    let taken = &payload.taken;
-    taken.extend(&payload.frozen);
+    let mut taken = payload.taken.clone();
+    let frozen = &payload.frozen;
+    taken.extend(frozen.iter().map(|x| x.course_id.clone()).collect::<Vec<_>>());
     let mut degree_results: Vec<DegreeResult> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
 
@@ -260,10 +261,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
         if let Some(major_data) = major_req {
             let (mut fulfilled, unfulfilled) = requirement::validate_courses_for_degree(
-                major_data.requirements.clone(), taken
+                major_data.requirements.clone(), &taken
             );
             fulfilled.sort_by_key(|r| r.requirement.get_category());
-            let suggested = requirement::suggest_courses_for_requirements(&unfulfilled, taken);
+            let suggested = requirement::suggest_courses_for_requirements(&unfulfilled, &taken);
 
             // Collect unique suggested courses
             for mapped in &suggested {
