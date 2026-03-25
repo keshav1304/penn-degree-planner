@@ -31,7 +31,7 @@ pub fn resolve_major(school: &str, major: &str, concentration: &Option<String>) 
                     Some(seas_data::create_meam_major(conc))
                 },
                 "MSE" => Some(seas_data::create_mse_major()),
-                "CIS" => None,
+                "CIS" => Some(seas_data::create_cis_major()),
                 "CBE" => None,
                 _ => None,
             }
