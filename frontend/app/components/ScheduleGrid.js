@@ -15,7 +15,7 @@ const DEGREE_COLORS = [
 
 export default function ScheduleGrid({
     scheduleData, frozenCourses, assignedCourses,
-    onToggleFreeze, onMarkTaken, degrees,
+    onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
@@ -113,10 +113,14 @@ export default function ScheduleGrid({
         else if (frozen) className += " frozen";
 
         const handleClick = () => {
-            if (assigned) return;
-            if (frozen) {
+            if (assigned) {
+                // Green → Default: un-mark taken
+                onUnmarkTaken(courseId);
+            } else if (frozen) {
+                // Orange → Green: mark as taken
                 onMarkTaken(courseId, year, sem);
             } else {
+                // Default → Orange: freeze in place
                 onToggleFreeze(courseId, year, sem);
             }
         };
@@ -133,9 +137,9 @@ export default function ScheduleGrid({
                         className="schedule-course-content"
                         onClick={handleClick}
                         title={
-                            assigned ? "Taken & locked — drag to move"
+                            assigned ? "Click to un-mark (back to suggested)"
                                 : frozen ? "Click to mark as taken (green)"
-                                    : "Click to freeze — drag to move"
+                                    : "Click to freeze (orange) — drag to move"
                         }
                     >
                         <span>{courseId}</span>

@@ -393,12 +393,8 @@ pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Flex Fundamentals - GEBS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUGE".to_string()]), excluding: None, number: 1, no_school: None },
             
             // Business Breadth
-            if (concentration_name.as_str() != "MGMT") {
-                Requirement::AnyOf { category: Some("Business Breadth".to_string()), possibilities: bb_requirement_options.clone() },
-            } else {
-                Requirement::AnyOf { category: Some("Business Breadth - I".to_string()), possibilities: bb_requirement_options.clone() },
-                Requirement::AnyOf { category: Some("Business Breadth - II".to_string()), possibilities: bb_requirement_options.clone() },
-            }
+            Requirement::AnyOf { category: Some("Business Breadth - I".to_string()), possibilities: bb_requirement_options.clone() },
+            Requirement::AnyOf { category: Some("Business Breadth - II".to_string()), possibilities: bb_requirement_options.clone() },
             
             // Jerome Fisher M&T
             Requirement::SingleCourse { category: Some("M&T Soph Course".to_string()), possibilities: vec!["MGMT 2370".to_string()] },

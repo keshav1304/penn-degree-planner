@@ -180,6 +180,12 @@ export default function Home() {
     });
   };
 
+  // Green → Default: un-mark a taken course (return to auto-suggested)
+  const unmarkTaken = (courseId) => {
+    setAssignedCourses(prev => prev.filter(a => a.courseId !== courseId));
+    setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
+  };
+
   const moveFrozenCourse = (courseId, newYear, newSemester) => {
     setFrozenCourses(prev => {
       const filtered = prev.filter(f => f.courseId !== courseId);
@@ -377,6 +383,7 @@ export default function Home() {
                   assignedCourses={assignedCourses}
                   onToggleFreeze={toggleFreeze}
                   onMarkTaken={markTaken}
+                  onUnmarkTaken={unmarkTaken}
                   degrees={degrees}
                   courseDegreesMap={courseDegreesMap}
                   courseRequirementMap={courseRequirementMap}
