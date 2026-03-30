@@ -184,7 +184,7 @@ export default function Home() {
   const unmarkTaken = (courseId) => {
     setAssignedCourses(prev => prev.filter(a => a.courseId !== courseId));
     setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
-    setTakenCourses(prev => prev.filter(t => t.courseId !== courseId));
+    setTakenCourses(prev => prev.filter(t => t !== courseId));
     console.log(takenCourses);
   };
 
