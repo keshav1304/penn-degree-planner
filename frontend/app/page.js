@@ -314,12 +314,14 @@ export default function Home() {
             const matchedSet = new Set(dc.dc_matched_courses?.flat() || []);
             (dc.base_courses || []).forEach((courseId) => {
               if (!dcCourseMap[courseId]) dcCourseMap[courseId] = [];
-              dcCourseMap[courseId].push({
-                dcIndex: dcIdx,
-                dcLabel,
-                dcCategory: dc.category,
-                isDoubleCountMatch: matchedSet.has(courseId),
-              });
+              if (!dcCourseMap[courseId].some(course => course.dcLabel === dcLabel)) {
+                dcCourseMap[courseId].push({
+                  dcIndex: dcIdx,
+                  dcLabel,
+                  dcCategory: dc.category,
+                  isDoubleCountMatch: matchedSet.has(courseId),
+                });
+              }
             });
           });
         }
