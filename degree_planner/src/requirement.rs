@@ -124,7 +124,7 @@ impl Requirement {
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for course in taken {
                     if let Some((dept, course_id)) = course.split_once(' ') { 
-                        let mut status = course_id.chars().all(|c| c.is_ascii_digit())
+                        let mut status = course_id.chars().all(|c| c.is_ascii_digit());
                         if let Some(excluding_courses) = excluding {
                             for excluded_course in excluding_courses {
                                 if excluded_course == course {
@@ -145,16 +145,16 @@ impl Requirement {
                             let nurs_dept_names: Vec<String> = Vec::new();
                             match school_name.as_str() {
                                 "WH" => {
-                                    status = status && wh_dept_names.contains(&dept.to_string());
+                                    status = status && !wh_dept_names.contains(&dept.to_string());
                                 },
                                 "SEAS" => {
-                                    status = status && seas_dept_names.contains(&dept.to_string());
+                                    status = status && !seas_dept_names.contains(&dept.to_string());
                                 },
                                 "CAS" => {
-                                    status = status && cas_dept_names.contains(&dept.to_string());
+                                    status = status && !cas_dept_names.contains(&dept.to_string());
                                 },
                                 "NURS" => {
-                                    status = status && nurs_dept_names.contains(&dept.to_string());
+                                    status = status && !nurs_dept_names.contains(&dept.to_string());
                                 },
                                 _ => {unimplemented!()}
                             }
