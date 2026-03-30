@@ -222,13 +222,17 @@ export default function Home() {
     if (!courseId || targetYear == null || !targetSemester) return;
 
     if (dragData.source === "cart") {
-      // Cart → Schedule: freeze in the slot (orange — planned but not yet taken)
-      // Remove any existing assignment first, then freeze
-      setAssignedCourses(prev => prev.filter(a => a.courseId !== courseId));
-      setFrozenCourses(prev => {
-        const filtered = prev.filter(f => f.courseId !== courseId);
-        return [...filtered, { courseId, year: targetYear, semester: targetSemester }];
-      });
+      // Cart → Credits Received: assign directly
+      if (targetYear === 0) {
+        assignCourse(courseId, targetYear, targetSemester);
+      } else {
+        // Cart → Schedule: freeze in the slot (orange — planned but not yet taken)
+        setAssignedCourses(prev => prev.filter(a => a.courseId !== courseId));
+        setFrozenCourses(prev => {
+          const filtered = prev.filter(f => f.courseId !== courseId);
+          return [...filtered, { courseId, year: targetYear, semester: targetSemester }];
+        });
+      }
     } else if (dragData.source === "search") {
       // Search → Schedule: add to cart AND assign in one action
       if (!takenCourses.includes(courseId)) {
@@ -236,19 +240,22 @@ export default function Home() {
       }
       assignCourse(courseId, targetYear, targetSemester);
     } else if (dragData.source === "schedule") {
-      // Schedule → Schedule: move course to new slot
-      const isUserAssigned = assignedCourses.some(a => a.courseId === courseId);
-      const isUserFrozen = frozenCourses.some(f => f.courseId === courseId);
-
-      if (isUserAssigned) {
-        // Move assigned course to new slot
+      // Schedule → Credits Received: assign to year 0
+      if (targetYear === 0) {
+        setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
         assignCourse(courseId, targetYear, targetSemester);
-      } else if (isUserFrozen) {
-        // Move frozen course to new slot
-        moveFrozenCourse(courseId, targetYear, targetSemester);
       } else {
-        // It's a suggested course — freeze it in the new slot
-        setFrozenCourses(prev => [...prev, { courseId, year: targetYear, semester: targetSemester }]);
+        // Schedule → Schedule: move course to new slot
+        const isUserAssigned = assignedCourses.some(a => a.courseId === courseId);
+        const isUserFrozen = frozenCourses.some(f => f.courseId === courseId);
+
+        if (isUserAssigned) {
+          assignCourse(courseId, targetYear, targetSemester);
+        } else if (isUserFrozen) {
+          moveFrozenCourse(courseId, targetYear, targetSemester);
+        } else {
+          setFrozenCourses(prev => [...prev, { courseId, year: targetYear, semester: targetSemester }]);
+        }
       }
     }
   };
@@ -286,6 +293,38 @@ export default function Home() {
       });
     }
     return { courseDegreesMap: degMap, courseRequirementMap: reqMap };
+  })();
+
+  // ─── Build double-count tracker data ───
+  const { doubleCountData, courseDoubleCountMap } = (() => {
+    const dcList = [];
+    const dcCourseMap = {}; // courseId → [{dcIndex, dcLabel, isDoubleCountMatch}]
+    if (scheduleData?.degree_results) {
+      let globalDcIndex = 0;
+      scheduleData.degree_results.forEach((result) => {
+        const degreeLabel = `${result.school}-${result.major}`;
+        if (result.double_count_info) {
+          result.double_count_info.forEach((dc) => {
+            const dcIdx = globalDcIndex++;
+            const dcLabel = `DC-${dcIdx + 1}`;
+            dcList.push({ ...dc, dcLabel, degreeLabel, dcIndex: dcIdx });
+
+            // Map base courses → this DC tracker
+            const matchedSet = new Set(dc.dc_matched_courses?.flat() || []);
+            (dc.base_courses || []).forEach((courseId) => {
+              if (!dcCourseMap[courseId]) dcCourseMap[courseId] = [];
+              dcCourseMap[courseId].push({
+                dcIndex: dcIdx,
+                dcLabel,
+                dcCategory: dc.category,
+                isDoubleCountMatch: matchedSet.has(courseId),
+              });
+            });
+          });
+        }
+      });
+    }
+    return { doubleCountData: dcList, courseDoubleCountMap: dcCourseMap };
   })();
 
   return (
@@ -388,6 +427,8 @@ export default function Home() {
                   courseDegreesMap={courseDegreesMap}
                   courseRequirementMap={courseRequirementMap}
                   allowSummer={allowSummer}
+                  doubleCountData={doubleCountData}
+                  courseDoubleCountMap={courseDoubleCountMap}
                 />
               </div>
             </div>

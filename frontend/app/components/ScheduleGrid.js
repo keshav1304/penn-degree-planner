@@ -13,10 +13,18 @@ const DEGREE_COLORS = [
     "#7c3aed",  // purple
 ];
 
+const DC_COLORS = [
+    "#6366f1",  // indigo
+    "#ec4899",  // pink
+    "#14b8a6",  // teal
+    "#f59e0b",  // amber
+];
+
 export default function ScheduleGrid({
     scheduleData, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
+    doubleCountData, courseDoubleCountMap,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [infoPopup, setInfoPopup] = useState(null); // { courseId, x, y }
@@ -105,6 +113,25 @@ export default function ScheduleGrid({
         );
     };
 
+    const renderDcBadges = (courseId) => {
+        const dcEntries = courseDoubleCountMap?.[courseId];
+        if (!dcEntries || dcEntries.length === 0) return null;
+        return (
+            <span className="dc-badges">
+                {dcEntries.map((entry, i) => (
+                    <span
+                        key={i}
+                        className={`dc-badge ${entry.isDoubleCountMatch ? "dc-badge-matched" : ""}`}
+                        style={{ borderColor: DC_COLORS[entry.dcIndex % DC_COLORS.length] }}
+                        title={`${entry.dcCategory} (${entry.dcLabel})${entry.isDoubleCountMatch ? " ✓ double-counted" : ""}`}
+                    >
+                        {entry.dcLabel}
+                    </span>
+                ))}
+            </span>
+        );
+    };
+
     const renderCourseCard = (courseId, year, sem, idx) => {
         const frozen = isFrozen(courseId);
         const assigned = isAssigned(courseId);
@@ -145,6 +172,7 @@ export default function ScheduleGrid({
                     >
                         <span>{courseId}</span>
                         <span className="course-card-actions">
+                            {renderDcBadges(courseId)}
                             {renderInfoButton(courseId)}
                             <span className="lock-icon">
                                 {assigned ? "📗" : frozen ? "🔒" : "📌"}
@@ -282,6 +310,57 @@ export default function ScheduleGrid({
                     {courseRequirementMap[infoPopup.courseId].map((entry, i) => (
                         <div key={i} className="course-info-popup-row">{entry}</div>
                     ))}
+                </div>
+            )}
+
+            {/* Double Count Tracker Bars */}
+            {doubleCountData && doubleCountData.length > 0 && (
+                <div className="dc-tracker-section">
+                    <div className="dc-tracker-title">🔗 Double Count Trackers</div>
+                    {doubleCountData.map((dc, i) => {
+                        const fulfilledCount = dc.dc_fulfilled?.filter(Boolean).length || 0;
+                        const totalCount = dc.dc_fulfilled?.length || 0;
+                        const allFulfilled = fulfilledCount === totalCount;
+                        const color = DC_COLORS[dc.dcIndex % DC_COLORS.length];
+                        return (
+                            <div
+                                key={i}
+                                className={`dc-tracker-bar ${allFulfilled ? "dc-tracker-fulfilled" : ""}`}
+                                style={{ borderLeftColor: color }}
+                            >
+                                <div className="dc-tracker-header">
+                                    <span className="dc-tracker-label" style={{ color }}>
+                                        {dc.dcLabel}
+                                    </span>
+                                    <span className="dc-tracker-category">
+                                        {dc.category}
+                                    </span>
+                                    <span className="dc-tracker-progress">
+                                        {fulfilledCount}/{totalCount}
+                                    </span>
+                                </div>
+                                <div className="dc-tracker-constraints">
+                                    {dc.dc_descriptions?.map((desc, j) => (
+                                        <div key={j} className="dc-constraint-row">
+                                            <span className="dc-constraint-status">
+                                                {dc.dc_fulfilled?.[j] ? "✅" : "❌"}
+                                            </span>
+                                            <span className="dc-constraint-desc">
+                                                {desc}
+                                            </span>
+                                            {dc.dc_fulfilled?.[j] && dc.dc_matched_courses?.[j]?.length > 0 && (
+                                                <span className="dc-constraint-courses">
+                                                    {dc.dc_matched_courses[j].map((c, k) => (
+                                                        <span key={k} className="dc-course-chip" style={{ borderColor: color }}>{c}</span>
+                                                    ))}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </div>

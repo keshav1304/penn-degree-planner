@@ -875,3 +875,146 @@ select {
     grid-template-columns: 70px repeat(3, 1fr);
   }
 }
+
+/* ============ DOUBLE COUNT TRACKER ============ */
+.dc-tracker-section {
+  margin-top: 8px;
+  padding: 14px 0 0;
+  border-top: 1px dashed var(--border-glass);
+}
+
+.dc-tracker-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.dc-tracker-bar {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-left: 4px solid;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  transition: all var(--transition);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.dc-tracker-bar:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.dc-tracker-fulfilled {
+  background: var(--success-dim);
+  border-color: var(--success);
+  border-left-color: var(--success) !important;
+}
+
+.dc-tracker-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.dc-tracker-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.dc-tracker-category {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dc-tracker-progress {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 2px 8px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-glass);
+}
+
+.dc-tracker-constraints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dc-constraint-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  padding: 3px 0;
+}
+
+.dc-constraint-status {
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.dc-constraint-desc {
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+}
+
+.dc-constraint-courses {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dc-course-chip {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border: 1.5px solid;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* ── DC Badges on course cards ── */
+.dc-badges {
+  display: flex;
+  gap: 2px;
+  margin-right: 2px;
+}
+
+.dc-badge {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 1px 4px;
+  border: 1.5px solid;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  white-space: nowrap;
+  line-height: 1.3;
+  transition: all var(--transition);
+}
+
+.dc-badge-matched {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--text-primary);
+  font-weight: 800;
+}
