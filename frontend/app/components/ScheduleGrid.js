@@ -80,6 +80,7 @@ export default function ScheduleGrid({
             setInfoPopup(null);
         } else {
             const rect = e.currentTarget.getBoundingClientRect();
+            console.log(rect)
             setInfoPopup({ courseId, x: rect.right, y: rect.top });
         }
     };
