@@ -263,7 +263,7 @@ impl Requirement {
                 composite_requirement.suggest_for_requirement(taken, attributes)
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
-                if (category.clone().unwrap_or("".to_string()).to_lowercase().contains("business breadth")) {
+                if (category.cat.to_lowercase().contains("business breadth")) {
                     println!("{}", category.clone().unwrap_or("".to_string()).to_lowercase());
                     return Some(vec!["1 WH Business Breadth".to_string()]);
                 }
