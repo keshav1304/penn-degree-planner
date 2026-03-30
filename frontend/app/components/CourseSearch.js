@@ -55,7 +55,7 @@ export default function CourseSearch({ allCourses, takenCourses, assignedCourses
                 <span className="icon">🔍</span>
                 <input
                     className="input"
-                    placeholder="Search courses (e.g. MATH 1400, Finance)…"
+                    placeholder="Search courses (e.g. MATH 1400)…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
