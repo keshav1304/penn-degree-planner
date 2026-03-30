@@ -291,7 +291,7 @@ impl Requirement {
                 return Some(vec![response]);
             },
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
-                // 1. Find which base requirements are still unfulfilled
+                // Find which base requirements are still unfulfilled
                 let mut taken_copy = taken.clone();
                 let mut unfulfilled_base: Vec<&Requirement> = Vec::new();
                 let mut fulfilled_base_courses: Vec<String> = Vec::new();
@@ -305,19 +305,7 @@ impl Requirement {
                     }
                 }
 
-                // 2. Check which double-counting requirements are still unfulfilled
-                //    (check against the courses that DID fulfill base reqs)
-                let mut dc_copy = fulfilled_base_courses.clone();
-                let mut unfulfilled_dc_count = 0usize;
-                for req in double_counting_requirements {
-                    if let Some(courses) = req.fulfills_requirement(&dc_copy, attributes) {
-                        dc_copy.retain(|x| !courses.contains(x));
-                    } else {
-                        unfulfilled_dc_count += 1;
-                    }
-                }
-
-                // 3. Build suggestions for unfulfilled base requirements
+                // Build suggestions for unfulfilled base requirements
                 let mut suggestions: Vec<String> = Vec::new();
                 for req in &unfulfilled_base {
                     if let Some(s) = req.suggest_for_requirement(taken, attributes) {
@@ -326,7 +314,6 @@ impl Requirement {
                 }
 
                 // Double-counting info is now exposed separately via extract_double_count_info
-
                 if suggestions.is_empty() {
                     return None;
                 }
@@ -437,16 +424,32 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
     let mut requirements_not_fulfilled = Vec::new();
 
     requirements.sort_by_key(|r| r.specificity_score());
+    println!("Requirements: {:?}", requirements);
     
     for req in requirements {
         let category_name = req.get_category();
-        
-        if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes) {
-            taken_mut.retain(|x| !courses_fulfilling.contains(x));
 
-            fulfilled_requirements.push(MappedRequirement { requirement: req, course_ids: courses_fulfilling } );
-        } else {
-            requirements_not_fulfilled.push(req);
+        match req {
+            Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
+                for base_req in base_requirements {
+                    if let Some(courses_fulfilling) = base_req.fulfills_requirement(&taken_mut, &attributes) {
+                        taken_mut.retain(|x| !courses_fulfilling.contains(x));
+
+                        fulfilled_requirements.push(MappedRequirement { requirement: base_req, course_ids: courses_fulfilling } );
+                    } else {
+                        requirements_not_fulfilled.push(base_req);
+                    }
+                }
+            }
+            _ => {
+                if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes) {
+                    taken_mut.retain(|x| !courses_fulfilling.contains(x));
+
+                    fulfilled_requirements.push(MappedRequirement { requirement: req, course_ids: courses_fulfilling } );
+                } else {
+                    requirements_not_fulfilled.push(req);
+                }
+            }
         }
     }
 
@@ -485,7 +488,19 @@ pub struct DoubleCountInfo {
 }
 
 /// Extract structured double-count metadata from a list of requirements and taken courses.
-pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<String>) -> Vec<DoubleCountInfo> {
+
+
+// use fulfilled_requirements
+// find all the requirements that are DoubleCount requirements
+// find all the base requirements that are fulfilled for that DoubleCount
+// put that into base_courses
+// find all the base requirements in the suggestions
+// put those suggestions into base_courses
+// find the double_counting requirements' descriptions and put those into dc_descriptions
+// check whether dc is fulfilled for that base_req and put into dc_matched_courses
+// and set dc_fulfilled to true if all are fulfilled
+
+pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<String>, fulfilled: &Vec<MappedRequirement>, suggested: &Vec<MappedRequirement>) -> Vec<DoubleCountInfo> {
     let attributes = attributes_data::create_attributes();
     let mut result = Vec::new();
 
@@ -494,12 +509,15 @@ pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<St
             let cat_name = category.clone().unwrap_or("Double Count".to_string());
 
             // 1. Find which base requirement courses are fulfilled
-            let mut taken_copy = taken.clone();
             let mut base_courses: Vec<String> = Vec::new();
-            for base_req in base_requirements {
-                if let Some(courses) = base_req.fulfills_requirement(&taken_copy, &attributes) {
-                    taken_copy.retain(|x| !courses.contains(x));
-                    base_courses.extend(courses);
+            for mapped_req in fulfilled {
+                if base_requirements.contains(&mapped_req.requirement) {
+                    base_courses.extend(mapped_req.course_ids.clone());
+                }
+            }
+            for mapped_req in suggested {
+                if base_requirements.contains(&mapped_req.requirement) {
+                    base_courses.extend(mapped_req.course_ids.clone());
                 }
             }
 
@@ -511,9 +529,7 @@ pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<St
 
             for dc_req in double_counting_requirements {
                 // Generate a human-readable description of this constraint
-                let desc = dc_req.suggest_for_requirement(&vec![], &HashMap::new())
-                    .map(|v| v.join(", "))
-                    .unwrap_or("constraint".to_string());
+                let desc = dc_req.create_requirement_description();
                 dc_descriptions.push(desc);
 
                 if let Some(courses) = dc_req.fulfills_requirement(&dc_pool, &attributes) {

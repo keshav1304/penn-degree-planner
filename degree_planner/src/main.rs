@@ -288,7 +288,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
             // Extract double-count metadata
             let dc_info = requirement::extract_double_count_info(
-                &major_data.requirements, &taken
+                &major_data.requirements, &taken, &fulfilled, &suggested
             );
 
             degree_results.push(DegreeResult {
