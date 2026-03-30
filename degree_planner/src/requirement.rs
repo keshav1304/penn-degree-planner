@@ -12,7 +12,7 @@ pub enum Requirement {
         possibilities: Vec<String>    
     },
 
-    // pi before you joinck N from possibilities
+    // pick before you join N from possibilities
     CourseGroup {
         category: Option<String>,
         number: i32,
@@ -74,7 +74,7 @@ impl Requirement {
     /// all the courses that do fulfill requirements
     pub fn fulfills_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>) -> Option<Vec<String>> {
         match self {
-            Requirement::SingleCourse { category, possibilities } => {
+            Requirement::SingleCourse { category, possibilities, .. } => {
                 for course in taken {
                     if possibilities.contains(course) {
                         return Some(vec![course.clone()]);
@@ -82,7 +82,7 @@ impl Requirement {
                 }
                 return None;
             },
-            Requirement::CourseGroup { category, number, possibilities } => {
+            Requirement::CourseGroup { category, number, possibilities, .. } => {
                 let mut courses_taken_in_possibilities = Vec::new();
                 for course in taken {
                     if possibilities.contains(course) {
@@ -95,7 +95,7 @@ impl Requirement {
                     return None;
                 }
             },
-            Requirement::AllOf { category, requirements } => {
+            Requirement::AllOf { category, requirements, .. } => {
                 let mut taken_copy = taken.clone();
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for req in requirements {
@@ -108,7 +108,7 @@ impl Requirement {
                 }
                 return Some(all_courses_fulfilled);
             },
-            Requirement::AnyOf { category, possibilities } => {
+            Requirement::AnyOf { category, possibilities, .. } => {
                 for req in possibilities {
                     if let Some(courses_fulfilled) = req.fulfills_requirement(taken, attributes) {
                         return Some(courses_fulfilled);
@@ -116,11 +116,11 @@ impl Requirement {
                 }
                 return None;
             },
-            Requirement::Concentration { category, number, requirements } => {
+            Requirement::Concentration { category, number, requirements, .. } => {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
                 composite_requirement.fulfills_requirement(taken, attributes)
             },
-            Requirement::Restriction { category, department, cu, level, attr, excluding, no_school, number } => {
+            Requirement::Restriction { category, department, cu, level, attr, excluding, no_school, number, .. } => {
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for course in taken {
                     if let Some((dept, course_id)) = course.split_once(' ') { 
@@ -263,6 +263,10 @@ impl Requirement {
                 composite_requirement.suggest_for_requirement(taken, attributes)
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
+                if (category.clone().unwrap_or("".to_string()).to_lowercase().contains("business breadth")) {
+                    println!("{}", category.clone().unwrap_or("".to_string()).to_lowercase());
+                    return Some(vec!["1 WH Business Breadth".to_string()]);
+                }
                 let mut response = format!("{} course(s)", number);
                 if let Some(dept) = department {
                     response += " from ";
@@ -278,7 +282,7 @@ impl Requirement {
                 }
                 if let Some(excluded_courses) = excluding {
                     response += " excluding ";
-                    response += &format!("{:?}", excluded_courses);
+                    response += &excluded_courses.join(", ");
                 }
                 if let Some(no_school_name) = no_school {
                     response += " not from ";
@@ -287,7 +291,46 @@ impl Requirement {
                 return Some(vec![response]);
             },
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
-                return Some(vec!["Double counting suggestions not yet implemented".to_string()]);
+                // 1. Find which base requirements are still unfulfilled
+                let mut taken_copy = taken.clone();
+                let mut unfulfilled_base: Vec<&Requirement> = Vec::new();
+                let mut fulfilled_base_courses: Vec<String> = Vec::new();
+
+                for req in base_requirements {
+                    if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes) {
+                        taken_copy.retain(|x| !courses.contains(x));
+                        fulfilled_base_courses.extend(courses);
+                    } else {
+                        unfulfilled_base.push(req);
+                    }
+                }
+
+                // 2. Check which double-counting requirements are still unfulfilled
+                //    (check against the courses that DID fulfill base reqs)
+                let mut dc_copy = fulfilled_base_courses.clone();
+                let mut unfulfilled_dc_count = 0usize;
+                for req in double_counting_requirements {
+                    if let Some(courses) = req.fulfills_requirement(&dc_copy, attributes) {
+                        dc_copy.retain(|x| !courses.contains(x));
+                    } else {
+                        unfulfilled_dc_count += 1;
+                    }
+                }
+
+                // 3. Build suggestions for unfulfilled base requirements
+                let mut suggestions: Vec<String> = Vec::new();
+                for req in &unfulfilled_base {
+                    if let Some(s) = req.suggest_for_requirement(taken, attributes) {
+                        suggestions.extend(s);
+                    }
+                }
+
+                // Double-counting info is now exposed separately via extract_double_count_info
+
+                if suggestions.is_empty() {
+                    return None;
+                }
+                return Some(suggestions);
             },
         }
     }
@@ -307,7 +350,27 @@ impl Requirement {
                 return "".to_string();
             }, 
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
-                return "".to_string();
+                let base_descs: Vec<String> = base_requirements.iter()
+                    .filter_map(|r| {
+                        let cat = r.get_category();
+                        if !cat.is_empty() { Some(cat) } else {
+                            let s = r.suggest_for_requirement(&vec![], &HashMap::new());
+                            s.map(|v| v.join(", "))
+                        }
+                    })
+                    .collect();
+                let dc_descs: Vec<String> = double_counting_requirements.iter()
+                    .filter_map(|r| {
+                        let s = r.suggest_for_requirement(&vec![], &HashMap::new());
+                        s.map(|v| v.join(", "))
+                    })
+                    .collect();
+                return format!(
+                    "Take: {}. ({} must also satisfy: {})",
+                    base_descs.join("; "),
+                    double_counting_requirements.len(),
+                    dc_descs.join("; ")
+                );
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
                 return "".to_string();
@@ -315,6 +378,52 @@ impl Requirement {
             Requirement::Concentration { category, number, requirements } => {
                 return "".to_string();
             }, 
+        }
+    }
+
+    /// Returns a specificity score — lower = more specific (should be matched first).
+    /// This ensures the greedy matcher processes narrow requirements before broad ones.
+    pub fn specificity_score(&self) -> usize {
+        match self {
+            Requirement::SingleCourse { possibilities, .. } => {
+                // Very specific: only a handful of exact courses
+                possibilities.len()
+            },
+            Requirement::CourseGroup { possibilities, .. } => {
+                possibilities.len()
+            },
+            Requirement::AllOf { requirements, .. } => {
+                // Sum of children — each sub-req adds specificity
+                requirements.iter().map(|r| r.specificity_score()).sum::<usize>().max(1)
+            },
+            Requirement::AnyOf { possibilities, .. } => {
+                // As specific as the most specific option
+                possibilities.iter().map(|r| r.specificity_score()).min().unwrap_or(100)
+            },
+            Requirement::Concentration { requirements, .. } => {
+                requirements.iter().map(|r| r.specificity_score()).sum::<usize>().max(1)
+            },
+            Requirement::DoubleCount { base_requirements, .. } => {
+                base_requirements.iter().map(|r| r.specificity_score()).sum::<usize>().max(1)
+            },
+            Requirement::Restriction { category, department, attr, no_school, .. } => {
+                // Business Breadth is extremely broad — push to the back
+                if let Some(cat) = category {
+                    if cat.to_lowercase().contains("business breadth") {
+                        return 500;
+                    }
+                    if cat.to_lowercase().contains("unrestricted") || cat.to_lowercase().contains("free elective") {
+                        return 1000;
+                    }
+                }
+                match (department.is_some(), attr.is_some(), no_school.is_some()) {
+                    (true, true, _) => 10,   // dept + attr: very specific
+                    (true, false, _) => 50,  // dept only
+                    (false, true, _) => 50,  // attr only
+                    (false, false, true) => 200, // "not from school X" — broad
+                    (false, false, false) => 1000, // completely unconstrained
+                }
+            },
         }
     }
 }
@@ -327,7 +436,7 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
     let mut taken_mut = taken.clone();
     let mut requirements_not_fulfilled = Vec::new();
 
-    requirements.sort();
+    requirements.sort_by_key(|r| r.specificity_score());
     
     for req in requirements {
         let category_name = req.get_category();
@@ -364,4 +473,68 @@ pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requireme
 pub struct MappedRequirement {
     pub requirement: Requirement,
     pub course_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct DoubleCountInfo {
+    pub category: String,
+    pub base_courses: Vec<String>,
+    pub dc_descriptions: Vec<String>,
+    pub dc_fulfilled: Vec<bool>,
+    pub dc_matched_courses: Vec<Vec<String>>,
+}
+
+/// Extract structured double-count metadata from a list of requirements and taken courses.
+pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<String>) -> Vec<DoubleCountInfo> {
+    let attributes = attributes_data::create_attributes();
+    let mut result = Vec::new();
+
+    for req in requirements {
+        if let Requirement::DoubleCount { category, double_counting_requirements, base_requirements } = req {
+            let cat_name = category.clone().unwrap_or("Double Count".to_string());
+
+            // 1. Find which base requirement courses are fulfilled
+            let mut taken_copy = taken.clone();
+            let mut base_courses: Vec<String> = Vec::new();
+            for base_req in base_requirements {
+                if let Some(courses) = base_req.fulfills_requirement(&taken_copy, &attributes) {
+                    taken_copy.retain(|x| !courses.contains(x));
+                    base_courses.extend(courses);
+                }
+            }
+
+            // 2. Check each double-counting constraint against base courses
+            let mut dc_pool = base_courses.clone();
+            let mut dc_descriptions = Vec::new();
+            let mut dc_fulfilled = Vec::new();
+            let mut dc_matched_courses: Vec<Vec<String>> = Vec::new();
+
+            for dc_req in double_counting_requirements {
+                // Generate a human-readable description of this constraint
+                let desc = dc_req.suggest_for_requirement(&vec![], &HashMap::new())
+                    .map(|v| v.join(", "))
+                    .unwrap_or("constraint".to_string());
+                dc_descriptions.push(desc);
+
+                if let Some(courses) = dc_req.fulfills_requirement(&dc_pool, &attributes) {
+                    dc_pool.retain(|x| !courses.contains(x));
+                    dc_fulfilled.push(true);
+                    dc_matched_courses.push(courses);
+                } else {
+                    dc_fulfilled.push(false);
+                    dc_matched_courses.push(vec![]);
+                }
+            }
+
+            result.push(DoubleCountInfo {
+                category: cat_name,
+                base_courses,
+                dc_descriptions,
+                dc_fulfilled,
+                dc_matched_courses,
+            });
+        }
+    }
+
+    result
 }

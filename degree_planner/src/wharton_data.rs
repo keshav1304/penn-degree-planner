@@ -335,13 +335,19 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
                     Requirement::Restriction { category: Some("Wharton Humanities".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string()]), excluding: None, number: 1, no_school: None },
                     Requirement::Restriction { category: Some("Wharton Natural Science & Math".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUNM".to_string()]), excluding: None, number: 1, no_school: None },
                     Requirement::Restriction { category: Some("Wharton Social Science".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: None, excluding: None, number: 3, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
                 ]
             },
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Cross Cultural".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
 
             // Unrestricted Electives
-            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 5, no_school: None },
+            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
         ].into_iter().chain(wh_concentrations.get(&concentration_name).unwrap().clone()).collect(),
         concentrations: Some(wh_concentrations),
     }

@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use course::Course;
 use requirement::Requirement;
 use requirement::MappedRequirement;
+use requirement::DoubleCountInfo;
 use major::Major;
 
 use axum:: {
@@ -235,6 +236,7 @@ struct DegreeResult {
     unfulfilled_requirements: Vec<Requirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
+    double_count_info: Vec<DoubleCountInfo>,
     error: Option<String>,
 }
 
@@ -284,6 +286,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 }
             }
 
+            // Extract double-count metadata
+            let dc_info = requirement::extract_double_count_info(
+                &major_data.requirements, &taken
+            );
+
             degree_results.push(DegreeResult {
                 school: degree.school.clone(),
                 major: degree.major.clone(),
@@ -291,6 +298,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 unfulfilled_requirements: unfulfilled,
                 suggested_for_unfulfilled: suggested,
                 unapplicable_courses: unapplicable,
+                double_count_info: dc_info,
                 error: None,
             });
         } else {
@@ -301,6 +309,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 unfulfilled_requirements: vec![],
                 suggested_for_unfulfilled: vec![],
                 unapplicable_courses: vec![],
+                double_count_info: vec![],
                 error: Some(format!("Major '{}' in school '{}' is not implemented yet.", degree.major, degree.school)),
             });
         }
