@@ -185,7 +185,6 @@ export default function Home() {
     setAssignedCourses(prev => prev.filter(a => a.courseId !== courseId));
     setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
     setTakenCourses(prev => prev.filter(t => t !== courseId));
-    console.log(takenCourses);
   };
 
   const moveFrozenCourse = (courseId, newYear, newSemester) => {
