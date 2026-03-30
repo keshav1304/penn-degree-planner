@@ -124,7 +124,7 @@ impl Requirement {
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for course in taken {
                     if let Some((dept, course_id)) = course.split_once(' ') { 
-                        let mut status = true;
+                        let mut status = course_id.chars().all(|c| c.is_ascii_digit())
                         if let Some(excluding_courses) = excluding {
                             for excluded_course in excluding_courses {
                                 if excluded_course == course {
@@ -424,7 +424,6 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
     let mut requirements_not_fulfilled = Vec::new();
 
     requirements.sort_by_key(|r| r.specificity_score());
-    println!("Requirements: {:?}", requirements);
     
     for req in requirements {
         let category_name = req.get_category();

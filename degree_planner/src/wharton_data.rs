@@ -312,9 +312,9 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Flex Fundamentals - WUTI".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUTI".to_string()]), excluding: None, number: 1, no_school: None },
             
             // Business Breadth
-            Requirement::AnyOf { category: Some("Business Breadth - 1".to_string()), possibilities: bb_requirement_options.clone() },
-            Requirement::AnyOf { category: Some("Business Breadth - 2".to_string()), possibilities: bb_requirement_options.clone() },
-            Requirement::AnyOf { category: Some("Business Breadth - 3".to_string()), possibilities: bb_requirement_options.clone() },
+            Requirement::AnyOf { category: Some("Business Breadth 1".to_string()), possibilities: bb_requirement_options.clone() },
+            Requirement::AnyOf { category: Some("Business Breadth 2".to_string()), possibilities: bb_requirement_options.clone() },
+            Requirement::AnyOf { category: Some("Business Breadth 3".to_string()), possibilities: bb_requirement_options.clone() },
 
             // Liberal Arts and Sciences (foreign language not required)
             // wuhm - 1
@@ -328,16 +328,16 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
             Requirement::DoubleCount {
                 category: Some("Liberal Arts and Sciences - SSH".to_string()), 
                 double_counting_requirements: vec![
-                    Requirement::Restriction { category: Some("Non-US CCP".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Non-US CCP".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences - Non-US CCP 1".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences - Non-US CCP 2".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
                 ],
                 base_requirements: vec![
                     Requirement::Restriction { category: Some("Wharton Humanities".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string()]), excluding: None, number: 1, no_school: None },
                     Requirement::Restriction { category: Some("Wharton Natural Science & Math".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUNM".to_string()]), excluding: None, number: 1, no_school: None },
                     Requirement::Restriction { category: Some("Wharton Social Science".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Non-Wharton Course".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                    Requirement::Restriction { category: Some("Non-Wharton Course".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                    Requirement::Restriction { category: Some("Non-Wharton Course".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: Some("Non-Wharton Course - 1".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: Some("Non-Wharton Course - 2".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: Some("Non-Wharton Course - 3".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
                 ]
             },
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - CCP".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
