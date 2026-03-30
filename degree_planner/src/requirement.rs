@@ -240,6 +240,9 @@ impl Requirement {
                 return None;
             },
             Requirement::AnyOf { category, possibilities } => {
+                if (category.clone().unwrap_or("".to_string()).to_lowercase().contains("business breadth")) {
+                    return Some(vec!["1 WH Business Breadth".to_string()]);
+                }
                 for req in possibilities {
                     match req.suggest_for_requirement(taken, attributes) {
                         Some(val) => return Some(val),
@@ -263,10 +266,6 @@ impl Requirement {
                 composite_requirement.suggest_for_requirement(taken, attributes)
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
-                println!("{}", category.clone().unwrap_or("".to_string()).to_lowercase());
-                if (category.clone().unwrap_or("".to_string()).to_lowercase().contains("business breadth")) {
-                    return Some(vec!["1 WH Business Breadth".to_string()]);
-                }
                 let mut response = format!("{} course(s)", number);
                 if let Some(dept) = department {
                     response += " from ";

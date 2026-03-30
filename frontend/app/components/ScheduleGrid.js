@@ -116,6 +116,8 @@ export default function ScheduleGrid({
 
     const renderDcBadges = (courseId) => {
         const dcEntries = courseDoubleCountMap?.[courseId];
+        console.log("course double count map");
+        console.log(courseDoubleCountMap);
         if (!dcEntries || dcEntries.length === 0) return null;
         return (
             <span className="dc-badges">
