@@ -81,7 +81,7 @@ export default function ScheduleGrid({
         } else {
             const rect = e.currentTarget.getBoundingClientRect();
             console.log(rect)
-            setInfoPopup({ courseId, x: rect.x, y: rect.y });
+            setInfoPopup({ courseId, x: rect.left, y: rect.bottom });
         }
     };
 
@@ -304,7 +304,7 @@ export default function ScheduleGrid({
             {infoPopup && courseRequirementMap?.[infoPopup.courseId] && (
                 <div
                     className="course-info-popup"
-                    style={{ position: "fixed", left: infoPopup.x, top: infoPopup.y }}
+                    style={{ position: "fixed", left: infoPopup.x, top: infoPopup.y, border: "2px solid red" }}
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="course-info-popup-title">{infoPopup.courseId}</div>
