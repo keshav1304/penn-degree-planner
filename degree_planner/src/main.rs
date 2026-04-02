@@ -9,7 +9,7 @@ pub mod seas_data;
 pub mod wharton_data;
 pub mod courses_data;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use course::Course;
 use requirement::Requirement;
@@ -169,7 +169,7 @@ async fn course_get(Query(params): Query<CourseGetParams>) -> Json<Course> {
                         description: None,
                         semester: None,
                         prereq: None,
-                        cu: "0.0".to_string(),
+                        cu: 0.0,
                         also_offered_as: None,
                         mutually_exclusive: None,
                         coreq: None,
@@ -186,7 +186,7 @@ async fn course_get(Query(params): Query<CourseGetParams>) -> Json<Course> {
                 description: None,
                 semester: None,
                 prereq: None,
-                cu: "0.0".to_string(),
+                cu: 0.0,
                 also_offered_as: None,
                 mutually_exclusive: None,
                 coreq: None,
@@ -218,7 +218,7 @@ struct ScheduleInput {
     degrees: Vec<DegreeInput>,
     frozen: Vec<FrozenCourse>,
     allow_summer: Option<bool>,
-    max_per_semester: Option<usize>,
+    max_cu_per_semester: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -226,6 +226,7 @@ struct SemesterPlan {
     year: i32,
     semester: String,
     courses: Vec<String>,
+    total_cu: f64,
 }
 
 #[derive(Serialize)]
@@ -315,10 +316,20 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         }
     }
 
+    // Build a CU lookup map from all courses
+    let all_courses = courses_data::all_courses();
+    let cu_map: HashMap<String, f64> = all_courses.iter()
+        .map(|c| (c.course_code.clone(), c.cu))
+        .collect();
+
+    let get_cu = |course_id: &str| -> f64 {
+        *cu_map.get(course_id).unwrap_or(&1.0)
+    };
+
     // Build schedule dynamically — expand semesters until ALL courses fit
     let allow_summer = payload.allow_summer.unwrap_or(true);
-    let max_fall_spring = payload.max_per_semester.unwrap_or(5);
-    let max_summer = 2usize;
+    let max_cu_fall_spring = payload.max_cu_per_semester.unwrap_or(5.0);
+    let max_cu_summer = 2.0_f64;
 
     // Helper: ensure schedule has semesters for a given year
     let mut schedule: Vec<SemesterPlan> = Vec::new();
@@ -326,10 +337,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let ensure_year = |schedule: &mut Vec<SemesterPlan>, year: i32, allow_summer: bool| {
         let has_fall = schedule.iter().any(|p| p.year == year && p.semester == "Fall");
         if !has_fall {
-            schedule.push(SemesterPlan { year, semester: "Fall".to_string(), courses: Vec::new() });
-            schedule.push(SemesterPlan { year, semester: "Spring".to_string(), courses: Vec::new() });
+            schedule.push(SemesterPlan { year, semester: "Fall".to_string(), courses: Vec::new(), total_cu: 0.0 });
+            schedule.push(SemesterPlan { year, semester: "Spring".to_string(), courses: Vec::new(), total_cu: 0.0 });
             if allow_summer {
-                schedule.push(SemesterPlan { year, semester: "Summer".to_string(), courses: Vec::new() });
+                schedule.push(SemesterPlan { year, semester: "Summer".to_string(), courses: Vec::new(), total_cu: 0.0 });
             }
             // Re-sort so semesters are in order
             schedule.sort_by(|a, b| {
@@ -350,7 +361,9 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         for plan in schedule.iter_mut() {
             if plan.year == frozen.year && plan.semester == frozen.semester {
                 if !plan.courses.contains(&frozen.course_id) {
+                    let cu = get_cu(&frozen.course_id);
                     plan.courses.push(frozen.course_id.clone());
+                    plan.total_cu += cu;
                 }
             }
         }
@@ -368,25 +381,37 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
         let mut placed_any = false;
 
-        // First pass: fill Fall/Spring slots (max 5 each)
+        // First pass: fill Fall/Spring slots (up to max CU each)
         for plan in schedule.iter_mut() {
             if plan.semester == "Summer" || remaining.is_empty() {
                 continue;
             }
-            while plan.courses.len() < max_fall_spring && !remaining.is_empty() {
-                plan.courses.push(remaining.remove(0));
+            while !remaining.is_empty() {
+                let cu = get_cu(&remaining[0]);
+                if plan.total_cu + cu > max_cu_fall_spring && !plan.courses.is_empty() {
+                    break; // Would exceed limit (but always allow at least 1 course)
+                }
+                let course = remaining.remove(0);
+                plan.total_cu += cu;
+                plan.courses.push(course);
                 placed_any = true;
             }
         }
 
-        // Second pass: fill Summer slots if allowed (max 2 each)
+        // Second pass: fill Summer slots if allowed (up to max CU)
         if allow_summer && !remaining.is_empty() {
             for plan in schedule.iter_mut() {
                 if plan.semester != "Summer" || remaining.is_empty() {
                     continue;
                 }
-                while plan.courses.len() < max_summer && !remaining.is_empty() {
-                    plan.courses.push(remaining.remove(0));
+                while !remaining.is_empty() {
+                    let cu = get_cu(&remaining[0]);
+                    if plan.total_cu + cu > max_cu_summer && !plan.courses.is_empty() {
+                        break;
+                    }
+                    let course = remaining.remove(0);
+                    plan.total_cu += cu;
+                    plan.courses.push(course);
                     placed_any = true;
                 }
             }
@@ -400,7 +425,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             break;
         }
 
-        // Safety: if nothing was placed and we still have courses, something is wrong
+        // Safety: if nothing was placed and we still have courses, add a year
         if !placed_any && !remaining.is_empty() {
             let max_year = schedule.iter().map(|p| p.year).max().unwrap_or(4);
             ensure_year(&mut schedule, max_year + 1, allow_summer);

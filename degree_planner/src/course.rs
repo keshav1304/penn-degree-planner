@@ -10,7 +10,7 @@ pub struct Course {
     pub description: Option<String>,
     pub semester: Option<String>,
     pub prereq: Option<String>,
-    pub cu: String,
+    pub cu: f64,
     pub also_offered_as: Option<String>,
     pub mutually_exclusive: Option<String>,
     pub coreq: Option<String>,

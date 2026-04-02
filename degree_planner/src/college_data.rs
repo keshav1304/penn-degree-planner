@@ -9,7 +9,7 @@ pub fn create_econ_major() -> Major {
         name: "Economics".to_string(), 
         requirements: vec![
             // Foundational College
-            Requirement::Restriction { category: Some("Introduction".to_string()), department: Some("WRIT".to_string()), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },    
+            Requirement::Restriction { category: Some("Introduction".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },    
         
             // Introduction
             Requirement::SingleCourse { category: Some("Introduction".to_string()), possibilities: vec!["ECON 0100".to_string()] },
@@ -35,7 +35,7 @@ pub fn create_econ_major() -> Major {
             Requirement::SingleCourse { category: Some("Econometrics".to_string()), possibilities: vec!["ECON 2310".to_string()] },
 
             // ECON Electives
-            Requirement::Restriction { category: Some("ECON Electives".to_string()), department: Some("ECON".to_string()), cu: None, level: Some(4000), attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("ECON Electives".to_string()), department: Some(vec!["ECON".to_string()]), cu: None, level: Some(4000), attr: None, excluding: None, number: 1, no_school: None },
 
             // Mathematics
             Requirement::AnyOf {

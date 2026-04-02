@@ -27,6 +27,31 @@ def rs_opt_string(s: str) -> str:
     s = s.strip()
     return f'Some("{rs_escape(s)}".to_string())' if s else "None"
 
+def parse_cu(s: str) -> float:
+    """Parse a CU value to a float. For ranges like '0.5-1', take the max. For comma-separated like '1,2', take the max."""
+    s = s.strip()
+    if not s:
+        return 1.0
+    # Handle comma-separated (e.g. '0.5,1' or '1,2')
+    if ',' in s:
+        try:
+            return max(float(x.strip()) for x in s.split(',') if x.strip())
+        except ValueError:
+            return 1.0
+    # Handle ranges (e.g. '0-1', '0.5-1.5') — split on '-' but be careful with negatives/decimals
+    if '-' in s:
+        parts = s.split('-')
+        try:
+            nums = [float(p.strip()) for p in parts if p.strip()]
+            return max(nums) if nums else 1.0
+        except ValueError:
+            return 1.0
+    # Plain number
+    try:
+        return float(s)
+    except ValueError:
+        return 1.0
+
 def emit_course_push(row: dict) -> str:
     """Generates a single v.push(...) statement."""
     return f"""    v.push(Course {{
@@ -36,7 +61,7 @@ def emit_course_push(row: dict) -> str:
         description: {rs_opt_string(row.get(COL_DESC, "").strip())},
         semester: {rs_opt_string(row.get(COL_SEMESTER, "").strip())},
         prereq: {rs_opt_string(row.get(COL_PREREQ, "").strip())},
-        cu: {rs_string(row.get(COL_CU, "").strip() or "1")},
+        cu: {parse_cu(row.get(COL_CU, ''))}_f64,
         also_offered_as: {rs_opt_string(row.get(COL_ALSO, "").strip())},
         mutually_exclusive: {rs_opt_string(row.get(COL_MUTEX, "").strip())},
         coreq: {rs_opt_string(row.get(COL_COREQ, "").strip())},

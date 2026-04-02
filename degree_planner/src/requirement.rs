@@ -41,7 +41,7 @@ pub enum Requirement {
     // pick how many ever from a restricted set of possibilities
     Restriction {
         category: Option<String>,
-        department: Option<String>,
+        department: Option<Vec<String>>,
         cu: Option<i32>,
         level: Option<i32>,
         attr: Option<Vec<String>>,
@@ -159,8 +159,8 @@ impl Requirement {
                                 _ => {unimplemented!()}
                             }
                         }
-                        if let Some(department_name) = department {
-                            status = status && (dept == department_name);
+                        if let Some(department_names) = department {
+                            status = status && department_names.contains(&dept.to_string());
                         }
                         if let Some(min_level) = level {
                             status = status && (course_id.parse::<i32>().expect("Failed to parse course level") >= *min_level);
@@ -267,9 +267,9 @@ impl Requirement {
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
                 let mut response = format!("{} course(s)", number);
-                if let Some(dept) = department {
+                if let Some(depts) = department {
                     response += " from ";
-                    response += dept;
+                    response += &depts.join("/");
                 }
                 if let Some(min_level) = level {
                     response += " with minimum level ";

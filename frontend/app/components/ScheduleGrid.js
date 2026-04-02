@@ -24,10 +24,15 @@ export default function ScheduleGrid({
     scheduleData, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
-    doubleCountData, courseDoubleCountMap,
+    doubleCountData, courseDoubleCountMap, allCourses,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [infoPopup, setInfoPopup] = useState(null); // { courseId, x, y }
+
+    // Build CU lookup from allCourses
+    const cuMap = {};
+    (allCourses || []).forEach(c => { cuMap[c.course_code] = c.cu; });
+    const getCu = (courseId) => cuMap[courseId] ?? 1.0;
 
     if (!degrees || degrees.length === 0) {
         return (
@@ -173,6 +178,7 @@ export default function ScheduleGrid({
                     >
                         <span>{courseId}</span>
                         <span className="course-card-actions">
+                            <span className="course-cu-label">{getCu(courseId)} CU</span>
                             {renderDcBadges(courseId)}
                             {renderInfoButton(courseId)}
                             <span className="lock-icon">
@@ -281,6 +287,11 @@ export default function ScheduleGrid({
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
                                 {courses.length === 0 && (
                                     <div className="drop-hint">Drop courses here</div>
+                                )}
+                                {courses.length > 0 && (
+                                    <div className="semester-cu-total">
+                                        {plan?.total_cu != null ? plan.total_cu.toFixed(1) : courses.reduce((s, c) => s + getCu(c), 0).toFixed(1)} CU
+                                    </div>
                                 )}
                             </DroppableSemester>
                         );

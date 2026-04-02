@@ -9,19 +9,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "FNCE".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - FNCE".to_string()), department: Some("FNCE".to_string()), 
+                    category: Some("Concentration - FNCE".to_string()), department: Some(vec!["FNCE".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["FNCE 1010", "FNCE 1000"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - FNCE".to_string()), department: Some("FNCE".to_string()), 
+                    category: Some("Concentration - FNCE".to_string()), department: Some(vec!["FNCE".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["FNCE 1010", "FNCE 1000"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - FNCE".to_string()), department: Some("FNCE".to_string()), 
+                    category: Some("Concentration - FNCE".to_string()), department: Some(vec!["FNCE".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["FNCE 1010", "FNCE 1000"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - FNCE".to_string()), department: Some("FNCE".to_string()), 
+                    category: Some("Concentration - FNCE".to_string()), department: Some(vec!["FNCE".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["FNCE 1010", "FNCE 1000"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -30,19 +30,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "STAT".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - STAT".to_string()), department: Some("STAT".to_string()), 
+                    category: Some("Concentration - STAT".to_string()), department: Some(vec!["STAT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["STAT 1010", "STAT 1020", "STAT 4300", "STAT 4310"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - STAT".to_string()), department: Some("STAT".to_string()), 
+                    category: Some("Concentration - STAT".to_string()), department: Some(vec!["STAT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["STAT 1010", "STAT 1020", "STAT 4300", "STAT 4310"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - STAT".to_string()), department: Some("STAT".to_string()), 
+                    category: Some("Concentration - STAT".to_string()), department: Some(vec!["STAT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["STAT 1010", "STAT 1020", "STAT 4300", "STAT 4310"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - STAT".to_string()), department: Some("STAT".to_string()), 
+                    category: Some("Concentration - STAT".to_string()), department: Some(vec!["STAT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["STAT 1010", "STAT 1020", "STAT 4300", "STAT 4310"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -51,19 +51,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "OIDD".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some("OIDD".to_string()), 
+                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some("OIDD".to_string()), 
+                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some("OIDD".to_string()), 
+                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some("OIDD".to_string()), 
+                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -72,19 +72,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "MKTG".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - MKTG".to_string()), department: Some("MKTG".to_string()), 
+                    category: Some("Concentration - MKTG".to_string()), department: Some(vec!["MKTG".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MKTG 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - MKTG".to_string()), department: Some("MKTG".to_string()), 
+                    category: Some("Concentration - MKTG".to_string()), department: Some(vec!["MKTG".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MKTG 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - MKTG".to_string()), department: Some("MKTG".to_string()), 
+                    category: Some("Concentration - MKTG".to_string()), department: Some(vec!["MKTG".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MKTG 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - MKTG".to_string()), department: Some("MKTG".to_string()), 
+                    category: Some("Concentration - MKTG".to_string()), department: Some(vec!["MKTG".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MKTG 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -93,19 +93,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "MGMT".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - MGMT".to_string()), department: Some("MGMT".to_string()), 
+                    category: Some("Concentration - MGMT".to_string()), department: Some(vec!["MGMT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MGMT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - MGMT".to_string()), department: Some("MGMT".to_string()), 
+                    category: Some("Concentration - MGMT".to_string()), department: Some(vec!["MGMT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MGMT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - MGMT".to_string()), department: Some("MGMT".to_string()), 
+                    category: Some("Concentration - MGMT".to_string()), department: Some(vec!["MGMT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MGMT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - MGMT".to_string()), department: Some("MGMT".to_string()), 
+                    category: Some("Concentration - MGMT".to_string()), department: Some(vec!["MGMT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["MGMT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -114,19 +114,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "ACCT".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - ACCT".to_string()), department: Some("ACCT".to_string()), 
+                    category: Some("Concentration - ACCT".to_string()), department: Some(vec!["ACCT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["ACCT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - ACCT".to_string()), department: Some("ACCT".to_string()), 
+                    category: Some("Concentration - ACCT".to_string()), department: Some(vec!["ACCT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["ACCT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - ACCT".to_string()), department: Some("ACCT".to_string()), 
+                    category: Some("Concentration - ACCT".to_string()), department: Some(vec!["ACCT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["ACCT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - ACCT".to_string()), department: Some("ACCT".to_string()), 
+                    category: Some("Concentration - ACCT".to_string()), department: Some(vec!["ACCT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["ACCT 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -135,19 +135,19 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "BEPP".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - BEPP".to_string()), department: Some("BEPP".to_string()), 
+                    category: Some("Concentration - BEPP".to_string()), department: Some(vec!["BEPP".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["BEPP 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - BEPP".to_string()), department: Some("BEPP".to_string()), 
+                    category: Some("Concentration - BEPP".to_string()), department: Some(vec!["BEPP".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["BEPP 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - BEPP".to_string()), department: Some("BEPP".to_string()), 
+                    category: Some("Concentration - BEPP".to_string()), department: Some(vec!["BEPP".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["BEPP 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - BEPP".to_string()), department: Some("BEPP".to_string()), 
+                    category: Some("Concentration - BEPP".to_string()), department: Some(vec!["BEPP".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["BEPP 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
@@ -184,7 +184,7 @@ pub fn create_wh_fl_major(concentration_name: String) -> Major {
     let mut bb_requirement_options = Vec::new();
 
     for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(option.to_string()), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
+        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
     }
 
     return Major {
@@ -200,7 +200,7 @@ pub fn create_wh_fl_major(concentration_name: String) -> Major {
                 ] }
             ] },
             Requirement::SingleCourse { category: Some("First-Year Foundations".to_string()), possibilities: vec!["MATH 1400".to_string(), "MATH 1070".to_string()] },
-            Requirement::Restriction { category: Some("First-Year Foundations".to_string()), department: Some("WRIT".to_string()), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("First-Year Foundations".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
 
             // Leadership Journey
             Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 1010".to_string()] },
@@ -270,7 +270,7 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
     let mut bb_requirement_options = Vec::new();
 
     for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(option.to_string()), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
+        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
     }
 
     return Major {
@@ -286,7 +286,7 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
                 ] }
             ] },
             Requirement::SingleCourse { category: Some("First-Year Foundations - Math".to_string()), possibilities: vec!["MATH 1400".to_string(), "MATH 1070".to_string()] },
-            Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some("WRIT".to_string()), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
 
             // Leadership Journey
             Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] },
@@ -361,7 +361,7 @@ pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
     let mut bb_requirement_options = Vec::new();
 
     for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(option.to_string()), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
+        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
     }
 
     return Major {
@@ -377,7 +377,7 @@ pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
                 ] }
             ] },
             Requirement::SingleCourse { category: Some("First-Year Foundations - Math".to_string()), possibilities: vec!["MATH 1400".to_string(), "MATH 1070".to_string()] },
-            Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some("WRIT".to_string()), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
 
             // Leadership Journey
             Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] },

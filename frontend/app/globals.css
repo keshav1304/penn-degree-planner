@@ -596,6 +596,25 @@ select {
   gap: 2px;
 }
 
+.course-cu-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-right: 3px;
+  white-space: nowrap;
+}
+
+.semester-cu-total {
+  margin-top: 6px;
+  padding: 4px 0;
+  border-top: 1px dashed var(--border-glass);
+  text-align: right;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-teal);
+  letter-spacing: 0.3px;
+}
+
 .course-info-btn {
   background: none;
   border: none;
