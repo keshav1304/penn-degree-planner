@@ -18,11 +18,13 @@ function parseMajorCode(displayName) {
 
 // Maps for major code → API major code
 const MAJOR_API_MAP = {
+    CE: "CE",
     EE: "EE",
     CIS: "CIS",
     MEAM: "MEAM",
     MSE: "MSE",
     CBE: "CBE",
+    AI: "AI",
     FL: "WH_FL",
     NO_FL: "WH_NOFL",
     NOFL_MT: "WH_NOFL_MT",

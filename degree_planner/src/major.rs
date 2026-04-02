@@ -15,7 +15,7 @@ pub struct Major {
 pub fn all_majors () -> BTreeMap<String, Vec<String>> {
     BTreeMap::from([
         ("College of Arts and Sciences (CAS)".to_string(), ["Not implemented (NA)"].map(String::from).to_vec()),
-        ("School of Engineering and Applied Science (SEAS)".to_string(), ["Electrical Engineering (EE)", "Computer Science, BSE (CIS)", "Mechanical Engineering and Applied Mechanics (MEAM)", "Material Science and Engineering (MSE)"].map(String::from).to_vec()),
+        ("School of Engineering and Applied Science (SEAS)".to_string(), ["Electrical Engineering (EE)", "Computer Science, BSE (CIS)", "Mechanical Engineering and Applied Mechanics (MEAM)", "Material Science and Engineering (MSE)", "Artificial Intelligence (AI)", "Computer Engineering (CE)"].map(String::from).to_vec()),
         ("The Wharton School (WH)".to_string(), ["Foreign Language Required (FL)", "Foreign Language Exempt (NO_FL)", "M&T - Foreign Language Exempt (NOFL_MT)"].map(String::from).to_vec()),
         ("School of Nursing (NURS)".to_string(), ["Not implemented (NA)"].map(String::from).to_vec()),
     ])
@@ -32,6 +32,8 @@ pub fn resolve_major(school: &str, major: &str, concentration: &Option<String>) 
                 },
                 "MSE" => Some(seas_data::create_mse_major()),
                 "CIS" => Some(seas_data::create_cis_major()),
+                "AI" => Some(seas_data::create_ai_major()),
+                "CE" => Some(seas_data::create_compe_major()),
                 "CBE" => None,
                 _ => None,
             }
