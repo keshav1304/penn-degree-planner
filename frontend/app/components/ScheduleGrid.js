@@ -25,6 +25,7 @@ export default function ScheduleGrid({
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
     doubleCountData, courseDoubleCountMap, allCourses,
+    semesterCuLimits, onSetSemesterCuLimit,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [infoPopup, setInfoPopup] = useState(null); // { courseId, x, y }
@@ -176,15 +177,17 @@ export default function ScheduleGrid({
                                     : "Click to mark taken (green)"
                         }
                     >
-                        <span>{courseId}</span>
-                        <span className="course-card-actions">
-                            <span className="course-cu-label">{getCu(courseId)} CU</span>
-                            {renderDcBadges(courseId)}
-                            {renderInfoButton(courseId)}
+                        <span className="course-name-cell">
                             <span className="lock-icon">
                                 {assigned ? "📗" : frozen ? "🔒" : "📌"}
                             </span>
+                            {courseId}
                         </span>
+                        <span className="course-card-actions">
+                            {renderDcBadges(courseId)}
+                            {renderInfoButton(courseId)}
+                        </span>
+                        <span className="course-cu-cell">{getCu(courseId)}</span>
                     </div>
                 </div>
             </DraggableCourse>
@@ -284,13 +287,34 @@ export default function ScheduleGrid({
                                         <span style={{ float: "right", fontWeight: 400 }}>{courses.length}</span>
                                     )}
                                 </div>
+                                {courses.length > 0 && (
+                                    <div className="semester-cu-header-row">
+                                        <span>Course</span>
+                                        <span>CU</span>
+                                    </div>
+                                )}
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
                                 {courses.length === 0 && (
                                     <div className="drop-hint">Drop courses here</div>
                                 )}
                                 {courses.length > 0 && (
                                     <div className="semester-cu-total">
-                                        {plan?.total_cu != null ? plan.total_cu.toFixed(1) : courses.reduce((s, c) => s + getCu(c), 0).toFixed(1)} CU
+                                        <span className="semester-cu-total-label">Total</span>
+                                        <input
+                                            className="semester-cu-total-input"
+                                            type="number"
+                                            step="0.5"
+                                            min="0.5"
+                                            value={semesterCuLimits?.[`${year}-${sem}`] ?? (plan?.total_cu != null ? plan.total_cu : courses.reduce((s, c) => s + getCu(c), 0))}
+                                            onChange={e => {
+                                                const val = parseFloat(e.target.value);
+                                                if (!isNaN(val) && val > 0) {
+                                                    onSetSemesterCuLimit?.(`${year}-${sem}`, val);
+                                                }
+                                            }}
+                                            title="Set max CU for this semester"
+                                            onClick={e => e.stopPropagation()}
+                                        />
                                     </div>
                                 )}
                             </DroppableSemester>

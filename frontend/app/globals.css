@@ -596,23 +596,82 @@ select {
   gap: 2px;
 }
 
-.course-cu-label {
-  font-size: 0.6rem;
+.course-name-cell {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.course-cu-cell {
+  width: 28px;
+  text-align: right;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--text-muted);
-  margin-right: 3px;
-  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.semester-cu-header-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 6px 2px 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  opacity: 0.6;
+  border-bottom: 1px solid var(--border-glass);
+  margin-bottom: 2px;
 }
 
 .semester-cu-total {
-  margin-top: 6px;
-  padding: 4px 0;
-  border-top: 1px dashed var(--border-glass);
+  margin-top: 4px;
+  padding: 4px 0 2px;
+  border-top: 1.5px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.semester-cu-total-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.semester-cu-total-input {
+  width: 38px;
   text-align: right;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: var(--accent-teal);
-  letter-spacing: 0.3px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 1px 4px;
+  transition: border-color var(--transition), background var(--transition);
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.semester-cu-total-input::-webkit-outer-spin-button,
+.semester-cu-total-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.semester-cu-total-input:hover,
+.semester-cu-total-input:focus {
+  border-color: var(--accent-teal);
+  background: var(--bg-secondary);
 }
 
 .course-info-btn {

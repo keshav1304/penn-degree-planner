@@ -219,6 +219,7 @@ struct ScheduleInput {
     frozen: Vec<FrozenCourse>,
     allow_summer: Option<bool>,
     max_cu_per_semester: Option<f64>,
+    semester_cu_limits: Option<HashMap<String, f64>>,
 }
 
 #[derive(Serialize)]
@@ -328,8 +329,20 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
     // Build schedule dynamically — expand semesters until ALL courses fit
     let allow_summer = payload.allow_summer.unwrap_or(true);
-    let max_cu_fall_spring = payload.max_cu_per_semester.unwrap_or(5.0);
-    let max_cu_summer = 2.0_f64;
+    let default_max_cu = payload.max_cu_per_semester.unwrap_or(5.0);
+    let default_max_cu_summer = 2.0_f64;
+    let sem_limits = payload.semester_cu_limits.unwrap_or_default();
+
+    let get_max_cu = |year: i32, semester: &str| -> f64 {
+        let key = format!("{}-{}", year, semester);
+        if let Some(&limit) = sem_limits.get(&key) {
+            limit
+        } else if semester == "Summer" {
+            default_max_cu_summer
+        } else {
+            default_max_cu
+        }
+    };
 
     // Helper: ensure schedule has semesters for a given year
     let mut schedule: Vec<SemesterPlan> = Vec::new();
@@ -386,10 +399,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             if plan.semester == "Summer" || remaining.is_empty() {
                 continue;
             }
+            let limit = get_max_cu(plan.year, &plan.semester);
             while !remaining.is_empty() {
                 let cu = get_cu(&remaining[0]);
-                if plan.total_cu + cu > max_cu_fall_spring && !plan.courses.is_empty() {
-                    break; // Would exceed limit (but always allow at least 1 course)
+                if plan.total_cu + cu > limit && !plan.courses.is_empty() {
+                    break;
                 }
                 let course = remaining.remove(0);
                 plan.total_cu += cu;
@@ -404,9 +418,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 if plan.semester != "Summer" || remaining.is_empty() {
                     continue;
                 }
+                let limit = get_max_cu(plan.year, &plan.semester);
                 while !remaining.is_empty() {
                     let cu = get_cu(&remaining[0]);
-                    if plan.total_cu + cu > max_cu_summer && !plan.courses.is_empty() {
+                    if plan.total_cu + cu > limit && !plan.courses.is_empty() {
                         break;
                     }
                     let course = remaining.remove(0);
