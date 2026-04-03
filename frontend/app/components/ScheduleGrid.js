@@ -178,12 +178,12 @@ export default function ScheduleGrid({
                     >
                         <span>{courseId}</span>
                         <span className="course-card-actions">
-                            <span className="course-cu-label">{getCu(courseId)} CU</span>
                             {renderDcBadges(courseId)}
                             {renderInfoButton(courseId)}
                             <span className="lock-icon">
                                 {assigned ? "📗" : frozen ? "🔒" : "📌"}
                             </span>
+                            <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
                         </span>
                     </div>
                 </div>
