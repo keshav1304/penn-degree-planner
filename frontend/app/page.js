@@ -29,7 +29,6 @@ function saveState(state) {
       assignedCourses: state.assignedCourses,
       allowSummer: state.allowSummer,
       maxCuPerSemester: state.maxCuPerSemester,
-      semesterCuLimits: state.semesterCuLimits,
     }));
   } catch { }
 }
@@ -47,7 +46,6 @@ export default function Home() {
   const [activeDragId, setActiveDragId] = useState(null);
   const [allowSummer, setAllowSummer] = useState(true);
   const [maxCuPerSemester, setMaxCuPerSemester] = useState(5.0);
-  const [semesterCuLimits, setSemesterCuLimits] = useState({});
   const debounceRef = useRef(null);
 
   // Require 8px movement before starting drag (so clicks still work)
@@ -67,7 +65,6 @@ export default function Home() {
       setAssignedCourses(saved.assignedCourses || []);
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
       if (saved.maxCuPerSemester !== undefined) setMaxCuPerSemester(saved.maxCuPerSemester);
-      if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
     }
 
     fetch(`${API_BASE}/all_courses`)
@@ -83,8 +80,8 @@ export default function Home() {
 
   // Auto-save on changes
   useEffect(() => {
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester, semesterCuLimits });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester, semesterCuLimits]);
+    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester });
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
@@ -121,7 +118,6 @@ export default function Home() {
           frozen: allFrozen,
           allow_summer: allowSummer,
           max_cu_per_semester: parseFloat(maxCuPerSemester) || 5.0,
-          semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
         }),
       });
       const data = await response.json();
@@ -131,7 +127,7 @@ export default function Home() {
       console.error("Schedule generation failed:", err);
     }
     setLoading(false);
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester, semesterCuLimits]);
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -438,15 +434,6 @@ export default function Home() {
                   doubleCountData={doubleCountData}
                   courseDoubleCountMap={courseDoubleCountMap}
                   allCourses={allCourses}
-                  semesterCuLimits={semesterCuLimits}
-                  onSetSemesterCuLimit={(key, val) => {
-                    setSemesterCuLimits(prev => {
-                      const next = { ...prev };
-                      if (val === null || val === undefined) delete next[key];
-                      else next[key] = val;
-                      return next;
-                    });
-                  }}
                 />
               </div>
             </div>
