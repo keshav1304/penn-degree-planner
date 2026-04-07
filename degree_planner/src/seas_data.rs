@@ -13,7 +13,11 @@ pub fn create_ee_major() -> Major {
                 category: Some("Engineering".to_string()), 
                 possibilities: vec![
 <<<<<<< HEAD
+<<<<<<< HEAD
                     Requirement::SingleCourse { category: None, possibilities: vec!["ESE 1110".to_string()] },
+=======
+                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 1110".to_string(), "MEAM 1010".to_string()] },
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
                     Requirement::SingleCourse { category: None, possibilities: vec!["ESE 1110".to_string(), "MEAM 1010".to_string()] },
 >>>>>>> 0dc7dc2 (cu stuff changes)

@@ -609,12 +609,18 @@ select {
   padding: 4px 0;
   border-top: 1px dashed var(--border-glass);
 <<<<<<< HEAD
+<<<<<<< HEAD
   text-align: right;
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 3px;
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
   font-size: 0.7rem;
   font-weight: 700;
@@ -623,7 +629,10 @@ select {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
 .semester-cu-input {
   width: 40px;
   padding: 2px 4px;
@@ -636,6 +645,9 @@ select {
   text-align: center;
 }
 
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
 .course-info-btn {
   background: none;

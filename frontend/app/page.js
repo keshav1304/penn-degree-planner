@@ -29,7 +29,11 @@ function saveState(state) {
       assignedCourses: state.assignedCourses,
       allowSummer: state.allowSummer,
 <<<<<<< HEAD
+<<<<<<< HEAD
       maxCuPerSemester: state.maxCuPerSemester,
+=======
+      semesterCuLimits: state.semesterCuLimits,
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
       semesterCuLimits: state.semesterCuLimits,
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -50,7 +54,11 @@ export default function Home() {
   const [activeDragId, setActiveDragId] = useState(null);
   const [allowSummer, setAllowSummer] = useState(true);
 <<<<<<< HEAD
+<<<<<<< HEAD
   const [maxCuPerSemester, setMaxCuPerSemester] = useState(5.0);
+=======
+  const [semesterCuLimits, setSemesterCuLimits] = useState({});
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -73,7 +81,11 @@ export default function Home() {
       setAssignedCourses(saved.assignedCourses || []);
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
 <<<<<<< HEAD
+<<<<<<< HEAD
       if (saved.maxCuPerSemester !== undefined) setMaxCuPerSemester(saved.maxCuPerSemester);
+=======
+      if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -93,8 +105,13 @@ export default function Home() {
   // Auto-save on changes
   useEffect(() => {
 <<<<<<< HEAD
+<<<<<<< HEAD
     saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester });
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester]);
+=======
+    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits });
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
     saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits });
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
@@ -135,7 +152,11 @@ export default function Home() {
           frozen: allFrozen,
           allow_summer: allowSummer,
 <<<<<<< HEAD
+<<<<<<< HEAD
           max_cu_per_semester: parseFloat(maxCuPerSemester) || 5.0,
+=======
+          semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
           semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -149,7 +170,11 @@ export default function Home() {
     }
     setLoading(false);
 <<<<<<< HEAD
+<<<<<<< HEAD
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester]);
+=======
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -421,6 +446,7 @@ export default function Home() {
                     ☀️ Summer courses
                   </label>
 <<<<<<< HEAD
+<<<<<<< HEAD
                   <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                     Max CU/sem:
                     <input
@@ -438,6 +464,8 @@ export default function Home() {
                       }}
                     />
                   </label>
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
 >>>>>>> 0dc7dc2 (cu stuff changes)
                   {degrees.length > 0 && (
@@ -463,11 +491,17 @@ export default function Home() {
                   courseDoubleCountMap={courseDoubleCountMap}
                   allCourses={allCourses}
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
                   semesterCuLimits={semesterCuLimits}
                   onSemesterCuLimitChange={(key, value) => {
                     setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
                   }}
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
                 />
               </div>

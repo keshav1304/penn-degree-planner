@@ -219,7 +219,11 @@ struct ScheduleInput {
     frozen: Vec<FrozenCourse>,
     allow_summer: Option<bool>,
 <<<<<<< HEAD
+<<<<<<< HEAD
     max_cu_per_semester: Option<f64>,
+=======
+    semester_cu_limits: Option<HashMap<String, f64>>,
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
     semester_cu_limits: Option<HashMap<String, f64>>,
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -333,9 +337,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     // Build schedule dynamically — expand semesters until ALL courses fit
     let allow_summer = payload.allow_summer.unwrap_or(true);
 <<<<<<< HEAD
+<<<<<<< HEAD
     let max_cu_fall_spring = payload.max_cu_per_semester.unwrap_or(5.0);
     let max_cu_summer = 2.0_f64;
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
     let cu_limits = payload.semester_cu_limits.unwrap_or_default();
 
     let get_max_cu = |year: i32, semester: &str| -> f64 {
@@ -349,6 +356,9 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             _ => 5.0,
         }
     };
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
 
     // Helper: ensure schedule has semesters for a given year
@@ -363,7 +373,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 schedule.push(SemesterPlan { year, semester: "Summer".to_string(), courses: Vec::new(), total_cu: 0.0 });
             }
 <<<<<<< HEAD
+<<<<<<< HEAD
             // Re-sort so semesters are in order
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
 >>>>>>> 0dc7dc2 (cu stuff changes)
             schedule.sort_by(|a, b| {
@@ -379,7 +392,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     // Place frozen courses first (expand schedule if frozen course is in a later year)
+=======
+    // Place frozen courses first
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
     // Place frozen courses first
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -395,16 +412,22 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             }
         }
 <<<<<<< HEAD
+<<<<<<< HEAD
         // Remove from suggested pool if present
         all_suggested_courses.retain(|c| c != &frozen.course_id);
     }
 
     // Distribute remaining courses — keep adding years until everything fits
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
         all_suggested_courses.retain(|c| c != &frozen.course_id);
     }
 
     // Distribute remaining courses
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
     let mut remaining: Vec<String> = all_suggested_courses;
 
@@ -416,7 +439,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         let mut placed_any = false;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         // First pass: fill Fall/Spring slots (up to max CU each)
+=======
+        // First pass: fill Fall/Spring slots
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
         // First pass: fill Fall/Spring slots
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -425,16 +452,22 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 continue;
             }
 <<<<<<< HEAD
+<<<<<<< HEAD
             while !remaining.is_empty() {
                 let cu = get_cu(&remaining[0]);
                 if plan.total_cu + cu > max_cu_fall_spring && !plan.courses.is_empty() {
                     break; // Would exceed limit (but always allow at least 1 course)
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
             let max_cu = get_max_cu(plan.year, &plan.semester);
             while !remaining.is_empty() {
                 let cu = get_cu(&remaining[0]);
                 if plan.total_cu + cu > max_cu && !plan.courses.is_empty() {
                     break;
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
                 }
                 let course = remaining.remove(0);
@@ -445,7 +478,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         // Second pass: fill Summer slots if allowed (up to max CU)
+=======
+        // Second pass: fill Summer slots if allowed
+>>>>>>> 0dc7dc2 (cu stuff changes)
 =======
         // Second pass: fill Summer slots if allowed
 >>>>>>> 0dc7dc2 (cu stuff changes)
@@ -455,14 +492,20 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                     continue;
                 }
 <<<<<<< HEAD
+<<<<<<< HEAD
                 while !remaining.is_empty() {
                     let cu = get_cu(&remaining[0]);
                     if plan.total_cu + cu > max_cu_summer && !plan.courses.is_empty() {
 =======
+=======
+>>>>>>> 0dc7dc2 (cu stuff changes)
                 let max_cu = get_max_cu(plan.year, &plan.semester);
                 while !remaining.is_empty() {
                     let cu = get_cu(&remaining[0]);
                     if plan.total_cu + cu > max_cu && !plan.courses.is_empty() {
+<<<<<<< HEAD
+>>>>>>> 0dc7dc2 (cu stuff changes)
+=======
 >>>>>>> 0dc7dc2 (cu stuff changes)
                         break;
                     }
