@@ -272,144 +272,131 @@ export default function ScheduleGrid({
             {uniqueYears.map(year => (
                 <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `90px repeat(${semesters.length}, 1fr)` }}>
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
-                    {
-                        semesters.map(sem => {
-                            const plan = getSemesterPlan(year, sem);
-                            const courses = plan?.courses || [];
-                            const droppableId = `slot-${year}-${sem}`;
+                    {semesters.map(sem => {
+                        const plan = getSemesterPlan(year, sem);
+                        const courses = plan?.courses || [];
+                        const droppableId = `slot-${year}-${sem}`;
 
-                            return (
-                                <DroppableSemester key={sem} id={droppableId} year={year} semester={sem}>
-                                    <div className="semester-col-header">
-                                        {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
-                                        {courses.length > 0 && (
-                                            <span style={{ float: "right", fontWeight: 400 }}>{courses.length}</span>
-                                        )}
-                                    </div>
-                                    {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
-                                    {courses.length === 0 && (
-                                        <div className="drop-hint">Drop courses here</div>
-                                    )}
+                        return (
+                            <DroppableSemester key={sem} id={droppableId} year={year} semester={sem}>
+                                <div className="semester-col-header">
+                                    {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
                                     {courses.length > 0 && (
-                                        <div className="semester-cu-total">
-                                            {plan?.total_cu != null ? plan.total_cu.toFixed(1) : courses.reduce((s, c) => s + getCu(c), 0).toFixed(1)} CU
-                                        </div>
+                                        <span style={{ float: "right", fontWeight: 400 }}>{courses.length}</span>
                                     )}
-                                    {(() => {
-                                        const semKey = `${year}-${sem}`;
-                                        const actualCu = plan?.total_cu != null ? plan.total_cu : courses.reduce((s, c) => s + getCu(c), 0);
-                                        const limitValue = semesterCuLimits?.[semKey] ?? (sem === "Summer" ? 2.0 : 5.0);
-                                        return (
-                                            <div className="semester-cu-total">
-                                                <span>{actualCu.toFixed(1)} /</span>
-                                                <input
-                                                    type="number"
-                                                    min="1"
-                                                    max="10"
-                                                    step="0.5"
-                                                    value={limitValue}
-                                                    onClick={e => e.stopPropagation()}
-                                                    onChange={e => {
-                                                        const val = parseFloat(e.target.value);
-                                                        if (!isNaN(val) && val > 0) {
-                                                            onSemesterCuLimitChange(semKey, val);
-                                                        }
-                                                    }}
-                                                    className="semester-cu-input"
-                                                />
-                                                <span>CU</span>
-                                            </div>
-                                        );
-                                    })()}
-                                </DroppableSemester >
-                            );
-                        })
-                    }
-                </div >
+                                </div>
+                                {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
+                                {courses.length === 0 && (
+                                    <div className="drop-hint">Drop courses here</div>
+                                )}
+                                {(() => {
+                                    const semKey = `${year}-${sem}`;
+                                    const actualCu = plan?.total_cu != null ? plan.total_cu : courses.reduce((s, c) => s + getCu(c), 0);
+                                    const limitValue = semesterCuLimits?.[semKey] ?? (sem === "Summer" ? 2.0 : 5.0);
+                                    return (
+                                        <div className="semester-cu-total">
+                                            <span>{actualCu.toFixed(1)} /</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="10"
+                                                step="0.5"
+                                                value={limitValue}
+                                                onClick={e => e.stopPropagation()}
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value);
+                                                    if (!isNaN(val) && val > 0) {
+                                                        onSemesterCuLimitChange(semKey, val);
+                                                    }
+                                                }}
+                                                className="semester-cu-input"
+                                            />
+                                            <span>CU</span>
+                                        </div>
+                                    );
+                                })()}
+                            </DroppableSemester>
+                        );
+                    })}
+                </div>
             ))}
 
             {/* Degree legend */}
-            {
-                Object.keys(degreeColorMap).length > 0 && (
-                    <div className="degree-legend">
-                        {Object.entries(degreeColorMap).map(([label, color]) => (
-                            <div key={label} className="degree-legend-item">
-                                <span className="degree-legend-swatch" style={{ background: color }} />
-                                <span>{label}</span>
-                            </div>
-                        ))}
-                    </div>
-                )
-            }
+            {Object.keys(degreeColorMap).length > 0 && (
+                <div className="degree-legend">
+                    {Object.entries(degreeColorMap).map(([label, color]) => (
+                        <div key={label} className="degree-legend-item">
+                            <span className="degree-legend-swatch" style={{ background: color }} />
+                            <span>{label}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Info popup */}
-            {
-                infoPopup && courseRequirementMap?.[infoPopup.courseId] && (
-                    <div
-                        className="course-info-popup"
-                        style={{ position: "fixed", left: infoPopup.x, top: infoPopup.y, border: "2px solid red" }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div className="course-info-popup-title">{infoPopup.courseId}</div>
-                        {courseRequirementMap[infoPopup.courseId].map((entry, i) => (
-                            <div key={i} className="course-info-popup-row">{entry}</div>
-                        ))}
-                    </div>
-                )
-            }
+            {infoPopup && courseRequirementMap?.[infoPopup.courseId] && (
+                <div
+                    className="course-info-popup"
+                    style={{ position: "fixed", left: infoPopup.x, top: infoPopup.y, border: "2px solid red" }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="course-info-popup-title">{infoPopup.courseId}</div>
+                    {courseRequirementMap[infoPopup.courseId].map((entry, i) => (
+                        <div key={i} className="course-info-popup-row">{entry}</div>
+                    ))}
+                </div>
+            )}
 
             {/* Double Count Tracker Bars */}
-            {
-                doubleCountData && doubleCountData.length > 0 && (
-                    <div className="dc-tracker-section">
-                        <div className="dc-tracker-title">🔗 Double Count Trackers</div>
-                        {doubleCountData.map((dc, i) => {
-                            const fulfilledCount = dc.dc_fulfilled?.filter(Boolean).length || 0;
-                            const totalCount = dc.dc_fulfilled?.length || 0;
-                            const allFulfilled = fulfilledCount === totalCount;
-                            const color = DC_COLORS[dc.dcIndex % DC_COLORS.length];
-                            return (
-                                <div
-                                    key={i}
-                                    className={`dc-tracker-bar ${allFulfilled ? "dc-tracker-fulfilled" : ""}`}
-                                    style={{ borderLeftColor: color }}
-                                >
-                                    <div className="dc-tracker-header">
-                                        <span className="dc-tracker-label" style={{ color }}>
-                                            {dc.dcLabel}
-                                        </span>
-                                        <span className="dc-tracker-category">
-                                            {dc.category}
-                                        </span>
-                                        <span className="dc-tracker-progress">
-                                            {fulfilledCount}/{totalCount}
-                                        </span>
-                                    </div>
-                                    <div className="dc-tracker-constraints">
-                                        {dc.dc_descriptions?.map((desc, j) => (
-                                            <div key={j} className="dc-constraint-row">
-                                                <span className="dc-constraint-status">
-                                                    {dc.dc_fulfilled?.[j] ? "✅" : "❌"}
-                                                </span>
-                                                <span className="dc-constraint-desc">
-                                                    {desc}
-                                                </span>
-                                                {dc.dc_fulfilled?.[j] && dc.dc_matched_courses?.[j]?.length > 0 && (
-                                                    <span className="dc-constraint-courses">
-                                                        {dc.dc_matched_courses[j].map((c, k) => (
-                                                            <span key={k} className="dc-course-chip" style={{ borderColor: color }}>{c}</span>
-                                                        ))}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
+            {doubleCountData && doubleCountData.length > 0 && (
+                <div className="dc-tracker-section">
+                    <div className="dc-tracker-title">🔗 Double Count Trackers</div>
+                    {doubleCountData.map((dc, i) => {
+                        const fulfilledCount = dc.dc_fulfilled?.filter(Boolean).length || 0;
+                        const totalCount = dc.dc_fulfilled?.length || 0;
+                        const allFulfilled = fulfilledCount === totalCount;
+                        const color = DC_COLORS[dc.dcIndex % DC_COLORS.length];
+                        return (
+                            <div
+                                key={i}
+                                className={`dc-tracker-bar ${allFulfilled ? "dc-tracker-fulfilled" : ""}`}
+                                style={{ borderLeftColor: color }}
+                            >
+                                <div className="dc-tracker-header">
+                                    <span className="dc-tracker-label" style={{ color }}>
+                                        {dc.dcLabel}
+                                    </span>
+                                    <span className="dc-tracker-category">
+                                        {dc.category}
+                                    </span>
+                                    <span className="dc-tracker-progress">
+                                        {fulfilledCount}/{totalCount}
+                                    </span>
                                 </div>
-                            );
-                        })}
-                    </div>
-                )
-            }
-        </div >
+                                <div className="dc-tracker-constraints">
+                                    {dc.dc_descriptions?.map((desc, j) => (
+                                        <div key={j} className="dc-constraint-row">
+                                            <span className="dc-constraint-status">
+                                                {dc.dc_fulfilled?.[j] ? "✅" : "❌"}
+                                            </span>
+                                            <span className="dc-constraint-desc">
+                                                {desc}
+                                            </span>
+                                            {dc.dc_fulfilled?.[j] && dc.dc_matched_courses?.[j]?.length > 0 && (
+                                                <span className="dc-constraint-courses">
+                                                    {dc.dc_matched_courses[j].map((c, k) => (
+                                                        <span key={k} className="dc-course-chip" style={{ borderColor: color }}>{c}</span>
+                                                    ))}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
     );
 }

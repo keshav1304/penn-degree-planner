@@ -28,15 +28,7 @@ function saveState(state) {
       frozenCourses: state.frozenCourses,
       assignedCourses: state.assignedCourses,
       allowSummer: state.allowSummer,
-<<<<<<< HEAD
-<<<<<<< HEAD
-      maxCuPerSemester: state.maxCuPerSemester,
-=======
       semesterCuLimits: state.semesterCuLimits,
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-      semesterCuLimits: state.semesterCuLimits,
->>>>>>> 0dc7dc2 (cu stuff changes)
     }));
   } catch { }
 }
@@ -53,15 +45,7 @@ export default function Home() {
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [activeDragId, setActiveDragId] = useState(null);
   const [allowSummer, setAllowSummer] = useState(true);
-<<<<<<< HEAD
-<<<<<<< HEAD
-  const [maxCuPerSemester, setMaxCuPerSemester] = useState(5.0);
-=======
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-  const [semesterCuLimits, setSemesterCuLimits] = useState({});
->>>>>>> 0dc7dc2 (cu stuff changes)
   const debounceRef = useRef(null);
 
   // Require 8px movement before starting drag (so clicks still work)
@@ -80,15 +64,7 @@ export default function Home() {
       setFrozenCourses(saved.frozenCourses || []);
       setAssignedCourses(saved.assignedCourses || []);
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
-<<<<<<< HEAD
-<<<<<<< HEAD
-      if (saved.maxCuPerSemester !== undefined) setMaxCuPerSemester(saved.maxCuPerSemester);
-=======
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-      if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
->>>>>>> 0dc7dc2 (cu stuff changes)
     }
 
     fetch(`${API_BASE}/all_courses`)
@@ -104,18 +80,8 @@ export default function Home() {
 
   // Auto-save on changes
   useEffect(() => {
-<<<<<<< HEAD
-<<<<<<< HEAD
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester]);
-=======
     saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits });
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
->>>>>>> 0dc7dc2 (cu stuff changes)
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
@@ -151,15 +117,7 @@ export default function Home() {
           })),
           frozen: allFrozen,
           allow_summer: allowSummer,
-<<<<<<< HEAD
-<<<<<<< HEAD
-          max_cu_per_semester: parseFloat(maxCuPerSemester) || 5.0,
-=======
           semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-          semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
->>>>>>> 0dc7dc2 (cu stuff changes)
         }),
       });
       const data = await response.json();
@@ -169,15 +127,7 @@ export default function Home() {
       console.error("Schedule generation failed:", err);
     }
     setLoading(false);
-<<<<<<< HEAD
-<<<<<<< HEAD
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, maxCuPerSemester]);
-=======
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
->>>>>>> 0dc7dc2 (cu stuff changes)
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -445,29 +395,6 @@ export default function Home() {
                     />
                     ☀️ Summer courses
                   </label>
-<<<<<<< HEAD
-<<<<<<< HEAD
-                  <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-                    Max CU/sem:
-                    <input
-                      type="number"
-                      min="1"
-                      max="10"
-                      step="0.5"
-                      value={maxCuPerSemester}
-                      onChange={e => setMaxCuPerSemester(e.target.value)}
-                      style={{
-                        width: 48, padding: "2px 4px", fontSize: "0.75rem",
-                        background: "var(--bg-secondary)", color: "var(--text-primary)",
-                        border: "1px solid var(--border-glass)", borderRadius: 4,
-                        textAlign: "center",
-                      }}
-                    />
-                  </label>
-=======
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
->>>>>>> 0dc7dc2 (cu stuff changes)
                   {degrees.length > 0 && (
                     <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
                       {assignedCourses.length} placed · {frozenCourses.length} frozen
@@ -490,19 +417,10 @@ export default function Home() {
                   doubleCountData={doubleCountData}
                   courseDoubleCountMap={courseDoubleCountMap}
                   allCourses={allCourses}
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 0dc7dc2 (cu stuff changes)
                   semesterCuLimits={semesterCuLimits}
                   onSemesterCuLimitChange={(key, value) => {
                     setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
                   }}
-<<<<<<< HEAD
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
->>>>>>> 0dc7dc2 (cu stuff changes)
                 />
               </div>
             </div>

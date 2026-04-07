@@ -12,15 +12,7 @@ pub fn create_ee_major() -> Major {
             Requirement::AnyOf { 
                 category: Some("Engineering".to_string()), 
                 possibilities: vec![
-<<<<<<< HEAD
-<<<<<<< HEAD
-                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 1110".to_string()] },
-=======
                     Requirement::SingleCourse { category: None, possibilities: vec!["ESE 1110".to_string(), "MEAM 1010".to_string()] },
->>>>>>> 0dc7dc2 (cu stuff changes)
-=======
-                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 1110".to_string(), "MEAM 1010".to_string()] },
->>>>>>> 0dc7dc2 (cu stuff changes)
                     Requirement::Restriction { category: Some("Sub for ESE 1110".to_string()), department:Some(vec!["ESE".to_string()]), number: 1, cu: None, level: None, attr: None, excluding: Some(["ESE 1120", "ESE 2030", "ESE 3010", "ESE 4020"].map(String::from).to_vec()), no_school: None }
                 ] 
             },
