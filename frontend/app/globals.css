@@ -608,13 +608,35 @@ select {
   margin-top: 6px;
   padding: 4px 0;
   border-top: 1px dashed var(--border-glass);
+<<<<<<< HEAD
   text-align: right;
+=======
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+>>>>>>> 0dc7dc2 (cu stuff changes)
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--accent-teal);
   letter-spacing: 0.3px;
 }
 
+<<<<<<< HEAD
+=======
+.semester-cu-input {
+  width: 40px;
+  padding: 2px 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-glass);
+  border-radius: 4px;
+  text-align: center;
+}
+
+>>>>>>> 0dc7dc2 (cu stuff changes)
 .course-info-btn {
   background: none;
   border: none;

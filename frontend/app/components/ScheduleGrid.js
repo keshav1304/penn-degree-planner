@@ -25,6 +25,10 @@ export default function ScheduleGrid({
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
     doubleCountData, courseDoubleCountMap, allCourses,
+<<<<<<< HEAD
+=======
+    semesterCuLimits, onSemesterCuLimitChange,
+>>>>>>> 0dc7dc2 (cu stuff changes)
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [infoPopup, setInfoPopup] = useState(null); // { courseId, x, y }
@@ -288,11 +292,40 @@ export default function ScheduleGrid({
                                 {courses.length === 0 && (
                                     <div className="drop-hint">Drop courses here</div>
                                 )}
+<<<<<<< HEAD
                                 {courses.length > 0 && (
                                     <div className="semester-cu-total">
                                         {plan?.total_cu != null ? plan.total_cu.toFixed(1) : courses.reduce((s, c) => s + getCu(c), 0).toFixed(1)} CU
                                     </div>
                                 )}
+=======
+                                {(() => {
+                                    const semKey = `${year}-${sem}`;
+                                    const actualCu = plan?.total_cu != null ? plan.total_cu : courses.reduce((s, c) => s + getCu(c), 0);
+                                    const limitValue = semesterCuLimits?.[semKey] ?? (sem === "Summer" ? 2.0 : 5.0);
+                                    return (
+                                        <div className="semester-cu-total">
+                                            <span>{actualCu.toFixed(1)} /</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="10"
+                                                step="0.5"
+                                                value={limitValue}
+                                                onClick={e => e.stopPropagation()}
+                                                onChange={e => {
+                                                    const val = parseFloat(e.target.value);
+                                                    if (!isNaN(val) && val > 0) {
+                                                        onSemesterCuLimitChange(semKey, val);
+                                                    }
+                                                }}
+                                                className="semester-cu-input"
+                                            />
+                                            <span>CU</span>
+                                        </div>
+                                    );
+                                })()}
+>>>>>>> 0dc7dc2 (cu stuff changes)
                             </DroppableSemester>
                         );
                     })}
