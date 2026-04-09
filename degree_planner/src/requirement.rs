@@ -72,12 +72,35 @@ impl Requirement {
 
     /// Checks if the requirements are fulfilled by a vector of taken courses and returns a vector with 
     /// all the courses that do fulfill requirements
-    pub fn fulfills_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>) -> Option<Vec<String>> {
+    pub fn fulfills_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>, cu_map: &HashMap<String, f64>) -> Option<Vec<String>> {
         match self {
             Requirement::SingleCourse { category, possibilities, .. } => {
+                // First, try to find a 1.0+ CU match
                 for course in taken {
                     if possibilities.contains(course) {
-                        return Some(vec![course.clone()]);
+                        let cu = *cu_map.get(course).unwrap_or(&1.0);
+                        if cu >= 1.0 {
+                            return Some(vec![course.clone()]);
+                        }
+                    }
+                }
+                // If no 1.0 CU match, try to combine two 0.5 CU matches
+                let mut half_cu_matches: Vec<String> = Vec::new();
+                for course in taken {
+                    if possibilities.contains(course) {
+                        let cu = *cu_map.get(course).unwrap_or(&1.0);
+                        if cu < 1.0 {
+                            half_cu_matches.push(course.clone());
+                        }
+                    }
+                }
+                let mut accumulated = 0.0;
+                let mut result: Vec<String> = Vec::new();
+                for c in &half_cu_matches {
+                    accumulated += cu_map.get(c).unwrap_or(&1.0);
+                    result.push(c.clone());
+                    if accumulated >= 1.0 {
+                        return Some(result);
                     }
                 }
                 return None;
@@ -99,7 +122,7 @@ impl Requirement {
                 let mut taken_copy = taken.clone();
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for req in requirements {
-                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes) {
+                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                         taken_copy.retain(|x| !courses_fulfilled.contains(x));
                         all_courses_fulfilled.append(&mut courses_fulfilled);
                     } else {
@@ -110,7 +133,7 @@ impl Requirement {
             },
             Requirement::AnyOf { category, possibilities, .. } => {
                 for req in possibilities {
-                    if let Some(courses_fulfilled) = req.fulfills_requirement(taken, attributes) {
+                    if let Some(courses_fulfilled) = req.fulfills_requirement(taken, attributes, cu_map) {
                         return Some(courses_fulfilled);
                     }
                 }
@@ -118,10 +141,12 @@ impl Requirement {
             },
             Requirement::Concentration { category, number, requirements, .. } => {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
-                composite_requirement.fulfills_requirement(taken, attributes)
+                composite_requirement.fulfills_requirement(taken, attributes, cu_map)
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, no_school, number, .. } => {
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
+                let mut accumulated_cu: f64 = 0.0;
+                let target_cu: f64 = *number as f64; // each slot represents 1.0 CU
                 for course in taken {
                     if let Some((dept, course_id)) = course.split_once(' ') { 
                         let mut status = course_id.chars().all(|c| c.is_ascii_digit());
@@ -178,10 +203,12 @@ impl Requirement {
                         }
                         
                         if status {
-                            all_courses_fulfilled.push(course.clone());                    
+                            let course_cu = *cu_map.get(course).unwrap_or(&1.0);
+                            all_courses_fulfilled.push(course.clone());
+                            accumulated_cu += course_cu;
                         }
 
-                        if all_courses_fulfilled.len() as i32 == *number {
+                        if accumulated_cu >= target_cu {
                             return Some(all_courses_fulfilled);
                         }
                     } else {
@@ -194,7 +221,7 @@ impl Requirement {
                 let mut taken_copy = taken.clone();
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for req in base_requirements {
-                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes) {
+                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                         taken_copy.retain(|x| !courses_fulfilled.contains(x));
                         all_courses_fulfilled.append(&mut courses_fulfilled);
                     } else {
@@ -205,7 +232,7 @@ impl Requirement {
                 let mut all_courses_fulfilled_copy = all_courses_fulfilled.clone();
                 let mut double_counting_fulfilled: Vec<String> = Vec::new();
                 for req in double_counting_requirements {
-                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&all_courses_fulfilled_copy, attributes) {
+                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&all_courses_fulfilled_copy, attributes, cu_map) {
                         all_courses_fulfilled_copy.retain(|x| !courses_fulfilled.contains(x));
                         double_counting_fulfilled.append(&mut courses_fulfilled);
                     } else {
