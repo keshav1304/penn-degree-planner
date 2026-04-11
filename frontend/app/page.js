@@ -7,7 +7,7 @@ import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
 
-const API_BASE = "https://degree-planner.fly.dev";
+const API_BASE = "http://127.0.0.1:8080";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 

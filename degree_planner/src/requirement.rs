@@ -244,7 +244,7 @@ impl Requirement {
         }
     }
 
-    pub fn suggest_for_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>) -> Option<Vec<String>> {
+    pub fn suggest_for_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>, cu_map: &HashMap<String, f64>) -> Option<Vec<String>> {
         match self {
             Requirement::SingleCourse { category, possibilities } => {
                 for course in possibilities {
@@ -271,7 +271,7 @@ impl Requirement {
                     return Some(vec!["1 WH Business Breadth".to_string()]);
                 }
                 for req in possibilities {
-                    match req.suggest_for_requirement(taken, attributes) {
+                    match req.suggest_for_requirement(taken, attributes, cu_map) {
                         Some(val) => return Some(val),
                         None => {},
                     }
@@ -281,7 +281,7 @@ impl Requirement {
             Requirement::AllOf { category, requirements } => {
                 let mut suggested_courses = Vec::new();
                 for req in requirements {
-                    match req.suggest_for_requirement(taken, attributes) {
+                    match req.suggest_for_requirement(taken, attributes, cu_map) {
                         Some(mut val) => suggested_courses.append(&mut val),
                         None => return None,
                     }
@@ -290,7 +290,7 @@ impl Requirement {
             },
             Requirement::Concentration { category, number, requirements } => {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
-                composite_requirement.suggest_for_requirement(taken, attributes)
+                composite_requirement.suggest_for_requirement(taken, attributes, cu_map)
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
                 let mut response = format!("{} course(s)", number);
@@ -323,7 +323,7 @@ impl Requirement {
                 let mut fulfilled_base_courses: Vec<String> = Vec::new();
 
                 for req in base_requirements {
-                    if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes) {
+                    if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                         taken_copy.retain(|x| !courses.contains(x));
                         fulfilled_base_courses.extend(courses);
                     } else {
@@ -334,7 +334,7 @@ impl Requirement {
                 // Build suggestions for unfulfilled base requirements
                 let mut suggestions: Vec<String> = Vec::new();
                 for req in &unfulfilled_base {
-                    if let Some(s) = req.suggest_for_requirement(taken, attributes) {
+                    if let Some(s) = req.suggest_for_requirement(taken, attributes, cu_map) {
                         suggestions.extend(s);
                     }
                 }
@@ -367,14 +367,14 @@ impl Requirement {
                     .filter_map(|r| {
                         let cat = r.get_category();
                         if !cat.is_empty() { Some(cat) } else {
-                            let s = r.suggest_for_requirement(&vec![], &HashMap::new());
+                            let s = r.suggest_for_requirement(&vec![], &HashMap::new(), &HashMap::new());
                             s.map(|v| v.join(", "))
                         }
                     })
                     .collect();
                 let dc_descs: Vec<String> = double_counting_requirements.iter()
                     .filter_map(|r| {
-                        let s = r.suggest_for_requirement(&vec![], &HashMap::new());
+                        let s = r.suggest_for_requirement(&vec![], &HashMap::new(), &HashMap::new());
                         s.map(|v| v.join(", "))
                     })
                     .collect();
@@ -443,7 +443,7 @@ impl Requirement {
 
 
 /// finding whether taken fulfills degree and to what extent
-pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &Vec<String>) -> (Vec<MappedRequirement>, Vec<Requirement>) {
+pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &Vec<String>, cu_map: &HashMap<String, f64>) -> (Vec<MappedRequirement>, Vec<Requirement>) {
     let attributes = attributes_data::create_attributes();
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
@@ -457,7 +457,7 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
         match req {
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
                 for base_req in base_requirements {
-                    if let Some(courses_fulfilling) = base_req.fulfills_requirement(&taken_mut, &attributes) {
+                    if let Some(courses_fulfilling) = base_req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
                         taken_mut.retain(|x| !courses_fulfilling.contains(x));
 
                         fulfilled_requirements.push(MappedRequirement { requirement: base_req, course_ids: courses_fulfilling } );
@@ -467,7 +467,7 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                 }
             }
             _ => {
-                if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes) {
+                if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
                     taken_mut.retain(|x| !courses_fulfilling.contains(x));
 
                     fulfilled_requirements.push(MappedRequirement { requirement: req, course_ids: courses_fulfilling } );
@@ -482,11 +482,11 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
 }
 
 /// suggesting courses for certain requirements
-pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requirement>, taken: &Vec<String>) -> Vec<MappedRequirement> {
+pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requirement>, taken: &Vec<String>, cu_map: &HashMap<String, f64>) -> Vec<MappedRequirement> {
     let attributes = attributes_data::create_attributes();
     let mut suggested_courses = Vec::new();
     for req in unfulfilled_requirements {
-        match req.suggest_for_requirement(taken, &attributes) {
+        match req.suggest_for_requirement(taken, &attributes, cu_map) {
             Some(val) => {
                 suggested_courses.push(MappedRequirement { requirement: req.clone(), course_ids: val})
             },
@@ -525,7 +525,7 @@ pub struct DoubleCountInfo {
 // check whether dc is fulfilled for that base_req and put into dc_matched_courses
 // and set dc_fulfilled to true if all are fulfilled
 
-pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<String>, fulfilled: &Vec<MappedRequirement>, suggested: &Vec<MappedRequirement>) -> Vec<DoubleCountInfo> {
+pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<String>, fulfilled: &Vec<MappedRequirement>, suggested: &Vec<MappedRequirement>, cu_map: &HashMap<String, f64>) -> Vec<DoubleCountInfo> {
     let attributes = attributes_data::create_attributes();
     let mut result = Vec::new();
 
@@ -557,7 +557,7 @@ pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<St
                 let desc = dc_req.create_requirement_description();
                 dc_descriptions.push(desc);
 
-                if let Some(courses) = dc_req.fulfills_requirement(&dc_pool, &attributes) {
+                if let Some(courses) = dc_req.fulfills_requirement(&dc_pool, &attributes, cu_map) {
                     dc_pool.retain(|x| !courses.contains(x));
                     dc_fulfilled.push(true);
                     dc_matched_courses.push(courses);

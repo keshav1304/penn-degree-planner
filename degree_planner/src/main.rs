@@ -97,10 +97,14 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
     let response: RootPostOutput;
 
     if let Some(major_req_unwrapped) = major_req {
-        let (mut fulfilled_requirements, unfulfilled_requirements) = requirement::validate_courses_for_degree(major_req_unwrapped.requirements.clone(), &taken);
+        let all_courses = courses_data::all_courses();
+        let cu_map: HashMap<String, f64> = all_courses.iter()
+            .map(|c| (c.course_code.clone(), c.cu))
+            .collect();
+        let (mut fulfilled_requirements, unfulfilled_requirements) = requirement::validate_courses_for_degree(major_req_unwrapped.requirements.clone(), &taken, &cu_map);
         
         fulfilled_requirements.sort_by_key(|r| r.requirement.get_category());        
-        let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(&unfulfilled_requirements, &taken);
+        let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(&unfulfilled_requirements, &taken, &cu_map);
         
         let mut unapplicable_courses = taken.clone();
         for req in &fulfilled_requirements {
@@ -238,6 +242,7 @@ struct DegreeResult {
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
     double_count_info: Vec<DoubleCountInfo>,
+    category_order: Vec<String>,
     error: Option<String>,
 }
 
@@ -258,16 +263,22 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let mut degree_results: Vec<DegreeResult> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
 
+    // Build a CU lookup map from all courses
+    let all_courses = courses_data::all_courses();
+    let cu_map: HashMap<String, f64> = all_courses.iter()
+        .map(|c| (c.course_code.clone(), c.cu))
+        .collect();
+
     // Process each degree
     for degree in &payload.degrees {
         let major_req = resolve_major(&degree.school, &degree.major, &degree.concentration);
 
         if let Some(major_data) = major_req {
             let (mut fulfilled, unfulfilled) = requirement::validate_courses_for_degree(
-                major_data.requirements.clone(), &taken
+                major_data.requirements.clone(), &taken, &cu_map
             );
             fulfilled.sort_by_key(|r| r.requirement.get_category());
-            let suggested = requirement::suggest_courses_for_requirements(&unfulfilled, &taken);
+            let suggested = requirement::suggest_courses_for_requirements(&unfulfilled, &taken, &cu_map);
 
             // Collect unique suggested courses
             for mapped in &suggested {
@@ -289,8 +300,17 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
             // Extract double-count metadata
             let dc_info = requirement::extract_double_count_info(
-                &major_data.requirements, &taken, &fulfilled, &suggested
+                &major_data.requirements, &taken, &fulfilled, &suggested, &cu_map
             );
+
+            // Extract category order from requirement definition
+            let mut category_order: Vec<String> = Vec::new();
+            for req in &major_data.requirements {
+                let cat = req.get_category();
+                if !cat.is_empty() && !category_order.contains(&cat) {
+                    category_order.push(cat);
+                }
+            }
 
             degree_results.push(DegreeResult {
                 school: degree.school.clone(),
@@ -300,6 +320,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 suggested_for_unfulfilled: suggested,
                 unapplicable_courses: unapplicable,
                 double_count_info: dc_info,
+                category_order,
                 error: None,
             });
         } else {
@@ -311,16 +332,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 suggested_for_unfulfilled: vec![],
                 unapplicable_courses: vec![],
                 double_count_info: vec![],
+                category_order: vec![],
                 error: Some(format!("Major '{}' in school '{}' is not implemented yet.", degree.major, degree.school)),
             });
         }
     }
-
-    // Build a CU lookup map from all courses
-    let all_courses = courses_data::all_courses();
-    let cu_map: HashMap<String, f64> = all_courses.iter()
-        .map(|c| (c.course_code.clone(), c.cu))
-        .collect();
 
     let get_cu = |course_id: &str| -> f64 {
         *cu_map.get(course_id).unwrap_or(&1.0)
