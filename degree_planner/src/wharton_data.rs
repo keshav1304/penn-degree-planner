@@ -361,7 +361,7 @@ pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
     let mut bb_requirement_options = Vec::new();
 
     for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
+        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string(), "MGMT 3010".to_string()]), number: 1, no_school: None });
     }
 
     return Major {
