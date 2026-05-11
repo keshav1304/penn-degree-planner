@@ -147,7 +147,8 @@ pub fn create_ee_major() -> Major {
                 vec![
                     Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["ESE 3060".to_string()] },
                     Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["ESE 4020".to_string()] },
-                    Requirement::CourseGroup { category: Some("Data Science".to_string()), number: 2, possibilities: vec!["NETS 3120".to_string(), "ESE 5140".to_string(), "CIS 5200".to_string(), "CIS 5450".to_string(), "ESE 5460".to_string(), "ESE 6500".to_string()] }
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["NETS 3120".to_string(), "ESE 5140".to_string(), "CIS 5200".to_string(), "CIS 5450".to_string(), "ESE 5460".to_string(), "ESE 6500".to_string()] }
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["NETS 3120".to_string(), "ESE 5140".to_string(), "CIS 5200".to_string(), "CIS 5450".to_string(), "ESE 5460".to_string(), "ESE 6500".to_string()] }
                 ]
             ),
             (
@@ -209,7 +210,9 @@ pub fn create_ee_major() -> Major {
                 "Robotics".to_string(), 
                 vec![
                     Requirement::SingleCourse { category: Some("Robotics".to_string()), possibilities: vec!["ESE 4210".to_string()] },
-                    Requirement::CourseGroup { category: Some("Robotics".to_string()), number: 3, possibilities: vec!["ESE 5000".to_string(), "ESE 5050".to_string(), "MEAM 5200".to_string(), "ESE 6150".to_string(), "ESE 6190".to_string(), "ESE 6250".to_string(), "ESE 6500".to_string(), "MEAM 6200".to_string()] },
+                    Requirement::SingleCourse { category: Some("Robotics".to_string()), possibilities: vec!["ESE 5000".to_string(), "ESE 5050".to_string(), "MEAM 5200".to_string(), "ESE 6150".to_string(), "ESE 6190".to_string(), "ESE 6250".to_string(), "ESE 6500".to_string(), "MEAM 6200".to_string()] },
+                    Requirement::SingleCourse { category: Some("Robotics".to_string()), possibilities: vec!["ESE 5000".to_string(), "ESE 5050".to_string(), "MEAM 5200".to_string(), "ESE 6150".to_string(), "ESE 6190".to_string(), "ESE 6250".to_string(), "ESE 6500".to_string(), "MEAM 6200".to_string()] },
+                    Requirement::SingleCourse { category: Some("Robotics".to_string()), possibilities: vec!["ESE 5000".to_string(), "ESE 5050".to_string(), "MEAM 5200".to_string(), "ESE 6150".to_string(), "ESE 6190".to_string(), "ESE 6250".to_string(), "ESE 6500".to_string(), "MEAM 6200".to_string()] },
                 ]
             ),
         ])),
