@@ -15,6 +15,7 @@ use course::Course;
 use requirement::Requirement;
 use requirement::MappedRequirement;
 use requirement::DoubleCountInfo;
+use requirement::ConcentrationInfo;
 use major::Major;
 
 use axum:: {
@@ -242,6 +243,9 @@ struct DegreeResult {
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
     double_count_info: Vec<DoubleCountInfo>,
+    concentration_info: Vec<ConcentrationInfo>,
+    available_concentrations: Vec<String>,
+    has_core_concentration: bool,
     category_order: Vec<String>,
     error: Option<String>,
 }
@@ -303,6 +307,21 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 &major_data.requirements, &taken, &fulfilled, &suggested, &cu_map
             );
 
+            // Extract concentration info
+            let conc_info = requirement::extract_concentration_info(
+                &major_data.requirements, &major_data.concentrations,
+                &degree.concentration, &taken, &cu_map
+            );
+
+            // Available concentration names
+            let available_concs: Vec<String> = major_data.concentrations.as_ref()
+                .map(|m| m.keys().cloned().collect())
+                .unwrap_or_default();
+
+            // Check if this major uses core concentrations
+            let has_core = major_data.requirements.iter()
+                .any(|r| matches!(r, Requirement::Concentration { .. }));
+
             // Extract category order from requirement definition
             let mut category_order: Vec<String> = Vec::new();
             for req in &major_data.requirements {
@@ -320,6 +339,9 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 suggested_for_unfulfilled: suggested,
                 unapplicable_courses: unapplicable,
                 double_count_info: dc_info,
+                concentration_info: conc_info,
+                available_concentrations: available_concs,
+                has_core_concentration: has_core,
                 category_order,
                 error: None,
             });
@@ -332,6 +354,9 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 suggested_for_unfulfilled: vec![],
                 unapplicable_courses: vec![],
                 double_count_info: vec![],
+                concentration_info: vec![],
+                available_concentrations: vec![],
+                has_core_concentration: false,
                 category_order: vec![],
                 error: Some(format!("Major '{}' in school '{}' is not implemented yet.", degree.major, degree.school)),
             });

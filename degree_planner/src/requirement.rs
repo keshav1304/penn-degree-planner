@@ -75,32 +75,9 @@ impl Requirement {
     pub fn fulfills_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>, cu_map: &HashMap<String, f64>) -> Option<Vec<String>> {
         match self {
             Requirement::SingleCourse { category, possibilities, .. } => {
-                // First, try to find a 1.0+ CU match
                 for course in taken {
                     if possibilities.contains(course) {
-                        let cu = *cu_map.get(course).unwrap_or(&1.0);
-                        if cu >= 1.0 {
-                            return Some(vec![course.clone()]);
-                        }
-                    }
-                }
-                // If no 1.0 CU match, try to combine two 0.5 CU matches
-                let mut half_cu_matches: Vec<String> = Vec::new();
-                for course in taken {
-                    if possibilities.contains(course) {
-                        let cu = *cu_map.get(course).unwrap_or(&1.0);
-                        if cu < 1.0 {
-                            half_cu_matches.push(course.clone());
-                        }
-                    }
-                }
-                let mut accumulated = 0.0;
-                let mut result: Vec<String> = Vec::new();
-                for c in &half_cu_matches {
-                    accumulated += cu_map.get(c).unwrap_or(&1.0);
-                    result.push(c.clone());
-                    if accumulated >= 1.0 {
-                        return Some(result);
+                        return Some(vec![course.clone()]);
                     }
                 }
                 return None;
@@ -578,4 +555,101 @@ pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<St
     }
 
     result
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ConcentrationInfo {
+    pub name: String,
+    pub is_core: bool,
+    pub requirements_total: usize,
+    pub requirements_fulfilled: usize,
+    pub requirement_descriptions: Vec<String>,
+    pub requirement_fulfilled: Vec<bool>,
+    pub matched_courses: Vec<Vec<String>>,
+}
+
+/// Extract concentration progress info for overlay-style concentrations.
+/// For core concentrations (Requirement::Concentration in requirements), only name + is_core are populated.
+pub fn extract_concentration_info(
+    requirements: &Vec<Requirement>,
+    concentrations: &Option<std::collections::BTreeMap<String, Vec<Requirement>>>,
+    selected_concentration: &Option<String>,
+    taken: &Vec<String>,
+    cu_map: &HashMap<String, f64>,
+) -> Vec<ConcentrationInfo> {
+    let attributes = attributes_data::create_attributes();
+
+    // Check if this major has a core concentration (Requirement::Concentration in requirements)
+    let has_core = requirements.iter().any(|r| matches!(r, Requirement::Concentration { .. }));
+
+    let conc_map = match concentrations {
+        Some(map) => map,
+        None => return vec![],
+    };
+
+    if has_core {
+        // For core concentrations, just return the name and is_core flag.
+        // The actual requirement validation is done via the normal requirement flow.
+        if let Some(selected) = selected_concentration {
+            if conc_map.contains_key(selected) {
+                return vec![ConcentrationInfo {
+                    name: selected.clone(),
+                    is_core: true,
+                    requirements_total: 0,
+                    requirements_fulfilled: 0,
+                    requirement_descriptions: vec![],
+                    requirement_fulfilled: vec![],
+                    matched_courses: vec![],
+                }];
+            }
+        }
+        return vec![];
+    }
+
+    // Overlay-style: evaluate the selected concentration requirements
+    let selected = match selected_concentration {
+        Some(s) => s,
+        None => return vec![],
+    };
+
+    let conc_reqs = match conc_map.get(selected) {
+        Some(reqs) => reqs,
+        None => return vec![],
+    };
+
+    let mut req_descriptions = Vec::new();
+    let mut req_fulfilled = Vec::new();
+    let mut matched_courses: Vec<Vec<String>> = Vec::new();
+    let mut remaining_taken = taken.clone();
+
+    for req in conc_reqs {
+        // Generate description
+        let desc = match req.suggest_for_requirement(&vec![], &attributes, cu_map) {
+            Some(v) => v.join(", "),
+            None => req.get_category(),
+        };
+        req_descriptions.push(desc);
+
+        // Check fulfillment
+        if let Some(courses) = req.fulfills_requirement(&remaining_taken, &attributes, cu_map) {
+            remaining_taken.retain(|x| !courses.contains(x));
+            req_fulfilled.push(true);
+            matched_courses.push(courses);
+        } else {
+            req_fulfilled.push(false);
+            matched_courses.push(vec![]);
+        }
+    }
+
+    let fulfilled_count = req_fulfilled.iter().filter(|&&x| x).count();
+
+    vec![ConcentrationInfo {
+        name: selected.clone(),
+        is_core: false,
+        requirements_total: conc_reqs.len(),
+        requirements_fulfilled: fulfilled_count,
+        requirement_descriptions: req_descriptions,
+        requirement_fulfilled: req_fulfilled,
+        matched_courses,
+    }]
 }

@@ -37,6 +37,8 @@ const CONCENTRATION_OPTIONS = {
     WH_NOFL: ["FNCE", "BUAN", "OIDD", "STAT", "BEPP", "MKTG", "MGMT", "LGST"],
     WH_NOFL_MT: ["FNCE", "BUAN", "OIDD", "STAT", "BEPP", "MKTG", "MGMT", "LGST"],
     MEAM: ["General", "Dynamics, Controls, and Robotics", "Energy, Fluids and Thermal Systems", "Mechanics of Materials, Structures and Design"],
+    EE: ["None", "Data Science", "Mixed-Signal and RF Integrated Circuits", "System-on-A-Chip Design", "Photonics and Quantum Technology", "Microsystems and Nanotechnology", "Robotics"],
+    MSE: ["None", "Biomaterials and Biomimetics"],
 };
 
 export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
@@ -65,7 +67,8 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
         if (!selectedSchool || !selectedMajor) return;
         const schoolCode = SCHOOL_CODE_MAP[selectedSchool] || selectedSchool;
         const majorCode = currentMajorApiCode;
-        const conc = concentrations.length > 0 ? (selectedConcentration || concentrations[0]) : null;
+        const rawConc = concentrations.length > 0 ? (selectedConcentration || concentrations[0]) : null;
+        const conc = rawConc === "None" ? null : rawConc;
 
         // Check for duplicate
         const isDup = degrees.some(

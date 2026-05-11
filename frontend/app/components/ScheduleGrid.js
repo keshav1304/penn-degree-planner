@@ -20,11 +20,20 @@ const DC_COLORS = [
     "#f59e0b",  // amber
 ];
 
+const CONC_COLORS = [
+    "#10b981",  // emerald
+    "#8b5cf6",  // violet
+    "#f97316",  // orange
+    "#06b6d4",  // cyan
+];
+
 export default function ScheduleGrid({
     scheduleData, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
-    doubleCountData, courseDoubleCountMap, allCourses,
+    doubleCountData, courseDoubleCountMap,
+    concentrationData, courseConcentrationMap,
+    allCourses,
     semesterCuLimits, onSemesterCuLimitChange,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
@@ -385,6 +394,57 @@ export default function ScheduleGrid({
                                             {dc.dc_fulfilled?.[j] && dc.dc_matched_courses?.[j]?.length > 0 && (
                                                 <span className="dc-constraint-courses">
                                                     {dc.dc_matched_courses[j].map((c, k) => (
+                                                        <span key={k} className="dc-course-chip" style={{ borderColor: color }}>{c}</span>
+                                                    ))}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Concentration Tracker Bars */}
+            {concentrationData && concentrationData.length > 0 && (
+                <div className="dc-tracker-section">
+                    <div className="dc-tracker-title">🎯 Concentration Tracker</div>
+                    {concentrationData.map((ci, i) => {
+                        const fulfilledCount = ci.requirements_fulfilled || 0;
+                        const totalCount = ci.requirements_total || 0;
+                        const allFulfilled = fulfilledCount === totalCount && totalCount > 0;
+                        const color = CONC_COLORS[i % CONC_COLORS.length];
+                        return (
+                            <div
+                                key={i}
+                                className={`dc-tracker-bar ${allFulfilled ? "dc-tracker-fulfilled" : ""}`}
+                                style={{ borderLeftColor: color }}
+                            >
+                                <div className="dc-tracker-header">
+                                    <span className="dc-tracker-label" style={{ color }}>
+                                        {ci.name}
+                                    </span>
+                                    <span className="dc-tracker-category">
+                                        {ci.degreeLabel}
+                                    </span>
+                                    <span className="dc-tracker-progress">
+                                        {fulfilledCount}/{totalCount}
+                                    </span>
+                                </div>
+                                <div className="dc-tracker-constraints">
+                                    {ci.requirement_descriptions?.map((desc, j) => (
+                                        <div key={j} className="dc-constraint-row">
+                                            <span className="dc-constraint-status">
+                                                {ci.requirement_fulfilled?.[j] ? "✅" : "❌"}
+                                            </span>
+                                            <span className="dc-constraint-desc">
+                                                {desc}
+                                            </span>
+                                            {ci.requirement_fulfilled?.[j] && ci.matched_courses?.[j]?.length > 0 && (
+                                                <span className="dc-constraint-courses">
+                                                    {ci.matched_courses[j].map((c, k) => (
                                                         <span key={k} className="dc-course-chip" style={{ borderColor: color }}>{c}</span>
                                                     ))}
                                                 </span>

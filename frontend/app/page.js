@@ -330,6 +330,35 @@ export default function Home() {
     return { doubleCountData: dcList, courseDoubleCountMap: dcCourseMap };
   })();
 
+  // ─── Build concentration tracker data ───
+  const { concentrationData, courseConcentrationMap } = (() => {
+    const concList = [];
+    const concCourseMap = {};
+    if (scheduleData?.degree_results) {
+      scheduleData.degree_results.forEach((result) => {
+        const degreeLabel = `${result.school}-${result.major}`;
+        if (result.concentration_info) {
+          result.concentration_info.forEach((ci) => {
+            if (ci.is_core) return; // core concentrations are handled via normal requirements
+            concList.push({ ...ci, degreeLabel });
+
+            // Map matched courses to this concentration tracker
+            (ci.matched_courses || []).flat().forEach((courseId) => {
+              if (!concCourseMap[courseId]) concCourseMap[courseId] = [];
+              if (!concCourseMap[courseId].some(e => e.name === ci.name)) {
+                concCourseMap[courseId].push({
+                  name: ci.name,
+                  degreeLabel,
+                });
+              }
+            });
+          });
+        }
+      });
+    }
+    return { concentrationData: concList, courseConcentrationMap: concCourseMap };
+  })();
+
   return (
     <DndContext
       sensors={sensors}
@@ -416,6 +445,8 @@ export default function Home() {
                   allowSummer={allowSummer}
                   doubleCountData={doubleCountData}
                   courseDoubleCountMap={courseDoubleCountMap}
+                  concentrationData={concentrationData}
+                  courseConcentrationMap={courseConcentrationMap}
                   allCourses={allCourses}
                   semesterCuLimits={semesterCuLimits}
                   onSemesterCuLimitChange={(key, value) => {
