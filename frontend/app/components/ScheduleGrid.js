@@ -346,7 +346,7 @@ export default function ScheduleGrid({
             {infoPopup && courseRequirementMap?.[infoPopup.courseId] && (
                 <div
                     className="course-info-popup"
-                    style={{ position: "fixed", left: infoPopup.x, top: infoPopup.y, border: "2px solid red" }}
+                    style={{ position: "fixed", left: 0, top: infoPopup.y, border: "2px solid red" }}
                     onClick={e => e.stopPropagation()}
                 >
                     <div className="course-info-popup-title">{infoPopup.courseId}</div>
