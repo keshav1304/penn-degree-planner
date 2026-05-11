@@ -147,7 +147,7 @@ pub fn create_ee_major() -> Major {
                 vec![
                     Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["ESE 3060".to_string()] },
                     Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["ESE 4020".to_string()] },
-                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["NETS 3120".to_string(), "ESE 5140".to_string(), "CIS 5200".to_string(), "CIS 5450".to_string(), "ESE 5460".to_string(), "ESE 6500".to_string()] }
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["NETS 3120".to_string(), "ESE 5140".to_string(), "CIS 5200".to_string(), "CIS 5450".to_string(), "ESE 5460".to_string(), "ESE 6500".to_string()] },
                     Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["NETS 3120".to_string(), "ESE 5140".to_string(), "CIS 5200".to_string(), "CIS 5450".to_string(), "ESE 5460".to_string(), "ESE 6500".to_string()] }
                 ]
             ),

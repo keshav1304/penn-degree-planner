@@ -8,18 +8,18 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
 
     if (!degrees || degrees.length === 0) {
         return (
-            <div className="empty-state">
-                <div className="emoji">📋</div>
-                <div>Add degrees to see requirement fulfillment</div>
+            <div className="req-empty-state">
+                <div className="req-empty-icon">📋</div>
+                <div className="req-empty-text">Add degrees to see requirement fulfillment</div>
             </div>
         );
     }
 
     if (!scheduleData || !scheduleData.degree_results) {
         return (
-            <div className="empty-state">
-                <div className="loading-spinner" style={{ width: 24, height: 24 }} />
-                <div style={{ marginTop: 10 }}>Loading requirements…</div>
+            <div className="req-empty-state">
+                <div className="loading-spinner" style={{ width: 20, height: 20 }} />
+                <div className="req-empty-text" style={{ marginTop: 10 }}>Loading requirements…</div>
             </div>
         );
     }
@@ -30,10 +30,8 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
 
     if (!current) return null;
 
-    // ─── Build a unified list of all requirements with their status ───
     const allReqs = [];
 
-    // Fulfilled requirements
     (current.fulfilled_requirements || []).forEach((mapped) => {
         const cat = getCategory(mapped.requirement);
         allReqs.push({
@@ -44,7 +42,6 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
         });
     });
 
-    // Unfulfilled requirements (with suggestions)
     const suggestionsMap = {};
     (current.suggested_for_unfulfilled || []).forEach((mapped) => {
         const cat = getCategory(mapped.requirement);
@@ -64,32 +61,29 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
         });
     });
 
-    // ─── Group by category ───
     const categoryMap = {};
     allReqs.forEach((item) => {
         if (!categoryMap[item.category]) categoryMap[item.category] = [];
         categoryMap[item.category].push(item);
     });
 
-    // ─── Order by category_order from backend ───
     const categoryOrder = current.category_order || [];
     const orderedCategories = [...categoryOrder];
-    // Add any categories not in the order (shouldn't happen, but just in case)
     Object.keys(categoryMap).forEach((cat) => {
         if (!orderedCategories.includes(cat)) orderedCategories.push(cat);
     });
 
-    // ─── Summary counts ───
     const fulfilledCount = current.fulfilled_requirements?.length || 0;
     const totalCount = fulfilledCount + (current.unfulfilled_requirements?.length || 0);
+    const pct = totalCount > 0 ? Math.round((fulfilledCount / totalCount) * 100) : 0;
 
     const toggleExpand = (key) => {
         setExpandedOptions((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
     return (
-        <div className="requirements-section">
-            {/* Tabs for each degree */}
+        <div className="req-panel">
+            {/* Degree tabs */}
             {results.length > 1 && (
                 <div className="req-tabs">
                     {results.map((result, i) => (
@@ -104,67 +98,63 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
                 </div>
             )}
 
-            {/* Error state */}
+            {/* Error */}
             {current.error && (
-                <div style={{
-                    padding: 12,
-                    background: "var(--danger-dim)",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid rgba(239,68,68,0.2)",
-                    marginBottom: 12,
-                    fontSize: "0.82rem",
-                    color: "var(--danger)",
-                }}>
+                <div className="req-error-banner">
                     ⚠️ {current.error}
                 </div>
             )}
 
-            {/* Summary bar */}
+            {/* Progress summary */}
             {!current.error && totalCount > 0 && (
-                <div className="req-summary-bar">
-                    <span className="req-summary-fulfilled">
-                        ✅ {fulfilledCount} fulfilled
-                    </span>
-                    <span className="req-summary-unfulfilled">
-                        ❌ {totalCount - fulfilledCount} remaining
-                    </span>
-                    <span className="req-summary-total">
-                        / {totalCount} total
-                    </span>
+                <div className="req-summary">
+                    <div className="req-summary-stats">
+                        <span className="req-stat req-stat-fulfilled">
+                            <span className="req-stat-dot req-stat-dot-fulfilled" />
+                            {fulfilledCount} fulfilled
+                        </span>
+                        <span className="req-stat req-stat-remaining">
+                            <span className="req-stat-dot req-stat-dot-remaining" />
+                            {totalCount - fulfilledCount} remaining
+                        </span>
+                        <span className="req-stat req-stat-pct">{pct}%</span>
+                    </div>
                     <div className="req-progress-track">
-                        <div
-                            className="req-progress-fill"
-                            style={{ width: `${(fulfilledCount / totalCount) * 100}%` }}
-                        />
+                        <div className="req-progress-fill" style={{ width: `${pct}%` }} />
                     </div>
                 </div>
             )}
 
             {/* Category groups */}
-            <div className="req-list">
+            <div className="req-groups">
                 {orderedCategories.map((cat) => {
                     const items = categoryMap[cat];
                     if (!items || items.length === 0) return null;
 
                     const groupFulfilled = items.filter((r) => r.fulfilled).length;
                     const groupTotal = items.length;
-                    const allGroupFulfilled = groupFulfilled === groupTotal;
+                    const allDone = groupFulfilled === groupTotal;
 
                     return (
-                        <div key={cat} className={`req-category-group ${allGroupFulfilled ? "all-fulfilled" : ""}`}>
-                            <div className="req-category-header">
-                                <span className="req-category-icon">
-                                    {allGroupFulfilled ? "✅" : "📌"}
+                        <div key={cat} className={`req-group ${allDone ? "req-group-done" : ""}`}>
+                            <div className="req-group-header">
+                                <span className={`req-group-badge ${allDone ? "badge-done" : "badge-pending"}`}>
+                                    {allDone ? "✓" : "·"}
                                 </span>
-                                <span className="req-category-name">{cat}</span>
-                                <span className="req-category-count">
+                                <span className="req-group-name">{cat}</span>
+                                <span className={`req-group-pill ${allDone ? "pill-done" : "pill-pending"}`}>
                                     {groupFulfilled}/{groupTotal}
                                 </span>
                             </div>
-                            <div className="req-category-items">
+
+                            <div className="req-group-body">
                                 {items.map((item, idx) => {
                                     const expandKey = `${cat}-${idx}`;
-                                    return renderRequirement(item, idx, expandKey, expandedOptions[expandKey], () => toggleExpand(expandKey));
+                                    return renderRequirement(
+                                        item, idx, expandKey,
+                                        expandedOptions[expandKey],
+                                        () => toggleExpand(expandKey)
+                                    );
                                 })}
                             </div>
                         </div>
@@ -172,10 +162,8 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
                 })}
 
                 {totalCount === 0 && !current.error && (
-                    <div className="empty-state" style={{ padding: "20px 0" }}>
-                        <div style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                            No requirement data available for this program
-                        </div>
+                    <div className="req-empty-state" style={{ padding: "20px 0" }}>
+                        <span className="req-empty-text">No requirement data available for this program</span>
                     </div>
                 )}
             </div>
@@ -183,7 +171,6 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
     );
 }
 
-// ─── Render a single requirement item ───
 function renderRequirement(item, idx, expandKey, isExpanded, onToggle) {
     const req = item.requirement;
     const { type, data } = parseRequirement(req);
@@ -197,21 +184,22 @@ function renderRequirement(item, idx, expandKey, isExpanded, onToggle) {
     const visibleOptions = isExpanded ? options : options.slice(0, MAX_VISIBLE);
 
     return (
-        <div key={idx} className={`req-item ${fulfilled ? "fulfilled" : "unfulfilled"}`}>
-            <span className="req-status-icon">{fulfilled ? "✓" : "○"}</span>
-            <div className="req-content">
-                <div className="req-description">
-                    {getDescription(type, data)}
-                </div>
+        <div key={idx} className={`req-item ${fulfilled ? "req-item-fulfilled" : "req-item-pending"}`}>
+            <span className={`req-item-icon ${fulfilled ? "icon-fulfilled" : "icon-pending"}`}>
+                {fulfilled ? "✓" : "○"}
+            </span>
+            <div className="req-item-body">
+                <div className="req-item-desc">{getDescription(type, data)}</div>
+
                 {options.length > 0 && (
-                    <div className="req-options">
+                    <div className="req-chips">
                         {visibleOptions.map((opt, i) => {
                             const isFulfilled = fulfilledSet.has(opt);
                             const isSuggested = suggestedSet.has(opt);
                             return (
                                 <span
                                     key={i}
-                                    className={`req-option-chip ${isFulfilled ? "chip-fulfilled" : ""} ${isSuggested ? "chip-suggested" : ""}`}
+                                    className={`req-chip ${isFulfilled ? "chip-fulfilled" : isSuggested ? "chip-suggested" : "chip-default"}`}
                                 >
                                     {opt}
                                 </span>
@@ -219,23 +207,24 @@ function renderRequirement(item, idx, expandKey, isExpanded, onToggle) {
                         })}
                         {hasMore && (
                             <button className="req-expand-btn" onClick={onToggle}>
-                                {isExpanded ? "Show less" : `+${options.length - MAX_VISIBLE} more`}
+                                {isExpanded ? "Show less ↑" : `+${options.length - MAX_VISIBLE} more`}
                             </button>
                         )}
                     </div>
                 )}
-                {/* Show fulfilled courses for Restriction-type items that have description-only suggestions */}
+
                 {fulfilled && item.fulfilledCourses.length > 0 && options.length === 0 && (
-                    <div className="req-options">
+                    <div className="req-chips">
                         {item.fulfilledCourses.map((c, i) => (
-                            <span key={i} className="req-option-chip chip-fulfilled">{c}</span>
+                            <span key={i} className="req-chip chip-fulfilled">{c}</span>
                         ))}
                     </div>
                 )}
+
                 {!fulfilled && item.suggestedCourses?.length > 0 && options.length === 0 && (
-                    <div className="req-options">
+                    <div className="req-chips">
                         {item.suggestedCourses.map((c, i) => (
-                            <span key={i} className="req-option-chip chip-suggested">{c}</span>
+                            <span key={i} className="req-chip chip-suggested">{c}</span>
                         ))}
                     </div>
                 )}
@@ -244,22 +233,19 @@ function renderRequirement(item, idx, expandKey, isExpanded, onToggle) {
     );
 }
 
-// ─── Helpers ───
+// ─── Helpers (unchanged logic) ───
 
-/** Parse the externally-tagged Requirement enum */
 function parseRequirement(req) {
     if (!req) return { type: "Unknown", data: {} };
     const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
     for (const v of variants) {
         if (req[v] !== undefined) return { type: v, data: req[v] };
     }
-    // Direct fields (already unwrapped by serde)
     if (req.possibilities) return { type: "SingleCourse", data: req };
     if (req.department !== undefined || req.attr !== undefined) return { type: "Restriction", data: req };
     return { type: "Unknown", data: req };
 }
 
-/** Get a human-readable description of a requirement */
 function getDescription(type, data) {
     switch (type) {
         case "SingleCourse":
@@ -289,7 +275,6 @@ function getDescription(type, data) {
     }
 }
 
-/** Get the list of course options to display as chips */
 function getOptions(type, data) {
     switch (type) {
         case "SingleCourse":
@@ -297,13 +282,9 @@ function getOptions(type, data) {
         case "CourseGroup":
             return data.possibilities || [];
         case "Restriction":
-            // Show attribute names as "pseudo-options"
-            if (data.attr && data.attr.length > 0) {
-                return data.attr.map(a => `[${a}]`);
-            }
+            if (data.attr && data.attr.length > 0) return data.attr.map(a => `[${a}]`);
             return [];
         case "AnyOf": {
-            // Flatten nested requirements into readable items
             const items = [];
             (data.possibilities || []).forEach((subReq) => {
                 const { type: t2, data: d2 } = parseRequirement(subReq);
@@ -333,12 +314,9 @@ function getOptions(type, data) {
     }
 }
 
-/** Get category from a requirement object */
 function getCategory(req) {
     if (!req) return "Other";
-    // Direct category field
     if (req.category) return req.category;
-    // Externally tagged enum
     const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
     for (const v of variants) {
         if (req[v]?.category) return req[v].category;
@@ -346,7 +324,6 @@ function getCategory(req) {
     return "Other";
 }
 
-/** Unique key for matching unfulfilled requirements to their suggestions */
 function getReqKey(req) {
     if (!req) return "unknown";
     const { type, data } = parseRequirement(req);
