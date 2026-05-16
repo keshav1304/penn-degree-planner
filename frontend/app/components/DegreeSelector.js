@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { API_BASE } from "@/lib/api";
 
 // Map display school names to API school codes
 const SCHOOL_CODE_MAP = {
@@ -31,20 +32,12 @@ const MAJOR_API_MAP = {
     NA: "NA",
 };
 
-// Which majors have concentrations
-const CONCENTRATION_OPTIONS = {
-    WH_FL: ["FNCE", "BUAN", "OIDD", "STAT", "BEPP", "MKTG", "MGMT", "LGST"],
-    WH_NOFL: ["FNCE", "BUAN", "OIDD", "STAT", "BEPP", "MKTG", "MGMT", "LGST"],
-    WH_NOFL_MT: ["FNCE", "BUAN", "OIDD", "STAT", "BEPP", "MKTG", "MGMT", "LGST"],
-    MEAM: ["General", "Dynamics, Controls, and Robotics", "Energy, Fluids and Thermal Systems", "Mechanics of Materials, Structures and Design"],
-    EE: ["None", "Data Science", "Mixed-Signal and RF Integrated Circuits", "System-on-A-Chip Design", "Photonics and Quantum Technology", "Microsystems and Nanotechnology", "Robotics"],
-    MSE: ["None", "Biomaterials and Biomimetics"],
-};
-
 export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
     const [selectedSchool, setSelectedSchool] = useState("");
     const [selectedMajor, setSelectedMajor] = useState("");
     const [selectedConcentration, setSelectedConcentration] = useState("");
+    const [concentrations, setConcentrations] = useState([]);
+    const [concentrationsLoading, setConcentrationsLoading] = useState(false);
 
     const schoolNames = useMemo(() => Object.keys(allMajors), [allMajors]);
 
@@ -59,13 +52,41 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
         return MAJOR_API_MAP[code] || code;
     }, [selectedMajor]);
 
-    const concentrations = useMemo(() => {
-        return CONCENTRATION_OPTIONS[currentMajorApiCode] || [];
-    }, [currentMajorApiCode]);
+    const schoolCode = useMemo(() => {
+        return SCHOOL_CODE_MAP[selectedSchool] || selectedSchool;
+    }, [selectedSchool]);
+
+    useEffect(() => {
+        if (!selectedSchool || !currentMajorApiCode) {
+            setConcentrations([]);
+            setSelectedConcentration("");
+            return;
+        }
+
+        const controller = new AbortController();
+        setConcentrationsLoading(true);
+
+        const params = new URLSearchParams({
+            school: schoolCode,
+            major: currentMajorApiCode,
+        });
+
+        fetch(`${API_BASE}/concentrations?${params}`, { signal: controller.signal })
+            .then(r => r.json())
+            .then(data => {
+                setConcentrations(data.concentrations || []);
+                setSelectedConcentration("");
+            })
+            .catch(err => {
+                if (err.name !== "AbortError") setConcentrations([]);
+            })
+            .finally(() => setConcentrationsLoading(false));
+
+        return () => controller.abort();
+    }, [selectedSchool, currentMajorApiCode, schoolCode]);
 
     const addDegree = () => {
         if (!selectedSchool || !selectedMajor) return;
-        const schoolCode = SCHOOL_CODE_MAP[selectedSchool] || selectedSchool;
         const majorCode = currentMajorApiCode;
         const rawConc = concentrations.length > 0 ? (selectedConcentration || concentrations[0]) : null;
         const conc = rawConc === "None" ? null : rawConc;
@@ -157,6 +178,7 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
                     <select
                         value={selectedConcentration || concentrations[0]}
                         onChange={(e) => setSelectedConcentration(e.target.value)}
+                        disabled={concentrationsLoading}
                     >
                         {concentrations.map(c => (
                             <option key={c} value={c}>{c}</option>
@@ -167,7 +189,7 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
                 <button
                     className="btn btn-primary btn-sm"
                     onClick={addDegree}
-                    disabled={!selectedSchool || !selectedMajor}
+                    disabled={!selectedSchool || !selectedMajor || concentrationsLoading}
                 >
                     + Add
                 </button>

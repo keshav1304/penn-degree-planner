@@ -43,6 +43,8 @@ async fn main() {
         .route("/all_courses", get(all_courses_get))
         .route("/course", get(course_get))
         .route("/all_majors", get(all_majors_get))
+        .route("/concentrations", get(concentrations_get))
+        .route("/all_concentrations", get(all_concentrations_get))
         .route("/generate_schedule", post(generate_schedule_post))
         .layer(cors);
 
@@ -138,6 +140,38 @@ async fn all_majors_get() -> Json<BTreeMap<String, Vec<String>>> {
 
 }
 
+#[derive(Debug, Deserialize)]
+struct ConcentrationsGetParams {
+    school: String,
+    major: String,
+}
+
+#[derive(Serialize)]
+struct ConcentrationsResponse {
+    concentrations: Vec<String>,
+}
+
+#[debug_handler]
+async fn concentrations_get(
+    Query(params): Query<ConcentrationsGetParams>,
+) -> Json<ConcentrationsResponse> {
+    println!(
+        "GET /concentrations request made for {} / {}",
+        params.school, params.major
+    );
+
+    Json(ConcentrationsResponse {
+        concentrations: concentrations_for(&params.school, &params.major),
+    })
+}
+
+#[debug_handler]
+async fn all_concentrations_get() -> Json<BTreeMap<String, Vec<String>>> {
+    println!("GET /all_concentrations request made");
+
+    Json(all_concentrations())
+}
+
 #[debug_handler]
 async fn all_courses_get() -> Json<Vec<Course>> {
     println!("GET /all_courses request made");
@@ -150,7 +184,7 @@ async fn all_courses_get() -> Json<Vec<Course>> {
 use axum::{extract::Query};
 
 use crate::course::find_course;
-use crate::major::all_majors;
+use crate::major::{all_majors, all_concentrations, concentrations_for};
 #[derive(Debug, Deserialize)]
 struct CourseGetParams {
     course_id: String,

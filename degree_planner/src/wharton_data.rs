@@ -3,6 +3,10 @@ use std::collections::BTreeMap;
 use crate::Requirement;
 use crate::Major;
 
+pub fn concentration_names() -> Vec<String> {
+    create_wh_concentrations().keys().cloned().collect()
+}
+
 pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
     BTreeMap::from([
         (

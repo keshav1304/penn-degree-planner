@@ -25,10 +25,10 @@ const C = {
 
 // ─── Inline style objects ───
 const S = {
-    wrap: { display: "flex", flexDirection: "column", gap: 12 },
+    wrap: { display: "flex", flexDirection: "column", gap: 12, minHeight: 0, height: "100%" },
 
     // tabs
-    tabs: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 },
+    tabs: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, flexShrink: 0 },
     tab: { padding: "6px 14px", background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: C.gray500, fontSize: "0.76rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" },
     tabActive: { padding: "6px 14px", background: "rgba(5,150,105,0.1)", border: `1px solid ${C.teal600}`, borderRadius: 8, color: C.teal600, fontSize: "0.76rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" },
 
@@ -36,7 +36,7 @@ const S = {
     error: { padding: "10px 14px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, fontSize: "0.8rem", color: C.red500 },
 
     // summary
-    summary: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8 },
+    summary: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, flexShrink: 0 },
     summStats: { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" },
     statOk: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.green600 },
     statNo: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.red500 },
@@ -45,9 +45,14 @@ const S = {
     track: { height: 5, background: "rgba(0,0,0,0.08)", borderRadius: 3, overflow: "hidden" },
     fill: (pct) => ({ height: "100%", minWidth: 4, width: `${pct}%`, background: `linear-gradient(90deg, ${C.green600}, ${C.teal600})`, borderRadius: 3, transition: "width 0.5s ease" }),
 
-    // groups
-    groups: { display: "flex", flexDirection: "column", gap: 8, maxHeight: 560, overflowY: "auto", paddingRight: 2 },
-    group: (done) => ({ border: `1px solid ${done ? C.green300 : C.gray200}`, borderRadius: 8, overflow: "hidden" }),
+    // groups — flexShrink: 0 on children prevents accordion rows squashing to ~2px
+    groups: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 2 },
+    group: (done) => ({
+        border: `1px solid ${done ? C.green300 : C.gray200}`,
+        borderRadius: 8,
+        overflow: "hidden",
+        flexShrink: 0,
+    }),
 
     // group header
     groupHdr: (done) => ({
@@ -84,6 +89,7 @@ const S = {
         gap: 10,
         padding: "10px 14px",              // ← explicit, immune to CSS reset
         minHeight: 40,                     // ← floor so rows are never invisible
+        flexShrink: 0,
         background: fulfilled ? "#f8fff8" : C.white,
         borderTop: isFirst ? "none" : `1px solid ${C.gray100}`,
         borderLeft: `3px solid ${fulfilled ? C.green300 : C.gray200}`,
@@ -134,25 +140,27 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
     // Build requirement list
     const allReqs = [];
     (current.fulfilled_requirements || []).forEach((mapped) => {
-        allReqs.push({ category: getCategory(mapped.requirement), fulfilled: true, fulfilledCourses: mapped.course_ids || [], requirement: mapped.requirement });
+        const cat = normalizeCategory(getCategory(mapped.requirement));
+        allReqs.push({ category: cat, fulfilled: true, fulfilledCourses: mapped.course_ids || [], requirement: mapped.requirement });
     });
     const suggestionsMap = {};
     (current.suggested_for_unfulfilled || []).forEach((mapped) => {
-        const cat = getCategory(mapped.requirement);
+        const cat = normalizeCategory(getCategory(mapped.requirement));
         suggestionsMap[`${cat}::${getReqKey(mapped.requirement)}`] = mapped.course_ids || [];
     });
     (current.unfulfilled_requirements || []).forEach((req) => {
-        const cat = getCategory(req);
+        const cat = normalizeCategory(getCategory(req));
         allReqs.push({ category: cat, fulfilled: false, fulfilledCourses: [], suggestedCourses: suggestionsMap[`${cat}::${getReqKey(req)}`] || [], requirement: req });
     });
 
     const categoryMap = {};
     allReqs.forEach((item) => {
-        if (!categoryMap[item.category]) categoryMap[item.category] = [];
-        categoryMap[item.category].push(item);
+        const cat = normalizeCategory(item.category);
+        if (!categoryMap[cat]) categoryMap[cat] = [];
+        categoryMap[cat].push(item);
     });
 
-    const categoryOrder = current.category_order || [];
+    const categoryOrder = (current.category_order || []).map(normalizeCategory);
     const orderedCategories = [...categoryOrder];
     Object.keys(categoryMap).forEach((c) => { if (!orderedCategories.includes(c)) orderedCategories.push(c); });
 
@@ -342,6 +350,11 @@ function getOptions(type, data) {
         }
         default: return [];
     }
+}
+
+function normalizeCategory(cat) {
+    if (!cat || typeof cat !== "string" || !cat.trim()) return "Other";
+    return cat.trim();
 }
 
 function getCategory(req) {

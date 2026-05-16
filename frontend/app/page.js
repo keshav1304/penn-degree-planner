@@ -6,8 +6,7 @@ import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
-
-const API_BASE = "http://127.0.0.1:8080";
+import { API_BASE } from "@/lib/api";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -460,7 +459,7 @@ export default function Home() {
               <div className="panel-header">
                 <h2>✅ Requirements</h2>
               </div>
-              <div className="panel-body">
+              <div className="panel-body panel-body-requirements">
                 <RequirementsPanel
                   scheduleData={scheduleData}
                   degrees={degrees}

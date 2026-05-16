@@ -150,6 +150,14 @@ body {
   flex: 1;
 }
 
+/* Lets RequirementsPanel fill height and scroll its category list */
+.panel-body-requirements {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ============ BUTTONS ============ */
 .btn {
   padding: 8px 16px;
@@ -860,6 +868,7 @@ select {
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--bg-secondary);
+  flex-shrink: 0;
 }
 
 .req-group-done {

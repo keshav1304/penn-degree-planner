@@ -2,6 +2,19 @@ use std::collections::BTreeMap;
 use crate::Major;
 use crate::Requirement;
 
+/// Concentration names for a SEAS major (empty if the major has none).
+pub fn concentration_names_for(major_code: &str) -> Vec<String> {
+    let concentrations = match major_code {
+        "EE" => create_ee_major().concentrations,
+        "MEAM" => create_meam_major("General".to_string()).concentrations,
+        "MSE" => create_mse_major().concentrations,
+        _ => return vec![],
+    };
+    concentrations
+        .map(|m| m.keys().cloned().collect())
+        .unwrap_or_default()
+}
+
 pub fn create_ee_major() -> Major {
         return Major {
         short_name: "EE".to_string(),
@@ -166,7 +179,13 @@ pub fn create_ee_major() -> Major {
                                     Requirement::SingleCourse { category: None, possibilities: vec!["ESE 5750".to_string()] },
                                 ]
                             },
-                            Requirement::CourseGroup { category: None, number: 2, possibilities: vec!["ESE 4190".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "ESE 6710".to_string(), "ESE 6720".to_string()] },
+                            Requirement::AllOf {
+                                category: None,
+                                requirements: vec![
+                                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 4190".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "ESE 6710".to_string(), "ESE 6720".to_string()] },
+                                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 4190".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "ESE 6710".to_string(), "ESE 6720".to_string()] },
+                                ]
+                            },
                         ]
                     }
                 ]
@@ -183,7 +202,7 @@ pub fn create_ee_major() -> Major {
                                 requirements: vec![
                                     Requirement::SingleCourse { category: None, possibilities: vec!["ESE 5730".to_string()] },
                                     Requirement::SingleCourse { category: None, possibilities: vec!["ESE 5750".to_string()] },
-                                    Requirement::CourseGroup { category: None, number: 1, possibilities: vec!["CIS 4710".to_string(), "ESE 5320".to_string(), "ESE 5390".to_string()] },
+                                    Requirement::SingleCourse { category: None, possibilities: vec!["CIS 4710".to_string(), "ESE 5320".to_string(), "ESE 5390".to_string()] },
                                 ]
                             },
                             Requirement::CourseGroup { category: None,number: 3, possibilities: vec!["CIS 4710".to_string(), "ESE 5320".to_string(), "ESE 5390".to_string()] },
@@ -196,14 +215,17 @@ pub fn create_ee_major() -> Major {
                 vec![
                     Requirement::SingleCourse { category: Some("Photonics and Quantum Technology".to_string()), possibilities: vec!["ESE 3200".to_string()] },
                     Requirement::SingleCourse { category: Some("Photonics and Quantum Technology".to_string()), possibilities: vec!["ESE 3300".to_string()] },
-                    Requirement::CourseGroup { category: Some("Photonics and Quantum Technology".to_string()), number: 2, possibilities: vec!["ESE 5090".to_string(), "ESE 5100".to_string(), "ESE 5130".to_string(), "ESE 5230".to_string(), "ESE 5360".to_string(), "ESE 6730".to_string()] },
+                    Requirement::SingleCourse { category: Some("Photonics and Quantum Technology".to_string()), possibilities: vec!["ESE 5090".to_string(), "ESE 5100".to_string(), "ESE 5130".to_string(), "ESE 5230".to_string(), "ESE 5360".to_string(), "ESE 6730".to_string()] },
+                    Requirement::SingleCourse { category: Some("Photonics and Quantum Technology".to_string()), possibilities: vec!["ESE 5090".to_string(), "ESE 5100".to_string(), "ESE 5130".to_string(), "ESE 5230".to_string(), "ESE 5360".to_string(), "ESE 6730".to_string()] },
                 ]
             ),
             (
                 "Microsystems and Nanotechnology".to_string(), 
                 vec![
                     Requirement::SingleCourse { category: Some("Microsystems and Nanotechnology".to_string()), possibilities: vec!["ESE 5250".to_string()] },
-                    Requirement::CourseGroup { category: Some("Microsystems and Nanotechnology".to_string()), number: 3, possibilities: vec!["ESE 3300".to_string(), "ESE 5100".to_string(), "ESE 5210".to_string(), "ESE 5290".to_string(), "ESE 5360".to_string(), "ESE 6210".to_string(), "ESE 6250".to_string()] },
+                    Requirement::SingleCourse { category: Some("Microsystems and Nanotechnology".to_string()), possibilities: vec!["ESE 3300".to_string(), "ESE 5100".to_string(), "ESE 5210".to_string(), "ESE 5290".to_string(), "ESE 5360".to_string(), "ESE 6210".to_string(), "ESE 6250".to_string()] },
+                    Requirement::SingleCourse { category: Some("Microsystems and Nanotechnology".to_string()), possibilities: vec!["ESE 3300".to_string(), "ESE 5100".to_string(), "ESE 5210".to_string(), "ESE 5290".to_string(), "ESE 5360".to_string(), "ESE 6210".to_string(), "ESE 6250".to_string()] },
+                    Requirement::SingleCourse { category: Some("Microsystems and Nanotechnology".to_string()), possibilities: vec!["ESE 3300".to_string(), "ESE 5100".to_string(), "ESE 5210".to_string(), "ESE 5290".to_string(), "ESE 5360".to_string(), "ESE 6210".to_string(), "ESE 6250".to_string()] },
                 ]
             ),
             (
