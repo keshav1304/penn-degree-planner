@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use serde::Serialize;
+
 use crate::Requirement;
 use crate::seas_data;
 use crate::wharton_data;
@@ -12,13 +14,99 @@ pub struct Major {
     pub concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
 }
 
-pub fn all_majors () -> BTreeMap<String, Vec<String>> {
-    BTreeMap::from([
-        ("College of Arts and Sciences (CAS)".to_string(), ["Not implemented (NA)"].map(String::from).to_vec()),
-        ("School of Engineering and Applied Science (SEAS)".to_string(), ["Electrical Engineering (EE)", "Computer Science, BSE (CIS)", "Mechanical Engineering and Applied Mechanics (MEAM)", "Material Science and Engineering (MSE)", "Artificial Intelligence (AI)", "Computer Engineering (CE)"].map(String::from).to_vec()),
-        ("The Wharton School (WH)".to_string(), ["Foreign Language Required (FL)", "Foreign Language Exempt (NO_FL)", "M&T - Foreign Language Exempt (NOFL_MT)"].map(String::from).to_vec()),
-        ("School of Nursing (NURS)".to_string(), ["Not implemented (NA)"].map(String::from).to_vec()),
-    ])
+#[derive(Debug, Clone, Serialize)]
+pub struct MajorCatalogEntry {
+    pub display_name: String,
+    pub api_code: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SchoolCatalogEntry {
+    pub school_code: String,
+    pub display_name: String,
+    pub majors: Vec<MajorCatalogEntry>,
+}
+
+/// Canonical school/major list for the UI and `/all_majors`.
+pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
+    vec![
+        SchoolCatalogEntry {
+            school_code: "CAS".to_string(),
+            display_name: "College of Arts and Sciences (CAS)".to_string(),
+            majors: vec![MajorCatalogEntry {
+                display_name: "Not implemented (NA)".to_string(),
+                api_code: "NA".to_string(),
+            }],
+        },
+        SchoolCatalogEntry {
+            school_code: "SEAS".to_string(),
+            display_name: "School of Engineering and Applied Science (SEAS)".to_string(),
+            majors: vec![
+                MajorCatalogEntry {
+                    display_name: "Electrical Engineering (EE)".to_string(),
+                    api_code: "EE".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Computer Science, BSE (CIS)".to_string(),
+                    api_code: "CIS".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Mechanical Engineering and Applied Mechanics (MEAM)".to_string(),
+                    api_code: "MEAM".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Material Science and Engineering (MSE)".to_string(),
+                    api_code: "MSE".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Artificial Intelligence (AI)".to_string(),
+                    api_code: "AI".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Computer Engineering (CE)".to_string(),
+                    api_code: "CE".to_string(),
+                },
+            ],
+        },
+        SchoolCatalogEntry {
+            school_code: "WH".to_string(),
+            display_name: "The Wharton School (WH)".to_string(),
+            majors: vec![
+                MajorCatalogEntry {
+                    display_name: "Foreign Language Required (FL)".to_string(),
+                    api_code: "WH_FL".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Foreign Language Exempt (NO_FL)".to_string(),
+                    api_code: "WH_NOFL".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "M&T - Foreign Language Exempt (NOFL_MT)".to_string(),
+                    api_code: "WH_NOFL_MT".to_string(),
+                },
+            ],
+        },
+        SchoolCatalogEntry {
+            school_code: "NURS".to_string(),
+            display_name: "School of Nursing (NURS)".to_string(),
+            majors: vec![MajorCatalogEntry {
+                display_name: "Not implemented (NA)".to_string(),
+                api_code: "NA".to_string(),
+            }],
+        },
+    ]
+}
+
+pub fn all_majors() -> BTreeMap<String, Vec<String>> {
+    degree_catalog()
+        .into_iter()
+        .map(|school| {
+            (
+                school.display_name,
+                school.majors.into_iter().map(|m| m.display_name).collect(),
+            )
+        })
+        .collect()
 }
 
 /// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".

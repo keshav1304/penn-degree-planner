@@ -57,6 +57,58 @@ pub enum Requirement {
     }
 }
 
+const MAX_LISTED_COURSES: usize = 4;
+
+fn format_truncated_list(items: &[String], prefix: &str) -> String {
+    if items.is_empty() {
+        return format!("{}(options not specified)", prefix);
+    }
+    if items.len() == 1 {
+        return items[0].clone();
+    }
+    if items.len() <= MAX_LISTED_COURSES {
+        return format!("{}{}", prefix, items.join(", "));
+    }
+    let shown: Vec<String> = items.iter().take(MAX_LISTED_COURSES).cloned().collect();
+    let more = items.len() - MAX_LISTED_COURSES;
+    format!("{}{} (+{} more)", prefix, shown.join(", "), more)
+}
+
+fn format_restriction_description(
+    department: &Option<Vec<String>>,
+    cu: &Option<i32>,
+    level: &Option<i32>,
+    attr: &Option<Vec<String>>,
+    excluding: &Option<Vec<String>>,
+    number: &i32,
+    no_school: &Option<String>,
+) -> String {
+    let mut response = format!("{} course(s)", number);
+    if let Some(depts) = department {
+        response.push_str(" from ");
+        response.push_str(&depts.join("/"));
+    }
+    if let Some(min_level) = level {
+        response.push_str(&format!(" with minimum level {}", min_level));
+    }
+    if let Some(attr_names) = attr {
+        response.push_str(" from attribute ");
+        response.push_str(&attr_names.join("/"));
+    }
+    if let Some(excluded_courses) = excluding {
+        response.push_str(" excluding ");
+        response.push_str(&excluded_courses.join(", "));
+    }
+    if let Some(no_school_name) = no_school {
+        response.push_str(" not from ");
+        response.push_str(no_school_name);
+    }
+    if let Some(cu_val) = cu {
+        response.push_str(&format!(" ({} CU)", cu_val));
+    }
+    response
+}
+
 impl Requirement {
     pub fn get_category(&self) -> String {
         match self {
@@ -327,47 +379,72 @@ impl Requirement {
 
     pub fn create_requirement_description(&self) -> String {
         match self {
-            Requirement::SingleCourse { category, possibilities } => {
-                return "".to_string();
-            }, 
-            Requirement::AnyOf { category, possibilities } => {
-                return "".to_string();
-            }, 
-            Requirement::AllOf { category, requirements } => {
-                return "".to_string();
-            }, 
-            Requirement::CourseGroup { category, number, possibilities } => {
-                return "".to_string();
-            }, 
-            Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
-                let base_descs: Vec<String> = base_requirements.iter()
-                    .filter_map(|r| {
-                        let cat = r.get_category();
-                        if !cat.is_empty() { Some(cat) } else {
-                            let s = r.suggest_for_requirement(&vec![], &HashMap::new(), &HashMap::new());
-                            s.map(|v| v.join(", "))
+            Requirement::SingleCourse { possibilities, .. } => {
+                format_truncated_list(possibilities, "One of: ")
+            }
+            Requirement::CourseGroup { number, possibilities, .. } => {
+                let prefix = format!("{} of: ", number);
+                format_truncated_list(possibilities, &prefix)
+            }
+            Requirement::Restriction {
+                department,
+                cu,
+                level,
+                attr,
+                excluding,
+                number,
+                no_school,
+                ..
+            } => format_restriction_description(
+                department, cu, level, attr, excluding, number, no_school,
+            ),
+            Requirement::AnyOf { possibilities, .. } => {
+                if possibilities.len() == 1 {
+                    possibilities[0].create_requirement_description()
+                } else {
+                    "One of the following options".to_string()
+                }
+            }
+            Requirement::AllOf { requirements, .. } => {
+                format!("Complete all {} sub-requirements", requirements.len())
+            }
+            Requirement::Concentration { number, .. } => {
+                format!("Concentration: {} course(s)", number)
+            }
+            Requirement::DoubleCount {
+                double_counting_requirements,
+                base_requirements,
+                ..
+            } => {
+                let base_descs: Vec<String> = base_requirements
+                    .iter()
+                    .map(|r| {
+                        let desc = r.create_requirement_description();
+                        if desc.is_empty() {
+                            r.get_category()
+                        } else {
+                            desc
                         }
                     })
                     .collect();
-                let dc_descs: Vec<String> = double_counting_requirements.iter()
-                    .filter_map(|r| {
-                        let s = r.suggest_for_requirement(&vec![], &HashMap::new(), &HashMap::new());
-                        s.map(|v| v.join(", "))
+                let dc_descs: Vec<String> = double_counting_requirements
+                    .iter()
+                    .map(|r| {
+                        let desc = r.create_requirement_description();
+                        if desc.is_empty() {
+                            r.get_category()
+                        } else {
+                            desc
+                        }
                     })
                     .collect();
-                return format!(
+                format!(
                     "Take: {}. ({} must also satisfy: {})",
                     base_descs.join("; "),
                     double_counting_requirements.len(),
                     dc_descs.join("; ")
-                );
-            },
-            Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
-                return "".to_string();
-            }, 
-            Requirement::Concentration { category, number, requirements } => {
-                return "".to_string();
-            }, 
+                )
+            }
         }
     }
 
@@ -623,10 +700,11 @@ pub fn extract_concentration_info(
     let mut remaining_taken = taken.clone();
 
     for req in conc_reqs {
-        // Generate description
-        let desc = match req.suggest_for_requirement(&vec![], &attributes, cu_map) {
-            Some(v) => v.join(", "),
-            None => req.get_category(),
+        let desc = req.create_requirement_description();
+        let desc = if desc.is_empty() {
+            req.get_category()
+        } else {
+            desc
         };
         req_descriptions.push(desc);
 

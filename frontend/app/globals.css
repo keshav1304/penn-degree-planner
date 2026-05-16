@@ -1277,6 +1277,13 @@ select {
   transition: all var(--transition);
 }
 
+.conc-badge {
+  font-size: 0.58rem;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .dc-badge-matched {
   background: rgba(99, 102, 241, 0.1);
   color: var(--text-primary);

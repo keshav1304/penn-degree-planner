@@ -2,26 +2,18 @@
 
 import { useState, useMemo } from "react";
 import DraggableCourse from "./DraggableCourse";
+import { buildSemesterOptions } from "@/lib/semesterOptions";
 
-const SEMESTER_OPTIONS = [
-    { label: "—", value: "" },
-    { label: "Credits Received", value: "Credits-0" },
-    { label: "Freshman Fall", value: "Fall-1" },
-    { label: "Freshman Spring", value: "Spring-1" },
-    { label: "Freshman Summer", value: "Summer-1" },
-    { label: "Sophomore Fall", value: "Fall-2" },
-    { label: "Sophomore Spring", value: "Spring-2" },
-    { label: "Sophomore Summer", value: "Summer-2" },
-    { label: "Junior Fall", value: "Fall-3" },
-    { label: "Junior Spring", value: "Spring-3" },
-    { label: "Junior Summer", value: "Summer-3" },
-    { label: "Senior Fall", value: "Fall-4" },
-    { label: "Senior Spring", value: "Spring-4" },
-    { label: "Senior Summer", value: "Summer-4" },
-];
-
-export default function CourseSearch({ allCourses, takenCourses, assignedCourses, onAdd, onRemove, onAssign }) {
+export default function CourseSearch({
+    allCourses, takenCourses, assignedCourses, onAdd, onRemove, onAssign,
+    maxScheduleYear = 4, allowSummer = true,
+}) {
     const [search, setSearch] = useState("");
+
+    const semesterOptions = useMemo(
+        () => buildSemesterOptions(maxScheduleYear, allowSummer),
+        [maxScheduleYear, allowSummer]
+    );
 
     const filteredCourses = useMemo(() => {
         if (!search.trim()) return [];
@@ -128,7 +120,7 @@ export default function CourseSearch({ allCourses, takenCourses, assignedCourses
                                             onPointerDown={(e) => e.stopPropagation()}
                                             title="Assign to semester"
                                         >
-                                            {SEMESTER_OPTIONS.map(opt => (
+                                            {semesterOptions.map(opt => (
                                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                                             ))}
                                         </select>

@@ -43,6 +43,7 @@ async fn main() {
         .route("/all_courses", get(all_courses_get))
         .route("/course", get(course_get))
         .route("/all_majors", get(all_majors_get))
+        .route("/degree_catalog", get(degree_catalog_get))
         .route("/concentrations", get(concentrations_get))
         .route("/all_concentrations", get(all_concentrations_get))
         .route("/generate_schedule", post(generate_schedule_post))
@@ -140,6 +141,13 @@ async fn all_majors_get() -> Json<BTreeMap<String, Vec<String>>> {
 
 }
 
+#[debug_handler]
+async fn degree_catalog_get() -> Json<Vec<major::SchoolCatalogEntry>> {
+    println!("GET /degree_catalog request made");
+
+    Json(degree_catalog())
+}
+
 #[derive(Debug, Deserialize)]
 struct ConcentrationsGetParams {
     school: String,
@@ -184,7 +192,7 @@ async fn all_courses_get() -> Json<Vec<Course>> {
 use axum::{extract::Query};
 
 use crate::course::find_course;
-use crate::major::{all_majors, all_concentrations, concentrations_for};
+use crate::major::{all_majors, all_concentrations, concentrations_for, degree_catalog};
 #[derive(Debug, Deserialize)]
 struct CourseGetParams {
     course_id: String,

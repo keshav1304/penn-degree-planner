@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
+import { maxYearFromSchedule } from "@/lib/semesterOptions";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -34,7 +35,7 @@ function saveState(state) {
 
 export default function Home() {
   const [allCourses, setAllCourses] = useState([]);
-  const [allMajors, setAllMajors] = useState({});
+  const [degreeCatalog, setDegreeCatalog] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [takenCourses, setTakenCourses] = useState([]);
   const [frozenCourses, setFrozenCourses] = useState([]);
@@ -71,11 +72,16 @@ export default function Home() {
       .then(data => { setAllCourses(data); setCoursesLoading(false); })
       .catch(() => setCoursesLoading(false));
 
-    fetch(`${API_BASE}/all_majors`)
-      .then(r => r.json())
-      .then(data => setAllMajors(data))
-      .catch(() => { });
+    fetch(`${API_BASE}/degree_catalog`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setDegreeCatalog(Array.isArray(data) ? data : []))
+      .catch(() => setDegreeCatalog([]));
   }, []);
+
+  const maxScheduleYear = useMemo(
+    () => maxYearFromSchedule(scheduleData?.schedule),
+    [scheduleData?.schedule]
+  );
 
   // Auto-save on changes
   useEffect(() => {
@@ -386,7 +392,7 @@ export default function Home() {
         </header>
 
         <DegreeSelector
-          allMajors={allMajors}
+          degreeCatalog={degreeCatalog}
           degrees={degrees}
           setDegrees={setDegrees}
         />
@@ -405,6 +411,8 @@ export default function Home() {
                 onAdd={addCourse}
                 onRemove={removeCourse}
                 onAssign={assignCourse}
+                maxScheduleYear={maxScheduleYear}
+                allowSummer={allowSummer}
               />
             </div>
           </div>

@@ -3,61 +3,28 @@
 import { useState, useMemo, useEffect } from "react";
 import { API_BASE } from "@/lib/api";
 
-// Map display school names to API school codes
-const SCHOOL_CODE_MAP = {
-    "College of Arts and Sciences (CAS)": "CAS",
-    "School of Engineering and Applied Science (SEAS)": "SEAS",
-    "The Wharton School (WH)": "WH",
-    "School of Nursing (NURS)": "NURS",
-};
-
-// Parse major code from display name like "Electrical Engineering (EE)" → "EE"
-function parseMajorCode(displayName) {
-    const match = displayName.match(/\(([^)]+)\)$/);
-    return match ? match[1] : displayName;
-}
-
-// Maps for major code → API major code
-const MAJOR_API_MAP = {
-    CE: "CE",
-    EE: "EE",
-    CIS: "CIS",
-    MEAM: "MEAM",
-    MSE: "MSE",
-    CBE: "CBE",
-    AI: "AI",
-    FL: "WH_FL",
-    NO_FL: "WH_NOFL",
-    NOFL_MT: "WH_NOFL_MT",
-    NA: "NA",
-};
-
-export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
+export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
     const [selectedSchool, setSelectedSchool] = useState("");
     const [selectedMajor, setSelectedMajor] = useState("");
     const [selectedConcentration, setSelectedConcentration] = useState("");
     const [concentrations, setConcentrations] = useState([]);
     const [concentrationsLoading, setConcentrationsLoading] = useState(false);
 
-    const schoolNames = useMemo(() => Object.keys(allMajors), [allMajors]);
+    const selectedSchoolEntry = useMemo(
+        () => degreeCatalog?.find((s) => s.display_name === selectedSchool),
+        [degreeCatalog, selectedSchool]
+    );
 
-    const majorOptions = useMemo(() => {
-        if (!selectedSchool || !allMajors[selectedSchool]) return [];
-        return allMajors[selectedSchool];
-    }, [selectedSchool, allMajors]);
+    const selectedMajorEntry = useMemo(
+        () => selectedSchoolEntry?.majors?.find((m) => m.display_name === selectedMajor),
+        [selectedSchoolEntry, selectedMajor]
+    );
 
-    const currentMajorApiCode = useMemo(() => {
-        if (!selectedMajor) return "";
-        const code = parseMajorCode(selectedMajor);
-        return MAJOR_API_MAP[code] || code;
-    }, [selectedMajor]);
-
-    const schoolCode = useMemo(() => {
-        return SCHOOL_CODE_MAP[selectedSchool] || selectedSchool;
-    }, [selectedSchool]);
+    const schoolCode = selectedSchoolEntry?.school_code ?? "";
+    const majorCode = selectedMajorEntry?.api_code ?? "";
 
     useEffect(() => {
-        if (!selectedSchool || !currentMajorApiCode) {
+        if (!schoolCode || !majorCode) {
             setConcentrations([]);
             setSelectedConcentration("");
             return;
@@ -66,45 +33,43 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
         const controller = new AbortController();
         setConcentrationsLoading(true);
 
-        const params = new URLSearchParams({
-            school: schoolCode,
-            major: currentMajorApiCode,
-        });
+        const params = new URLSearchParams({ school: schoolCode, major: majorCode });
 
         fetch(`${API_BASE}/concentrations?${params}`, { signal: controller.signal })
-            .then(r => r.json())
-            .then(data => {
+            .then((r) => r.json())
+            .then((data) => {
                 setConcentrations(data.concentrations || []);
                 setSelectedConcentration("");
             })
-            .catch(err => {
+            .catch((err) => {
                 if (err.name !== "AbortError") setConcentrations([]);
             })
             .finally(() => setConcentrationsLoading(false));
 
         return () => controller.abort();
-    }, [selectedSchool, currentMajorApiCode, schoolCode]);
+    }, [schoolCode, majorCode]);
 
     const addDegree = () => {
-        if (!selectedSchool || !selectedMajor) return;
-        const majorCode = currentMajorApiCode;
+        if (!selectedSchoolEntry || !selectedMajorEntry) return;
         const rawConc = concentrations.length > 0 ? (selectedConcentration || concentrations[0]) : null;
         const conc = rawConc === "None" ? null : rawConc;
 
-        // Check for duplicate
         const isDup = degrees.some(
-            d => d.schoolCode === schoolCode && d.majorCode === majorCode && d.concentration === conc
+            (d) =>
+                d.schoolCode === schoolCode &&
+                d.majorCode === majorCode &&
+                d.concentration === conc
         );
         if (isDup) return;
 
-        setDegrees(prev => [
+        setDegrees((prev) => [
             ...prev,
             {
                 schoolCode,
                 majorCode,
                 concentration: conc,
-                displaySchool: selectedSchool,
-                displayMajor: selectedMajor,
+                displaySchool: selectedSchoolEntry.display_name,
+                displayMajor: selectedMajorEntry.display_name,
             },
         ]);
 
@@ -113,8 +78,16 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
     };
 
     const removeDegree = (index) => {
-        setDegrees(prev => prev.filter((_, i) => i !== index));
+        setDegrees((prev) => prev.filter((_, i) => i !== index));
     };
+
+    if (!degreeCatalog?.length) {
+        return (
+            <div className="degree-bar">
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>Loading schools…</span>
+            </div>
+        );
+    }
 
     return (
         <div className="degree-bar">
@@ -154,8 +127,10 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
                     }}
                 >
                     <option value="">School…</option>
-                    {schoolNames.map(name => (
-                        <option key={name} value={name}>{name}</option>
+                    {degreeCatalog.map((school) => (
+                        <option key={school.school_code} value={school.display_name}>
+                            {school.display_name}
+                        </option>
                     ))}
                 </select>
 
@@ -168,8 +143,10 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
                         }}
                     >
                         <option value="">Major…</option>
-                        {majorOptions.map(m => (
-                            <option key={m} value={m}>{m}</option>
+                        {selectedSchoolEntry?.majors?.map((m) => (
+                            <option key={m.api_code} value={m.display_name}>
+                                {m.display_name}
+                            </option>
                         ))}
                     </select>
                 )}
@@ -180,8 +157,10 @@ export default function DegreeSelector({ allMajors, degrees, setDegrees }) {
                         onChange={(e) => setSelectedConcentration(e.target.value)}
                         disabled={concentrationsLoading}
                     >
-                        {concentrations.map(c => (
-                            <option key={c} value={c}>{c}</option>
+                        {concentrations.map((c) => (
+                            <option key={c} value={c}>
+                                {c}
+                            </option>
                         ))}
                     </select>
                 )}

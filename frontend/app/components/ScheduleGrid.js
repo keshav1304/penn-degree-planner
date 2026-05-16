@@ -50,7 +50,7 @@ export default function ScheduleGrid({
         return (
             <div className="empty-state">
                 <div className="loading-spinner" style={{ width: 24, height: 24 }} />
-                <div style={{ textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem", marginTop: 10 }}>Generating schedule…</div>
+                <div style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8", fontSize: "0.82rem", marginTop: 10 }}>Generating schedule…</div>
             </div>
         );
     }
@@ -58,9 +58,12 @@ export default function ScheduleGrid({
     // Derive years and semesters dynamically from schedule data
     const uniqueYears = [...new Set(scheduleData.schedule.map(s => s.year))].sort((a, b) => a - b);
     const uniqueSemesters = [...new Set(scheduleData.schedule.map(s => s.semester))];
-    // Maintain Fall, Spring, Summer order
+    // Maintain Fall, Spring, Summer order; hide Summer when disabled
     const semOrder = ["Fall", "Spring", "Summer"];
-    const semesters = semOrder.filter(s => uniqueSemesters.includes(s));
+    const semesters = semOrder.filter((s) => {
+        if (s === "Summer" && !allowSummer) return false;
+        return uniqueSemesters.includes(s);
+    });
 
     const getSemesterPlan = (year, semester) => {
         return scheduleData.schedule.find(
@@ -88,7 +91,6 @@ export default function ScheduleGrid({
             setInfoPopup(null);
         } else {
             const rect = e.currentTarget.getBoundingClientRect();
-            console.log(rect)
             setInfoPopup({ courseId, x: rect.x, y: rect.y });
         }
     };
@@ -141,6 +143,25 @@ export default function ScheduleGrid({
         );
     };
 
+    const renderConcBadges = (courseId) => {
+        const concEntries = courseConcentrationMap?.[courseId];
+        if (!concEntries?.length) return null;
+        return (
+            <span className="dc-badges">
+                {concEntries.map((entry, i) => (
+                    <span
+                        key={`${entry.name}-${entry.degreeLabel}-${i}`}
+                        className="dc-badge conc-badge"
+                        style={{ borderColor: degreeColorMap[entry.degreeLabel] || "#888" }}
+                        title={`Concentration: ${entry.name} (${entry.degreeLabel})`}
+                    >
+                        {entry.name}
+                    </span>
+                ))}
+            </span>
+        );
+    };
+
     const renderCourseCard = (courseId, year, sem, idx) => {
         const frozen = isFrozen(courseId);
         const assigned = isAssigned(courseId);
@@ -181,6 +202,7 @@ export default function ScheduleGrid({
                     >
                         <span>{courseId}</span>
                         <span className="course-card-actions">
+                            {renderConcBadges(courseId)}
                             {renderDcBadges(courseId)}
                             {renderInfoButton(courseId)}
                             <span className="lock-icon">
@@ -231,10 +253,12 @@ export default function ScheduleGrid({
                                                 {renderDegreeBar(a.courseId)}
                                                 <div className="schedule-course-content">
                                                     <span>{a.courseId}</span>
-                                                    <span className="course-card-actions">
-                                                        {renderInfoButton(a.courseId)}
-                                                        <span className="lock-icon">📗</span>
-                                                    </span>
+                                    <span className="course-card-actions">
+                                        {renderConcBadges(a.courseId)}
+                                        {renderDcBadges(a.courseId)}
+                                        {renderInfoButton(a.courseId)}
+                                        <span className="lock-icon">📗</span>
+                                    </span>
                                                 </div>
                                             </div>
                                         </DraggableCourse>
