@@ -41,7 +41,7 @@ export default function ScheduleGrid({
         return (
             <div className="empty-state">
                 <div className="emoji">🏫</div>
-                <div>Add a degree above to generate your schedule</div>
+                <div style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8", fontSize: "0.82rem"}}>Add a degree above to generate your schedule</div>
             </div>
         );
     }
