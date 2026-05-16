@@ -40,7 +40,7 @@ export default function ScheduleGrid({
     if (!degrees || degrees.length === 0) {
         return (
             <div className="empty-state">
-                <div className="emoji">🏫</div>
+                <div className="emoji" style={{ fontSize: "2rem", marginBottom: 8 }}>🏫</div>
                 <div style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8", fontSize: "0.82rem"}}>Add a degree above to generate your schedule</div>
             </div>
         );
