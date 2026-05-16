@@ -20,13 +20,6 @@ const DC_COLORS = [
     "#f59e0b",  // amber
 ];
 
-const CONC_COLORS = [
-    "#10b981",  // emerald
-    "#8b5cf6",  // violet
-    "#f97316",  // orange
-    "#06b6d4",  // cyan
-];
-
 export default function ScheduleGrid({
     scheduleData, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
@@ -57,7 +50,7 @@ export default function ScheduleGrid({
         return (
             <div className="empty-state">
                 <div className="loading-spinner" style={{ width: 24, height: 24 }} />
-                <div style={{ marginTop: 10 }}>Generating schedule…</div>
+                <div style={{ textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem", marginTop: 10 }}>Generating schedule…</div>
             </div>
         );
     }
@@ -415,7 +408,7 @@ export default function ScheduleGrid({
                         const fulfilledCount = ci.requirements_fulfilled || 0;
                         const totalCount = ci.requirements_total || 0;
                         const allFulfilled = fulfilledCount === totalCount && totalCount > 0;
-                        const color = CONC_COLORS[i % CONC_COLORS.length];
+                        const color = degreeColorMap[ci.degreeLabel] || DEGREE_COLORS[i % DEGREE_COLORS.length];
                         return (
                             <div
                                 key={i}
