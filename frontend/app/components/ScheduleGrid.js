@@ -218,13 +218,14 @@ export default function ScheduleGrid({
             >
                 <div className={className} style={{ position: "relative" }}>
                     <div
-                        className="schedule-course-content schedule-requirement-content"
+                        className="schedule-course-content"
                         onClick={handleClick}
                         title={frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"}
                     >
                         <span className="schedule-requirement-label">{getSlotLabel(slotId)}</span>
                         <span className="course-card-actions">
                             <span className="lock-icon">{frozen ? "🔒" : "📌"}</span>
+                            <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>
                 </div>
