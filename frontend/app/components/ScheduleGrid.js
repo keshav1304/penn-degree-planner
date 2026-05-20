@@ -55,8 +55,15 @@ export default function ScheduleGrid({
         );
     }
 
-    // Derive years and semesters dynamically from schedule data
-    const uniqueYears = [...new Set(scheduleData.schedule.map(s => s.year))].sort((a, b) => a - b);
+    // Derive years from API schedule and user-pinned placements
+    const pinnedYears = [
+        ...frozenCourses.map((f) => f.year),
+        ...(assignedCourses || []).filter((a) => a.year > 0).map((a) => a.year),
+    ];
+    const uniqueYears = [...new Set([
+        ...scheduleData.schedule.map((s) => s.year),
+        ...pinnedYears,
+    ])].filter((y) => y > 0).sort((a, b) => a - b);
     const uniqueSemesters = [...new Set(scheduleData.schedule.map(s => s.semester))];
     // Maintain Fall, Spring, Summer order; hide Summer when disabled
     const semOrder = ["Fall", "Spring", "Summer"];
@@ -69,6 +76,24 @@ export default function ScheduleGrid({
         return scheduleData.schedule.find(
             s => s.year === year && s.semester === semester
         );
+    };
+
+    // User-pinned courses (frozen / green) win over API auto-placement
+    const pinnedCourseIds = new Set([
+        ...frozenCourses.map((f) => f.courseId),
+        ...(assignedCourses || []).filter((a) => a.year > 0).map((a) => a.courseId),
+    ]);
+
+    const getDisplayCourses = (year, semester) => {
+        const plan = getSemesterPlan(year, semester);
+        const apiCourses = (plan?.courses || []).filter((id) => !pinnedCourseIds.has(id));
+        const pinnedHere = [
+            ...frozenCourses.filter((f) => f.year === year && f.semester === semester).map((f) => f.courseId),
+            ...(assignedCourses || [])
+                .filter((a) => a.year === year && a.semester === semester)
+                .map((a) => a.courseId),
+        ];
+        return [...new Set([...pinnedHere, ...apiCourses])];
     };
 
     const isFrozen = (courseId) => frozenCourses.some(f => f.courseId === courseId);
@@ -300,7 +325,7 @@ export default function ScheduleGrid({
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
                     {semesters.map(sem => {
                         const plan = getSemesterPlan(year, sem);
-                        const courses = plan?.courses || [];
+                        const courses = getDisplayCourses(year, sem);
                         const droppableId = `slot-${year}-${sem}`;
 
                         return (
@@ -317,7 +342,7 @@ export default function ScheduleGrid({
                                 )}
                                 {(() => {
                                     const semKey = `${year}-${sem}`;
-                                    const actualCu = plan?.total_cu != null ? plan.total_cu : courses.reduce((s, c) => s + getCu(c), 0);
+                                    const actualCu = courses.reduce((s, c) => s + getCu(c), 0);
                                     const limitValue = semesterCuLimits?.[semKey] ?? (sem === "Summer" ? 2.0 : 5.0);
                                     return (
                                         <div className="semester-cu-total">

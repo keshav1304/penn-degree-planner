@@ -1,2 +1,6 @@
 fly.toml
 .git/
+target/
+**/.DS_Store
+*.pyc
+__pycache__/

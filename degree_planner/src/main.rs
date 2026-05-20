@@ -329,9 +329,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             // Collect unique suggested courses
             for mapped in &suggested {
                 for course_id in &mapped.course_ids {
-                    if !course::is_valid_course_code(course_id) {
-                        all_suggested_courses.push(course_id.clone());
-                    } else if !all_suggested_courses.contains(course_id) && !taken.contains(course_id) {
+                    if course::is_valid_course_code(course_id)
+                        && !all_suggested_courses.contains(course_id)
+                        && !taken.contains(course_id)
+                    {
                         all_suggested_courses.push(course_id.clone());
                     }
                 }

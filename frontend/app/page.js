@@ -47,6 +47,7 @@ export default function Home() {
   const [allowSummer, setAllowSummer] = useState(true);
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
   const debounceRef = useRef(null);
+  const scheduleRequestId = useRef(0);
 
   // Require 8px movement before starting drag (so clicks still work)
   const sensors = useSensors(
@@ -108,6 +109,7 @@ export default function Home() {
       })),
     ];
 
+    const requestId = ++scheduleRequestId.current;
     setLoading(true);
     try {
       const response = await fetch(`${API_BASE}/generate_schedule`, {
@@ -126,12 +128,15 @@ export default function Home() {
         }),
       });
       const data = await response.json();
-      console.log(data);
+      if (requestId !== scheduleRequestId.current) return;
       setScheduleData(data);
     } catch (err) {
+      if (requestId !== scheduleRequestId.current) return;
       console.error("Schedule generation failed:", err);
     }
-    setLoading(false);
+    if (requestId === scheduleRequestId.current) {
+      setLoading(false);
+    }
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
 
   useEffect(() => {
