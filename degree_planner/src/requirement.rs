@@ -647,13 +647,31 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
 
         match req {
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
+                let mut base_courses: Vec<String> = Vec::new();
                 for base_req in base_requirements {
-                    if let Some(courses_fulfilling) = base_req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
+                    if let Some(courses_fulfilling) =
+                        base_req.fulfills_requirement(&taken_mut, &attributes, cu_map)
+                    {
                         taken_mut.retain(|x| !courses_fulfilling.contains(x));
-
-                        fulfilled_requirements.push(MappedRequirement { requirement: base_req, course_ids: courses_fulfilling } );
+                        base_courses.extend(courses_fulfilling.clone());
+                        fulfilled_requirements.push(MappedRequirement {
+                            requirement: base_req,
+                            course_ids: courses_fulfilling,
+                        });
                     } else {
                         requirements_not_fulfilled.push(base_req);
+                    }
+                }
+                for dc_req in double_counting_requirements {
+                    if let Some(courses_fulfilling) =
+                        dc_req.fulfills_requirement(&base_courses, &attributes, cu_map)
+                    {
+                        fulfilled_requirements.push(MappedRequirement {
+                            requirement: dc_req,
+                            course_ids: courses_fulfilling,
+                        });
+                    } else if !base_courses.is_empty() {
+                        requirements_not_fulfilled.push(dc_req);
                     }
                 }
             }
@@ -670,6 +688,85 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
     }
 
     return (fulfilled_requirements, requirements_not_fulfilled);
+}
+
+fn course_department(course_id: &str) -> Option<String> {
+    course_id
+        .split_whitespace()
+        .next()
+        .map(|d| d.to_string())
+}
+
+fn requirement_matches_concentration(req: &Requirement, conc_name: &str) -> bool {
+    let cat = req.get_category().to_lowercase();
+    cat.contains(&format!("concentration - {}", conc_name.to_lowercase()))
+}
+
+fn is_business_breadth_requirement(req: &Requirement) -> bool {
+    req.get_category()
+        .to_lowercase()
+        .contains("business breadth")
+}
+
+/// When a student has two Wharton concentrations, at most one business-breadth slot
+/// may also count toward one concentration requirement; other BB slots may not overlap.
+pub fn apply_wharton_double_concentration_bb_overlap(
+    concentrations: &[String],
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<Requirement>,
+) {
+    if concentrations.len() < 2 {
+        return;
+    }
+
+    // Prefer a BB fulfillment whose course dept matches one of the concentrations.
+    for mapped in fulfilled.iter() {
+        if !is_business_breadth_requirement(&mapped.requirement) {
+            continue;
+        }
+        for bb_course in &mapped.course_ids {
+            let Some(dept) = course_department(bb_course) else {
+                continue;
+            };
+            if !concentrations.contains(&dept) {
+                continue;
+            }
+            if let Some(idx) = unfulfilled
+                .iter()
+                .position(|r| requirement_matches_concentration(r, &dept))
+            {
+                let req = unfulfilled.remove(idx);
+                fulfilled.push(MappedRequirement {
+                    requirement: req,
+                    course_ids: vec![bb_course.clone()],
+                });
+                return;
+            }
+        }
+    }
+
+    // Concentration matched first: credit at most one unfulfilled BB slot.
+    for mapped in fulfilled.clone() {
+        for course in &mapped.course_ids {
+            let Some(dept) = course_department(course) else {
+                continue;
+            };
+            if !concentrations.contains(&dept) {
+                continue;
+            }
+            if !requirement_matches_concentration(&mapped.requirement, &dept) {
+                continue;
+            }
+            if let Some(idx) = unfulfilled.iter().position(is_business_breadth_requirement) {
+                let req = unfulfilled.remove(idx);
+                fulfilled.push(MappedRequirement {
+                    requirement: req,
+                    course_ids: vec![course.clone()],
+                });
+                return;
+            }
+        }
+    }
 }
 
 /// suggesting courses for certain requirements
@@ -691,7 +788,7 @@ pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requireme
     return suggested_courses;
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct MappedRequirement {
     pub requirement: Requirement,
     pub course_ids: Vec<String>,
@@ -790,7 +887,7 @@ pub struct ConcentrationInfo {
 pub fn extract_concentration_info(
     requirements: &Vec<Requirement>,
     concentrations: &Option<std::collections::BTreeMap<String, Vec<Requirement>>>,
-    selected_concentration: &Option<String>,
+    selected_concentrations: &[String],
     taken: &Vec<String>,
     cu_map: &HashMap<String, f64>,
 ) -> Vec<ConcentrationInfo> {
@@ -805,69 +902,66 @@ pub fn extract_concentration_info(
     };
 
     if has_core {
-        // For core concentrations, just return the name and is_core flag.
-        // The actual requirement validation is done via the normal requirement flow.
-        if let Some(selected) = selected_concentration {
-            if conc_map.contains_key(selected) {
-                return vec![ConcentrationInfo {
-                    name: selected.clone(),
-                    is_core: true,
-                    requirements_total: 0,
-                    requirements_fulfilled: 0,
-                    requirement_descriptions: vec![],
-                    requirement_fulfilled: vec![],
-                    matched_courses: vec![],
-                }];
-            }
-        }
-        return vec![];
+        return selected_concentrations
+            .iter()
+            .filter(|name| conc_map.contains_key(*name))
+            .map(|name| ConcentrationInfo {
+                name: name.clone(),
+                is_core: true,
+                requirements_total: 0,
+                requirements_fulfilled: 0,
+                requirement_descriptions: vec![],
+                requirement_fulfilled: vec![],
+                matched_courses: vec![],
+            })
+            .collect();
     }
 
-    // Overlay-style: evaluate the selected concentration requirements
-    let selected = match selected_concentration {
-        Some(s) => s,
-        None => return vec![],
-    };
-
-    let conc_reqs = match conc_map.get(selected) {
-        Some(reqs) => reqs,
-        None => return vec![],
-    };
-
-    let mut req_descriptions = Vec::new();
-    let mut req_fulfilled = Vec::new();
-    let mut matched_courses: Vec<Vec<String>> = Vec::new();
+    // Overlay-style: evaluate each selected concentration
+    let mut results = Vec::new();
     let mut remaining_taken = taken.clone();
 
-    for req in conc_reqs {
-        let desc = req.create_requirement_description();
-        let desc = if desc.is_empty() {
-            req.get_category()
-        } else {
-            desc
+    for selected in selected_concentrations {
+        let conc_reqs = match conc_map.get(selected) {
+            Some(reqs) => reqs,
+            None => continue,
         };
-        req_descriptions.push(desc);
 
-        // Check fulfillment
-        if let Some(courses) = req.fulfills_requirement(&remaining_taken, &attributes, cu_map) {
-            remaining_taken.retain(|x| !courses.contains(x));
-            req_fulfilled.push(true);
-            matched_courses.push(courses);
-        } else {
-            req_fulfilled.push(false);
-            matched_courses.push(vec![]);
+        let mut req_descriptions = Vec::new();
+        let mut req_fulfilled = Vec::new();
+        let mut matched_courses: Vec<Vec<String>> = Vec::new();
+
+        for req in conc_reqs {
+            let desc = req.create_requirement_description();
+            let desc = if desc.is_empty() {
+                req.get_category()
+            } else {
+                desc
+            };
+            req_descriptions.push(desc);
+
+            if let Some(courses) = req.fulfills_requirement(&remaining_taken, &attributes, cu_map) {
+                remaining_taken.retain(|x| !courses.contains(x));
+                req_fulfilled.push(true);
+                matched_courses.push(courses);
+            } else {
+                req_fulfilled.push(false);
+                matched_courses.push(vec![]);
+            }
         }
+
+        let fulfilled_count = req_fulfilled.iter().filter(|&&x| x).count();
+
+        results.push(ConcentrationInfo {
+            name: selected.clone(),
+            is_core: false,
+            requirements_total: conc_reqs.len(),
+            requirements_fulfilled: fulfilled_count,
+            requirement_descriptions: req_descriptions,
+            requirement_fulfilled: req_fulfilled,
+            matched_courses,
+        });
     }
 
-    let fulfilled_count = req_fulfilled.iter().filter(|&&x| x).count();
-
-    vec![ConcentrationInfo {
-        name: selected.clone(),
-        is_core: false,
-        requirements_total: conc_reqs.len(),
-        requirements_fulfilled: fulfilled_count,
-        requirement_descriptions: req_descriptions,
-        requirement_fulfilled: req_fulfilled,
-        matched_courses,
-    }]
+    results
 }

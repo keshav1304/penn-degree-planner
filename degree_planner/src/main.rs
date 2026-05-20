@@ -94,9 +94,13 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
     let taken = payload.taken;
     let major = payload.major;
     let school = payload.school;
-    let concentration = payload.concentration; 
+    let concentrations: Vec<String> = payload
+        .concentration
+        .clone()
+        .into_iter()
+        .collect();
 
-    let major_req: Option<Major> = resolve_major(&school, &major, &concentration);
+    let major_req: Option<Major> = resolve_major(&school, &major, &concentrations);
 
     let response: RootPostOutput;
 
@@ -249,7 +253,21 @@ async fn course_get(Query(params): Query<CourseGetParams>) -> Json<Course> {
 struct DegreeInput {
     major: String,
     school: String,
+    #[serde(default)]
+    concentrations: Vec<String>,
     concentration: Option<String>,
+}
+
+impl DegreeInput {
+    fn effective_concentrations(&self) -> Vec<String> {
+        if !self.concentrations.is_empty() {
+            if self.school == "WH" {
+                return wharton_data::normalize_wh_concentrations(&self.concentrations);
+            }
+            return self.concentrations.clone();
+        }
+        self.concentration.clone().into_iter().collect()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -322,7 +340,14 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         })
         .cloned()
         .collect();
-    // Frozen / planned courses are placed on the schedule but do not count as taken for requirements.
+    // Taken + frozen course codes count toward requirement fulfillment (frozen ≠ completed).
+    let mut courses_for_validation: Vec<String> = taken.clone();
+    for f in &frozen {
+        if course::is_valid_course_code(&f.course_id) && !courses_for_validation.contains(&f.course_id) {
+            courses_for_validation.push(f.course_id.clone());
+        }
+    }
+
     let mut degree_results: Vec<DegreeResult> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
     let mut all_requirement_slots: Vec<String> = Vec::new();
@@ -336,25 +361,39 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
     // Process each degree
     for degree in &payload.degrees {
-        let major_req = resolve_major(&degree.school, &degree.major, &degree.concentration);
+        let concs = degree.effective_concentrations();
+        let major_req = resolve_major(&degree.school, &degree.major, &concs);
 
         if let Some(major_data) = major_req {
-            let (mut fulfilled, unfulfilled) = requirement::validate_courses_for_degree(
-                major_data.requirements.clone(), &taken, &cu_map
+            let (mut fulfilled, mut unfulfilled) = requirement::validate_courses_for_degree(
+                major_data.requirements.clone(),
+                &courses_for_validation,
+                &cu_map,
             );
+            if degree.school == "WH" && concs.len() >= 2 {
+                requirement::apply_wharton_double_concentration_bb_overlap(
+                    &concs,
+                    &mut fulfilled,
+                    &mut unfulfilled,
+                );
+            }
             for mapped in &mut fulfilled {
                 mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());
             }
             fulfilled.retain(|m| !m.course_ids.is_empty());
             fulfilled.sort_by_key(|r| r.requirement.get_category());
-            let suggested = requirement::suggest_courses_for_requirements(&unfulfilled, &taken, &cu_map);
+            let suggested = requirement::suggest_courses_for_requirements(
+                &unfulfilled,
+                &courses_for_validation,
+                &cu_map,
+            );
 
             // Collect unique suggested courses and requirement slots for the schedule
             for mapped in &suggested {
                 for course_id in &mapped.course_ids {
                     if course::is_valid_course_code(course_id)
                         && !all_suggested_courses.contains(course_id)
-                        && !taken.contains(course_id)
+                        && !courses_for_validation.contains(course_id)
                     {
                         all_suggested_courses.push(course_id.clone());
                     } else if requirement::is_requirement_slot_id(course_id)
@@ -369,7 +408,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 }
             }
 
-            let mut unapplicable = taken.clone();
+            let mut unapplicable = courses_for_validation.clone();
             for req in &fulfilled {
                 for course in &req.course_ids {
                     unapplicable.retain(|x| x != course);
@@ -378,13 +417,20 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
             // Extract double-count metadata
             let dc_info = requirement::extract_double_count_info(
-                &major_data.requirements, &taken, &fulfilled, &suggested, &cu_map
+                &major_data.requirements,
+                &courses_for_validation,
+                &fulfilled,
+                &suggested,
+                &cu_map,
             );
 
             // Extract concentration info
             let conc_info = requirement::extract_concentration_info(
-                &major_data.requirements, &major_data.concentrations,
-                &degree.concentration, &taken, &cu_map
+                &major_data.requirements,
+                &major_data.concentrations,
+                &concs,
+                &courses_for_validation,
+                &cu_map,
             );
 
             // Available concentration names

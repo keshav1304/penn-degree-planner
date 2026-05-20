@@ -97,12 +97,30 @@ export default function ScheduleGrid({
         return [...new Set([...pinnedHere, ...apiCourses])].filter(isValidCourseCode);
     };
 
+    // Requirement slots still open (unfulfilled) — hide once a frozen/taken course satisfies them
+    const openRequirementSlotIds = new Set();
+    scheduleData?.degree_results?.forEach((result) => {
+        result.suggested_for_unfulfilled?.forEach((mapped) => {
+            mapped.course_ids?.forEach((id) => {
+                if (isRequirementSlotId(id)) openRequirementSlotIds.add(id);
+            });
+        });
+    });
+
     const getDisplayRequirementSlots = (year, semester) => {
         const plan = getSemesterPlan(year, semester);
-        const apiSlots = (plan?.requirement_slots || []).filter((id) => !pinnedIds.has(id));
+        const apiSlots = (plan?.requirement_slots || []).filter(
+            (id) => !pinnedIds.has(id) && openRequirementSlotIds.has(id)
+        );
         const pinnedHere = [
             ...frozenCourses
-                .filter((f) => f.year === year && f.semester === semester && isRequirementSlotId(f.courseId))
+                .filter(
+                    (f) =>
+                        f.year === year
+                        && f.semester === semester
+                        && isRequirementSlotId(f.courseId)
+                        && openRequirementSlotIds.has(f.courseId)
+                )
                 .map((f) => f.courseId),
         ];
         return [...new Set([...pinnedHere, ...apiSlots])].filter(isRequirementSlotId);

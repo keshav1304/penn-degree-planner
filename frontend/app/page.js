@@ -123,11 +123,20 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taken: filterValidCourseCodes(takenCourses),
-          degrees: degrees.map(d => ({
-            major: d.majorCode,
-            school: d.schoolCode,
-            concentration: d.concentration || null,
-          })),
+          degrees: degrees.map(d => {
+            const concentrations = (d.concentrations?.length
+              ? d.concentrations
+              : d.concentration
+                ? [d.concentration]
+                : []
+            ).filter(Boolean);
+            return {
+              major: d.majorCode,
+              school: d.schoolCode,
+              concentrations,
+              concentration: concentrations[0] || null,
+            };
+          }),
           frozen: allFrozen,
           allow_summer: allowSummer,
           semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
@@ -158,7 +167,17 @@ export default function Home() {
       return filtered.length === prev.length ? prev : filtered;
     });
     setFrozenCourses((prev) => {
-      const filtered = filterFrozenPlacements(prev);
+      const openSlotIds = new Set();
+      scheduleData?.degree_results?.forEach((result) => {
+        result.suggested_for_unfulfilled?.forEach((mapped) => {
+          mapped.course_ids?.forEach((id) => {
+            if (isRequirementSlotId(id)) openSlotIds.add(id);
+          });
+        });
+      });
+      const filtered = filterFrozenPlacements(prev).filter(
+        (f) => !isRequirementSlotId(f.courseId) || openSlotIds.has(f.courseId)
+      );
       return filtered.length === prev.length ? prev : filtered;
     });
     setAssignedCourses((prev) => {

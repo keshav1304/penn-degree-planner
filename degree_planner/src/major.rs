@@ -146,13 +146,16 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
     map
 }
 
-pub fn resolve_major(school: &str, major: &str, concentration: &Option<String>) -> Option<Major> {
+pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Option<Major> {
     match school {
         "SEAS" => {
             match major {
                 "EE" => Some(seas_data::create_ee_major()),
                 "MEAM" => {
-                    let conc = concentration.clone().unwrap_or("General".to_string());
+                    let conc = concentrations
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "General".to_string());
                     Some(seas_data::create_meam_major(conc))
                 },
                 "MSE" => Some(seas_data::create_mse_major()),
@@ -164,11 +167,16 @@ pub fn resolve_major(school: &str, major: &str, concentration: &Option<String>) 
             }
         },
         "WH" => {
-            let conc = concentration.clone().unwrap_or("FNCE".to_string());
+            let concs = wharton_data::normalize_wh_concentrations(concentrations);
+            let concs = if concs.is_empty() {
+                vec!["FNCE".to_string()]
+            } else {
+                concs
+            };
             match major {
-                "WH_NOFL" => Some(wharton_data::create_wh_nofl_major(conc)),
-                "WH_FL" => Some(wharton_data::create_wh_fl_major(conc)),
-                "WH_NOFL_MT" => Some(wharton_data::create_wh_nofl_mt_major(conc)),
+                "WH_NOFL" => Some(wharton_data::create_wh_nofl_major(concs)),
+                "WH_FL" => Some(wharton_data::create_wh_fl_major(concs)),
+                "WH_NOFL_MT" => Some(wharton_data::create_wh_nofl_mt_major(concs)),
                 _ => None,
             }
         },

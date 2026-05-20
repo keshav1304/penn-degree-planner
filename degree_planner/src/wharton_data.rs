@@ -180,16 +180,100 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
     ])
 }
 
-pub fn create_wh_fl_major(concentration_name: String) -> Major {
-    let wh_concentrations = create_wh_concentrations();
-    let mut bb_options = ["ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST", "FNCE"].map(String::from).to_vec();
-    bb_options.retain(|x| *x != concentration_name);
-
-    let mut bb_requirement_options = Vec::new();
-
-    for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
+/// Up to two distinct Wharton concentrations; unknown names are dropped.
+pub fn normalize_wh_concentrations(concentrations: &[String]) -> Vec<String> {
+    let catalog = create_wh_concentrations();
+    let mut out = Vec::new();
+    for c in concentrations {
+        if catalog.contains_key(c) && !out.contains(c) {
+            out.push(c.clone());
+            if out.len() >= 2 {
+                break;
+            }
+        }
     }
+    out
+}
+
+fn bb_standard_exclusions(mt: bool) -> Vec<String> {
+    let mut ex = vec![
+        "BEPP 1000".to_string(),
+        "MGMT 1010".to_string(),
+        "MKTG 1010".to_string(),
+        "OIDD 1010".to_string(),
+        "STAT 1010".to_string(),
+        "STAT 1020".to_string(),
+    ];
+    if mt {
+        ex.push("MGMT 3010".to_string());
+    }
+    ex
+}
+
+fn bb_department_options(
+    concentrations: &[String],
+    pool: &[&str],
+    exclusions: &[String],
+) -> Vec<Requirement> {
+    let mut depts: Vec<String> = pool.iter().map(|s| s.to_string()).collect();
+    if concentrations.len() < 2 {
+        for c in concentrations {
+            depts.retain(|d| d != c);
+        }
+    }
+    depts
+        .into_iter()
+        .map(|dept| Requirement::Restriction {
+            category: None,
+            department: Some(vec![dept]),
+            cu: None,
+            level: None,
+            attr: None,
+            excluding: Some(exclusions.to_vec()),
+            number: 1,
+            no_school: None,
+        })
+        .collect()
+}
+
+fn business_breadth_requirements(
+    concentrations: &[String],
+    pool: &[&str],
+    slot_labels: &[&str],
+    mt: bool,
+) -> Vec<Requirement> {
+    let exclusions = bb_standard_exclusions(mt);
+    let opts = bb_department_options(concentrations, pool, &exclusions);
+    slot_labels
+        .iter()
+        .map(|label| Requirement::AnyOf {
+            category: Some(label.to_string()),
+            possibilities: opts.clone(),
+        })
+        .collect()
+}
+
+fn wh_concentration_requirements(concentrations: &[String]) -> Vec<Requirement> {
+    let catalog = create_wh_concentrations();
+    let mut reqs = Vec::new();
+    for name in concentrations {
+        if let Some(chain) = catalog.get(name) {
+            reqs.extend(chain.clone());
+        }
+    }
+    reqs
+}
+
+pub fn create_wh_fl_major(concentrations: Vec<String>) -> Major {
+    let concentrations = normalize_wh_concentrations(&concentrations);
+    let concs = if concentrations.is_empty() {
+        vec!["FNCE".to_string()]
+    } else {
+        concentrations
+    };
+    let wh_concentrations = create_wh_concentrations();
+    let bb_pool = ["ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST", "FNCE"];
+    let bb_reqs = business_breadth_requirements(&concs, &bb_pool, &["Business Breadth"], false);
 
     return Major {
         short_name: "WH".to_string(), 
@@ -230,8 +314,10 @@ pub fn create_wh_fl_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Flex Fundamentals".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUTI".to_string()]), excluding: None, number: 1, no_school: None },
             
             // Business Breadth
-            Requirement::AnyOf { category: Some("Business Breadth".to_string()), possibilities: bb_requirement_options.clone() },
-
+        ]
+        .into_iter()
+        .chain(bb_reqs)
+        .chain(vec![
             // Liberal Arts and Sciences (foreign language required)
             // WUHM - language
             // flex gen-ed - language
@@ -260,22 +346,29 @@ pub fn create_wh_fl_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Cross Cultural".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
 
             // Unrestricted Electives
-            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 5, no_school: None }
-        ].into_iter().chain(wh_concentrations.get(&concentration_name).unwrap().clone()).collect(),
-        concentrations: Some(create_wh_concentrations()),
+            Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 5, no_school: None },
+        ])
+        .chain(wh_concentration_requirements(&concs))
+        .collect(),
+        concentrations: Some(wh_concentrations),
     }
 }
 
-pub fn create_wh_nofl_major(concentration_name: String) -> Major {
+pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
+    let concentrations = normalize_wh_concentrations(&concentrations);
+    let concs = if concentrations.is_empty() {
+        vec!["FNCE".to_string()]
+    } else {
+        concentrations
+    };
     let wh_concentrations = create_wh_concentrations();
-    let mut bb_options = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"].map(String::from).to_vec();
-    bb_options.retain(|x| *x != concentration_name);
-
-    let mut bb_requirement_options = Vec::new();
-
-    for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string()]), number: 1, no_school: None });
-    }
+    let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
+    let bb_reqs = business_breadth_requirements(
+        &concs,
+        &bb_pool,
+        &["Business Breadth 1", "Business Breadth 2", "Business Breadth 3"],
+        false,
+    );
 
     return Major {
         short_name: "WH".to_string(), 
@@ -316,10 +409,10 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Flex Fundamentals - WUTI".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUTI".to_string()]), excluding: None, number: 1, no_school: None },
             
             // Business Breadth
-            Requirement::AnyOf { category: Some("Business Breadth 1".to_string()), possibilities: bb_requirement_options.clone() },
-            Requirement::AnyOf { category: Some("Business Breadth 2".to_string()), possibilities: bb_requirement_options.clone() },
-            Requirement::AnyOf { category: Some("Business Breadth 3".to_string()), possibilities: bb_requirement_options.clone() },
-
+        ]
+        .into_iter()
+        .chain(bb_reqs)
+        .chain(vec![
             // Liberal Arts and Sciences (foreign language not required)
             // wuhm - 1
             // wunm - 1
@@ -352,21 +445,28 @@ pub fn create_wh_nofl_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
-        ].into_iter().chain(wh_concentrations.get(&concentration_name).unwrap().clone()).collect(),
+        ])
+        .chain(wh_concentration_requirements(&concs))
+        .collect(),
         concentrations: Some(wh_concentrations),
     }
 }
 
-pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
+pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
+    let concentrations = normalize_wh_concentrations(&concentrations);
+    let concs = if concentrations.is_empty() {
+        vec!["FNCE".to_string()]
+    } else {
+        concentrations
+    };
     let wh_concentrations = create_wh_concentrations();
-    let mut bb_options = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"].map(String::from).to_vec();
-    bb_options.retain(|x| *x != concentration_name);
-
-    let mut bb_requirement_options = Vec::new();
-
-    for option in bb_options {
-        bb_requirement_options.push(Requirement::Restriction { category: None, department: Some(vec![option.to_string()]), cu: None, level: None, attr: None, excluding: Some(vec!["BEPP 1000".to_string(), "MGMT 1010".to_string(), "MKTG 1010".to_string(), "OIDD 1010".to_string(), "STAT 1010".to_string(), "STAT 1020".to_string(), "MGMT 3010".to_string()]), number: 1, no_school: None });
-    }
+    let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
+    let bb_reqs = business_breadth_requirements(
+        &concs,
+        &bb_pool,
+        &["Business Breadth - I", "Business Breadth - II"],
+        true,
+    );
 
     return Major {
         short_name: "WH".to_string(), 
@@ -403,9 +503,10 @@ pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Flex Fundamentals - GEBS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUGE".to_string()]), excluding: None, number: 1, no_school: None },
             
             // Business Breadth
-            Requirement::AnyOf { category: Some("Business Breadth - I".to_string()), possibilities: bb_requirement_options.clone() },
-            Requirement::AnyOf { category: Some("Business Breadth - II".to_string()), possibilities: bb_requirement_options.clone() },
-            
+        ]
+        .into_iter()
+        .chain(bb_reqs)
+        .chain(vec![
             // Jerome Fisher M&T
             Requirement::SingleCourse { category: Some("M&T Soph Course".to_string()), possibilities: vec!["MGMT 2370".to_string()] },
             Requirement::SingleCourse { category: Some("M&T Freshman Course".to_string()), possibilities: vec!["OIDD 2340".to_string()] },
@@ -415,9 +516,9 @@ pub fn create_wh_nofl_mt_major(concentration_name: String) -> Major {
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Humanities and Social Science".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string(), "WUSS".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Cross Cultural".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Cross Cultural".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
-
-            
-        ].into_iter().chain(wh_concentrations.get(&concentration_name).unwrap().clone()).collect(),
-        concentrations: Some(wh_concentrations)
+        ])
+        .chain(wh_concentration_requirements(&concs))
+        .collect(),
+        concentrations: Some(wh_concentrations),
     }
 }

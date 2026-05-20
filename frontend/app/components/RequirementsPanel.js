@@ -186,7 +186,7 @@ export default function RequirementsPanel({
         filterFrozenPlacements(frozenCourses).map((f) => f.courseId)
     );
 
-    const fulfilledCount = allReqs.filter((r) => reqIsFulfilled(r, assignedIds)).length;
+    const fulfilledCount = allReqs.filter((r) => reqIsFulfilled(r)).length;
     const totalCount = allReqs.length;
     const pct = totalCount > 0 ? Math.round((fulfilledCount / totalCount) * 100) : 0;
 
@@ -228,7 +228,7 @@ export default function RequirementsPanel({
                     const items = categoryMap[cat];
                     if (!items || items.length === 0) return null;
 
-                    const done = items.filter((r) => reqIsFulfilled(r, assignedIds)).length;
+                    const done = items.filter((r) => reqIsFulfilled(r)).length;
                     const total = items.length;
                     const allDone = done === total;
                     const isCollapsed = collapsedGroups[cat];
@@ -270,11 +270,9 @@ export default function RequirementsPanel({
 }
 
 
-function reqIsFulfilled(item, assignedIds) {
-    if (!item.fulfilled) return false;
-    const courses = filterValidCourseCodes(item.fulfilledCourses || []);
-    if (courses.length === 0) return true;
-    return courses.some((c) => assignedIds.has(c));
+/** API fulfillment (includes frozen/planned courses); chip colors still distinguish taken vs frozen. */
+function reqIsFulfilled(item) {
+    return item.fulfilled;
 }
 
 function chipKindFor(courseId, { assignedIds, frozenIds, fulfilledSet, suggestedSet }) {
@@ -293,7 +291,7 @@ function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, f
     const fulfilledSet = new Set(fulfilledCourses);
     const suggestedSet = new Set(suggestedCourses);
     const chipCtx = { assignedIds, frozenIds, fulfilledSet, suggestedSet };
-    const rowFulfilled = reqIsFulfilled(item, assignedIds);
+    const rowFulfilled = reqIsFulfilled(item);
 
     const MAX_VISIBLE = 5;
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
