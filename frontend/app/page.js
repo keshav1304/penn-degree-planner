@@ -16,6 +16,7 @@ import {
   filterValidPlacements,
   filterFrozenPlacements,
 } from "@/lib/courseUtils";
+import { getSlotLabel } from "@/lib/requirementText";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -308,12 +309,13 @@ export default function Home() {
   };
 
   const requirementSlotLabels = useMemo(() => {
-    const labels = { ...(scheduleData?.slot_labels || {}) };
+    const apiLabels = scheduleData?.slot_labels || {};
+    const labels = { ...apiLabels };
     scheduleData?.degree_results?.forEach((result) => {
       result.suggested_for_unfulfilled?.forEach((mapped) => {
         mapped.course_ids?.forEach((id) => {
           if (isRequirementSlotId(id) && mapped.requirement) {
-            labels[id] = describeRequirement(mapped.requirement);
+            labels[id] = getSlotLabel(mapped.requirement, id, apiLabels);
           }
         });
       });
@@ -561,25 +563,3 @@ function getCategoryFromReq(req) {
   return "Requirement";
 }
 
-function describeRequirement(req) {
-  if (!req) return "Requirement";
-  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
-  for (const v of variants) {
-    if (req[v] !== undefined) {
-      const data = req[v];
-      if (v === "Restriction") {
-        const parts = [];
-        if (data.number) parts.push(`${data.number} course(s)`);
-        if (data.department) parts.push(`from ${Array.isArray(data.department) ? data.department.join("/") : data.department}`);
-        if (data.level) parts.push(`level ${data.level}+`);
-        if (data.attr) parts.push(`in ${data.attr.join(" or ")}`);
-        if (data.excluding) parts.push(`excluding ${data.excluding.join(", ")}`);
-        if (data.no_school) parts.push(`not from ${data.no_school}`);
-        return parts.join(" ") || "Restriction requirement";
-      }
-      if (data.possibilities?.length) return data.possibilities.join(", ");
-      return v;
-    }
-  }
-  return "Requirement";
-}

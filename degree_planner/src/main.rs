@@ -368,7 +368,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         all_requirement_slots.push(course_id.clone());
                         slot_labels.insert(
                             course_id.clone(),
-                            mapped.requirement.create_requirement_description(),
+                            mapped.requirement.slot_label_for_id(course_id),
                         );
                     }
                 }

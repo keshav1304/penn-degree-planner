@@ -192,6 +192,51 @@ pub fn filter_schedule_suggestion_ids(ids: Vec<String>) -> Vec<String> {
 
 impl Requirement {
     /// Stable id for scheduling a restriction placeholder (display via `create_requirement_description`).
+    /// Find the nested requirement that owns a schedule slot id (e.g. inside AnyOf).
+    pub fn find_for_slot_id<'a>(&'a self, slot_id: &str) -> Option<&'a Requirement> {
+        if self.requirement_slot_id().as_deref() == Some(slot_id) {
+            return Some(self);
+        }
+        match self {
+            Requirement::AnyOf { possibilities, .. } => {
+                for child in possibilities {
+                    if let Some(found) = child.find_for_slot_id(slot_id) {
+                        return Some(found);
+                    }
+                }
+            }
+            Requirement::AllOf { requirements, .. } | Requirement::Concentration { requirements, .. } => {
+                for child in requirements {
+                    if let Some(found) = child.find_for_slot_id(slot_id) {
+                        return Some(found);
+                    }
+                }
+            }
+            Requirement::DoubleCount {
+                base_requirements,
+                double_counting_requirements,
+                ..
+            } => {
+                for child in base_requirements
+                    .iter()
+                    .chain(double_counting_requirements.iter())
+                {
+                    if let Some(found) = child.find_for_slot_id(slot_id) {
+                        return Some(found);
+                    }
+                }
+            }
+            _ => {}
+        }
+        None
+    }
+
+    pub fn slot_label_for_id(&self, slot_id: &str) -> String {
+        self.find_for_slot_id(slot_id)
+            .map(|r| r.create_requirement_description())
+            .unwrap_or_else(|| "Open requirement".to_string())
+    }
+
     pub fn requirement_slot_id(&self) -> Option<String> {
         match self {
             Requirement::Restriction {

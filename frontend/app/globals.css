@@ -557,6 +557,8 @@ select {
 
 .schedule-course.schedule-requirement {
   border-style: dashed;
+  border-color: rgba(0, 0, 0, 0.22);
+  background: var(--bg-secondary);
   cursor: pointer;
 }
 
@@ -564,7 +566,7 @@ select {
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.35;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   flex: 1;
   min-width: 0;
 }
@@ -573,6 +575,15 @@ select {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.schedule-course.schedule-requirement .lock-icon {
+  opacity: 1;
+}
+
+.schedule-course.schedule-requirement.frozen {
+  border-color: var(--accent-amber);
+  background: var(--accent-amber-dim);
 }
 
 .schedule-course.frozen {
