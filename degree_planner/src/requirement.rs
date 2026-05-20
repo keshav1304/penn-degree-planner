@@ -231,7 +231,66 @@ impl Requirement {
         None
     }
 
+    fn is_business_breadth_category(category: Option<&String>) -> bool {
+        category
+            .map(|c| c.to_lowercase().contains("business breadth"))
+            .unwrap_or(false)
+    }
+
+    fn business_breadth_schedule_label(category: &str) -> String {
+        if category.eq_ignore_ascii_case("Business Breadth") {
+            "1 WH Business Breadth".to_string()
+        } else {
+            format!("1 WH {}", category)
+        }
+    }
+
+    /// Business breadth slots use a short schedule label instead of dept-level restriction text.
+    pub fn business_breadth_label_for_slot(&self, slot_id: &str) -> Option<String> {
+        match self {
+            Requirement::AnyOf { category, possibilities, .. } => {
+                let cat = category.as_deref()?;
+                if !Self::is_business_breadth_category(category.as_ref()) {
+                    return None;
+                }
+                for child in possibilities {
+                    if child.requirement_slot_id().as_deref() == Some(slot_id) {
+                        return Some(Self::business_breadth_schedule_label(cat));
+                    }
+                }
+                None
+            }
+            Requirement::AllOf { requirements, .. } | Requirement::Concentration { requirements, .. } => {
+                for child in requirements {
+                    if let Some(label) = child.business_breadth_label_for_slot(slot_id) {
+                        return Some(label);
+                    }
+                }
+                None
+            }
+            Requirement::DoubleCount {
+                base_requirements,
+                double_counting_requirements,
+                ..
+            } => {
+                for child in base_requirements
+                    .iter()
+                    .chain(double_counting_requirements.iter())
+                {
+                    if let Some(label) = child.business_breadth_label_for_slot(slot_id) {
+                        return Some(label);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
     pub fn slot_label_for_id(&self, slot_id: &str) -> String {
+        if let Some(label) = self.business_breadth_label_for_slot(slot_id) {
+            return label;
+        }
         self.find_for_slot_id(slot_id)
             .map(|r| r.create_requirement_description())
             .unwrap_or_else(|| "Open requirement".to_string())

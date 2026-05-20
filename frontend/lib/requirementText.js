@@ -108,11 +108,57 @@ function buildRestrictionSlotId(data) {
   return `req:R:${data.number ?? ""}:${dept}:${lvl}:${attr}:${excl}:${school}`;
 }
 
+function isBusinessBreadthCategory(category) {
+  return typeof category === "string" && category.toLowerCase().includes("business breadth");
+}
+
+function businessBreadthScheduleLabel(category) {
+  if (category === "Business Breadth") return "1 WH Business Breadth";
+  return `1 WH ${category}`;
+}
+
+function restrictionSlotIdFromReq(req) {
+  const { type, data } = parseRequirement(req);
+  if (type === "Restriction") return buildRestrictionSlotId(data);
+  return null;
+}
+
+/** Business breadth slots use short labels like "1 WH Business Breadth". */
+export function businessBreadthLabelForSlot(req, slotId) {
+  if (!req || !slotId) return null;
+  const { type, data } = parseRequirement(req);
+  if (type === "AnyOf" && isBusinessBreadthCategory(data.category)) {
+    for (const child of data.possibilities || []) {
+      if (restrictionSlotIdFromReq(child) === slotId) {
+        return businessBreadthScheduleLabel(data.category);
+      }
+    }
+  }
+  if (type === "AllOf" || type === "Concentration") {
+    for (const child of data.requirements || []) {
+      const label = businessBreadthLabelForSlot(child, slotId);
+      if (label) return label;
+    }
+  }
+  if (type === "DoubleCount") {
+    for (const child of [
+      ...(data.base_requirements || []),
+      ...(data.double_counting_requirements || []),
+    ]) {
+      const label = businessBreadthLabelForSlot(child, slotId);
+      if (label) return label;
+    }
+  }
+  return null;
+}
+
 /** Label for a schedule requirement slot card. */
 export function getSlotLabel(req, slotId, apiLabels = {}) {
   if (apiLabels[slotId] && typeof apiLabels[slotId] === "string" && !apiLabels[slotId].includes("[object Object]")) {
     return apiLabels[slotId];
   }
+  const bbLabel = businessBreadthLabelForSlot(req, slotId);
+  if (bbLabel) return bbLabel;
   const matched = findRequirementForSlotId(req, slotId);
   if (matched) return getRequirementLabel(matched);
   if (typeof apiLabels[slotId] === "string") return apiLabels[slotId];
