@@ -330,25 +330,25 @@ export default function Home() {
     if (scheduleData?.degree_results) {
       scheduleData.degree_results.forEach((result, i) => {
         const degreeLabel = `${result.school}-${result.major}`;
-        const addCourse = (courseId, category) => {
-          if (!isValidCourseCode(courseId)) return;
-          if (!degMap[courseId]) degMap[courseId] = [];
-          if (!degMap[courseId].includes(degreeLabel)) degMap[courseId].push(degreeLabel);
+        const addScheduleItem = (itemId, category) => {
+          if (!isValidCourseCode(itemId) && !isRequirementSlotId(itemId)) return;
+          if (!degMap[itemId]) degMap[itemId] = [];
+          if (!degMap[itemId].includes(degreeLabel)) degMap[itemId].push(degreeLabel);
           if (category) {
-            if (!reqMap[courseId]) reqMap[courseId] = [];
+            if (!reqMap[itemId]) reqMap[itemId] = [];
             const entry = `${degreeLabel}: ${category}`;
-            if (!reqMap[courseId].includes(entry)) reqMap[courseId].push(entry);
+            if (!reqMap[itemId].includes(entry)) reqMap[itemId].push(entry);
           }
         };
         // Fulfilled requirements
         result.fulfilled_requirements?.forEach(req => {
           const cat = req.requirement?.category || getCategoryFromReq(req.requirement);
-          req.course_ids?.forEach(c => addCourse(c, cat));
+          req.course_ids?.forEach(c => addScheduleItem(c, cat));
         });
         // Suggested for unfulfilled
         result.suggested_for_unfulfilled?.forEach(req => {
           const cat = getCategoryFromReq(req.requirement);
-          req.course_ids?.forEach(c => addCourse(c, cat));
+          req.course_ids?.forEach(c => addScheduleItem(c, cat));
         });
       });
     }

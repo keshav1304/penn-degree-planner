@@ -217,6 +217,7 @@ export default function ScheduleGrid({
                 data={{ courseId: slotId, source: "schedule", fromYear: year, fromSemester: sem }}
             >
                 <div className={className} style={{ position: "relative" }}>
+                    {renderDegreeBar(slotId)}
                     <div
                         className="schedule-course-content"
                         onClick={handleClick}
@@ -224,6 +225,7 @@ export default function ScheduleGrid({
                     >
                         <span className="schedule-requirement-label">{getSlotLabel(slotId)}</span>
                         <span className="course-card-actions">
+                            {renderInfoButton(slotId)}
                             <span className="lock-icon">{frozen ? "🔒" : "📌"}</span>
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
