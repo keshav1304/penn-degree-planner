@@ -3,6 +3,7 @@
 import { useState } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
+import { isValidCourseCode, isRequirementSlotId } from "@/lib/courseUtils";
 
 const YEAR_NAMES = {};
 
@@ -21,7 +22,7 @@ const DC_COLORS = [
 ];
 
 export default function ScheduleGrid({
-    scheduleData, frozenCourses, assignedCourses,
+    scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementMap, allowSummer,
     doubleCountData, courseDoubleCountMap,
@@ -78,23 +79,36 @@ export default function ScheduleGrid({
         );
     };
 
-    // User-pinned courses (frozen / green) win over API auto-placement
-    const pinnedCourseIds = new Set([
+    // User-pinned items win over API auto-placement
+    const pinnedIds = new Set([
         ...frozenCourses.map((f) => f.courseId),
         ...(assignedCourses || []).filter((a) => a.year > 0).map((a) => a.courseId),
     ]);
 
     const getDisplayCourses = (year, semester) => {
         const plan = getSemesterPlan(year, semester);
-        const apiCourses = (plan?.courses || []).filter((id) => !pinnedCourseIds.has(id));
+        const apiCourses = (plan?.courses || []).filter((id) => !pinnedIds.has(id) && isValidCourseCode(id));
         const pinnedHere = [
             ...frozenCourses.filter((f) => f.year === year && f.semester === semester).map((f) => f.courseId),
             ...(assignedCourses || [])
                 .filter((a) => a.year === year && a.semester === semester)
                 .map((a) => a.courseId),
         ];
-        return [...new Set([...pinnedHere, ...apiCourses])];
+        return [...new Set([...pinnedHere, ...apiCourses])].filter(isValidCourseCode);
     };
+
+    const getDisplayRequirementSlots = (year, semester) => {
+        const plan = getSemesterPlan(year, semester);
+        const apiSlots = (plan?.requirement_slots || []).filter((id) => !pinnedIds.has(id));
+        const pinnedHere = [
+            ...frozenCourses
+                .filter((f) => f.year === year && f.semester === semester && isRequirementSlotId(f.courseId))
+                .map((f) => f.courseId),
+        ];
+        return [...new Set([...pinnedHere, ...apiSlots])].filter(isRequirementSlotId);
+    };
+
+    const getSlotLabel = (slotId) => requirementSlotLabels[slotId] || "Open requirement";
 
     const isFrozen = (courseId) => frozenCourses.some(f => f.courseId === courseId);
     const isAssigned = (courseId) => assignedCourses?.some(a => a.courseId === courseId);
@@ -187,6 +201,37 @@ export default function ScheduleGrid({
         );
     };
 
+    const renderRequirementSlotCard = (slotId, year, sem, idx) => {
+        const frozen = isFrozen(slotId);
+        let className = "schedule-course schedule-requirement";
+        if (frozen) className += " frozen";
+
+        const handleClick = () => {
+            onToggleFreeze(slotId, year, sem);
+        };
+
+        return (
+            <DraggableCourse
+                key={`${slotId}-${idx}`}
+                id={`schedule-${year}-${sem}-${slotId}-${idx}`}
+                data={{ courseId: slotId, source: "schedule", fromYear: year, fromSemester: sem }}
+            >
+                <div className={className} style={{ position: "relative" }}>
+                    <div
+                        className="schedule-course-content schedule-requirement-content"
+                        onClick={handleClick}
+                        title={frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"}
+                    >
+                        <span className="schedule-requirement-label">{getSlotLabel(slotId)}</span>
+                        <span className="course-card-actions">
+                            <span className="lock-icon">{frozen ? "🔒" : "📌"}</span>
+                        </span>
+                    </div>
+                </div>
+            </DraggableCourse>
+        );
+    };
+
     const renderCourseCard = (courseId, year, sem, idx) => {
         const frozen = isFrozen(courseId);
         const assigned = isAssigned(courseId);
@@ -195,6 +240,7 @@ export default function ScheduleGrid({
         else if (frozen) className += " frozen";
 
         const handleClick = () => {
+            if (!isValidCourseCode(courseId)) return;
             if (assigned) {
                 // Green → Orange: freeze in place
                 onUnmarkTaken(courseId);
@@ -326,23 +372,28 @@ export default function ScheduleGrid({
                     {semesters.map(sem => {
                         const plan = getSemesterPlan(year, sem);
                         const courses = getDisplayCourses(year, sem);
+                        const requirementSlots = getDisplayRequirementSlots(year, sem);
+                        const itemCount = courses.length + requirementSlots.length;
                         const droppableId = `slot-${year}-${sem}`;
 
                         return (
                             <DroppableSemester key={sem} id={droppableId} year={year} semester={sem}>
                                 <div className="semester-col-header">
                                     {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
-                                    {courses.length > 0 && (
-                                        <span style={{ float: "right", fontWeight: 400 }}>{courses.length}</span>
+                                    {itemCount > 0 && (
+                                        <span style={{ float: "right", fontWeight: 400 }}>{itemCount}</span>
                                     )}
                                 </div>
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
-                                {courses.length === 0 && (
+                                {requirementSlots.map((slotId, idx) => renderRequirementSlotCard(slotId, year, sem, idx))}
+                                {itemCount === 0 && (
                                     <div className="drop-hint">Drop courses here</div>
                                 )}
                                 {(() => {
                                     const semKey = `${year}-${sem}`;
-                                    const actualCu = courses.reduce((s, c) => s + getCu(c), 0);
+                                    const actualCu =
+                                        courses.reduce((s, c) => s + getCu(c), 0)
+                                        + requirementSlots.length * 1.0;
                                     const limitValue = semesterCuLimits?.[semKey] ?? (sem === "Summer" ? 2.0 : 5.0);
                                     return (
                                         <div className="semester-cu-total">

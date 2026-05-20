@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { filterValidCourseCodes } from "@/lib/courseUtils";
 
 // ─── Design tokens ───
 const C = {
@@ -243,8 +244,10 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
 function renderItem(item, idx, expandKey, isExpanded, onToggle) {
     const { type, data } = parseRequirement(item.requirement);
     const options = getOptions(type, data);
-    const fulfilledSet = new Set(item.fulfilledCourses || []);
-    const suggestedSet = new Set(item.suggestedCourses || []);
+    const fulfilledCourses = filterValidCourseCodes(item.fulfilledCourses || []);
+    const suggestedCourses = filterValidCourseCodes(item.suggestedCourses || []);
+    const fulfilledSet = new Set(fulfilledCourses);
+    const suggestedSet = new Set(suggestedCourses);
 
     const MAX_VISIBLE = 5;
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
@@ -270,15 +273,15 @@ function renderItem(item, idx, expandKey, isExpanded, onToggle) {
                     </div>
                 )}
 
-                {item.fulfilled && item.fulfilledCourses.length > 0 && options.length === 0 && (
+                {item.fulfilled && fulfilledCourses.length > 0 && options.length === 0 && (
                     <div style={S.chips}>
-                        {item.fulfilledCourses.map((c, i) => <span key={i} style={S.chip("fulfilled")}>{c}</span>)}
+                        {fulfilledCourses.map((c, i) => <span key={i} style={S.chip("fulfilled")}>{c}</span>)}
                     </div>
                 )}
 
-                {!item.fulfilled && item.suggestedCourses?.length > 0 && options.length === 0 && (
+                {!item.fulfilled && suggestedCourses.length > 0 && options.length === 0 && (
                     <div style={S.chips}>
-                        {item.suggestedCourses.map((c, i) => <span key={i} style={S.chip("suggested")}>{c}</span>)}
+                        {suggestedCourses.map((c, i) => <span key={i} style={S.chip("suggested")}>{c}</span>)}
                     </div>
                 )}
             </div>

@@ -8,6 +8,14 @@ import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
 import { maxYearFromSchedule } from "@/lib/semesterOptions";
+import {
+  isValidCourseCode,
+  isRequirementSlotId,
+  isSchedulePlacementId,
+  filterValidCourseCodes,
+  filterValidPlacements,
+  filterFrozenPlacements,
+} from "@/lib/courseUtils";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -61,9 +69,9 @@ export default function Home() {
     const saved = loadSavedState();
     if (saved) {
       setDegrees(saved.degrees || []);
-      setTakenCourses(saved.takenCourses || []);
-      setFrozenCourses(saved.frozenCourses || []);
-      setAssignedCourses(saved.assignedCourses || []);
+      setTakenCourses(filterValidCourseCodes(saved.takenCourses || []));
+      setFrozenCourses(filterFrozenPlacements(saved.frozenCourses || []));
+      setAssignedCourses(filterValidPlacements(saved.assignedCourses || []));
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
     }
@@ -96,18 +104,15 @@ export default function Home() {
       return;
     }
 
-    const allFrozen = [
-      ...frozenCourses.map(f => ({
-        course_id: f.courseId,
-        year: f.year,
-        semester: f.semester,
-      })),
-      ...assignedCourses.filter(a => a.year > 0).map(a => ({
-        course_id: a.courseId,
-        year: a.year,
-        semester: a.semester,
-      })),
+    const pinnedOnSchedule = [
+      ...filterFrozenPlacements(frozenCourses),
+      ...filterValidPlacements(assignedCourses.filter((a) => a.year > 0)),
     ];
+    const allFrozen = pinnedOnSchedule.map((p) => ({
+      course_id: p.courseId,
+      year: p.year,
+      semester: p.semester,
+    }));
 
     const requestId = ++scheduleRequestId.current;
     setLoading(true);
@@ -116,7 +121,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          taken: takenCourses,
+          taken: filterValidCourseCodes(takenCourses),
           degrees: degrees.map(d => ({
             major: d.majorCode,
             school: d.schoolCode,
@@ -145,7 +150,24 @@ export default function Home() {
     return () => clearTimeout(debounceRef.current);
   }, [generateSchedule]);
 
+  // Drop any legacy invalid entries (e.g. requirement description strings in My Courses)
+  useEffect(() => {
+    setTakenCourses((prev) => {
+      const filtered = filterValidCourseCodes(prev);
+      return filtered.length === prev.length ? prev : filtered;
+    });
+    setFrozenCourses((prev) => {
+      const filtered = filterFrozenPlacements(prev);
+      return filtered.length === prev.length ? prev : filtered;
+    });
+    setAssignedCourses((prev) => {
+      const filtered = filterValidPlacements(prev);
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [scheduleData]);
+
   const addCourse = (courseCode) => {
+    if (!isValidCourseCode(courseCode)) return;
     if (!takenCourses.includes(courseCode)) {
       setTakenCourses(prev => [...prev, courseCode]);
     }
@@ -158,6 +180,7 @@ export default function Home() {
   };
 
   const assignCourse = (courseId, year, semester) => {
+    if (!isValidCourseCode(courseId)) return;
     setAssignedCourses(prev => {
       const filtered = prev.filter(a => a.courseId !== courseId);
       if (year === null || semester === null) return filtered;
@@ -166,6 +189,7 @@ export default function Home() {
   };
 
   const toggleFreeze = (courseId, year, semester) => {
+    if (!isSchedulePlacementId(courseId)) return;
     setFrozenCourses(prev => {
       const existing = prev.find(f => f.courseId === courseId);
       if (existing) {
@@ -177,6 +201,7 @@ export default function Home() {
 
   // Orange → Green: mark a frozen course as taken (locked in place)
   const markTaken = (courseId, year, semester) => {
+    if (!isValidCourseCode(courseId)) return;
     // Add to taken courses if not already there
     if (!takenCourses.includes(courseId)) {
       setTakenCourses(prev => [...prev, courseId]);
@@ -198,6 +223,7 @@ export default function Home() {
   };
 
   const moveFrozenCourse = (courseId, newYear, newSemester) => {
+    if (!isSchedulePlacementId(courseId)) return;
     setFrozenCourses(prev => {
       const filtered = prev.filter(f => f.courseId !== courseId);
       return [...filtered, { courseId, year: newYear, semester: newSemester }];
@@ -233,6 +259,7 @@ export default function Home() {
     if (!courseId || targetYear == null || !targetSemester) return;
 
     if (dragData.source === "cart") {
+      if (!isValidCourseCode(courseId)) return;
       // Cart → Credits Received: assign directly
       if (targetYear === 0) {
         assignCourse(courseId, targetYear, targetSemester);
@@ -245,22 +272,27 @@ export default function Home() {
         });
       }
     } else if (dragData.source === "search") {
+      if (!isValidCourseCode(courseId)) return;
       // Search → Schedule: add to cart AND assign in one action
       if (!takenCourses.includes(courseId)) {
         setTakenCourses(prev => [...prev, courseId]);
       }
       assignCourse(courseId, targetYear, targetSemester);
     } else if (dragData.source === "schedule") {
+      if (!isSchedulePlacementId(courseId)) return;
       // Schedule → Credits Received: assign to year 0
       if (targetYear === 0) {
+        if (!isValidCourseCode(courseId)) return;
         setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
         assignCourse(courseId, targetYear, targetSemester);
       } else {
-        // Schedule → Schedule: move course to new slot
+        // Schedule → Schedule: move course or requirement slot
         const isUserAssigned = assignedCourses.some(a => a.courseId === courseId);
         const isUserFrozen = frozenCourses.some(f => f.courseId === courseId);
 
-        if (isUserAssigned) {
+        if (isRequirementSlotId(courseId)) {
+          moveFrozenCourse(courseId, targetYear, targetSemester);
+        } else if (isUserAssigned) {
           assignCourse(courseId, targetYear, targetSemester);
         } else if (isUserFrozen) {
           moveFrozenCourse(courseId, targetYear, targetSemester);
@@ -275,6 +307,20 @@ export default function Home() {
     setActiveDragId(null);
   };
 
+  const requirementSlotLabels = useMemo(() => {
+    const labels = { ...(scheduleData?.slot_labels || {}) };
+    scheduleData?.degree_results?.forEach((result) => {
+      result.suggested_for_unfulfilled?.forEach((mapped) => {
+        mapped.course_ids?.forEach((id) => {
+          if (isRequirementSlotId(id) && mapped.requirement) {
+            labels[id] = describeRequirement(mapped.requirement);
+          }
+        });
+      });
+    });
+    return labels;
+  }, [scheduleData]);
+
   // ─── Build course → degree and course → requirement maps ───
   const { courseDegreesMap, courseRequirementMap } = (() => {
     const degMap = {};
@@ -283,6 +329,7 @@ export default function Home() {
       scheduleData.degree_results.forEach((result, i) => {
         const degreeLabel = `${result.school}-${result.major}`;
         const addCourse = (courseId, category) => {
+          if (!isValidCourseCode(courseId)) return;
           if (!degMap[courseId]) degMap[courseId] = [];
           if (!degMap[courseId].includes(degreeLabel)) degMap[courseId].push(degreeLabel);
           if (category) {
@@ -446,6 +493,7 @@ export default function Home() {
               <div className="panel-body">
                 <ScheduleGrid
                   scheduleData={scheduleData}
+                  requirementSlotLabels={requirementSlotLabels}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
                   onToggleFreeze={toggleFreeze}
@@ -487,7 +535,9 @@ export default function Home() {
       <DragOverlay>
         {activeDragId ? (
           <div className="drag-overlay-card">
-            {activeDragId}
+            {isRequirementSlotId(activeDragId)
+              ? (requirementSlotLabels[activeDragId] || "Open requirement")
+              : activeDragId}
           </div>
         ) : null}
       </DragOverlay>
@@ -506,6 +556,29 @@ function getCategoryFromReq(req) {
   if (typeof req === "object") {
     for (const key of Object.keys(req)) {
       if (typeof req[key] === "object" && req[key]?.category) return req[key].category;
+    }
+  }
+  return "Requirement";
+}
+
+function describeRequirement(req) {
+  if (!req) return "Requirement";
+  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
+  for (const v of variants) {
+    if (req[v] !== undefined) {
+      const data = req[v];
+      if (v === "Restriction") {
+        const parts = [];
+        if (data.number) parts.push(`${data.number} course(s)`);
+        if (data.department) parts.push(`from ${Array.isArray(data.department) ? data.department.join("/") : data.department}`);
+        if (data.level) parts.push(`level ${data.level}+`);
+        if (data.attr) parts.push(`in ${data.attr.join(" or ")}`);
+        if (data.excluding) parts.push(`excluding ${data.excluding.join(", ")}`);
+        if (data.no_school) parts.push(`not from ${data.no_school}`);
+        return parts.join(" ") || "Restriction requirement";
+      }
+      if (data.possibilities?.length) return data.possibilities.join(", ");
+      return v;
     }
   }
   return "Requirement";

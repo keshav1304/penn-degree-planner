@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import DraggableCourse from "./DraggableCourse";
 import { buildSemesterOptions } from "@/lib/semesterOptions";
+import { filterValidCourseCodes } from "@/lib/courseUtils";
 
 export default function CourseSearch({
     allCourses, takenCourses, assignedCourses, onAdd, onRemove, onAssign,
@@ -90,7 +91,7 @@ export default function CourseSearch({
             <div className="cart-section">
                 <div className="cart-header">
                     <h3>My Courses</h3>
-                    <span className="cart-count">{takenCourses.length}</span>
+                    <span className="cart-count">{filterValidCourseCodes(takenCourses).length}</span>
                 </div>
                 <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginBottom: 8 }}>
                     Drag courses to a semester slot, or use the dropdown
@@ -101,7 +102,7 @@ export default function CourseSearch({
                     </div>
                 ) : (
                     <div className="cart-list">
-                        {takenCourses.map(code => {
+                        {filterValidCourseCodes(takenCourses).map(code => {
                             const assignValue = getAssignment(code);
                             return (
                                 <DraggableCourse

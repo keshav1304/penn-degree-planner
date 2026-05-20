@@ -146,7 +146,7 @@ pub fn create_ee_major() -> Major {
             },
 
             // General Electives
-            Requirement::SingleCourse { category: Some("General Electives - Ethics".to_string()), possibilities: vec!["LAWM 5060".to_string(), "EAS 2030".to_string()] },
+            Requirement::SingleCourse { category: Some("General Electives - Ethics".to_string()), possibilities: vec!["EAS 2030".to_string(), "LAWM 5060".to_string()] },
             Requirement::Restriction { category: Some("General Electives - Humanities/SS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]), number: 1, excluding: None, no_school: None },
             Requirement::Restriction { category: Some("General Electives - Humanities/SS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]), number: 1, excluding: None, no_school: None },
             Requirement::Restriction { category: Some("General Electives - Humanities/SS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]), number: 1, excluding: None, no_school: None },

@@ -109,7 +109,120 @@ fn format_restriction_description(
     response
 }
 
+/// Whether a catalog course code satisfies a Restriction requirement.
+pub fn course_matches_restriction(
+    course: &str,
+    department: &Option<Vec<String>>,
+    level: &Option<i32>,
+    attr: &Option<Vec<String>>,
+    excluding: &Option<Vec<String>>,
+    no_school: &Option<String>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> bool {
+    let Some((dept, course_id)) = course.split_once(' ') else {
+        return false;
+    };
+    if !course_id.chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
+    if let Some(excluding_courses) = excluding {
+        if excluding_courses.iter().any(|ex| ex == course) {
+            return false;
+        }
+    }
+    if let Some(school_name) = no_school {
+        let wh_dept_names = vec![
+            "MGMT", "MKTG", "BEPP", "FNCE", "STAT", "OIDD", "ACCT", "HCMG", "LGST", "REAL",
+        ];
+        let seas_dept_names = vec![
+            "ESE", "CIS", "MEAM", "MSE", "CBE", "BE", "EAS", "ENGR", "ENM", "NETS",
+        ];
+        let blocked: Vec<&str> = match school_name.as_str() {
+            "WH" => wh_dept_names,
+            "SEAS" => seas_dept_names,
+            "CAS" | "NURS" => vec![],
+            _ => return false,
+        };
+        if blocked.contains(&dept) {
+            return false;
+        }
+    }
+    if let Some(department_names) = department {
+        if !department_names.iter().any(|d| d == dept) {
+            return false;
+        }
+    }
+    if let Some(min_level) = level {
+        if course_id.parse::<i32>().unwrap_or(0) < *min_level {
+            return false;
+        }
+    }
+    if let Some(attr_names) = attr {
+        let mut matches_attr = false;
+        for attr_name in attr_names {
+            if let Some(courses_in_attribute) = attributes.get(attr_name) {
+                if courses_in_attribute.contains(&course.to_string()) {
+                    matches_attr = true;
+                }
+            }
+        }
+        if !matches_attr {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn filter_valid_course_ids(ids: Vec<String>) -> Vec<String> {
+    ids.into_iter()
+        .filter(|id| crate::course::is_valid_course_code(id))
+        .collect()
+}
+
+/// Stable schedule-only identifier for an open requirement slot (not a course code).
+pub fn is_requirement_slot_id(s: &str) -> bool {
+    s.starts_with("req:")
+}
+
+pub fn filter_schedule_suggestion_ids(ids: Vec<String>) -> Vec<String> {
+    ids.into_iter()
+        .filter(|id| crate::course::is_valid_course_code(id) || is_requirement_slot_id(id))
+        .collect()
+}
+
 impl Requirement {
+    /// Stable id for scheduling a restriction placeholder (display via `create_requirement_description`).
+    pub fn requirement_slot_id(&self) -> Option<String> {
+        match self {
+            Requirement::Restriction {
+                number,
+                department,
+                level,
+                attr,
+                excluding,
+                no_school,
+                ..
+            } => {
+                let dept = department
+                    .as_ref()
+                    .map(|d| d.join("/"))
+                    .unwrap_or_default();
+                let attr_s = attr.as_ref().map(|a| a.join("/")).unwrap_or_default();
+                let excl = excluding
+                    .as_ref()
+                    .map(|e| e.join(","))
+                    .unwrap_or_default();
+                let lvl = level.map(|l| l.to_string()).unwrap_or_default();
+                let school = no_school.clone().unwrap_or_default();
+                Some(format!(
+                    "req:R:{}:{}:{}:{}:{}:{}",
+                    number, dept, lvl, attr_s, excl, school
+                ))
+            }
+            _ => None,
+        }
+    }
+
     pub fn get_category(&self) -> String {
         match self {
             Requirement::SingleCourse { category, ..}
@@ -177,71 +290,15 @@ impl Requirement {
                 let mut accumulated_cu: f64 = 0.0;
                 let target_cu: f64 = *number as f64; // each slot represents 1.0 CU
                 for course in taken {
-                    if let Some((dept, course_id)) = course.split_once(' ') { 
-                        let mut status = course_id.chars().all(|c| c.is_ascii_digit());
-                        if let Some(excluding_courses) = excluding {
-                            for excluded_course in excluding_courses {
-                                if excluded_course == course {
-                                    status = false;
-                                }
-                            }
-                        }
-                        if let Some(school_name) = no_school {
-                            let wh_dept_names = vec!["MGMT".to_string(), "MKTG".to_string(), 
-                                                                    "BEPP".to_string(), "FNCE".to_string(), "STAT".to_string(),
-                                                                    "OIDD".to_string(), "ACCT".to_string(), "HCMG".to_string(), 
-                                                                    "LGST".to_string(), "REAL".to_string(),];
-                            let seas_dept_names: Vec<String> = vec!["ESE".to_string(), "CIS".to_string(), 
-                                                                    "MEAM".to_string(), "MSE".to_string(), "CBE".to_string(),
-                                                                    "BE".to_string(), "EAS".to_string(), "ENGR".to_string(), 
-                                                                    "ENM".to_string(), "NETS".to_string(),];
-                            let cas_dept_names: Vec<String> = Vec::new();
-                            let nurs_dept_names: Vec<String> = Vec::new();
-                            match school_name.as_str() {
-                                "WH" => {
-                                    status = status && !wh_dept_names.contains(&dept.to_string());
-                                },
-                                "SEAS" => {
-                                    status = status && !seas_dept_names.contains(&dept.to_string());
-                                },
-                                "CAS" => {
-                                    status = status && !cas_dept_names.contains(&dept.to_string());
-                                },
-                                "NURS" => {
-                                    status = status && !nurs_dept_names.contains(&dept.to_string());
-                                },
-                                _ => {unimplemented!()}
-                            }
-                        }
-                        if let Some(department_names) = department {
-                            status = status && department_names.contains(&dept.to_string());
-                        }
-                        if let Some(min_level) = level {
-                            status = status && (course_id.parse::<i32>().expect("Failed to parse course level") >= *min_level);
-                        }
-                        if let Some(attr_names) = attr {
-                            let mut sub_status = false;
-                            for attr_name in attr_names {
-                                if let Some(courses_in_attribute) = attributes.get(attr_name) {
-                                    sub_status = sub_status || (courses_in_attribute.contains(course));
-                                } else {
-                                    println!("{} - Invalid attribute provided in requirements!", attr_name);
-                                }
-                            }
-                            status = status && sub_status;
-                        }
-                        
-                        if status {
-                            let course_cu = *cu_map.get(course).unwrap_or(&1.0);
-                            all_courses_fulfilled.push(course.clone());
-                            accumulated_cu += course_cu;
-                        }
-
+                    if course_matches_restriction(
+                        course, department, level, attr, excluding, no_school, attributes,
+                    ) {
+                        let course_cu = *cu_map.get(course).unwrap_or(&1.0);
+                        all_courses_fulfilled.push(course.clone());
+                        accumulated_cu += course_cu;
                         if accumulated_cu >= target_cu {
                             return Some(all_courses_fulfilled);
                         }
-                    } else {
-                        return None;
                     }
                 }
                 return None;
@@ -296,9 +353,6 @@ impl Requirement {
                 return None;
             },
             Requirement::AnyOf { category, possibilities } => {
-                if (category.clone().unwrap_or("".to_string()).to_lowercase().contains("business breadth")) {
-                    return Some(vec!["1 WH Business Breadth".to_string()]);
-                }
                 for req in possibilities {
                     match req.suggest_for_requirement(taken, attributes, cu_map) {
                         Some(val) => return Some(val),
@@ -321,30 +375,9 @@ impl Requirement {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
                 composite_requirement.suggest_for_requirement(taken, attributes, cu_map)
             },
-            Requirement::Restriction { category, department, cu, level, attr, excluding, number, no_school } => {
-                let mut response = format!("{} course(s)", number);
-                if let Some(depts) = department {
-                    response += " from ";
-                    response += &depts.join("/");
-                }
-                if let Some(min_level) = level {
-                    response += " with minimum level ";
-                    response += &min_level.to_string();
-                }
-                if let Some(attr_names) = attr {
-                    response += " from attribute ";
-                    response += &attr_names.join("/");
-                }
-                if let Some(excluded_courses) = excluding {
-                    response += " excluding ";
-                    response += &excluded_courses.join(", ");
-                }
-                if let Some(no_school_name) = no_school {
-                    response += " not from ";
-                    response += no_school_name;
-                }
-                return Some(vec![response]);
-            },
+            Requirement::Restriction { .. } => self
+                .requirement_slot_id()
+                .map(|slot_id| vec![slot_id]),
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
                 // Find which base requirements are still unfulfilled
                 let mut taken_copy = taken.clone();
@@ -542,7 +575,10 @@ pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requireme
     for req in unfulfilled_requirements {
         match req.suggest_for_requirement(taken, &attributes, cu_map) {
             Some(val) => {
-                suggested_courses.push(MappedRequirement { requirement: req.clone(), course_ids: val})
+                let course_ids = filter_schedule_suggestion_ids(val);
+                if !course_ids.is_empty() {
+                    suggested_courses.push(MappedRequirement { requirement: req.clone(), course_ids });
+                }
             },
             None => println!("Unable to find a course to fulfill {}", req.get_category())
         }

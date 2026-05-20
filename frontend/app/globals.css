@@ -555,6 +555,26 @@ select {
   background: rgba(5, 150, 105, 0.04);
 }
 
+.schedule-course.schedule-requirement {
+  border-style: dashed;
+  cursor: pointer;
+}
+
+.schedule-course.schedule-requirement .schedule-requirement-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-course.schedule-requirement .schedule-requirement-content {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 .schedule-course.frozen {
   border-color: var(--accent-amber);
   background: var(--accent-amber-dim);
