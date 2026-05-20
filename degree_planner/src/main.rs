@@ -322,12 +322,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         })
         .cloned()
         .collect();
-    taken.extend(
-        frozen
-            .iter()
-            .filter(|f| course::is_valid_course_code(&f.course_id))
-            .map(|x| x.course_id.clone()),
-    );
+    // Frozen / planned courses are placed on the schedule but do not count as taken for requirements.
     let mut degree_results: Vec<DegreeResult> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
     let mut all_requirement_slots: Vec<String> = Vec::new();

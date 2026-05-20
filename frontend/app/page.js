@@ -526,6 +526,8 @@ export default function Home() {
                 <RequirementsPanel
                   scheduleData={scheduleData}
                   degrees={degrees}
+                  frozenCourses={frozenCourses}
+                  assignedCourses={assignedCourses}
                 />
               </div>
             </div>

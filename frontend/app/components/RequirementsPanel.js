@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { filterValidCourseCodes } from "@/lib/courseUtils";
+import {
+    filterValidCourseCodes,
+    filterValidPlacements,
+    filterFrozenPlacements,
+} from "@/lib/courseUtils";
 
 // ─── Design tokens ───
 const C = {
@@ -21,6 +25,10 @@ const C = {
     green700: "#15803d",
     teal600: "#059669",
     red500: "#dc2626",
+    amber50: "#fffbeb",
+    amber200: "#fde68a",
+    amber500: "#f59e0b",
+    amber700: "#b45309",
     white: "#ffffff",
 };
 
@@ -111,6 +119,7 @@ const S = {
             default: { bg: C.gray100, border: C.gray300, color: C.gray500 },
             fulfilled: { bg: C.green100, border: C.green300, color: C.green700 },
             suggested: { bg: "#d1fae5", border: "#6ee7b7", color: "#047857" },
+            frozen: { bg: C.amber50, border: C.amber200, color: C.amber700 },
         };
         const t = map[kind] || map.default;
         return { fontSize: "0.67rem", fontWeight: 600, padding: "2px 7px", borderRadius: 4, whiteSpace: "nowrap", background: t.bg, border: `1px solid ${t.border}`, color: t.color, boxSizing: "border-box" };
@@ -121,7 +130,12 @@ const S = {
     empty: { textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem" },
 };
 
-export default function RequirementsPanel({ scheduleData, degrees }) {
+export default function RequirementsPanel({
+    scheduleData,
+    degrees,
+    frozenCourses = [],
+    assignedCourses = [],
+}) {
     const [activeTab, setActiveTab] = useState(0);
     const [expandedOptions, setExpandedOptions] = useState({});
     const [collapsedGroups, setCollapsedGroups] = useState({});
@@ -165,8 +179,15 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
     const orderedCategories = [...categoryOrder];
     Object.keys(categoryMap).forEach((c) => { if (!orderedCategories.includes(c)) orderedCategories.push(c); });
 
-    const fulfilledCount = current.fulfilled_requirements?.length || 0;
-    const totalCount = fulfilledCount + (current.unfulfilled_requirements?.length || 0);
+    const assignedIds = new Set(
+        filterValidPlacements(assignedCourses).map((a) => a.courseId)
+    );
+    const frozenIds = new Set(
+        filterFrozenPlacements(frozenCourses).map((f) => f.courseId)
+    );
+
+    const fulfilledCount = allReqs.filter((r) => reqIsFulfilled(r, assignedIds)).length;
+    const totalCount = allReqs.length;
     const pct = totalCount > 0 ? Math.round((fulfilledCount / totalCount) * 100) : 0;
 
     const toggleExpand = (key) => setExpandedOptions((p) => ({ ...p, [key]: !p[key] }));
@@ -207,7 +228,7 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
                     const items = categoryMap[cat];
                     if (!items || items.length === 0) return null;
 
-                    const done = items.filter((r) => r.fulfilled).length;
+                    const done = items.filter((r) => reqIsFulfilled(r, assignedIds)).length;
                     const total = items.length;
                     const allDone = done === total;
                     const isCollapsed = collapsedGroups[cat];
@@ -225,7 +246,14 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
                                 <div style={S.groupBody}>
                                     {items.map((item, idx) => {
                                         const expandKey = `${cat}-${idx}`;
-                                        return renderItem(item, idx, expandKey, expandedOptions[expandKey], () => toggleExpand(expandKey));
+                                        return renderItem(
+                                            item,
+                                            idx,
+                                            expandKey,
+                                            expandedOptions[expandKey],
+                                            () => toggleExpand(expandKey),
+                                            { assignedIds, frozenIds }
+                                        );
                                     })}
                                 </div>
                             )}
@@ -241,27 +269,45 @@ export default function RequirementsPanel({ scheduleData, degrees }) {
     );
 }
 
-function renderItem(item, idx, expandKey, isExpanded, onToggle) {
+
+function reqIsFulfilled(item, assignedIds) {
+    if (!item.fulfilled) return false;
+    const courses = filterValidCourseCodes(item.fulfilledCourses || []);
+    if (courses.length === 0) return true;
+    return courses.some((c) => assignedIds.has(c));
+}
+
+function chipKindFor(courseId, { assignedIds, frozenIds, fulfilledSet, suggestedSet }) {
+    if (assignedIds.has(courseId)) return "fulfilled";
+    if (frozenIds.has(courseId)) return "frozen";
+    if (fulfilledSet.has(courseId)) return "fulfilled";
+    if (suggestedSet.has(courseId)) return "suggested";
+    return "default";
+}
+
+function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, frozenIds }) {
     const { type, data } = parseRequirement(item.requirement);
     const options = getOptions(type, data);
     const fulfilledCourses = filterValidCourseCodes(item.fulfilledCourses || []);
     const suggestedCourses = filterValidCourseCodes(item.suggestedCourses || []);
     const fulfilledSet = new Set(fulfilledCourses);
     const suggestedSet = new Set(suggestedCourses);
+    const chipCtx = { assignedIds, frozenIds, fulfilledSet, suggestedSet };
+    const rowFulfilled = reqIsFulfilled(item, assignedIds);
 
     const MAX_VISIBLE = 5;
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
 
     return (
-        <div key={idx} style={S.item(item.fulfilled, idx === 0)}>
-            <span style={S.itemIcon(item.fulfilled)}>{item.fulfilled ? "✓" : "○"}</span>
+        <div key={idx} style={S.item(rowFulfilled, idx === 0)}>
+            <span style={S.itemIcon(rowFulfilled)}>{rowFulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
                 <div style={S.itemDesc}>{getDescription(type, data)}</div>
 
                 {options.length > 0 && (
                     <div style={S.chips}>
                         {visible.map((opt, i) => (
-                            <span key={i} style={S.chip(fulfilledSet.has(opt) ? "fulfilled" : suggestedSet.has(opt) ? "suggested" : "default")}>
+                            <span key={i} style={S.chip(chipKindFor(opt, chipCtx))}>
                                 {opt}
                             </span>
                         ))}
@@ -273,15 +319,19 @@ function renderItem(item, idx, expandKey, isExpanded, onToggle) {
                     </div>
                 )}
 
-                {item.fulfilled && fulfilledCourses.length > 0 && options.length === 0 && (
+                {rowFulfilled && fulfilledCourses.length > 0 && options.length === 0 && (
                     <div style={S.chips}>
-                        {fulfilledCourses.map((c, i) => <span key={i} style={S.chip("fulfilled")}>{c}</span>)}
+                        {fulfilledCourses.map((c, i) => (
+                            <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
+                        ))}
                     </div>
                 )}
 
-                {!item.fulfilled && suggestedCourses.length > 0 && options.length === 0 && (
+                {!rowFulfilled && suggestedCourses.length > 0 && options.length === 0 && (
                     <div style={S.chips}>
-                        {suggestedCourses.map((c, i) => <span key={i} style={S.chip("suggested")}>{c}</span>)}
+                        {suggestedCourses.map((c, i) => (
+                            <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
+                        ))}
                     </div>
                 )}
             </div>
