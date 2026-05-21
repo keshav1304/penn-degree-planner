@@ -848,86 +848,15 @@ pub fn validate_courses_for_degree(
     (fulfilled_requirements, requirements_not_fulfilled)
 }
 
-fn course_department(course_id: &str) -> Option<String> {
-    course_id
-        .split_whitespace()
-        .next()
-        .map(|d| d.to_string())
-}
-
-fn requirement_matches_concentration(req: &Requirement, conc_name: &str) -> bool {
-    let cat = req.get_category().to_lowercase();
-    cat.contains(&format!("concentration - {}", conc_name.to_lowercase()))
-}
-
-fn is_business_breadth_requirement(req: &Requirement) -> bool {
-    req.get_category()
-        .to_lowercase()
-        .contains("business breadth")
-}
-
-/// When a student has two Wharton concentrations, at most one business-breadth slot
-/// may also count toward one concentration requirement; other BB slots may not overlap.
-pub fn apply_wharton_double_concentration_bb_overlap(
+/// Run a major's optional post-validation hook (school-specific rules live in *_data modules).
+pub fn apply_post_validate_adjustments(
+    major: &crate::major::Major,
     concentrations: &[String],
     fulfilled: &mut Vec<MappedRequirement>,
     unfulfilled: &mut Vec<MappedRequirement>,
 ) {
-    if concentrations.len() < 2 {
-        return;
-    }
-
-    // Prefer a BB fulfillment whose course dept matches one of the concentrations.
-    for mapped in fulfilled.iter() {
-        if !is_business_breadth_requirement(&mapped.requirement) {
-            continue;
-        }
-        for bb_course in &mapped.course_ids {
-            let Some(dept) = course_department(bb_course) else {
-                continue;
-            };
-            if !concentrations.contains(&dept) {
-                continue;
-            }
-            if let Some(idx) = unfulfilled.iter().position(|m| {
-                requirement_matches_concentration(&m.requirement, &dept)
-            }) {
-                let mapped = unfulfilled.remove(idx);
-                fulfilled.push(MappedRequirement {
-                    requirement: mapped.requirement,
-                    course_ids: vec![bb_course.clone()],
-                    instance_id: mapped.instance_id,
-                });
-                return;
-            }
-        }
-    }
-
-    // Concentration matched first: credit at most one unfulfilled BB slot.
-    for mapped in fulfilled.clone() {
-        for course in &mapped.course_ids {
-            let Some(dept) = course_department(course) else {
-                continue;
-            };
-            if !concentrations.contains(&dept) {
-                continue;
-            }
-            if !requirement_matches_concentration(&mapped.requirement, &dept) {
-                continue;
-            }
-            if let Some(idx) = unfulfilled
-                .iter()
-                .position(|m| is_business_breadth_requirement(&m.requirement))
-            {
-                let mapped = unfulfilled.remove(idx);
-                fulfilled.push(MappedRequirement {
-                    requirement: mapped.requirement,
-                    course_ids: vec![course.clone()],
-                    instance_id: mapped.instance_id,
-                });
-                return;
-            }
-        }
+    if let Some(adjust) = major.post_validate {
+        adjust(&major.major_key, concentrations, fulfilled, unfulfilled);
     }
 }
 

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::Requirement;
 use crate::Major;
+use crate::requirement::MappedRequirement;
 
 pub fn concentration_names() -> Vec<String> {
     create_wh_concentrations().keys().cloned().collect()
@@ -275,10 +276,7 @@ pub fn create_wh_fl_major(concentrations: Vec<String>) -> Major {
     let bb_pool = ["ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST", "FNCE"];
     let bb_reqs = business_breadth_requirements(&concs, &bb_pool, &["Business Breadth"], false);
 
-    return Major {
-        short_name: "WH".to_string(), 
-        name: "Wharton Undergraduate".to_string(), 
-        requirements: vec![
+    let requirements: Vec<Requirement> = vec![
             // First-Year Foundations
             Requirement::AnyOf { category: Some("First-Year Foundations".to_string()), possibilities: vec![
                 Requirement::SingleCourse { category: None, possibilities: vec!["BEPP 1000".to_string()] },
@@ -349,9 +347,15 @@ pub fn create_wh_fl_major(concentrations: Vec<String>) -> Major {
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 5, no_school: None },
         ])
         .chain(wh_concentration_requirements(&concs))
-        .collect(),
-        concentrations: Some(wh_concentrations),
-    }
+        .collect();
+    Major::new(
+        "WH",
+        "Wharton Undergraduate",
+        "WH_FL",
+        requirements,
+        Some(wh_concentrations),
+    )
+    .with_post_validate(post_validate_overlaps)
 }
 
 pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
@@ -370,10 +374,7 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
         false,
     );
 
-    return Major {
-        short_name: "WH".to_string(), 
-        name: "Wharton Undergraduate".to_string(), 
-        requirements: vec![
+    let requirements: Vec<Requirement> = vec![
              // First-Year Foundations
             Requirement::AnyOf { category: Some("First-Year Foundations - Econ".to_string()), possibilities: vec![
                 Requirement::SingleCourse { category: None, possibilities: vec!["BEPP 1000".to_string()] },
@@ -447,9 +448,15 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
         ])
         .chain(wh_concentration_requirements(&concs))
-        .collect(),
-        concentrations: Some(wh_concentrations),
-    }
+        .collect();
+    Major::new(
+        "WH",
+        "Wharton Undergraduate",
+        "WH_NOFL",
+        requirements,
+        Some(wh_concentrations),
+    )
+    .with_post_validate(post_validate_overlaps)
 }
 
 pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
@@ -468,10 +475,7 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
         true,
     );
 
-    return Major {
-        short_name: "WH".to_string(), 
-        name: "Wharton Undergraduate".to_string(), 
-        requirements: vec![
+    let requirements: Vec<Requirement> = vec![
              // First-Year Foundations
             Requirement::AnyOf { category: Some("First-Year Foundations - Econ".to_string()), possibilities: vec![
                 Requirement::SingleCourse { category: None, possibilities: vec!["BEPP 1000".to_string()] },
@@ -518,7 +522,191 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Cross Cultural".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
         ])
         .chain(wh_concentration_requirements(&concs))
-        .collect(),
-        concentrations: Some(wh_concentrations),
+        .collect();
+    Major::new(
+        "WH",
+        "Wharton Undergraduate",
+        "WH_NOFL_MT",
+        requirements,
+        Some(wh_concentrations),
+    )
+    .with_post_validate(post_validate_overlaps)
+}
+
+// ─── Post-validation: Wharton-only double-count rules ───
+
+const MT_MGMT2370: &str = "MGMT 2370";
+
+fn course_department(course_id: &str) -> Option<String> {
+    course_id
+        .split_whitespace()
+        .next()
+        .map(|d| d.to_string())
+}
+
+fn requirement_matches_concentration(req: &Requirement, conc_name: &str) -> bool {
+    let cat = req.get_category().to_lowercase();
+    cat.contains(&format!("concentration - {}", conc_name.to_lowercase()))
+}
+
+fn is_business_breadth_requirement(req: &Requirement) -> bool {
+    req.get_category()
+        .to_lowercase()
+        .contains("business breadth")
+}
+
+fn is_mt_mgmt2370_soph_requirement(req: &Requirement) -> bool {
+    if let Requirement::SingleCourse { category, possibilities } = req {
+        let mt_soph = category
+            .as_ref()
+            .map(|c| c.to_lowercase().contains("m&t soph"))
+            .unwrap_or(false);
+        return mt_soph && possibilities.iter().any(|p| p == MT_MGMT2370);
+    }
+    false
+}
+
+fn mapped_has_course(mapped: &MappedRequirement, course: &str) -> bool {
+    mapped.course_ids.iter().any(|c| c == course)
+}
+
+fn apply_mt_mgmt2370_overlap(
+    concentrations: &[String],
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+) {
+    let mgmt_is_conc = concentrations.iter().any(|c| c == "MGMT");
+
+    let soph_fulfilled_with_2370 = fulfilled.iter().any(|m| {
+        is_mt_mgmt2370_soph_requirement(&m.requirement) && mapped_has_course(m, MT_MGMT2370)
+    });
+
+    if mgmt_is_conc {
+        if !soph_fulfilled_with_2370 {
+            return;
+        }
+        if let Some(idx) = unfulfilled.iter().position(|m| {
+            requirement_matches_concentration(&m.requirement, "MGMT")
+        }) {
+            let mapped = unfulfilled.remove(idx);
+            fulfilled.push(MappedRequirement {
+                requirement: mapped.requirement,
+                course_ids: vec![MT_MGMT2370.to_string()],
+                instance_id: mapped.instance_id,
+            });
+        }
+        return;
+    }
+
+    if soph_fulfilled_with_2370 {
+        if let Some(idx) = unfulfilled
+            .iter()
+            .position(|m| is_business_breadth_requirement(&m.requirement))
+        {
+            let mapped = unfulfilled.remove(idx);
+            fulfilled.push(MappedRequirement {
+                requirement: mapped.requirement,
+                course_ids: vec![MT_MGMT2370.to_string()],
+                instance_id: mapped.instance_id,
+            });
+            return;
+        }
+    }
+
+    for mapped in fulfilled.clone() {
+        if !is_business_breadth_requirement(&mapped.requirement) {
+            continue;
+        }
+        if !mapped_has_course(&mapped, MT_MGMT2370) {
+            continue;
+        }
+        if let Some(idx) = unfulfilled
+            .iter()
+            .position(|m| is_mt_mgmt2370_soph_requirement(&m.requirement))
+        {
+            let mt = unfulfilled.remove(idx);
+            fulfilled.push(MappedRequirement {
+                requirement: mt.requirement,
+                course_ids: vec![MT_MGMT2370.to_string()],
+                instance_id: mt.instance_id,
+            });
+            return;
+        }
+    }
+}
+
+fn apply_double_concentration_bb_overlap(
+    concentrations: &[String],
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+) {
+    if concentrations.len() < 2 {
+        return;
+    }
+
+    for mapped in fulfilled.iter() {
+        if !is_business_breadth_requirement(&mapped.requirement) {
+            continue;
+        }
+        for bb_course in &mapped.course_ids {
+            let Some(dept) = course_department(bb_course) else {
+                continue;
+            };
+            if !concentrations.contains(&dept) {
+                continue;
+            }
+            if let Some(idx) = unfulfilled.iter().position(|m| {
+                requirement_matches_concentration(&m.requirement, &dept)
+            }) {
+                let mapped = unfulfilled.remove(idx);
+                fulfilled.push(MappedRequirement {
+                    requirement: mapped.requirement,
+                    course_ids: vec![bb_course.clone()],
+                    instance_id: mapped.instance_id,
+                });
+                return;
+            }
+        }
+    }
+
+    for mapped in fulfilled.clone() {
+        for course in &mapped.course_ids {
+            let Some(dept) = course_department(course) else {
+                continue;
+            };
+            if !concentrations.contains(&dept) {
+                continue;
+            }
+            if !requirement_matches_concentration(&mapped.requirement, &dept) {
+                continue;
+            }
+            if let Some(idx) = unfulfilled
+                .iter()
+                .position(|m| is_business_breadth_requirement(&m.requirement))
+            {
+                let mapped = unfulfilled.remove(idx);
+                fulfilled.push(MappedRequirement {
+                    requirement: mapped.requirement,
+                    course_ids: vec![course.clone()],
+                    instance_id: mapped.instance_id,
+                });
+                return;
+            }
+        }
+    }
+}
+
+/// Registered on all Wharton majors via `Major::post_validate`.
+pub fn post_validate_overlaps(
+    major_key: &str,
+    concentrations: &[String],
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+) {
+    if major_key == "WH_NOFL_MT" {
+        apply_mt_mgmt2370_overlap(concentrations, fulfilled, unfulfilled);
+    }
+    if concentrations.len() >= 2 {
+        apply_double_concentration_bb_overlap(concentrations, fulfilled, unfulfilled);
     }
 }

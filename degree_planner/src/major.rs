@@ -3,15 +3,51 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 
 use crate::Requirement;
+use crate::requirement::MappedRequirement;
 use crate::seas_data;
 use crate::wharton_data;
+
+/// Optional school-specific adjustment after generic validation (double-count rules, etc.).
+pub type PostValidateHook = fn(
+    major_key: &str,
+    concentrations: &[String],
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+);
 
 #[derive(Debug)]
 pub struct Major {
     pub short_name: String,
     pub name: String,
+    /// Program id for post-validation hooks (e.g. `WH_NOFL_MT`, `EE`).
+    pub major_key: String,
     pub requirements: Vec<Requirement>,
     pub concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
+    pub post_validate: Option<PostValidateHook>,
+}
+
+impl Major {
+    pub fn new(
+        short_name: &str,
+        name: &str,
+        major_key: &str,
+        requirements: Vec<Requirement>,
+        concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
+    ) -> Self {
+        Self {
+            short_name: short_name.to_string(),
+            name: name.to_string(),
+            major_key: major_key.to_string(),
+            requirements,
+            concentrations,
+            post_validate: None,
+        }
+    }
+
+    pub fn with_post_validate(mut self, hook: PostValidateHook) -> Self {
+        self.post_validate = Some(hook);
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -382,13 +382,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 &courses_for_validation,
                 &cu_map,
             );
-            if degree.school == "WH" && concs.len() >= 2 {
-                requirement::apply_wharton_double_concentration_bb_overlap(
-                    &concs,
-                    &mut fulfilled,
-                    &mut unfulfilled,
-                );
-            }
+            requirement::apply_post_validate_adjustments(
+                &major_data,
+                &concs,
+                &mut fulfilled,
+                &mut unfulfilled,
+            );
             for mapped in &mut fulfilled {
                 mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());
             }
