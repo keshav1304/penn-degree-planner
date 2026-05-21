@@ -171,10 +171,10 @@ export default function RequirementsPanel({
         const id = getRequirementInstanceId(mapped);
         suggestionsMap[`${cat}::${id}`] = mapped.course_ids || [];
     });
-    (current.unfulfilled_requirements || []).forEach((mapped) => {
-        const req = mapped.requirement ?? mapped;
+    (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
+        const req = mapped?.requirement ?? mapped;
         const cat = normalizeCategory(getCategory(req));
-        const id = getRequirementInstanceId(mapped);
+        const id = getRequirementInstanceId(mapped) ?? `u-${rowIdx}`;
         allReqs.push({
             category: cat,
             fulfilled: false,
@@ -263,6 +263,13 @@ export default function RequirementsPanel({
                                 <div style={S.groupBody}>
                                     {items.map((item, rowIdx) => {
                                         const expandKey = `${cat}-${item.instanceId ?? rowIdx}`;
+                                        const desc = getItemDescription(item);
+                                        const sameDescCount = items.filter(
+                                            (o) => getItemDescription(o) === desc
+                                        ).length;
+                                        const sameDescIndex = items
+                                            .filter((o) => getItemDescription(o) === desc)
+                                            .indexOf(item);
                                         return renderItem(
                                             item,
                                             item.instanceId ?? String(rowIdx),
@@ -270,7 +277,10 @@ export default function RequirementsPanel({
                                             expandedOptions[expandKey],
                                             () => toggleExpand(expandKey),
                                             { assignedIds, frozenIds },
-                                            rowIdx === 0
+                                            rowIdx === 0,
+                                            sameDescCount > 1
+                                                ? `${desc} (${sameDescIndex + 1}/${sameDescCount})`
+                                                : desc
                                         );
                                     })}
                                 </div>
@@ -301,7 +311,21 @@ function chipKindFor(courseId, { assignedIds, frozenIds, fulfilledSet, suggested
     return "default";
 }
 
-function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, frozenIds }, isFirst = false) {
+function getItemDescription(item) {
+    const { type, data } = parseRequirement(item.requirement);
+    return getDescription(type, data);
+}
+
+function renderItem(
+    item,
+    idx,
+    expandKey,
+    isExpanded,
+    onToggle,
+    { assignedIds, frozenIds },
+    isFirst = false,
+    descriptionOverride = null
+) {
     const { type, data } = parseRequirement(item.requirement);
     const options = getOptions(type, data);
     const fulfilledCourses = filterValidCourseCodes(item.fulfilledCourses || []);
@@ -318,7 +342,7 @@ function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, f
         <div key={String(idx)} style={S.item(rowFulfilled, isFirst)}>
             <span style={S.itemIcon(rowFulfilled)}>{rowFulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
-                <div style={S.itemDesc}>{getDescription(type, data)}</div>
+                <div style={S.itemDesc}>{descriptionOverride ?? getDescription(type, data)}</div>
 
                 {options.length > 0 && (
                     <div style={S.chips}>

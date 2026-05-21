@@ -761,16 +761,23 @@ impl Requirement {
 
 
 /// finding whether taken fulfills degree and to what extent
-pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &Vec<String>, cu_map: &HashMap<String, f64>) -> (Vec<MappedRequirement>, Vec<Requirement>) {
+pub fn validate_courses_for_degree(
+    requirements: Vec<Requirement>,
+    taken: &Vec<String>,
+    cu_map: &HashMap<String, f64>,
+) -> (Vec<MappedRequirement>, Vec<MappedRequirement>) {
     let attributes = attributes_data::create_attributes();
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
     let mut requirements_not_fulfilled = Vec::new();
 
-    requirements.sort_by_key(|r| r.specificity_score());
-    
-    for (i, req) in requirements.into_iter().enumerate() {
-        let instance_id = Some(i.to_string());
+    // Preserve original major indices before sorting — identical requirements compare
+    // equal and must not share one instance id.
+    let mut indexed: Vec<(usize, Requirement)> = requirements.into_iter().enumerate().collect();
+    indexed.sort_by_key(|(_, r)| r.specificity_score());
+
+    for (orig_idx, req) in indexed {
+        let instance_id = Some(orig_idx.to_string());
 
         match req {
             Requirement::DoubleCount {
@@ -779,7 +786,8 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                 ..
             } => {
                 let mut base_courses: Vec<String> = Vec::new();
-                for base_req in base_requirements {
+                for (bi, base_req) in base_requirements.into_iter().enumerate() {
+                    let child_id = Some(format!("{}:b{}", orig_idx, bi));
                     if let Some(courses_fulfilling) =
                         base_req.fulfills_requirement(&taken_mut, &attributes, cu_map)
                     {
@@ -788,23 +796,32 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                         fulfilled_requirements.push(MappedRequirement {
                             requirement: base_req,
                             course_ids: courses_fulfilling,
-                            instance_id: instance_id.clone(),
+                            instance_id: child_id.clone(),
                         });
                     } else {
-                        requirements_not_fulfilled.push(base_req);
+                        requirements_not_fulfilled.push(MappedRequirement {
+                            requirement: base_req,
+                            course_ids: vec![],
+                            instance_id: child_id,
+                        });
                     }
                 }
-                for dc_req in double_counting_requirements {
+                for (di, dc_req) in double_counting_requirements.into_iter().enumerate() {
+                    let child_id = Some(format!("{}:d{}", orig_idx, di));
                     if let Some(courses_fulfilling) =
                         dc_req.fulfills_requirement(&base_courses, &attributes, cu_map)
                     {
                         fulfilled_requirements.push(MappedRequirement {
                             requirement: dc_req,
                             course_ids: courses_fulfilling,
-                            instance_id: instance_id.clone(),
+                            instance_id: child_id,
                         });
                     } else if !base_courses.is_empty() {
-                        requirements_not_fulfilled.push(dc_req);
+                        requirements_not_fulfilled.push(MappedRequirement {
+                            requirement: dc_req,
+                            course_ids: vec![],
+                            instance_id: child_id,
+                        });
                     }
                 }
             }
@@ -818,13 +835,17 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                         instance_id,
                     });
                 } else {
-                    requirements_not_fulfilled.push(req);
+                    requirements_not_fulfilled.push(MappedRequirement {
+                        requirement: req,
+                        course_ids: vec![],
+                        instance_id,
+                    });
                 }
             }
         }
     }
 
-    return (fulfilled_requirements, requirements_not_fulfilled);
+    (fulfilled_requirements, requirements_not_fulfilled)
 }
 
 fn course_department(course_id: &str) -> Option<String> {
@@ -850,7 +871,7 @@ fn is_business_breadth_requirement(req: &Requirement) -> bool {
 pub fn apply_wharton_double_concentration_bb_overlap(
     concentrations: &[String],
     fulfilled: &mut Vec<MappedRequirement>,
-    unfulfilled: &mut Vec<Requirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
 ) {
     if concentrations.len() < 2 {
         return;
@@ -868,15 +889,14 @@ pub fn apply_wharton_double_concentration_bb_overlap(
             if !concentrations.contains(&dept) {
                 continue;
             }
-            if let Some(idx) = unfulfilled
-                .iter()
-                .position(|r| requirement_matches_concentration(r, &dept))
-            {
-                let req = unfulfilled.remove(idx);
+            if let Some(idx) = unfulfilled.iter().position(|m| {
+                requirement_matches_concentration(&m.requirement, &dept)
+            }) {
+                let mapped = unfulfilled.remove(idx);
                 fulfilled.push(MappedRequirement {
-                    requirement: req,
+                    requirement: mapped.requirement,
                     course_ids: vec![bb_course.clone()],
-                    instance_id: None,
+                    instance_id: mapped.instance_id,
                 });
                 return;
             }
@@ -895,12 +915,15 @@ pub fn apply_wharton_double_concentration_bb_overlap(
             if !requirement_matches_concentration(&mapped.requirement, &dept) {
                 continue;
             }
-            if let Some(idx) = unfulfilled.iter().position(is_business_breadth_requirement) {
-                let req = unfulfilled.remove(idx);
+            if let Some(idx) = unfulfilled
+                .iter()
+                .position(|m| is_business_breadth_requirement(&m.requirement))
+            {
+                let mapped = unfulfilled.remove(idx);
                 fulfilled.push(MappedRequirement {
-                    requirement: req,
+                    requirement: mapped.requirement,
                     course_ids: vec![course.clone()],
-                    instance_id: None,
+                    instance_id: mapped.instance_id,
                 });
                 return;
             }
@@ -910,32 +933,36 @@ pub fn apply_wharton_double_concentration_bb_overlap(
 
 /// suggesting courses for certain requirements
 pub fn suggest_courses_for_requirements(
-    unfulfilled_requirements: &Vec<Requirement>,
+    unfulfilled_requirements: &[MappedRequirement],
     taken: &Vec<String>,
     cu_map: &HashMap<String, f64>,
-    major_requirements: &[Requirement],
 ) -> Vec<MappedRequirement> {
     let attributes = attributes_data::create_attributes();
     let mut suggested_courses = Vec::new();
-    for req in unfulfilled_requirements {
-        let instance_id = Requirement::path_in_major(major_requirements, req);
-        let scope = instance_id.as_deref();
-        match req.suggest_for_requirement(taken, &attributes, cu_map, scope) {
+    for mapped in unfulfilled_requirements {
+        let scope = mapped.instance_id.as_deref();
+        match mapped
+            .requirement
+            .suggest_for_requirement(taken, &attributes, cu_map, scope)
+        {
             Some(val) => {
                 let course_ids = filter_schedule_suggestion_ids(val);
                 if !course_ids.is_empty() {
                     suggested_courses.push(MappedRequirement {
-                        requirement: req.clone(),
+                        requirement: mapped.requirement.clone(),
                         course_ids,
-                        instance_id,
+                        instance_id: mapped.instance_id.clone(),
                     });
                 }
             }
-            None => println!("Unable to find a course to fulfill {}", req.get_category()),
+            None => println!(
+                "Unable to find a course to fulfill {}",
+                mapped.requirement.get_category()
+            ),
         }
     }
 
-    return suggested_courses;
+    suggested_courses
 }
 
 #[derive(Debug, Clone, Serialize)]

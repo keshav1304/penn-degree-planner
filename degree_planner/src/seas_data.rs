@@ -106,7 +106,7 @@ pub fn create_ee_major() -> Major {
                         category: None, 
                         requirements: vec![
                             Requirement::SingleCourse { category: None, possibilities: vec!["MEAM 1100".to_string()] },
-                            Requirement::SingleCourse { category: None, possibilities: vec!["BIOL 1124".to_string(), "PHYS 0050".to_string(), "MEAM 1470".to_string(), "CHEM 1101".to_string()] },
+                            Requirement::SingleCourse { category: None, possibilities: vec!["MEAM 1470".to_string(), "BIOL 1124".to_string(), "PHYS 0050".to_string(), "CHEM 1101".to_string()] },
                         ]
                     },
                     Requirement::AllOf {
