@@ -6,6 +6,7 @@ import {
     filterValidPlacements,
     filterFrozenPlacements,
 } from "@/lib/courseUtils";
+import { getRequirementInstanceId } from "@/lib/requirementText";
 
 // ─── Design tokens ───
 const C = {
@@ -156,16 +157,32 @@ export default function RequirementsPanel({
     const allReqs = [];
     (current.fulfilled_requirements || []).forEach((mapped) => {
         const cat = normalizeCategory(getCategory(mapped.requirement));
-        allReqs.push({ category: cat, fulfilled: true, fulfilledCourses: mapped.course_ids || [], requirement: mapped.requirement });
+        allReqs.push({
+            category: cat,
+            fulfilled: true,
+            fulfilledCourses: mapped.course_ids || [],
+            requirement: mapped.requirement,
+            instanceId: getRequirementInstanceId(mapped),
+        });
     });
     const suggestionsMap = {};
     (current.suggested_for_unfulfilled || []).forEach((mapped) => {
         const cat = normalizeCategory(getCategory(mapped.requirement));
-        suggestionsMap[`${cat}::${getReqKey(mapped.requirement)}`] = mapped.course_ids || [];
+        const id = getRequirementInstanceId(mapped);
+        suggestionsMap[`${cat}::${id}`] = mapped.course_ids || [];
     });
-    (current.unfulfilled_requirements || []).forEach((req) => {
+    (current.unfulfilled_requirements || []).forEach((mapped) => {
+        const req = mapped.requirement ?? mapped;
         const cat = normalizeCategory(getCategory(req));
-        allReqs.push({ category: cat, fulfilled: false, fulfilledCourses: [], suggestedCourses: suggestionsMap[`${cat}::${getReqKey(req)}`] || [], requirement: req });
+        const id = getRequirementInstanceId(mapped);
+        allReqs.push({
+            category: cat,
+            fulfilled: false,
+            fulfilledCourses: [],
+            suggestedCourses: suggestionsMap[`${cat}::${id}`] || [],
+            requirement: req,
+            instanceId: id,
+        });
     });
 
     const categoryMap = {};
@@ -244,15 +261,16 @@ export default function RequirementsPanel({
 
                             {!isCollapsed && (
                                 <div style={S.groupBody}>
-                                    {items.map((item, idx) => {
-                                        const expandKey = `${cat}-${idx}`;
+                                    {items.map((item, rowIdx) => {
+                                        const expandKey = `${cat}-${item.instanceId ?? rowIdx}`;
                                         return renderItem(
                                             item,
-                                            idx,
+                                            item.instanceId ?? String(rowIdx),
                                             expandKey,
                                             expandedOptions[expandKey],
                                             () => toggleExpand(expandKey),
-                                            { assignedIds, frozenIds }
+                                            { assignedIds, frozenIds },
+                                            rowIdx === 0
                                         );
                                     })}
                                 </div>
@@ -283,7 +301,7 @@ function chipKindFor(courseId, { assignedIds, frozenIds, fulfilledSet, suggested
     return "default";
 }
 
-function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, frozenIds }) {
+function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, frozenIds }, isFirst = false) {
     const { type, data } = parseRequirement(item.requirement);
     const options = getOptions(type, data);
     const fulfilledCourses = filterValidCourseCodes(item.fulfilledCourses || []);
@@ -297,7 +315,7 @@ function renderItem(item, idx, expandKey, isExpanded, onToggle, { assignedIds, f
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
 
     return (
-        <div key={idx} style={S.item(rowFulfilled, idx === 0)}>
+        <div key={String(idx)} style={S.item(rowFulfilled, isFirst)}>
             <span style={S.itemIcon(rowFulfilled)}>{rowFulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
                 <div style={S.itemDesc}>{getDescription(type, data)}</div>

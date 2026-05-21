@@ -70,7 +70,7 @@ struct RootPostInput {
 #[derive(Serialize)]
 struct RootPostOutput {
     fulfilled_requirements: Vec<MappedRequirement>,
-    unfulfilled_requirements: Vec<Requirement>,
+    unfulfilled_requirements: Vec<MappedRequirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
     error: Option<String>
@@ -109,11 +109,31 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
         let cu_map: HashMap<String, f64> = all_courses.iter()
             .map(|c| (c.course_code.clone(), c.cu))
             .collect();
-        let (mut fulfilled_requirements, unfulfilled_requirements) = requirement::validate_courses_for_degree(major_req_unwrapped.requirements.clone(), &taken, &cu_map);
-        
-        fulfilled_requirements.sort_by_key(|r| r.requirement.get_category());        
-        let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(&unfulfilled_requirements, &taken, &cu_map);
-        
+        let (mut fulfilled_requirements, unfulfilled_reqs) = requirement::validate_courses_for_degree(
+            major_req_unwrapped.requirements.clone(),
+            &taken,
+            &cu_map,
+        );
+
+        fulfilled_requirements.sort_by_key(|r| r.requirement.get_category());
+        let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(
+            &unfulfilled_reqs,
+            &taken,
+            &cu_map,
+            &major_req_unwrapped.requirements,
+        );
+        let unfulfilled_requirements: Vec<MappedRequirement> = unfulfilled_reqs
+            .iter()
+            .map(|req| MappedRequirement {
+                requirement: req.clone(),
+                course_ids: vec![],
+                instance_id: requirement::Requirement::path_in_major(
+                    &major_req_unwrapped.requirements,
+                    req,
+                ),
+            })
+            .collect();
+
         let mut unapplicable_courses = taken.clone();
         for req in &fulfilled_requirements {
             for course in &req.course_ids {
@@ -123,8 +143,11 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
             }
         }
         response = RootPostOutput {
-            fulfilled_requirements, unfulfilled_requirements, suggested_for_unfulfilled, unapplicable_courses,
-            error: None
+            fulfilled_requirements,
+            unfulfilled_requirements,
+            suggested_for_unfulfilled,
+            unapplicable_courses,
+            error: None,
         };
     } else {
         response = RootPostOutput { 
@@ -301,7 +324,7 @@ struct DegreeResult {
     school: String,
     major: String,
     fulfilled_requirements: Vec<MappedRequirement>,
-    unfulfilled_requirements: Vec<Requirement>,
+    unfulfilled_requirements: Vec<MappedRequirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
     double_count_info: Vec<DoubleCountInfo>,
@@ -386,6 +409,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 &unfulfilled,
                 &courses_for_validation,
                 &cu_map,
+                &major_data.requirements,
             );
 
             // Collect unique suggested courses and requirement slots for the schedule
@@ -451,11 +475,23 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 }
             }
 
+            let unfulfilled_mapped: Vec<MappedRequirement> = unfulfilled
+                .iter()
+                .map(|req| MappedRequirement {
+                    requirement: req.clone(),
+                    course_ids: vec![],
+                    instance_id: requirement::Requirement::path_in_major(
+                        &major_data.requirements,
+                        req,
+                    ),
+                })
+                .collect();
+
             degree_results.push(DegreeResult {
                 school: degree.school.clone(),
                 major: degree.major.clone(),
                 fulfilled_requirements: fulfilled,
-                unfulfilled_requirements: unfulfilled,
+                unfulfilled_requirements: unfulfilled_mapped,
                 suggested_for_unfulfilled: suggested,
                 unapplicable_courses: unapplicable,
                 double_count_info: dc_info,

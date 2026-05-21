@@ -67,13 +67,28 @@ export function getRequirementLabel(req) {
 }
 
 /** Find nested requirement that owns a schedule slot id. */
+function matchesSlotId(req, slotId) {
+  if (!req || !slotId) return false;
+  const { type, data } = parseRequirement(req);
+  if (slotId.startsWith("req:BB:") && type === "AnyOf") {
+    return isBusinessBreadthCategory(data.category) && businessBreadthSlotId(data.category) === slotId;
+  }
+  if (type === "Restriction") {
+    const rest = slotId.startsWith("req:") ? slotId.slice(4) : "";
+    const scopeEnd = rest.indexOf(":R:");
+    if (scopeEnd > 0) {
+      const scope = rest.slice(0, scopeEnd);
+      return buildRestrictionSlotId(data, scope) === slotId;
+    }
+    return buildRestrictionSlotId(data, null) === slotId;
+  }
+  return false;
+}
+
 export function findRequirementForSlotId(req, slotId) {
   if (!req || !slotId) return null;
+  if (matchesSlotId(req, slotId)) return req;
   const { type, data } = parseRequirement(req);
-  if (type === "Restriction") {
-    const id = buildRestrictionSlotId(data);
-    if (id === slotId) return req;
-  }
   if (type === "AnyOf") {
     for (const child of data.possibilities || []) {
       const found = findRequirementForSlotId(child, slotId);
@@ -98,14 +113,24 @@ export function findRequirementForSlotId(req, slotId) {
   return null;
 }
 
-/** Must stay in sync with Rust `requirement_slot_id`. */
-function buildRestrictionSlotId(data) {
+function slotScopeSlug(s) {
+  return String(s).replace(/[^a-zA-Z0-9]/g, "_");
+}
+
+/** Must stay in sync with Rust `business_breadth_slot_id`. */
+export function businessBreadthSlotId(category) {
+  return `req:BB:${slotScopeSlug(category)}`;
+}
+
+/** Must stay in sync with Rust `requirement_slot_id(scope)`. */
+function buildRestrictionSlotId(data, scope) {
   const dept = Array.isArray(data.department) ? data.department.join("/") : "";
   const attr = Array.isArray(data.attr) ? data.attr.join("/") : "";
   const excl = Array.isArray(data.excluding) ? data.excluding.join(",") : "";
   const lvl = data.level != null ? String(data.level) : "";
   const school = data.no_school || "";
-  return `req:R:${data.number ?? ""}:${dept}:${lvl}:${attr}:${excl}:${school}`;
+  const fp = `R:${data.number ?? ""}:${dept}:${lvl}:${attr}:${excl}:${school}`;
+  return scope ? `req:${scope}:${fp}` : `req:${fp}`;
 }
 
 function isBusinessBreadthCategory(category) {
@@ -117,21 +142,13 @@ function businessBreadthScheduleLabel(category) {
   return `1 WH ${category}`;
 }
 
-function restrictionSlotIdFromReq(req) {
-  const { type, data } = parseRequirement(req);
-  if (type === "Restriction") return buildRestrictionSlotId(data);
-  return null;
-}
-
 /** Business breadth slots use short labels like "1 WH Business Breadth". */
 export function businessBreadthLabelForSlot(req, slotId) {
   if (!req || !slotId) return null;
   const { type, data } = parseRequirement(req);
   if (type === "AnyOf" && isBusinessBreadthCategory(data.category)) {
-    for (const child of data.possibilities || []) {
-      if (restrictionSlotIdFromReq(child) === slotId) {
-        return businessBreadthScheduleLabel(data.category);
-      }
+    if (businessBreadthSlotId(data.category) === slotId) {
+      return businessBreadthScheduleLabel(data.category);
     }
   }
   if (type === "AllOf" || type === "Concentration") {
@@ -163,4 +180,16 @@ export function getSlotLabel(req, slotId, apiLabels = {}) {
   if (matched) return getRequirementLabel(matched);
   if (typeof apiLabels[slotId] === "string") return apiLabels[slotId];
   return "Open requirement";
+}
+
+/** Stable row identity from API (preferred over description fingerprint). */
+export function getRequirementInstanceId(mappedOrItem) {
+  if (mappedOrItem?.instance_id) return mappedOrItem.instance_id;
+  const req = mappedOrItem?.requirement ?? mappedOrItem;
+  if (!req) return "unknown";
+  const { type, data } = parseRequirement(req);
+  if (type === "AnyOf" && isBusinessBreadthCategory(data.category)) {
+    return businessBreadthSlotId(data.category);
+  }
+  return getRequirementLabel(req);
 }

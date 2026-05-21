@@ -184,6 +184,30 @@ pub fn is_requirement_slot_id(s: &str) -> bool {
     s.starts_with("req:")
 }
 
+fn slot_scope_slug(s: &str) -> String {
+    s.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+/// Business-breadth AnyOf slots use `req:BB:{category_slug}` (one per BB block).
+pub fn business_breadth_slot_id(category: &str) -> String {
+    format!("req:BB:{}", slot_scope_slug(category))
+}
+
+fn scoped_slot_id(scope: Option<&str>, fingerprint: &str) -> String {
+    match scope.filter(|s| !s.is_empty()) {
+        Some(s) => format!("req:{}:{}", s, fingerprint),
+        None => format!("req:{}", fingerprint),
+    }
+}
+
 pub fn filter_schedule_suggestion_ids(ids: Vec<String>) -> Vec<String> {
     ids.into_iter()
         .filter(|id| crate::course::is_valid_course_code(id) || is_requirement_slot_id(id))
@@ -192,9 +216,102 @@ pub fn filter_schedule_suggestion_ids(ids: Vec<String>) -> Vec<String> {
 
 impl Requirement {
     /// Stable id for scheduling a restriction placeholder (display via `create_requirement_description`).
+    /// Index of this requirement node in the major's top-level `requirements` list.
+    pub fn path_in_major(major: &[Requirement], needle: &Requirement) -> Option<String> {
+        for (i, req) in major.iter().enumerate() {
+            if req == needle {
+                return Some(i.to_string());
+            }
+            if let Some(p) = req.find_path_in_subtree(needle, &i.to_string()) {
+                return Some(p);
+            }
+        }
+        None
+    }
+
+    fn find_path_in_subtree<'a>(&'a self, needle: &Requirement, path: &str) -> Option<String> {
+        match self {
+            Requirement::AnyOf {
+                category,
+                possibilities,
+                ..
+            } => {
+                let child_path = if let Some(cat) = category.as_ref().filter(|c| !c.is_empty()) {
+                    format!("{}|{}", path, slot_scope_slug(cat))
+                } else {
+                    path.to_string()
+                };
+                for (j, child) in possibilities.iter().enumerate() {
+                    if child == needle {
+                        return Some(format!("{}#{}", child_path, j));
+                    }
+                    if let Some(p) = child.find_path_in_subtree(needle, &format!("{}#{}", child_path, j)) {
+                        return Some(p);
+                    }
+                }
+                if Self::is_business_breadth_category(category.as_ref())
+                    && needle == self
+                {
+                    return Some(child_path);
+                }
+            }
+            Requirement::AllOf { requirements, .. }
+            | Requirement::Concentration { requirements, .. } => {
+                for (j, child) in requirements.iter().enumerate() {
+                    if child == needle {
+                        return Some(format!("{}#{}", path, j));
+                    }
+                    if let Some(p) = child.find_path_in_subtree(needle, &format!("{}#{}", path, j)) {
+                        return Some(p);
+                    }
+                }
+            }
+            Requirement::DoubleCount {
+                base_requirements,
+                double_counting_requirements,
+                ..
+            } => {
+                for (j, child) in base_requirements
+                    .iter()
+                    .chain(double_counting_requirements.iter())
+                    .enumerate()
+                {
+                    if child == needle {
+                        return Some(format!("{}#dc{}", path, j));
+                    }
+                    if let Some(p) = child.find_path_in_subtree(needle, &format!("{}#dc{}", path, j)) {
+                        return Some(p);
+                    }
+                }
+            }
+            _ => {}
+        }
+        None
+    }
+
+    pub fn matches_slot_id(&self, slot_id: &str) -> bool {
+        if slot_id.starts_with("req:BB:") {
+            if let Requirement::AnyOf { category, .. } = self {
+                return category
+                    .as_ref()
+                    .map(|c| business_breadth_slot_id(c) == slot_id)
+                    .unwrap_or(false);
+            }
+            return false;
+        }
+        if let Some(rest) = slot_id.strip_prefix("req:") {
+            if let Some((scope, _fp)) = rest.split_once(":R:") {
+                if !scope.is_empty() {
+                    return self.requirement_slot_id(Some(scope)).as_deref() == Some(slot_id);
+                }
+            }
+        }
+        self.requirement_slot_id(None).as_deref() == Some(slot_id)
+    }
+
     /// Find the nested requirement that owns a schedule slot id (e.g. inside AnyOf).
     pub fn find_for_slot_id<'a>(&'a self, slot_id: &str) -> Option<&'a Requirement> {
-        if self.requirement_slot_id().as_deref() == Some(slot_id) {
+        if self.matches_slot_id(slot_id) {
             return Some(self);
         }
         match self {
@@ -248,15 +365,13 @@ impl Requirement {
     /// Business breadth slots use a short schedule label instead of dept-level restriction text.
     pub fn business_breadth_label_for_slot(&self, slot_id: &str) -> Option<String> {
         match self {
-            Requirement::AnyOf { category, possibilities, .. } => {
+            Requirement::AnyOf { category, .. } => {
                 let cat = category.as_deref()?;
                 if !Self::is_business_breadth_category(category.as_ref()) {
                     return None;
                 }
-                for child in possibilities {
-                    if child.requirement_slot_id().as_deref() == Some(slot_id) {
-                        return Some(Self::business_breadth_schedule_label(cat));
-                    }
+                if business_breadth_slot_id(cat) == slot_id {
+                    return Some(Self::business_breadth_schedule_label(cat));
                 }
                 None
             }
@@ -296,7 +411,7 @@ impl Requirement {
             .unwrap_or_else(|| "Open requirement".to_string())
     }
 
-    pub fn requirement_slot_id(&self) -> Option<String> {
+    pub fn requirement_slot_id(&self, scope: Option<&str>) -> Option<String> {
         match self {
             Requirement::Restriction {
                 number,
@@ -318,10 +433,11 @@ impl Requirement {
                     .unwrap_or_default();
                 let lvl = level.map(|l| l.to_string()).unwrap_or_default();
                 let school = no_school.clone().unwrap_or_default();
-                Some(format!(
-                    "req:R:{}:{}:{}:{}:{}:{}",
+                let fingerprint = format!(
+                    "R:{}:{}:{}:{}:{}:{}",
                     number, dept, lvl, attr_s, excl, school
-                ))
+                );
+                Some(scoped_slot_id(scope, &fingerprint))
             }
             _ => None,
         }
@@ -434,7 +550,13 @@ impl Requirement {
         }
     }
 
-    pub fn suggest_for_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>, cu_map: &HashMap<String, f64>) -> Option<Vec<String>> {
+    pub fn suggest_for_requirement(
+        &self,
+        taken: &Vec<String>,
+        attributes: &HashMap<String, Vec<String>>,
+        cu_map: &HashMap<String, f64>,
+        scope: Option<&str>,
+    ) -> Option<Vec<String>> {
         match self {
             Requirement::SingleCourse { category, possibilities } => {
                 for course in possibilities {
@@ -457,8 +579,13 @@ impl Requirement {
                 return None;
             },
             Requirement::AnyOf { category, possibilities } => {
+                if Self::is_business_breadth_category(category.as_ref()) {
+                    if let Some(cat) = category.as_deref() {
+                        return Some(vec![business_breadth_slot_id(cat)]);
+                    }
+                }
                 for req in possibilities {
-                    match req.suggest_for_requirement(taken, attributes, cu_map) {
+                    match req.suggest_for_requirement(taken, attributes, cu_map, scope) {
                         Some(val) => return Some(val),
                         None => {},
                     }
@@ -468,7 +595,7 @@ impl Requirement {
             Requirement::AllOf { category, requirements } => {
                 let mut suggested_courses = Vec::new();
                 for req in requirements {
-                    match req.suggest_for_requirement(taken, attributes, cu_map) {
+                    match req.suggest_for_requirement(taken, attributes, cu_map, scope) {
                         Some(mut val) => suggested_courses.append(&mut val),
                         None => return None,
                     }
@@ -477,10 +604,10 @@ impl Requirement {
             },
             Requirement::Concentration { category, number, requirements } => {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
-                composite_requirement.suggest_for_requirement(taken, attributes, cu_map)
+                composite_requirement.suggest_for_requirement(taken, attributes, cu_map, scope)
             },
             Requirement::Restriction { .. } => self
-                .requirement_slot_id()
+                .requirement_slot_id(scope)
                 .map(|slot_id| vec![slot_id]),
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
                 // Find which base requirements are still unfulfilled
@@ -500,7 +627,7 @@ impl Requirement {
                 // Build suggestions for unfulfilled base requirements
                 let mut suggestions: Vec<String> = Vec::new();
                 for req in &unfulfilled_base {
-                    if let Some(s) = req.suggest_for_requirement(taken, attributes, cu_map) {
+                    if let Some(s) = req.suggest_for_requirement(taken, attributes, cu_map, scope) {
                         suggestions.extend(s);
                     }
                 }
@@ -642,11 +769,15 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
 
     requirements.sort_by_key(|r| r.specificity_score());
     
-    for req in requirements {
-        let category_name = req.get_category();
+    for (i, req) in requirements.into_iter().enumerate() {
+        let instance_id = Some(i.to_string());
 
         match req {
-            Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
+            Requirement::DoubleCount {
+                double_counting_requirements,
+                base_requirements,
+                ..
+            } => {
                 let mut base_courses: Vec<String> = Vec::new();
                 for base_req in base_requirements {
                     if let Some(courses_fulfilling) =
@@ -657,6 +788,7 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                         fulfilled_requirements.push(MappedRequirement {
                             requirement: base_req,
                             course_ids: courses_fulfilling,
+                            instance_id: instance_id.clone(),
                         });
                     } else {
                         requirements_not_fulfilled.push(base_req);
@@ -669,6 +801,7 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                         fulfilled_requirements.push(MappedRequirement {
                             requirement: dc_req,
                             course_ids: courses_fulfilling,
+                            instance_id: instance_id.clone(),
                         });
                     } else if !base_courses.is_empty() {
                         requirements_not_fulfilled.push(dc_req);
@@ -679,7 +812,11 @@ pub fn validate_courses_for_degree(mut requirements: Vec<Requirement>, taken: &V
                 if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
                     taken_mut.retain(|x| !courses_fulfilling.contains(x));
 
-                    fulfilled_requirements.push(MappedRequirement { requirement: req, course_ids: courses_fulfilling } );
+                    fulfilled_requirements.push(MappedRequirement {
+                        requirement: req,
+                        course_ids: courses_fulfilling,
+                        instance_id,
+                    });
                 } else {
                     requirements_not_fulfilled.push(req);
                 }
@@ -739,6 +876,7 @@ pub fn apply_wharton_double_concentration_bb_overlap(
                 fulfilled.push(MappedRequirement {
                     requirement: req,
                     course_ids: vec![bb_course.clone()],
+                    instance_id: None,
                 });
                 return;
             }
@@ -762,6 +900,7 @@ pub fn apply_wharton_double_concentration_bb_overlap(
                 fulfilled.push(MappedRequirement {
                     requirement: req,
                     course_ids: vec![course.clone()],
+                    instance_id: None,
                 });
                 return;
             }
@@ -770,18 +909,29 @@ pub fn apply_wharton_double_concentration_bb_overlap(
 }
 
 /// suggesting courses for certain requirements
-pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requirement>, taken: &Vec<String>, cu_map: &HashMap<String, f64>) -> Vec<MappedRequirement> {
+pub fn suggest_courses_for_requirements(
+    unfulfilled_requirements: &Vec<Requirement>,
+    taken: &Vec<String>,
+    cu_map: &HashMap<String, f64>,
+    major_requirements: &[Requirement],
+) -> Vec<MappedRequirement> {
     let attributes = attributes_data::create_attributes();
     let mut suggested_courses = Vec::new();
     for req in unfulfilled_requirements {
-        match req.suggest_for_requirement(taken, &attributes, cu_map) {
+        let instance_id = Requirement::path_in_major(major_requirements, req);
+        let scope = instance_id.as_deref();
+        match req.suggest_for_requirement(taken, &attributes, cu_map, scope) {
             Some(val) => {
                 let course_ids = filter_schedule_suggestion_ids(val);
                 if !course_ids.is_empty() {
-                    suggested_courses.push(MappedRequirement { requirement: req.clone(), course_ids });
+                    suggested_courses.push(MappedRequirement {
+                        requirement: req.clone(),
+                        course_ids,
+                        instance_id,
+                    });
                 }
-            },
-            None => println!("Unable to find a course to fulfill {}", req.get_category())
+            }
+            None => println!("Unable to find a course to fulfill {}", req.get_category()),
         }
     }
 
@@ -792,6 +942,9 @@ pub fn suggest_courses_for_requirements(unfulfilled_requirements: &Vec<Requireme
 pub struct MappedRequirement {
     pub requirement: Requirement,
     pub course_ids: Vec<String>,
+    /// Stable per-slot identity (major index or BB category slug), not the description text.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instance_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
