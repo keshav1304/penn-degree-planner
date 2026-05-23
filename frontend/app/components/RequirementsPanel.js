@@ -51,11 +51,25 @@ const S = {
     summary: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, flexShrink: 0 },
     summStats: { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" },
     statOk: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.green600 },
-    statNo: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.red500 },
+    statPlanned: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.amber700 },
+    statRemaining: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.gray500 },
     statPct: { marginLeft: "auto", fontSize: "0.78rem", fontWeight: 700, color: C.gray500 },
     dot: (color) => ({ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }),
-    track: { height: 5, background: "rgba(0,0,0,0.08)", borderRadius: 3, overflow: "hidden" },
-    fill: (pct) => ({ height: "100%", minWidth: 4, width: `${pct}%`, background: `linear-gradient(90deg, ${C.green600}, ${C.teal600})`, borderRadius: 3, transition: "width 0.5s ease" }),
+    track: { height: 5, background: "rgba(0,0,0,0.08)", borderRadius: 3, overflow: "hidden", display: "flex" },
+    progressFulfilled: (pct) => ({
+        height: "100%",
+        minWidth: pct > 0 ? 4 : 0,
+        width: `${pct}%`,
+        background: `linear-gradient(90deg, ${C.green600}, ${C.teal600})`,
+        transition: "width 0.5s ease",
+    }),
+    progressPlanned: (pct) => ({
+        height: "100%",
+        minWidth: pct > 0 ? 4 : 0,
+        width: `${pct}%`,
+        background: `linear-gradient(90deg, ${C.amber500}, ${C.amber700})`,
+        transition: "width 0.5s ease",
+    }),
 
     // groups — flexShrink: 0 on children prevents accordion rows squashing to ~2px
     groups: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 2 },
@@ -228,9 +242,17 @@ export default function RequirementsPanel({
         filterFrozenPlacements(frozenCourses).map((f) => f.courseId)
     );
 
-    const fulfilledCount = allReqs.filter((r) => reqIsFulfilled(r)).length;
     const totalCount = allReqs.length;
-    const pct = totalCount > 0 ? Math.round((fulfilledCount / totalCount) * 100) : 0;
+    const fulfilledCount = allReqs.filter(
+        (r) => reqIsFulfilled(r) && itemTone(r, frozenIds) === "fulfilled"
+    ).length;
+    const plannedCount = allReqs.filter(
+        (r) => reqIsFulfilled(r) && itemTone(r, frozenIds) === "frozen"
+    ).length;
+    const remainingCount = totalCount - fulfilledCount - plannedCount;
+    const fulfilledPct = totalCount > 0 ? (fulfilledCount / totalCount) * 100 : 0;
+    const plannedPct = totalCount > 0 ? (plannedCount / totalCount) * 100 : 0;
+    const pct = totalCount > 0 ? Math.round(((fulfilledCount + plannedCount) / totalCount) * 100) : 0;
 
     const toggleExpand = (key) => setExpandedOptions((p) => ({ ...p, [key]: !p[key] }));
     const isGroupCollapsed = (cat) => collapsedGroups[cat] ?? true;
@@ -259,10 +281,14 @@ export default function RequirementsPanel({
                 <div style={S.summary}>
                     <div style={S.summStats}>
                         <span style={S.statOk}><span style={S.dot(C.green600)} />{fulfilledCount} fulfilled</span>
-                        <span style={S.statNo}><span style={S.dot(C.red500)} />{totalCount - fulfilledCount} remaining</span>
+                        <span style={S.statPlanned}><span style={S.dot(C.amber500)} />{plannedCount} planned</span>
+                        <span style={S.statRemaining}><span style={S.dot(C.gray400)} />{remainingCount} remaining</span>
                         <span style={S.statPct}>{pct}%</span>
                     </div>
-                    <div style={S.track}><div style={S.fill(pct)} /></div>
+                    <div style={S.track}>
+                        {fulfilledPct > 0 && <div style={S.progressFulfilled(fulfilledPct)} />}
+                        {plannedPct > 0 && <div style={S.progressPlanned(plannedPct)} />}
+                    </div>
                 </div>
             )}
 

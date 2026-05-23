@@ -85,15 +85,17 @@ fn restriction_required_cu(number: i32, cu_field: &Option<i32>) -> f64 {
     number as f64
 }
 
-/// Sort key so smaller-CU restriction slots are matched before larger ones.
-fn restriction_sort_key(req: &Requirement) -> (u32, usize) {
+/// Fill order: SingleCourse first, then other requirement types, then Restriction last
+/// (among restrictions, smaller-CU slots are matched before larger ones).
+fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
     match req {
+        Requirement::SingleCourse { .. } => (0, 0, req.specificity_score()),
         Requirement::Restriction { number, cu, .. } => {
             let target = restriction_required_cu(*number, cu);
             let tenths = (target * 10.0).round() as u32;
-            (tenths, req.specificity_score())
+            (2, tenths, req.specificity_score())
         }
-        _ => (10_000, req.specificity_score()),
+        _ => (1, 0, req.specificity_score()),
     }
 }
 
@@ -911,11 +913,7 @@ pub fn validate_courses_for_degree(
     // equal and must not share one instance id.
     let mut indexed: Vec<(usize, Requirement)> = requirements.into_iter().enumerate().collect();
     indexed.sort_by(|a, b| {
-        let key_a = restriction_sort_key(&a.1);
-        let key_b = restriction_sort_key(&b.1);
-        key_a
-            .cmp(&key_b)
-            .then_with(|| a.1.specificity_score().cmp(&b.1.specificity_score()))
+        requirement_fill_order_key(&a.1).cmp(&requirement_fill_order_key(&b.1))
     });
 
     for (orig_idx, req) in indexed {
@@ -1361,6 +1359,41 @@ mod tests {
             .fulfills_requirement(&taken, &attributes, &cu_map)
             .expect("0.5 CU slot should use the half-credit course");
         assert_eq!(fulfilled, vec!["TEST 1000".to_string()]);
+    }
+
+    #[test]
+    fn validate_degree_fills_single_course_before_restriction() {
+        let mut cu_map = HashMap::new();
+        cu_map.insert("CIS 1200".to_string(), 1.0);
+
+        let requirements = vec![
+            Requirement::Restriction {
+                category: Some("CIS elective".to_string()),
+                department: Some(vec!["CIS".to_string()]),
+                cu: None,
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::SingleCourse {
+                category: Some("Required".to_string()),
+                possibilities: vec!["CIS 1200".to_string()],
+            },
+        ];
+
+        let taken = vec!["CIS 1200".to_string()];
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(requirements, &taken, &cu_map);
+
+        assert_eq!(unfulfilled.len(), 1);
+        assert_eq!(fulfilled.len(), 1);
+        assert_eq!(fulfilled[0].course_ids, vec!["CIS 1200".to_string()]);
+        assert!(matches!(
+            fulfilled[0].requirement,
+            Requirement::SingleCourse { .. }
+        ));
     }
 
     #[test]
