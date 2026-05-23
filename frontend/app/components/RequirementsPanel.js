@@ -234,7 +234,9 @@ export default function RequirementsPanel({
     const pct = totalCount > 0 ? Math.round((fulfilledCount / totalCount) * 100) : 0;
 
     const toggleExpand = (key) => setExpandedOptions((p) => ({ ...p, [key]: !p[key] }));
-    const toggleGroup = (cat) => setCollapsedGroups((p) => ({ ...p, [cat]: !p[cat] }));
+    const isGroupCollapsed = (cat) => collapsedGroups[cat] ?? true;
+    const toggleGroup = (cat) =>
+        setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }));
 
     return (
         <div style={S.wrap}>
@@ -274,7 +276,7 @@ export default function RequirementsPanel({
                     const done = items.filter((r) => reqIsFulfilled(r)).length;
                     const total = items.length;
                     const allDone = done === total;
-                    const isCollapsed = collapsedGroups[cat];
+                    const isCollapsed = isGroupCollapsed(cat);
 
                     return (
                         <div key={cat} style={S.group(allDone)}>
@@ -479,35 +481,48 @@ function getDescription(type, data) {
     }
 }
 
+function formatSingleCoursePossibilities(possibilities) {
+    const list = possibilities || [];
+    if (list.length === 0) return "";
+    if (list.length === 1) return list[0];
+    return `One of: ${list.join(", ")}`;
+}
+
+function formatAllOfOptionLabel(requirements) {
+    const parts = (requirements || [])
+        .map((sub) => {
+            const { type, data } = parseRequirement(sub);
+            if (type === "SingleCourse") return formatSingleCoursePossibilities(data.possibilities);
+            if (type === "AllOf") return formatAllOfOptionLabel(data.requirements);
+            return getDescription(type, data);
+        })
+        .filter(Boolean);
+    return parts.join(" + ");
+}
+
+function formatAnyOfOptionLabel(sub) {
+    const { type, data } = parseRequirement(sub);
+    if (type === "SingleCourse") return formatSingleCoursePossibilities(data.possibilities);
+    if (type === "AllOf") return formatAllOfOptionLabel(data.requirements);
+    return getDescription(type, data);
+}
+
 function getOptions(type, data) {
     switch (type) {
         case "SingleCourse":
+            return [formatSingleCoursePossibilities(data.possibilities)].filter(Boolean);
         case "CourseGroup": return data.possibilities || [];
         case "Restriction": return data.attr?.length > 0 ? data.attr.map(a => `[${a}]`) : [];
-        case "AnyOf": {
-            const out = [];
-            (data.possibilities || []).forEach((sub) => {
-                const { type: t2, data: d2 } = parseRequirement(sub);
-                if (t2 === "SingleCourse") out.push(...(d2.possibilities || []));
-                else if (t2 === "AllOf") {
-                    const names = [];
-                    (d2.requirements || []).forEach((r) => {
-                        const { type: t3, data: d3 } = parseRequirement(r);
-                        if (t3 === "SingleCourse") names.push(...(d3.possibilities || []));
-                    });
-                    if (names.length) out.push(names.join(" + "));
-                }
-            });
-            return out;
-        }
-        case "AllOf": {
-            const out = [];
-            (data.requirements || []).forEach((sub) => {
-                const { type: t2, data: d2 } = parseRequirement(sub);
-                if (t2 === "SingleCourse") out.push(...(d2.possibilities || []));
-            });
-            return out;
-        }
+        case "AnyOf":
+            return (data.possibilities || []).map(formatAnyOfOptionLabel).filter(Boolean);
+        case "AllOf":
+            return (data.requirements || [])
+                .map((sub) => {
+                    const { type: t2, data: d2 } = parseRequirement(sub);
+                    if (t2 === "SingleCourse") return formatSingleCoursePossibilities(d2.possibilities);
+                    return formatAnyOfOptionLabel(sub);
+                })
+                .filter(Boolean);
         default: return [];
     }
 }

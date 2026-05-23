@@ -710,7 +710,16 @@ impl Requirement {
                 }
             }
             Requirement::AllOf { requirements, .. } => {
-                format!("Complete all {} sub-requirements", requirements.len())
+                let parts: Vec<String> = requirements
+                    .iter()
+                    .map(|r| r.create_requirement_description())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                if parts.is_empty() {
+                    format!("Complete all {} sub-requirements", requirements.len())
+                } else {
+                    parts.join(" + ")
+                }
             }
             Requirement::Concentration { number, .. } => {
                 format!("Concentration: {} course(s)", number)
@@ -1231,6 +1240,33 @@ mod tests {
         assert_eq!(
             fulfilled,
             vec!["TEST 1000".to_string(), "TEST 1001".to_string()]
+        );
+    }
+
+    #[test]
+    fn allof_description_joins_single_course_or_groups() {
+        let req = Requirement::AllOf {
+            category: None,
+            requirements: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["MEAM 1100".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec![
+                        "MEAM 1470".to_string(),
+                        "BIOL 1124".to_string(),
+                        "PHYS 0050".to_string(),
+                        "CHEM 1101".to_string(),
+                    ],
+                },
+            ],
+        };
+
+        assert_eq!(
+            req.create_requirement_description(),
+            "MEAM 1100 + One of: MEAM 1470, BIOL 1124, PHYS 0050, CHEM 1101"
         );
     }
 
