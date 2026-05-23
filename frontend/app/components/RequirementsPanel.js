@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
     filterValidCourseCodes,
     filterValidPlacements,
     filterFrozenPlacements,
 } from "@/lib/courseUtils";
 import { getRequirementInstanceId } from "@/lib/requirementText";
+import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
 // ─── Design tokens ───
 const C = {
@@ -127,6 +128,8 @@ const S = {
     },
     expandBtn: { fontSize: "0.65rem", fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: "none", border: `1px dashed ${C.gray300}`, color: C.gray400, cursor: "pointer", fontFamily: "inherit" },
 
+    attrChipWrap: { display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: 4 },
+
     // empty
     empty: { textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem" },
 };
@@ -136,10 +139,31 @@ export default function RequirementsPanel({
     degrees,
     frozenCourses = [],
     assignedCourses = [],
+    navTarget = null,
+    onNavTargetConsumed,
 }) {
     const [activeTab, setActiveTab] = useState(0);
     const [expandedOptions, setExpandedOptions] = useState({});
     const [collapsedGroups, setCollapsedGroups] = useState({});
+    const [flashRowId, setFlashRowId] = useState(null);
+
+    useEffect(() => {
+        if (!navTarget) return;
+        const { degreeIndex, instanceId, category } = navTarget;
+        if (degreeIndex != null) setActiveTab(degreeIndex);
+        if (category) {
+            setCollapsedGroups((prev) => ({ ...prev, [category]: false }));
+        }
+        const rowId = reqRowDomId(degreeIndex ?? 0, instanceId);
+        const timer = window.setTimeout(() => {
+            const el = document.getElementById(rowId);
+            el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            setFlashRowId(rowId);
+            window.setTimeout(() => setFlashRowId(null), 2200);
+            onNavTargetConsumed?.();
+        }, 80);
+        return () => window.clearTimeout(timer);
+    }, [navTarget, onNavTargetConsumed]);
 
     if (!degrees || degrees.length === 0) {
         return <div style={S.empty}><div style={{ fontSize: "2rem", marginBottom: 8 }}>📋</div>Add degrees to see requirement fulfillment</div>;
@@ -163,6 +187,7 @@ export default function RequirementsPanel({
             fulfilledCourses: mapped.course_ids || [],
             requirement: mapped.requirement,
             instanceId: getRequirementInstanceId(mapped),
+            attributeFulfillment: attributeFulfillmentMap(mapped),
         });
     });
     const suggestionsMap = {};
@@ -182,6 +207,7 @@ export default function RequirementsPanel({
             suggestedCourses: suggestionsMap[`${cat}::${id}`] || [],
             requirement: req,
             instanceId: id,
+            attributeFulfillment: attributeFulfillmentMap(mapped),
         });
     });
 
@@ -280,7 +306,9 @@ export default function RequirementsPanel({
                                             rowIdx === 0,
                                             sameDescCount > 1
                                                 ? `${desc} (${sameDescIndex + 1}/${sameDescCount})`
-                                                : desc
+                                                : desc,
+                                            tabIndex,
+                                            flashRowId
                                         );
                                     })}
                                 </div>
@@ -324,7 +352,9 @@ function renderItem(
     onToggle,
     { assignedIds, frozenIds },
     isFirst = false,
-    descriptionOverride = null
+    descriptionOverride = null,
+    degreeIndex = 0,
+    flashRowId = null
 ) {
     const { type, data } = parseRequirement(item.requirement);
     const options = getOptions(type, data);
@@ -334,17 +364,46 @@ function renderItem(
     const suggestedSet = new Set(suggestedCourses);
     const chipCtx = { assignedIds, frozenIds, fulfilledSet, suggestedSet };
     const rowFulfilled = reqIsFulfilled(item);
+    const attrFulfillment = item.attributeFulfillment;
+    const hasAttrFulfillment = attrFulfillment && attrFulfillment.size > 0;
+    const rowDomId = reqRowDomId(degreeIndex, idx);
+    const isFlashing = flashRowId === rowDomId;
 
     const MAX_VISIBLE = 5;
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
 
+    const renderAttrChip = (attrCode) => {
+        const label = `[${attrCode}]`;
+        const matchedCourses = attrFulfillment?.get(attrCode) || [];
+        const isAttrFulfilled = matchedCourses.length > 0;
+        return (
+            <span key={attrCode} style={S.attrChipWrap}>
+                <span style={S.chip(isAttrFulfilled ? "fulfilled" : "default")}>{label}</span>
+                {isAttrFulfilled && matchedCourses.map((c, i) => (
+                    <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
+                ))}
+            </span>
+        );
+    };
+
     return (
-        <div key={String(idx)} style={S.item(rowFulfilled, isFirst)}>
+        <div
+            key={String(idx)}
+            id={rowDomId}
+            className={isFlashing ? "req-row-flash" : undefined}
+            style={S.item(rowFulfilled, isFirst)}
+        >
             <span style={S.itemIcon(rowFulfilled)}>{rowFulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
                 <div style={S.itemDesc}>{descriptionOverride ?? getDescription(type, data)}</div>
 
-                {options.length > 0 && (
+                {type === "Restriction" && data.attr?.length > 0 && (
+                    <div style={S.chips}>
+                        {data.attr.map(renderAttrChip)}
+                    </div>
+                )}
+
+                {options.length > 0 && !(type === "Restriction" && data.attr?.length > 0) && (
                     <div style={S.chips}>
                         {visible.map((opt, i) => (
                             <span key={i} style={S.chip(chipKindFor(opt, chipCtx))}>
@@ -359,7 +418,15 @@ function renderItem(
                     </div>
                 )}
 
-                {rowFulfilled && fulfilledCourses.length > 0 && options.length === 0 && (
+                {rowFulfilled && type === "Restriction" && data.attr?.length > 0 && !hasAttrFulfillment && fulfilledCourses.length > 0 && (
+                    <div style={S.chips}>
+                        {fulfilledCourses.map((c, i) => (
+                            <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
+                        ))}
+                    </div>
+                )}
+
+                {rowFulfilled && fulfilledCourses.length > 0 && options.length === 0 && !hasAttrFulfillment && !(type === "Restriction" && data.attr?.length > 0) && (
                     <div style={S.chips}>
                         {fulfilledCourses.map((c, i) => (
                             <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>

@@ -262,38 +262,10 @@ fn business_breadth_requirements(
         .collect()
 }
 
-const MT_MGMT2370: &str = "MGMT 2370";
-
 fn mt_mgmt2370_soph() -> Requirement {
     Requirement::SingleCourse {
         category: Some("M&T Soph Course".to_string()),
-        possibilities: vec![MT_MGMT2370.to_string()],
-    }
-}
-
-/// M&T: required MGMT 2370 also satisfies one breadth (or one MGMT conc course when MGMT is a conc).
-fn mt_soph_with_overlap(concentrations: &[String], bb_opts: Vec<Requirement>) -> Requirement {
-    let catalog = create_wh_concentrations();
-    if concentrations.iter().any(|c| c == "MGMT") {
-        let first_mgmt = catalog
-            .get("MGMT")
-            .and_then(|chain| chain.first())
-            .cloned()
-            .expect("MGMT concentration defined");
-        Requirement::DoubleCount {
-            category: Some("M&T Soph / Concentration".to_string()),
-            base_requirements: vec![mt_mgmt2370_soph()],
-            double_counting_requirements: vec![first_mgmt],
-        }
-    } else {
-        Requirement::DoubleCount {
-            category: Some("M&T Soph / Business Breadth".to_string()),
-            base_requirements: vec![mt_mgmt2370_soph()],
-            double_counting_requirements: vec![Requirement::AnyOf {
-                category: Some("Business Breadth - I".to_string()),
-                possibilities: bb_opts,
-            }],
-        }
+        possibilities: vec!["MGMT 2370".to_string()],
     }
 }
 
@@ -451,21 +423,21 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
             Requirement::Restriction { category: Some("Undergraduate Capstone".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCP".to_string()]), excluding: None, number: 1, no_school: None },
 
             // Fundamentals
-            Requirement::SingleCourse { category: Some("Fundamentals - ACCT 1010".to_string()), possibilities: vec!["ACCT 1010".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - ACCT 1020".to_string()), possibilities: vec!["ACCT 1020".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - BEPP 2500/2508".to_string()), possibilities: vec!["BEPP 2500".to_string(), "BEPP 2508".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - FNCE 1000/1008".to_string()), possibilities: vec!["FNCE 1000".to_string(), "FNCE 1008".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - FNCE 1010/1018".to_string()), possibilities: vec!["FNCE 1010".to_string(), "FNCE 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - LGST 1000/1010/1008/1018".to_string()), possibilities: vec!["LGST 1000".to_string(), "LGST 1010".to_string(), "LGST 1008".to_string(), "LGST 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - MGMT 1010/MKTG 1018".to_string()), possibilities: vec!["MGMT 1010".to_string(), "MKTG 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - MKTG 1010".to_string()), possibilities: vec!["MKTG 1010".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - OIDD 1010".to_string()), possibilities: vec!["OIDD 1010".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - STAT I".to_string()), possibilities: vec!["STAT 1010".to_string(), "STAT 4300".to_string(), "ESE 3010".to_string(), "STAT 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - STAT II".to_string()), possibilities: vec!["STAT 1020".to_string(), "STAT 4310".to_string(), "ESE 4020".to_string(), "STAT 1028".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1010".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1020".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["BEPP 2500".to_string(), "BEPP 2508".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["FNCE 1000".to_string(), "FNCE 1008".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["FNCE 1010".to_string(), "FNCE 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["LGST 1000".to_string(), "LGST 1010".to_string(), "LGST 1008".to_string(), "LGST 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["MGMT 1010".to_string(), "MKTG 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["MKTG 1010".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["OIDD 1010".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["STAT 1010".to_string(), "STAT 4300".to_string(), "ESE 3010".to_string(), "STAT 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["STAT 1020".to_string(), "STAT 4310".to_string(), "ESE 4020".to_string(), "STAT 1028".to_string()] },
 
             // Flex Fundamentals
-            Requirement::Restriction { category: Some("Flex Fundamentals - WUGE".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUGE".to_string()]), excluding: None, number: 1, no_school: None },
-            Requirement::Restriction { category: Some("Flex Fundamentals - WUTI".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUTI".to_string()]), excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Flex Fundamentals".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUGE".to_string()]), excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Flex Fundamentals".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUTI".to_string()]), excluding: None, number: 1, no_school: None },
             
             // Business Breadth
         ]
@@ -520,10 +492,7 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     };
     let wh_concentrations = create_wh_concentrations();
     let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
-    let exclusions = bb_standard_exclusions(true);
-    let bb_opts = bb_department_options(&concs, &bb_pool, &exclusions);
     let mgmt_is_conc = concs.iter().any(|c| c == "MGMT");
-    let soph_overlap = mt_soph_with_overlap(&concs, bb_opts);
 
     let extra_bb_default: Vec<&str> = if mgmt_is_conc {
         vec!["Business Breadth - I", "Business Breadth - II"]
@@ -532,7 +501,11 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     } else {
         vec![]
     };
-    let extra_bb_labels = wh_bb_slot_labels(&extra_bb_default, &concs);
+    let mut extra_bb_labels = wh_bb_slot_labels(&extra_bb_default, &concs);
+    // MGMT 2370 overlaps one breadth slot for non-MGMT concentrations (no DoubleCount).
+    if !mgmt_is_conc && !extra_bb_labels.is_empty() {
+        extra_bb_labels.remove(0);
+    }
     let extra_bb = business_breadth_requirements(&concs, &bb_pool, &extra_bb_labels, true);
 
     let conc_reqs = if mgmt_is_conc {
@@ -562,21 +535,21 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
             Requirement::SingleCourse { category: Some("Leadership Journey - MGMT 3010".to_string()), possibilities: vec!["MGMT 3010".to_string()] },
 
             // Fundamentals
-            Requirement::SingleCourse { category: Some("Fundamentals - ACCT 1010".to_string()), possibilities: vec!["ACCT 1010".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - ACCT 1020".to_string()), possibilities: vec!["ACCT 1020".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - BEPP 2500/2508".to_string()), possibilities: vec!["BEPP 2500".to_string(), "BEPP 2508".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - FNCE 1000/1008".to_string()), possibilities: vec!["FNCE 1000".to_string(), "FNCE 1008".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - FNCE 1010/1018".to_string()), possibilities: vec!["FNCE 1010".to_string(), "FNCE 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - MGMT 1010/MKTG 1018".to_string()), possibilities: vec!["MGMT 1010".to_string(), "MKTG 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - MKTG 1010".to_string()), possibilities: vec!["MKTG 1010".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - STAT I".to_string()), possibilities: vec!["STAT 4300".to_string(), "ESE 3010".to_string(), "STAT 1018".to_string()] },
-            Requirement::SingleCourse { category: Some("Fundamentals - STAT II".to_string()), possibilities: vec!["STAT 4310".to_string(), "ESE 4020".to_string(), "STAT 1028".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1010".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1020".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["BEPP 2500".to_string(), "BEPP 2508".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["FNCE 1000".to_string(), "FNCE 1008".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["FNCE 1010".to_string(), "FNCE 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["MGMT 1010".to_string(), "MKTG 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["MKTG 1010".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["STAT 4300".to_string(), "ESE 3010".to_string(), "STAT 1018".to_string()] },
+            Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["STAT 4310".to_string(), "ESE 4020".to_string(), "STAT 1028".to_string()] },
 
             // Flex Fundamentals
-            Requirement::Restriction { category: Some("Flex Fundamentals - GEBS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUGE".to_string()]), excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Flex Fundamentals".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUGE".to_string()]), excluding: None, number: 1, no_school: None },
             
-            // M&T Soph (MGMT 2370) + one breadth or MGMT conc overlap; additional breadth slots below
-            soph_overlap,
+            // M&T Soph (MGMT 2370); one fewer BB or conc course below accounts for overlap
+            mt_mgmt2370_soph(),
         ]
         .into_iter()
         .chain(extra_bb)

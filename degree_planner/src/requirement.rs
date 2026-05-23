@@ -833,17 +833,19 @@ pub fn validate_courses_for_degree(
                     {
                         taken_mut.retain(|x| !courses_fulfilling.contains(x));
                         base_courses.extend(courses_fulfilling.clone());
-                        fulfilled_requirements.push(MappedRequirement {
-                            requirement: base_req,
-                            course_ids: courses_fulfilling,
-                            instance_id: child_id.clone(),
-                        });
+                        fulfilled_requirements.push(new_mapped_requirement(
+                            base_req,
+                            courses_fulfilling,
+                            child_id.clone(),
+                            &attributes,
+                        ));
                     } else {
-                        requirements_not_fulfilled.push(MappedRequirement {
-                            requirement: base_req,
-                            course_ids: vec![],
-                            instance_id: child_id,
-                        });
+                        requirements_not_fulfilled.push(new_mapped_requirement(
+                            base_req,
+                            vec![],
+                            child_id,
+                            &attributes,
+                        ));
                     }
                 }
                 for (di, dc_req) in double_counting_requirements.into_iter().enumerate() {
@@ -851,17 +853,19 @@ pub fn validate_courses_for_degree(
                     if let Some(courses_fulfilling) =
                         dc_req.fulfills_requirement(&base_courses, &attributes, cu_map)
                     {
-                        fulfilled_requirements.push(MappedRequirement {
-                            requirement: dc_req,
-                            course_ids: courses_fulfilling,
-                            instance_id: child_id,
-                        });
+                        fulfilled_requirements.push(new_mapped_requirement(
+                            dc_req,
+                            courses_fulfilling,
+                            child_id,
+                            &attributes,
+                        ));
                     } else if !base_courses.is_empty() {
-                        requirements_not_fulfilled.push(MappedRequirement {
-                            requirement: dc_req,
-                            course_ids: vec![],
-                            instance_id: child_id,
-                        });
+                        requirements_not_fulfilled.push(new_mapped_requirement(
+                            dc_req,
+                            vec![],
+                            child_id,
+                            &attributes,
+                        ));
                     }
                 }
             }
@@ -869,17 +873,19 @@ pub fn validate_courses_for_degree(
                 if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
                     taken_mut.retain(|x| !courses_fulfilling.contains(x));
 
-                    fulfilled_requirements.push(MappedRequirement {
-                        requirement: req,
-                        course_ids: courses_fulfilling,
+                    fulfilled_requirements.push(new_mapped_requirement(
+                        req,
+                        courses_fulfilling,
                         instance_id,
-                    });
+                        &attributes,
+                    ));
                 } else {
-                    requirements_not_fulfilled.push(MappedRequirement {
-                        requirement: req,
-                        course_ids: vec![],
+                    requirements_not_fulfilled.push(new_mapped_requirement(
+                        req,
+                        vec![],
                         instance_id,
-                    });
+                        &attributes,
+                    ));
                 }
             }
         }
@@ -905,11 +911,12 @@ pub fn suggest_courses_for_requirements(
             Some(val) => {
                 let course_ids = filter_schedule_suggestion_ids(val);
                 if !course_ids.is_empty() {
-                    suggested_courses.push(MappedRequirement {
-                        requirement: mapped.requirement.clone(),
+                    suggested_courses.push(new_mapped_requirement(
+                        mapped.requirement.clone(),
                         course_ids,
-                        instance_id: mapped.instance_id.clone(),
-                    });
+                        mapped.instance_id.clone(),
+                        &attributes,
+                    ));
                 }
             }
             None => println!(
@@ -923,12 +930,86 @@ pub fn suggest_courses_for_requirements(
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct AttributeFulfillment {
+    pub attribute: String,
+    pub course_ids: Vec<String>,
+}
+
+fn attribute_fulfillment_for_requirement(
+    requirement: &Requirement,
+    course_ids: &[String],
+    attributes: &HashMap<String, Vec<String>>,
+) -> Option<Vec<AttributeFulfillment>> {
+    let Requirement::Restriction {
+        department,
+        level,
+        attr,
+        excluding,
+        no_school,
+        ..
+    } = requirement
+    else {
+        return None;
+    };
+    let attr_names = attr.as_ref().filter(|names| !names.is_empty())?;
+    let mut fulfillments = Vec::new();
+    for attr_name in attr_names {
+        let single_attr = Some(vec![attr_name.clone()]);
+        let courses: Vec<String> = course_ids
+            .iter()
+            .filter(|course| {
+                course_matches_restriction(
+                    course,
+                    department,
+                    level,
+                    &single_attr,
+                    excluding,
+                    no_school,
+                    attributes,
+                )
+            })
+            .cloned()
+            .collect();
+        if !courses.is_empty() {
+            fulfillments.push(AttributeFulfillment {
+                attribute: attr_name.clone(),
+                course_ids: courses,
+            });
+        }
+    }
+    if fulfillments.is_empty() {
+        None
+    } else {
+        Some(fulfillments)
+    }
+}
+
+fn new_mapped_requirement(
+    requirement: Requirement,
+    course_ids: Vec<String>,
+    instance_id: Option<String>,
+    attributes: &HashMap<String, Vec<String>>,
+) -> MappedRequirement {
+    let attribute_fulfillment =
+        attribute_fulfillment_for_requirement(&requirement, &course_ids, attributes);
+    MappedRequirement {
+        requirement,
+        course_ids,
+        instance_id,
+        attribute_fulfillment,
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct MappedRequirement {
     pub requirement: Requirement,
     pub course_ids: Vec<String>,
     /// Stable per-slot identity (major index or BB category slug), not the description text.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance_id: Option<String>,
+    /// For attribute-based restrictions: which attribute(s) were satisfied and by which courses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attribute_fulfillment: Option<Vec<AttributeFulfillment>>,
 }
 
 #[derive(Debug, Serialize, Clone)]

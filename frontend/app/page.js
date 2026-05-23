@@ -16,7 +16,8 @@ import {
   filterValidPlacements,
   filterFrozenPlacements,
 } from "@/lib/courseUtils";
-import { getSlotLabel } from "@/lib/requirementText";
+import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
+import { reqRowDomId } from "@/lib/requirementNav";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -53,6 +54,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [activeDragId, setActiveDragId] = useState(null);
+  const [reqNavTarget, setReqNavTarget] = useState(null);
   const [allowSummer, setAllowSummer] = useState(true);
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
   const debounceRef = useRef(null);
@@ -342,37 +344,59 @@ export default function Home() {
     return labels;
   }, [scheduleData]);
 
-  // ─── Build course → degree and course → requirement maps ───
-  const { courseDegreesMap, courseRequirementMap } = (() => {
+  // ─── Build course → degree map ───
+  const courseDegreesMap = useMemo(() => {
     const degMap = {};
-    const reqMap = {};
     if (scheduleData?.degree_results) {
-      scheduleData.degree_results.forEach((result, i) => {
+      scheduleData.degree_results.forEach((result) => {
         const degreeLabel = `${result.school}-${result.major}`;
-        const addScheduleItem = (itemId, category) => {
+        const addDegree = (itemId) => {
           if (!isValidCourseCode(itemId) && !isRequirementSlotId(itemId)) return;
           if (!degMap[itemId]) degMap[itemId] = [];
           if (!degMap[itemId].includes(degreeLabel)) degMap[itemId].push(degreeLabel);
-          if (category) {
-            if (!reqMap[itemId]) reqMap[itemId] = [];
-            const entry = `${degreeLabel}: ${category}`;
-            if (!reqMap[itemId].includes(entry)) reqMap[itemId].push(entry);
-          }
         };
-        // Fulfilled requirements
-        result.fulfilled_requirements?.forEach(req => {
-          const cat = req.requirement?.category || getCategoryFromReq(req.requirement);
-          req.course_ids?.forEach(c => addScheduleItem(c, cat));
+        result.fulfilled_requirements?.forEach((mapped) => {
+          mapped.course_ids?.forEach(addDegree);
         });
-        // Suggested for unfulfilled
-        result.suggested_for_unfulfilled?.forEach(req => {
-          const cat = getCategoryFromReq(req.requirement);
-          req.course_ids?.forEach(c => addScheduleItem(c, cat));
+        result.suggested_for_unfulfilled?.forEach((mapped) => {
+          mapped.course_ids?.forEach(addDegree);
         });
       });
     }
-    return { courseDegreesMap: degMap, courseRequirementMap: reqMap };
-  })();
+    return degMap;
+  }, [scheduleData]);
+
+  const courseRequirementLinks = useMemo(() => {
+    const links = {};
+    if (!scheduleData?.degree_results) return links;
+    scheduleData.degree_results.forEach((result, degreeIndex) => {
+      const degreeLabel = `${result.school}-${result.major}`;
+      const addLink = (mapped, courseId) => {
+        if (!isValidCourseCode(courseId) && !isRequirementSlotId(courseId)) return;
+        const category = requirementCategoryForNav(mapped.requirement);
+        const instanceId = getRequirementInstanceId(mapped);
+        const entry = {
+          degreeIndex,
+          instanceId,
+          category,
+          label: `${degreeLabel}: ${category}`,
+          href: `#${reqRowDomId(degreeIndex, instanceId)}`,
+        };
+        if (!links[courseId]) links[courseId] = [];
+        const key = `${degreeIndex}::${instanceId}`;
+        if (!links[courseId].some((l) => `${l.degreeIndex}::${l.instanceId}` === key)) {
+          links[courseId].push(entry);
+        }
+      };
+      result.fulfilled_requirements?.forEach((mapped) => {
+        mapped.course_ids?.forEach((c) => addLink(mapped, c));
+      });
+      result.suggested_for_unfulfilled?.forEach((mapped) => {
+        mapped.course_ids?.forEach((c) => addLink(mapped, c));
+      });
+    });
+    return links;
+  }, [scheduleData]);
 
   // ─── Build double-count tracker data ───
   const { doubleCountData, courseDoubleCountMap } = (() => {
@@ -522,7 +546,8 @@ export default function Home() {
                   onUnmarkTaken={unmarkTaken}
                   degrees={degrees}
                   courseDegreesMap={courseDegreesMap}
-                  courseRequirementMap={courseRequirementMap}
+                  courseRequirementLinks={courseRequirementLinks}
+                  onNavigateToRequirement={setReqNavTarget}
                   allowSummer={allowSummer}
                   doubleCountData={doubleCountData}
                   courseDoubleCountMap={courseDoubleCountMap}
@@ -547,6 +572,8 @@ export default function Home() {
                   degrees={degrees}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
+                  navTarget={reqNavTarget}
+                  onNavTargetConsumed={() => setReqNavTarget(null)}
                 />
               </div>
             </div>
@@ -568,19 +595,18 @@ export default function Home() {
   );
 }
 
-// Extract category name from serialized Rust Requirement enum
-function getCategoryFromReq(req) {
-  if (!req) return "Unknown Requirement";
-  if (req.category) return req.category;
-  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
-  for (const v of variants) {
-    if (req[v]) return req[v].category || v;
-  }
-  if (typeof req === "object") {
-    for (const key of Object.keys(req)) {
-      if (typeof req[key] === "object" && req[key]?.category) return req[key].category;
-    }
-  }
-  return "Requirement";
+function normalizeCategory(cat) {
+  if (!cat || typeof cat !== "string" || !cat.trim()) return "Other";
+  return cat.trim();
 }
 
+/** Category label aligned with RequirementsPanel grouping. */
+function requirementCategoryForNav(req) {
+  if (!req) return "Other";
+  if (req.category) return normalizeCategory(req.category);
+  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
+  for (const v of variants) {
+    if (req[v]?.category) return normalizeCategory(req[v].category);
+  }
+  return "Other";
+}

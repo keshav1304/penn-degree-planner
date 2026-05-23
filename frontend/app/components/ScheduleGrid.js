@@ -24,14 +24,14 @@ const DC_COLORS = [
 export default function ScheduleGrid({
     scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
-    courseDegreesMap, courseRequirementMap, allowSummer,
+    courseDegreesMap, courseRequirementLinks,
+    onNavigateToRequirement, allowSummer,
     doubleCountData, courseDoubleCountMap,
     concentrationData, courseConcentrationMap,
     allCourses,
     semesterCuLimits, onSemesterCuLimitChange,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
-    const [infoPopup, setInfoPopup] = useState(null); // { courseId, x, y }
 
     // Build CU lookup from allCourses
     const cuMap = {};
@@ -142,16 +142,6 @@ export default function ScheduleGrid({
     // Courses assigned to "Credits Received" (year 0)
     const creditsCourses = assignedCourses?.filter(a => a.year === 0) || [];
 
-    const handleInfoClick = (e, courseId) => {
-        e.stopPropagation();
-        if (infoPopup?.courseId === courseId) {
-            setInfoPopup(null);
-        } else {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setInfoPopup({ courseId, x: rect.x, y: rect.y });
-        }
-    };
-
     const renderDegreeBar = (courseId) => {
         const degs = courseDegreesMap?.[courseId];
         if (!degs || degs.length === 0) return null;
@@ -169,15 +159,33 @@ export default function ScheduleGrid({
         );
     };
 
-    const renderInfoButton = (courseId) => {
-        const reqs = courseRequirementMap?.[courseId];
-        if (!reqs || reqs.length === 0) return null;
+    const renderInfoLink = (courseId) => {
+        const links = courseRequirementLinks?.[courseId];
+        if (!links?.length) return null;
+        const primary = links[0];
+        const title = links.length > 1
+            ? links.map((l) => l.label).join("\n")
+            : primary.label;
         return (
-            <button
-                className="course-info-btn"
-                onClick={(e) => handleInfoClick(e, courseId)}
-                title="View requirement info"
-            >ℹ️</button>
+            <a
+                href={primary.href}
+                className="course-info-link"
+                title={`View in requirements: ${title}`}
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onNavigateToRequirement?.({
+                        degreeIndex: primary.degreeIndex,
+                        instanceId: primary.instanceId,
+                        category: primary.category,
+                    });
+                }}
+            >
+                ℹ️
+                {links.length > 1 && (
+                    <span className="course-info-link-count">{links.length}</span>
+                )}
+            </a>
         );
     };
 
@@ -243,7 +251,7 @@ export default function ScheduleGrid({
                     >
                         <span className="schedule-requirement-label">{getSlotLabel(slotId)}</span>
                         <span className="course-card-actions">
-                            {renderInfoButton(slotId)}
+                            {renderInfoLink(slotId)}
                             <span className="lock-icon">{frozen ? "🔒" : "📌"}</span>
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
@@ -296,7 +304,7 @@ export default function ScheduleGrid({
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
                             {renderDcBadges(courseId)}
-                            {renderInfoButton(courseId)}
+                            {renderInfoLink(courseId)}
                             <span className="lock-icon">
                                 {assigned ? "📗" : frozen ? "🔒" : "📌"}
                             </span>
@@ -309,7 +317,7 @@ export default function ScheduleGrid({
     };
 
     return (
-        <div className="schedule-container" onClick={() => setInfoPopup(null)}>
+        <div className="schedule-container">
             {/* Credits Received section — collapsible */}
             <div className="credits-received-row fade-in">
                 <div
@@ -348,7 +356,7 @@ export default function ScheduleGrid({
                                     <span className="course-card-actions">
                                         {renderConcBadges(a.courseId)}
                                         {renderDcBadges(a.courseId)}
-                                        {renderInfoButton(a.courseId)}
+                                        {renderInfoLink(a.courseId)}
                                         <span className="lock-icon">📗</span>
                                     </span>
                                                 </div>
@@ -452,20 +460,6 @@ export default function ScheduleGrid({
                             <span className="degree-legend-swatch" style={{ background: color }} />
                             <span>{label}</span>
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Info popup */}
-            {infoPopup && courseRequirementMap?.[infoPopup.courseId] && (
-                <div
-                    className="course-info-popup"
-                    style={{ position: "fixed", left: 0, top: infoPopup.y, border: "2px solid red" }}
-                    onClick={e => e.stopPropagation()}
-                >
-                    <div className="course-info-popup-title">{infoPopup.courseId}</div>
-                    {courseRequirementMap[infoPopup.courseId].map((entry, i) => (
-                        <div key={i} className="course-info-popup-row">{entry}</div>
                     ))}
                 </div>
             )}
