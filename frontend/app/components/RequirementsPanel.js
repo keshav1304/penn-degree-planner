@@ -526,7 +526,7 @@ function getDescription(type, data) {
         case "Restriction": {
             const p = [];
             if (data.number) p.push(`${data.number} course(s)`);
-            if (data.department) p.push(`from ${Array.isArray(data.department) ? data.department.join("/") : data.department}`);
+            if (data.department) p.push(`from dept ${Array.isArray(data.department) ? data.department.join("/") : data.department}`);
             if (data.level) p.push(`level ${data.level}+`);
             if (data.attr) p.push(`in ${data.attr.join(" or ")}`);
             if (data.excluding) p.push(`excluding ${data.excluding.join(", ")}`);

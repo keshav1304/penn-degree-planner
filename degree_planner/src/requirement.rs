@@ -222,7 +222,7 @@ fn format_restriction_description(
         format!("{target} CU")
     };
     if let Some(depts) = department {
-        response.push_str(" from ");
+        response.push_str(" from dept ");
         response.push_str(&depts.join("/"));
     }
     if let Some(min_level) = level {

@@ -25,7 +25,7 @@ function formatRestriction(data) {
   if (data.number != null) parts.push(`${data.number} CU`);
   if (data.department) {
     const depts = Array.isArray(data.department) ? data.department : [data.department];
-    parts.push(`from ${depts.join("/")}`);
+    parts.push(`from dept ${depts.join("/")}`);
   }
   if (data.level != null) parts.push(`level ${data.level}+`);
   if (data.attr?.length) {
