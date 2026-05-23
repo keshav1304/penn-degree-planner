@@ -22,7 +22,7 @@ export function parseRequirement(req) {
 
 function formatRestriction(data) {
   const parts = [];
-  if (data.number != null) parts.push(`${data.number} course(s)`);
+  if (data.number != null) parts.push(`${data.number} CU`);
   if (data.department) {
     const depts = Array.isArray(data.department) ? data.department : [data.department];
     parts.push(`from ${depts.join("/")}`);

@@ -238,8 +238,6 @@ pub fn create_ee_major() -> Major {
                 ]
             ),
         ])),
-        major_key: "EE".to_string(),
-        post_validate: None,
     };
 }
 
@@ -342,8 +340,6 @@ pub fn create_meam_major(concentration_name: String) -> Major {
             Requirement::Concentration { category: Some("Concentration".to_string()), number: 4, requirements: meam_concentrations.get(&concentration_name).unwrap().clone() }
         ], 
         concentrations: Some(meam_concentrations),
-        major_key: "MEAM".to_string(),
-        post_validate: None,
     };
 }
 
@@ -412,8 +408,6 @@ pub fn create_mse_major() -> Major {
             ),
             
         ])),
-        major_key: "MSE".to_string(),
-        post_validate: None,
     };
 }
 
@@ -506,8 +500,6 @@ pub fn create_cis_major() -> Major {
             
             
         ])),
-        major_key: "CIS".to_string(),
-        post_validate: None,
     };
 }
 
@@ -580,8 +572,6 @@ pub fn create_ai_major() -> Major {
             
             
         ])),
-        major_key: "AI".to_string(),
-        post_validate: None,
     };
 }
 
@@ -673,7 +663,5 @@ pub fn create_compe_major() -> Major {
 
             
         ])),
-        major_key: "CE".to_string(),
-        post_validate: None,
     };
 }

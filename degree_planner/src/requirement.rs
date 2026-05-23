@@ -74,6 +74,51 @@ fn format_truncated_list(items: &[String], prefix: &str) -> String {
     format!("{}{} (+{} more)", prefix, shown.join(", "), more)
 }
 
+/// Required CU for a Restriction slot (`number` is whole or half credits, e.g. 1 → 1.0 CU).
+fn restriction_required_cu(number: i32) -> f64 {
+    number as f64
+}
+
+fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
+    *cu_map.get(course).unwrap_or(&1.0)
+}
+
+/// Courses from `taken` that satisfy a Restriction by accumulated catalog CU.
+/// Two 0.5 CU courses can fulfill one 1.0 CU slot; a single 0.5 CU course cannot.
+pub fn courses_fulfilling_restriction_cu(
+    taken: &[String],
+    department: &Option<Vec<String>>,
+    level: &Option<i32>,
+    attr: &Option<Vec<String>>,
+    excluding: &Option<Vec<String>>,
+    no_school: &Option<String>,
+    target_cu: f64,
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> Option<Vec<String>> {
+    if target_cu <= 0.0 {
+        return Some(vec![]);
+    }
+
+    let mut matched: Vec<String> = Vec::new();
+    let mut accumulated_cu: f64 = 0.0;
+
+    for course in taken {
+        if !course_matches_restriction(
+            course, department, level, attr, excluding, no_school, attributes,
+        ) {
+            continue;
+        }
+        matched.push(course.clone());
+        accumulated_cu += lookup_course_cu(cu_map, course);
+        if accumulated_cu >= target_cu {
+            return Some(matched);
+        }
+    }
+
+    None
+}
+
 fn format_restriction_description(
     department: &Option<Vec<String>>,
     cu: &Option<i32>,
@@ -83,7 +128,7 @@ fn format_restriction_description(
     number: &i32,
     no_school: &Option<String>,
 ) -> String {
-    let mut response = format!("{} course(s)", number);
+    let mut response = format!("{} CU", number);
     if let Some(depts) = department {
         response.push_str(" from ");
         response.push_str(&depts.join("/"));
@@ -506,22 +551,17 @@ impl Requirement {
                 composite_requirement.fulfills_requirement(taken, attributes, cu_map)
             },
             Requirement::Restriction { category, department, cu, level, attr, excluding, no_school, number, .. } => {
-                let mut all_courses_fulfilled: Vec<String> = Vec::new();
-                let mut accumulated_cu: f64 = 0.0;
-                let target_cu: f64 = *number as f64; // each slot represents 1.0 CU
-                for course in taken {
-                    if course_matches_restriction(
-                        course, department, level, attr, excluding, no_school, attributes,
-                    ) {
-                        let course_cu = *cu_map.get(course).unwrap_or(&1.0);
-                        all_courses_fulfilled.push(course.clone());
-                        accumulated_cu += course_cu;
-                        if accumulated_cu >= target_cu {
-                            return Some(all_courses_fulfilled);
-                        }
-                    }
-                }
-                return None;
+                courses_fulfilling_restriction_cu(
+                    taken,
+                    department,
+                    level,
+                    attr,
+                    excluding,
+                    no_school,
+                    restriction_required_cu(*number),
+                    attributes,
+                    cu_map,
+                )
             },
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
                 let mut taken_copy = taken.clone();
@@ -848,18 +888,6 @@ pub fn validate_courses_for_degree(
     (fulfilled_requirements, requirements_not_fulfilled)
 }
 
-/// Run a major's optional post-validation hook (school-specific rules live in *_data modules).
-pub fn apply_post_validate_adjustments(
-    major: &crate::major::Major,
-    concentrations: &[String],
-    fulfilled: &mut Vec<MappedRequirement>,
-    unfulfilled: &mut Vec<MappedRequirement>,
-) {
-    if let Some(adjust) = major.post_validate {
-        adjust(&major.major_key, concentrations, fulfilled, unfulfilled);
-    }
-}
-
 /// suggesting courses for certain requirements
 pub fn suggest_courses_for_requirements(
     unfulfilled_requirements: &[MappedRequirement],
@@ -1073,4 +1101,73 @@ pub fn extract_concentration_info(
     }
 
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn one_cu_restriction() -> Requirement {
+        Requirement::Restriction {
+            category: Some("Test restriction".to_string()),
+            department: Some(vec!["TEST".to_string()]),
+            cu: None,
+            level: None,
+            attr: None,
+            number: 1,
+            excluding: None,
+            no_school: None,
+        }
+    }
+
+    #[test]
+    fn restriction_single_half_cu_does_not_fulfill_one_cu_slot() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 0.5);
+
+        let taken = vec!["TEST 1000".to_string()];
+        let req = one_cu_restriction();
+
+        assert!(req
+            .fulfills_requirement(&taken, &attributes, &cu_map)
+            .is_none());
+    }
+
+    #[test]
+    fn restriction_two_half_cu_courses_fulfill_one_cu_slot() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 0.5);
+        cu_map.insert("TEST 1001".to_string(), 0.5);
+
+        let taken = vec!["TEST 1000".to_string(), "TEST 1001".to_string()];
+        let req = one_cu_restriction();
+
+        let fulfilled = req
+            .fulfills_requirement(&taken, &attributes, &cu_map)
+            .expect("two 0.5 CU courses should satisfy a 1 CU restriction");
+        assert_eq!(
+            fulfilled,
+            vec!["TEST 1000".to_string(), "TEST 1001".to_string()]
+        );
+    }
+
+    #[test]
+    fn single_course_fulfills_with_half_cu_course() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 0.5);
+
+        let taken = vec!["TEST 1000".to_string()];
+        let req = Requirement::SingleCourse {
+            category: None,
+            possibilities: vec!["TEST 1000".to_string()],
+        };
+
+        assert_eq!(
+            req.fulfills_requirement(&taken, &attributes, &cu_map),
+            Some(vec!["TEST 1000".to_string()])
+        );
+    }
 }

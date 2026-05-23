@@ -273,10 +273,7 @@ struct DegreeInput {
 impl DegreeInput {
     fn effective_concentrations(&self) -> Vec<String> {
         if !self.concentrations.is_empty() {
-            if self.school == "WH" {
-                return wharton_data::normalize_wh_concentrations(&self.concentrations);
-            }
-            return self.concentrations.clone();
+            return major::normalize_degree_concentrations(&self.school, &self.concentrations);
         }
         self.concentration.clone().into_iter().collect()
     }
@@ -381,12 +378,6 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 major_data.requirements.clone(),
                 &courses_for_validation,
                 &cu_map,
-            );
-            requirement::apply_post_validate_adjustments(
-                &major_data,
-                &concs,
-                &mut fulfilled,
-                &mut unfulfilled,
             );
             for mapped in &mut fulfilled {
                 mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());

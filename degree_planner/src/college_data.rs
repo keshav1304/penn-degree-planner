@@ -59,7 +59,5 @@ pub fn create_econ_major() -> Major {
             }
         ],
         concentrations: None,
-        major_key: "ECON".to_string(),
-        post_validate: None,
     }
 }
