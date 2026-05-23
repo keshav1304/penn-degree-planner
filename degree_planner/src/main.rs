@@ -26,6 +26,9 @@ use axum:: {
 use serde::{Serialize, Deserialize};
 use tower_http::cors::{Any, CorsLayer};
 
+const DEFAULT_SEMESTER_CU_LIMIT: f64 = 5.5;
+const DEFAULT_SUMMER_CU_LIMIT: f64 = 2.0;
+
 #[tokio::main]
 async fn main() {
     let cors = CorsLayer::new()
@@ -515,8 +518,8 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         }
         // Defaults
         match semester {
-            "Summer" => 2.0,
-            _ => 5.0,
+            "Summer" => DEFAULT_SUMMER_CU_LIMIT,
+            _ => DEFAULT_SEMESTER_CU_LIMIT,
         }
     };
 
@@ -587,10 +590,16 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 continue;
             }
             let max_cu = get_max_cu(plan.year, &plan.semester);
-            let has_items = !plan.courses.is_empty() || !plan.requirement_slots.is_empty();
             while !remaining.is_empty() {
                 let cu = get_cu(&remaining[0]);
-                if plan.total_cu + cu > max_cu && has_items {
+                if plan.total_cu + cu > max_cu {
+                    // Allow a single oversize course in an otherwise empty semester.
+                    if plan.total_cu > 0.0 {
+                        break;
+                    }
+                    let item = remaining.remove(0);
+                    place_in_semester(plan, &item);
+                    placed_any = true;
                     break;
                 }
                 let item = remaining.remove(0);
@@ -604,10 +613,15 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                     continue;
                 }
                 let max_cu = get_max_cu(plan.year, &plan.semester);
-                let has_items = !plan.courses.is_empty() || !plan.requirement_slots.is_empty();
                 while !remaining.is_empty() {
                     let cu = get_cu(&remaining[0]);
-                    if plan.total_cu + cu > max_cu && has_items {
+                    if plan.total_cu + cu > max_cu {
+                        if plan.total_cu > 0.0 {
+                            break;
+                        }
+                        let item = remaining.remove(0);
+                        place_in_semester(plan, &item);
+                        placed_any = true;
                         break;
                     }
                     let item = remaining.remove(0);

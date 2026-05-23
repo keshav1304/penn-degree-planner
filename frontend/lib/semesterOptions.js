@@ -1,5 +1,12 @@
 const YEAR_LABELS = ["Freshman", "Sophomore", "Junior", "Senior", "Fifth Year", "Sixth Year"];
 
+export const DEFAULT_SEMESTER_CU_LIMIT = 5.5;
+export const DEFAULT_SUMMER_CU_LIMIT = 2.0;
+
+export function defaultSemesterCuLimit(semester) {
+    return semester === "Summer" ? DEFAULT_SUMMER_CU_LIMIT : DEFAULT_SEMESTER_CU_LIMIT;
+}
+
 export function buildSemesterOptions(maxYear = 4, allowSummer = true) {
     const options = [
         { label: "—", value: "" },

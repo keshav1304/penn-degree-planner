@@ -4,6 +4,7 @@ import { useState } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isRequirementSlotId } from "@/lib/courseUtils";
+import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
 
 const YEAR_NAMES = {};
 
@@ -423,7 +424,7 @@ export default function ScheduleGrid({
                                     const actualCu =
                                         courses.reduce((s, c) => s + getCu(c), 0)
                                         + requirementSlots.length * 1.0;
-                                    const limitValue = semesterCuLimits?.[semKey] ?? (sem === "Summer" ? 2.0 : 5.0);
+                                    const limitValue = semesterCuLimits?.[semKey] ?? defaultSemesterCuLimit(sem);
                                     return (
                                         <div className="semester-cu-total">
                                             <span>{actualCu.toFixed(1)} /</span>
