@@ -5,6 +5,7 @@ import {
     filterValidCourseCodes,
     filterValidPlacements,
     filterFrozenPlacements,
+    isValidCourseCode,
 } from "@/lib/courseUtils";
 import { getRequirementInstanceId } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
@@ -58,35 +59,35 @@ const S = {
 
     // groups — flexShrink: 0 on children prevents accordion rows squashing to ~2px
     groups: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 2 },
-    group: (done) => ({
-        border: `1px solid ${done ? C.green300 : C.gray200}`,
+    group: (tone) => ({
+        border: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`,
         borderRadius: 8,
         overflow: "hidden",
         flexShrink: 0,
     }),
 
     // group header
-    groupHdr: (done) => ({
+    groupHdr: (tone) => ({
         display: "flex", alignItems: "center", gap: 8,
         padding: "10px 14px",               // ← explicit padding, not from CSS
-        background: done ? C.green50 : C.gray100,
-        borderBottom: `1px solid ${done ? C.green300 : C.gray200}`,
+        background: tone === "fulfilled" ? C.green50 : tone === "frozen" ? C.amber50 : C.gray100,
+        borderBottom: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`,
         cursor: "pointer", userSelect: "none",
     }),
-    groupBadge: (done) => ({
+    groupBadge: (tone) => ({
         width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
         display: "flex", alignItems: "center", justifyContent: "center",
-        background: done ? C.green100 : C.gray200,
-        color: done ? C.green600 : C.gray400,
-        fontSize: done ? "0.65rem" : "1rem",
-        fontWeight: 800, lineHeight: done ? 1 : 0.85,
+        background: tone === "fulfilled" ? C.green100 : tone === "frozen" ? C.amber50 : C.gray200,
+        color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray400,
+        fontSize: tone === "incomplete" ? "1rem" : "0.65rem",
+        fontWeight: 800, lineHeight: tone === "incomplete" ? 0.85 : 1,
     }),
     groupName: { flex: 1, fontSize: "0.82rem", fontWeight: 700, color: C.gray900 },
-    groupPill: (done) => ({
+    groupPill: (tone) => ({
         fontSize: "0.68rem", fontWeight: 700, padding: "2px 10px", borderRadius: 10, flexShrink: 0,
-        background: done ? C.green100 : C.gray100,
-        color: done ? C.green600 : C.gray500,
-        border: `1px solid ${done ? C.green300 : C.gray300}`,
+        background: tone === "fulfilled" ? C.green100 : tone === "frozen" ? C.amber50 : C.gray100,
+        color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray500,
+        border: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray300}`,
     }),
     chevron: { fontSize: "0.6rem", color: C.gray400, marginLeft: 2 },
 
@@ -94,22 +95,22 @@ const S = {
     groupBody: { display: "flex", flexDirection: "column", background: C.white },
 
     // items — ALL INLINE so global reset cannot collapse them
-    item: (fulfilled, isFirst) => ({
+    item: (tone, isFirst) => ({
         display: "flex",
         alignItems: "flex-start",
         gap: 10,
         padding: "10px 14px",              // ← explicit, immune to CSS reset
         minHeight: 40,                     // ← floor so rows are never invisible
         flexShrink: 0,
-        background: fulfilled ? "#f8fff8" : C.white,
+        background: tone === "fulfilled" ? "#f8fff8" : tone === "frozen" ? C.amber50 : C.white,
         borderTop: isFirst ? "none" : `1px solid ${C.gray100}`,
-        borderLeft: `3px solid ${fulfilled ? C.green300 : C.gray200}`,
+        borderLeft: `3px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`,
         boxSizing: "border-box",
     }),
-    itemIcon: (fulfilled) => ({
+    itemIcon: (tone) => ({
         flexShrink: 0, fontSize: "0.72rem", fontWeight: 800,
         marginTop: 2, width: 14, textAlign: "center",
-        color: fulfilled ? C.green600 : C.gray300,
+        color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray300,
     }),
     itemBody: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 },
     itemDesc: { fontSize: "0.78rem", fontWeight: 600, color: C.gray700, lineHeight: 1.4 },
@@ -127,8 +128,6 @@ const S = {
         return { fontSize: "0.67rem", fontWeight: 600, padding: "2px 7px", borderRadius: 4, whiteSpace: "nowrap", background: t.bg, border: `1px solid ${t.border}`, color: t.color, boxSizing: "border-box" };
     },
     expandBtn: { fontSize: "0.65rem", fontWeight: 600, padding: "2px 8px", borderRadius: 4, background: "none", border: `1px dashed ${C.gray300}`, color: C.gray400, cursor: "pointer", fontFamily: "inherit" },
-
-    attrChipWrap: { display: "inline-flex", flexWrap: "wrap", alignItems: "center", gap: 4 },
 
     // empty
     empty: { textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem" },
@@ -275,15 +274,15 @@ export default function RequirementsPanel({
 
                     const done = items.filter((r) => reqIsFulfilled(r)).length;
                     const total = items.length;
-                    const allDone = done === total;
+                    const catTone = groupTone(items, frozenIds);
                     const isCollapsed = isGroupCollapsed(cat);
 
                     return (
-                        <div key={cat} style={S.group(allDone)}>
-                            <div style={S.groupHdr(allDone)} onClick={() => toggleGroup(cat)}>
-                                <span style={S.groupBadge(allDone)}>{allDone ? "✓" : "·"}</span>
+                        <div key={cat} style={S.group(catTone)}>
+                            <div style={S.groupHdr(catTone)} onClick={() => toggleGroup(cat)}>
+                                <span style={S.groupBadge(catTone)}>{done === total ? "✓" : "·"}</span>
                                 <span style={S.groupName}>{cat}</span>
-                                <span style={S.groupPill(allDone)}>{done}/{total}</span>
+                                <span style={S.groupPill(catTone)}>{done}/{total}</span>
                                 <span style={S.chevron}>{isCollapsed ? "▶" : "▾"}</span>
                             </div>
 
@@ -333,6 +332,38 @@ function reqIsFulfilled(item) {
     return item.fulfilled;
 }
 
+/** @typedef {"open" | "frozen" | "fulfilled"} ReqVisualTone */
+
+function collectFulfillingCourses(item) {
+    const courses = filterValidCourseCodes(item.fulfilledCourses || []);
+    if (item.attributeFulfillment) {
+        item.attributeFulfillment.forEach((ids) => {
+            ids.forEach((c) => {
+                if (isValidCourseCode(c)) courses.push(c);
+            });
+        });
+    }
+    return [...new Set(courses)];
+}
+
+function itemHasFrozenCourse(courses, frozenIds) {
+    return courses.some((c) => frozenIds.has(c));
+}
+
+/** Row / group styling: orange when fulfilled via a frozen (planned) course. */
+function itemTone(item, frozenIds) {
+    if (!reqIsFulfilled(item)) return "open";
+    if (itemHasFrozenCourse(collectFulfillingCourses(item), frozenIds)) return "frozen";
+    return "fulfilled";
+}
+
+function groupTone(items, frozenIds) {
+    const fulfilledCount = items.filter((r) => reqIsFulfilled(r)).length;
+    if (fulfilledCount !== items.length) return "incomplete";
+    if (items.some((item) => itemTone(item, frozenIds) === "frozen")) return "frozen";
+    return "fulfilled";
+}
+
 function chipKindFor(courseId, { assignedIds, frozenIds, fulfilledSet, suggestedSet }) {
     if (assignedIds.has(courseId)) return "fulfilled";
     if (frozenIds.has(courseId)) return "frozen";
@@ -366,6 +397,7 @@ function renderItem(
     const suggestedSet = new Set(suggestedCourses);
     const chipCtx = { assignedIds, frozenIds, fulfilledSet, suggestedSet };
     const rowFulfilled = reqIsFulfilled(item);
+    const rowTone = itemTone(item, frozenIds);
     const attrFulfillment = item.attributeFulfillment;
     const hasAttrFulfillment = attrFulfillment && attrFulfillment.size > 0;
     const rowDomId = reqRowDomId(degreeIndex, idx);
@@ -375,15 +407,17 @@ function renderItem(
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
 
     const renderAttrChip = (attrCode) => {
-        const label = `[${attrCode}]`;
-        const matchedCourses = attrFulfillment?.get(attrCode) || [];
+        const matchedCourses = (attrFulfillment?.get(attrCode) || []).filter(isValidCourseCode);
         const isAttrFulfilled = matchedCourses.length > 0;
+        const label = isAttrFulfilled
+            ? `[${attrCode}] - ${matchedCourses.join(", ")}`
+            : `[${attrCode}]`;
         return (
-            <span key={attrCode} style={S.attrChipWrap}>
-                <span style={S.chip(isAttrFulfilled ? "fulfilled" : "default")}>{label}</span>
-                {isAttrFulfilled && matchedCourses.map((c, i) => (
-                    <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
-                ))}
+            <span
+                key={attrCode}
+                style={S.chip(isAttrFulfilled ? chipKindFor(matchedCourses[0], chipCtx) : "default")}
+            >
+                {label}
             </span>
         );
     };
@@ -393,9 +427,9 @@ function renderItem(
             key={String(idx)}
             id={rowDomId}
             className={isFlashing ? "req-row-flash" : undefined}
-            style={S.item(rowFulfilled, isFirst)}
+            style={S.item(rowTone, isFirst)}
         >
-            <span style={S.itemIcon(rowFulfilled)}>{rowFulfilled ? "✓" : "○"}</span>
+            <span style={S.itemIcon(rowTone)}>{rowFulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
                 <div style={S.itemDesc}>{descriptionOverride ?? getDescription(type, data)}</div>
 

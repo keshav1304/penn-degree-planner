@@ -74,13 +74,108 @@ fn format_truncated_list(items: &[String], prefix: &str) -> String {
     format!("{}{} (+{} more)", prefix, shown.join(", "), more)
 }
 
-/// Required CU for a Restriction slot (`number` is whole or half credits, e.g. 1 → 1.0 CU).
-fn restriction_required_cu(number: i32) -> f64 {
+const CU_EPS: f64 = 0.001;
+
+/// Required CU for a Restriction slot. `number` is whole credits (1 → 1.0 CU).
+/// When `cu` is set it overrides as tenths (5 → 0.5 CU) for half-credit slots.
+fn restriction_required_cu(number: i32, cu_field: &Option<i32>) -> f64 {
+    if let Some(tenths) = cu_field {
+        return (*tenths as f64) / 10.0;
+    }
     number as f64
+}
+
+/// Sort key so smaller-CU restriction slots are matched before larger ones.
+fn restriction_sort_key(req: &Requirement) -> (u32, usize) {
+    match req {
+        Requirement::Restriction { number, cu, .. } => {
+            let target = restriction_required_cu(*number, cu);
+            let tenths = (target * 10.0).round() as u32;
+            (tenths, req.specificity_score())
+        }
+        _ => (10_000, req.specificity_score()),
+    }
 }
 
 fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
     *cu_map.get(course).unwrap_or(&1.0)
+}
+
+fn is_half_cu(cu: f64) -> bool {
+    (cu - 0.5).abs() < CU_EPS
+}
+
+fn subset_has_mixed_cu_types(courses: &[(String, f64)]) -> bool {
+    let mut saw_half = false;
+    let mut saw_full = false;
+    for (_, cu) in courses {
+        if is_half_cu(*cu) {
+            saw_half = true;
+        } else {
+            saw_full = true;
+        }
+    }
+    saw_half && saw_full
+}
+
+/// Pick courses that reach `target_cu` with minimal waste; prefer exact fits and
+/// avoid pairing 0.5 CU with 1.0 CU when a cleaner combination exists.
+fn select_courses_for_cu_target(
+    eligible: Vec<(String, f64)>,
+    target_cu: f64,
+) -> Option<Vec<String>> {
+    if target_cu <= CU_EPS {
+        return Some(vec![]);
+    }
+    if eligible.is_empty() {
+        return None;
+    }
+
+    if (target_cu - 0.5).abs() < CU_EPS {
+        return eligible
+            .into_iter()
+            .find(|(_, cu)| is_half_cu(*cu))
+            .map(|(course, _)| vec![course]);
+    }
+
+    let max_bits = eligible.len().min(14);
+    let items = &eligible[..max_bits];
+    let mut best: Option<(Vec<String>, f64, usize, bool)> = None;
+
+    for mask in 1u64..(1u64 << max_bits) {
+        let mut picked: Vec<(String, f64)> = Vec::new();
+        let mut sum = 0.0;
+        for (i, (course, cu)) in items.iter().enumerate() {
+            if mask & (1u64 << i) != 0 {
+                sum += cu;
+                picked.push((course.clone(), *cu));
+            }
+        }
+        if sum + CU_EPS < target_cu {
+            continue;
+        }
+        let overage = sum - target_cu;
+        let mixed = subset_has_mixed_cu_types(&picked);
+        let courses: Vec<String> = picked.into_iter().map(|(c, _)| c).collect();
+        let count = courses.len();
+
+        let is_better = match &best {
+            None => true,
+            Some((_, best_overage, best_count, best_mixed)) => {
+                overage < *best_overage - CU_EPS
+                    || ((overage - *best_overage).abs() < CU_EPS && count < *best_count)
+                    || ((overage - *best_overage).abs() < CU_EPS
+                        && count == *best_count
+                        && !mixed
+                        && *best_mixed)
+            }
+        };
+        if is_better {
+            best = Some((courses, overage, count, mixed));
+        }
+    }
+
+    best.map(|(courses, _, _, _)| courses)
 }
 
 /// Courses from `taken` that satisfy a Restriction by accumulated catalog CU.
@@ -96,27 +191,17 @@ pub fn courses_fulfilling_restriction_cu(
     attributes: &HashMap<String, Vec<String>>,
     cu_map: &HashMap<String, f64>,
 ) -> Option<Vec<String>> {
-    if target_cu <= 0.0 {
-        return Some(vec![]);
-    }
+    let eligible: Vec<(String, f64)> = taken
+        .iter()
+        .filter(|course| {
+            course_matches_restriction(
+                course, department, level, attr, excluding, no_school, attributes,
+            )
+        })
+        .map(|course| (course.clone(), lookup_course_cu(cu_map, course)))
+        .collect();
 
-    let mut matched: Vec<String> = Vec::new();
-    let mut accumulated_cu: f64 = 0.0;
-
-    for course in taken {
-        if !course_matches_restriction(
-            course, department, level, attr, excluding, no_school, attributes,
-        ) {
-            continue;
-        }
-        matched.push(course.clone());
-        accumulated_cu += lookup_course_cu(cu_map, course);
-        if accumulated_cu >= target_cu {
-            return Some(matched);
-        }
-    }
-
-    None
+    select_courses_for_cu_target(eligible, target_cu)
 }
 
 fn format_restriction_description(
@@ -128,7 +213,12 @@ fn format_restriction_description(
     number: &i32,
     no_school: &Option<String>,
 ) -> String {
-    let mut response = format!("{} CU", number);
+    let target = restriction_required_cu(*number, cu);
+    let mut response = if (target - target.round()).abs() < CU_EPS {
+        format!("{} CU", target as i32)
+    } else {
+        format!("{target} CU")
+    };
     if let Some(depts) = department {
         response.push_str(" from ");
         response.push_str(&depts.join("/"));
@@ -147,9 +237,6 @@ fn format_restriction_description(
     if let Some(no_school_name) = no_school {
         response.push_str(" not from ");
         response.push_str(no_school_name);
-    }
-    if let Some(cu_val) = cu {
-        response.push_str(&format!(" ({} CU)", cu_val));
     }
     response
 }
@@ -558,7 +645,7 @@ impl Requirement {
                     attr,
                     excluding,
                     no_school,
-                    restriction_required_cu(*number),
+                    restriction_required_cu(*number, cu),
                     attributes,
                     cu_map,
                 )
@@ -823,7 +910,13 @@ pub fn validate_courses_for_degree(
     // Preserve original major indices before sorting — identical requirements compare
     // equal and must not share one instance id.
     let mut indexed: Vec<(usize, Requirement)> = requirements.into_iter().enumerate().collect();
-    indexed.sort_by_key(|(_, r)| r.specificity_score());
+    indexed.sort_by(|a, b| {
+        let key_a = restriction_sort_key(&a.1);
+        let key_b = restriction_sort_key(&b.1);
+        key_a
+            .cmp(&key_b)
+            .then_with(|| a.1.specificity_score().cmp(&b.1.specificity_score()))
+    });
 
     for (orig_idx, req) in indexed {
         let instance_id = Some(orig_idx.to_string());
@@ -1222,6 +1315,102 @@ mod tests {
         assert!(req
             .fulfills_requirement(&taken, &attributes, &cu_map)
             .is_none());
+    }
+
+    #[test]
+    fn restriction_prefers_one_full_cu_over_half_plus_full() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 0.5);
+        cu_map.insert("TEST 1001".to_string(), 1.0);
+        cu_map.insert("TEST 1002".to_string(), 0.5);
+
+        let taken = vec![
+            "TEST 1000".to_string(),
+            "TEST 1001".to_string(),
+            "TEST 1002".to_string(),
+        ];
+        let req = one_cu_restriction();
+
+        let fulfilled = req
+            .fulfills_requirement(&taken, &attributes, &cu_map)
+            .expect("1 CU slot should be filled by the 1 CU course alone");
+        assert_eq!(fulfilled, vec!["TEST 1001".to_string()]);
+    }
+
+    #[test]
+    fn restriction_half_cu_slot_uses_half_course_first() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 0.5);
+        cu_map.insert("TEST 1001".to_string(), 1.0);
+
+        let taken = vec!["TEST 1000".to_string(), "TEST 1001".to_string()];
+        let req = Requirement::Restriction {
+            category: Some("Half CU slot".to_string()),
+            department: Some(vec!["TEST".to_string()]),
+            cu: Some(5),
+            level: None,
+            attr: None,
+            number: 1,
+            excluding: None,
+            no_school: None,
+        };
+
+        let fulfilled = req
+            .fulfills_requirement(&taken, &attributes, &cu_map)
+            .expect("0.5 CU slot should use the half-credit course");
+        assert_eq!(fulfilled, vec!["TEST 1000".to_string()]);
+    }
+
+    #[test]
+    fn validate_degree_fills_half_slot_before_one_cu_slot() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 0.5);
+        cu_map.insert("TEST 1001".to_string(), 1.0);
+
+        let requirements = vec![
+            Requirement::Restriction {
+                category: Some("One CU".to_string()),
+                department: Some(vec!["TEST".to_string()]),
+                cu: None,
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Half CU".to_string()),
+                department: Some(vec!["TEST".to_string()]),
+                cu: Some(5),
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+        ];
+
+        let taken = vec!["TEST 1000".to_string(), "TEST 1001".to_string()];
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(requirements, &taken, &cu_map);
+
+        assert_eq!(unfulfilled.len(), 0);
+        assert_eq!(fulfilled.len(), 2);
+
+        let half = fulfilled
+            .iter()
+            .find(|m| m.requirement.get_category() == "Half CU")
+            .expect("half CU requirement fulfilled");
+        assert_eq!(half.course_ids, vec!["TEST 1000".to_string()]);
+
+        let full = fulfilled
+            .iter()
+            .find(|m| m.requirement.get_category() == "One CU")
+            .expect("one CU requirement fulfilled");
+        assert_eq!(full.course_ids, vec!["TEST 1001".to_string()]);
     }
 
     #[test]
