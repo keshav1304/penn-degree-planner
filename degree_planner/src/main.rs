@@ -3,6 +3,7 @@ use std::vec;
 pub mod course;
 pub mod major;
 pub mod requirement;
+pub mod schedule_template;
 
 pub mod attributes_data;
 pub mod seas_data;
@@ -17,6 +18,7 @@ use requirement::MappedRequirement;
 use requirement::DoubleCountInfo;
 use requirement::ConcentrationInfo;
 use major::Major;
+use schedule_template::{later_semesters, resolve_semester_hint, semester_order};
 
 use axum:: {
     http::{header, Method, HeaderValue},
@@ -364,6 +366,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let mut all_suggested_courses: Vec<String> = Vec::new();
     let mut all_requirement_slots: Vec<String> = Vec::new();
     let mut slot_labels: HashMap<String, String> = HashMap::new();
+    let mut item_targets: HashMap<String, (i32, String)> = HashMap::new();
 
     // Build a CU lookup map from all courses
     let all_courses = courses_data::all_courses();
@@ -395,6 +398,17 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
             // Collect unique suggested courses and requirement slots for the schedule
             for mapped in &suggested {
+                if let Some(instance_id) = mapped.instance_id.as_deref() {
+                    if let Some(target) =
+                        resolve_semester_hint(instance_id, &major_data.schedule_hints)
+                    {
+                        for course_id in &mapped.course_ids {
+                            item_targets
+                                .entry(course_id.clone())
+                                .or_insert_with(|| target.clone());
+                        }
+                    }
+                }
                 for course_id in &mapped.course_ids {
                     if course::is_valid_course_code(course_id)
                         && !all_suggested_courses.contains(course_id)
@@ -444,8 +458,9 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 .unwrap_or_default();
 
             // Check if this major uses core concentrations
-            let has_core = major_data.requirements.iter()
-                .any(|r| matches!(r, Requirement::Concentration { .. }));
+            let has_core = degree.major == "MEAM"
+                || major_data.requirements.iter()
+                    .any(|r| matches!(r, Requirement::Concentration { .. }));
 
             // Extract category order from requirement definition
             let mut category_order: Vec<String> = Vec::new();
@@ -576,9 +591,73 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         all_requirement_slots.retain(|s| s != &frozen.course_id);
     }
 
-    // Distribute remaining courses and requirement slots
+    // Distribute remaining courses and requirement slots (template hints first)
     let mut remaining_courses: Vec<String> = all_suggested_courses;
     let mut remaining_slots: Vec<String> = all_requirement_slots;
+
+    let try_place_item =
+        |schedule: &mut Vec<SemesterPlan>, item_id: &str, year: i32, semester: &str| -> bool {
+            ensure_year(schedule, year, allow_summer);
+            for plan in schedule.iter_mut() {
+                if plan.year == year && plan.semester == semester {
+                    let already = if requirement::is_requirement_slot_id(item_id) {
+                        plan.requirement_slots.contains(&item_id.to_string())
+                    } else {
+                        plan.courses.contains(&item_id.to_string())
+                    };
+                    if already {
+                        return true;
+                    }
+                    let cu = get_cu(item_id);
+                    let max_cu = get_max_cu(year, semester);
+                    if plan.total_cu + cu <= max_cu || plan.total_cu == 0.0 {
+                        place_in_semester(plan, item_id);
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            false
+        };
+
+    let place_with_template =
+        |schedule: &mut Vec<SemesterPlan>, item_id: &str, target: &(i32, String)| -> bool {
+            let candidates = later_semesters((target.0, target.1.as_str()), 4);
+            for (year, semester) in candidates {
+                if try_place_item(schedule, item_id, year, &semester) {
+                    return true;
+                }
+            }
+            false
+        };
+
+    let partition_and_place = |remaining: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>| {
+        let mut template_items: Vec<String> = Vec::new();
+        let mut greedy_items: Vec<String> = Vec::new();
+        for item in remaining.drain(..) {
+            if item_targets.contains_key(&item) {
+                template_items.push(item);
+            } else {
+                greedy_items.push(item);
+            }
+        }
+        template_items.sort_by_key(|item| {
+            let (y, s) = item_targets.get(item).expect("template item has target");
+            semester_order(*y, s)
+        });
+        let mut overflow = Vec::new();
+        for item in template_items {
+            let target = item_targets.get(&item).unwrap().clone();
+            if !place_with_template(schedule, &item, &target) {
+                overflow.push(item);
+            }
+        }
+        overflow.extend(greedy_items);
+        *remaining = overflow;
+    };
+
+    partition_and_place(&mut remaining_courses, &mut schedule);
+    partition_and_place(&mut remaining_slots, &mut schedule);
 
     let distribute = |remaining: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>, allow_summer: bool| -> bool {
         if remaining.is_empty() {

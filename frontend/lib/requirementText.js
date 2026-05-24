@@ -20,24 +20,125 @@ export function parseRequirement(req) {
   return { type: "Unknown", data: req };
 }
 
-function formatRestriction(data) {
-  const parts = [];
-  if (data.number != null) parts.push(`${data.number} CU`);
-  if (data.department) {
-    const depts = Array.isArray(data.department) ? data.department : [data.department];
-    parts.push(`from dept ${depts.join("/")}`);
+/** Must stay in sync with Rust `restriction_required_cu`. */
+export function restrictionRequiredCu(number, cuField) {
+  if (cuField != null) return cuField / 10;
+  return number ?? 1;
+}
+
+const MAX_LISTED_COURSES = 4;
+const CU_EPS = 0.001;
+
+/** Must stay in sync with Rust `format_restriction_description` CU prefix. */
+export function formatCuLabel(number, cuField) {
+  const target = restrictionRequiredCu(number, cuField);
+  if (Math.abs(target - Math.round(target)) < CU_EPS) {
+    return `${Math.round(target)} CU`;
   }
-  if (data.level != null) parts.push(`level ${data.level}+`);
+  return `${target} CU`;
+}
+
+/** Must stay in sync with Rust `format_truncated_list`. */
+export function formatTruncatedList(items, prefix = "") {
+  const list = (items || []).filter((item) => item != null && item !== "");
+  if (list.length === 0) {
+    return `${prefix}(options not specified)`;
+  }
+  if (list.length === 1) {
+    return list[0];
+  }
+  if (list.length <= MAX_LISTED_COURSES) {
+    return `${prefix}${list.join(", ")}`;
+  }
+  const shown = list.slice(0, MAX_LISTED_COURSES);
+  const more = list.length - MAX_LISTED_COURSES;
+  return `${prefix}${shown.join(", ")} (+${more} more)`;
+}
+
+/** Must stay in sync with Rust `format_restriction_description`. */
+export function formatRestriction(data) {
+  let response = formatCuLabel(data.number, data.cu);
+  if (data.department?.length) {
+    const depts = Array.isArray(data.department) ? data.department : [data.department];
+    response += ` from dept ${depts.join("/")}`;
+  }
+  if (data.level != null) {
+    response += ` with minimum level ${data.level}`;
+  }
   if (data.attr?.length) {
     const attrs = data.attr.filter((a) => typeof a === "string");
-    if (attrs.length) parts.push(`from attribute ${attrs.join(" or ")}`);
+    if (attrs.length) response += ` from attribute ${attrs.join("/")}`;
   }
   if (data.excluding?.length) {
     const ex = data.excluding.filter((c) => typeof c === "string");
-    if (ex.length) parts.push(`excluding ${ex.join(", ")}`);
+    if (ex.length) response += ` excluding ${ex.join(", ")}`;
   }
-  if (data.no_school) parts.push(`not from ${data.no_school}`);
-  return parts.join(" ") || "Restriction requirement";
+  if (data.no_school) response += ` not from ${data.no_school}`;
+  return response || "Restriction requirement";
+}
+
+/** Must stay in sync with Rust `create_requirement_description`. */
+export function createRequirementDescription(req) {
+  const { type, data } = parseRequirement(req);
+  switch (type) {
+    case "SingleCourse":
+      return formatTruncatedList(data.possibilities, "One of: ");
+    case "CourseGroup": {
+      const prefix = `${data.number} CU from: `;
+      return formatTruncatedList(data.possibilities, prefix);
+    }
+    case "Restriction":
+      return formatRestriction(data);
+    case "AnyOf":
+      if (data.possibilities?.length === 1) {
+        return createRequirementDescription(data.possibilities[0]);
+      }
+      return "One of the following options";
+    case "AllOf": {
+      const parts = (data.requirements || [])
+        .map((sub) => createRequirementDescription(sub))
+        .filter(Boolean);
+      if (parts.length === 0) {
+        return `Complete all ${(data.requirements || []).length} sub-requirements`;
+      }
+      return parts.join(" + ");
+    }
+    case "Concentration":
+      return `Concentration: ${data.number} CU`;
+    case "DoubleCount": {
+      const baseDescs = (data.base_requirements || []).map((sub) => {
+        const desc = createRequirementDescription(sub);
+        if (desc) return desc;
+        const { data: subData } = parseRequirement(sub);
+        return subData.category || "Requirement";
+      });
+      const dcDescs = (data.double_counting_requirements || []).map((sub) => {
+        const desc = createRequirementDescription(sub);
+        if (desc) return desc;
+        const { data: subData } = parseRequirement(sub);
+        return subData.category || "Requirement";
+      });
+      return `Take: ${baseDescs.join("; ")}. (${(data.double_counting_requirements || []).length} must also satisfy: ${dcDescs.join("; ")})`;
+    }
+    default:
+      return "Requirement";
+  }
+}
+
+/** Panel header text: requirement rule on the left, fulfilling course chips inline on the right. */
+export function createRequirementPanelDescription(req, { fulfilled = false } = {}) {
+  const { type, data } = parseRequirement(req);
+  if (fulfilled) {
+    switch (type) {
+      case "SingleCourse":
+        return "1 CU from:";
+      case "CourseGroup":
+        return `${data.number} CU from:`;
+      default:
+        return createRequirementDescription(req);
+    }
+  }
+  return createRequirementDescription(req);
 }
 
 /** Human-readable label for a requirement (never joins nested objects). */
@@ -56,9 +157,9 @@ export function getRequirementLabel(req) {
     case "SingleCourse":
       return "Complete one listed course";
     case "CourseGroup":
-      return `Complete ${data.number ?? "N"} listed course(s)`;
+      return `${data.number ?? "N"} CU`;
     case "Concentration":
-      return `Concentration (${data.number ?? "N"} course(s))`;
+      return `Concentration (${data.number ?? "N"} CU)`;
     case "DoubleCount":
       return "Double-counted requirement";
     default:

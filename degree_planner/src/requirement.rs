@@ -776,7 +776,7 @@ impl Requirement {
                 format_truncated_list(possibilities, "One of: ")
             }
             Requirement::CourseGroup { number, possibilities, .. } => {
-                let prefix = format!("{} of: ", number);
+                let prefix = format!("{} CU from: ", number);
                 format_truncated_list(possibilities, &prefix)
             }
             Requirement::Restriction {
@@ -811,7 +811,7 @@ impl Requirement {
                 }
             }
             Requirement::Concentration { number, .. } => {
-                format!("Concentration: {} course(s)", number)
+                format!("Concentration: {} CU", number)
             }
             Requirement::DoubleCount {
                 double_counting_requirements,
@@ -1212,7 +1212,10 @@ pub fn extract_concentration_info(
     let attributes = attributes_data::create_attributes();
 
     // Check if this major has a core concentration (Requirement::Concentration in requirements)
-    let has_core = requirements.iter().any(|r| matches!(r, Requirement::Concentration { .. }));
+    let has_core = requirements.iter().any(|r| matches!(r, Requirement::Concentration { .. }))
+        || requirements
+            .iter()
+            .any(|r| r.get_category() == "Concentration");
 
     let conc_map = match concentrations {
         Some(map) => map,

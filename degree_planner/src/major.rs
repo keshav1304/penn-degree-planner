@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::Serialize;
 
@@ -12,6 +12,8 @@ pub struct Major {
     pub name: String,
     pub requirements: Vec<Requirement>,
     pub concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
+    /// Maps top-level requirement index (`"0"`, `"1"`, …) → target `(year, semester)`.
+    pub schedule_hints: HashMap<String, (i32, String)>,
 }
 
 #[derive(Debug, Clone, Serialize)]

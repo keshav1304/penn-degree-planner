@@ -7,7 +7,12 @@ import {
     filterFrozenPlacements,
     isValidCourseCode,
 } from "@/lib/courseUtils";
-import { getRequirementInstanceId } from "@/lib/requirementText";
+import {
+    createRequirementDescription,
+    createRequirementPanelDescription,
+    getRequirementInstanceId,
+    parseRequirement,
+} from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
 // ─── Design tokens ───
@@ -127,6 +132,7 @@ const S = {
         color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray300,
     }),
     itemBody: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 },
+    itemDescRow: { display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" },
     itemDesc: { fontSize: "0.78rem", fontWeight: 600, color: C.gray700, lineHeight: 1.4 },
 
     // chips
@@ -399,8 +405,7 @@ function chipKindFor(courseId, { assignedIds, frozenIds, fulfilledSet, suggested
 }
 
 function getItemDescription(item) {
-    const { type, data } = parseRequirement(item.requirement);
-    return getDescription(type, data);
+    return createRequirementPanelDescription(item.requirement, { fulfilled: item.fulfilled });
 }
 
 function renderItem(
@@ -431,6 +436,15 @@ function renderItem(
 
     const MAX_VISIBLE = 5;
     const visible = isExpanded ? options : options.slice(0, MAX_VISIBLE);
+    const fulfillingCourses = rowFulfilled ? collectFulfillingCourses(item) : [];
+    const showInlineCourses = rowFulfilled && fulfillingCourses.length > 0 && !hasAttrFulfillment;
+    const showOptionChips = !rowFulfilled && options.length > 0 && !(type === "Restriction" && data.attr?.length > 0);
+
+    const renderCourseChip = (courseId, key) => (
+        <span key={key ?? courseId} style={S.chip(chipKindFor(courseId, chipCtx))}>
+            {courseId}
+        </span>
+    );
 
     const renderAttrChip = (attrCode) => {
         const matchedCourses = (attrFulfillment?.get(attrCode) || []).filter(isValidCourseCode);
@@ -457,7 +471,12 @@ function renderItem(
         >
             <span style={S.itemIcon(rowTone)}>{rowFulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
-                <div style={S.itemDesc}>{descriptionOverride ?? getDescription(type, data)}</div>
+                <div style={S.itemDescRow}>
+                    <span style={S.itemDesc}>
+                        {descriptionOverride ?? createRequirementPanelDescription(item.requirement, { fulfilled: rowFulfilled })}
+                    </span>
+                    {showInlineCourses && fulfillingCourses.map((c) => renderCourseChip(c))}
+                </div>
 
                 {type === "Restriction" && data.attr?.length > 0 && (
                     <div style={S.chips}>
@@ -465,7 +484,7 @@ function renderItem(
                     </div>
                 )}
 
-                {options.length > 0 && !(type === "Restriction" && data.attr?.length > 0) && (
+                {showOptionChips && (
                     <div style={S.chips}>
                         {visible.map((opt, i) => (
                             <span key={i} style={S.chip(chipKindFor(opt, chipCtx))}>
@@ -480,27 +499,9 @@ function renderItem(
                     </div>
                 )}
 
-                {rowFulfilled && type === "Restriction" && data.attr?.length > 0 && !hasAttrFulfillment && fulfilledCourses.length > 0 && (
-                    <div style={S.chips}>
-                        {fulfilledCourses.map((c, i) => (
-                            <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
-                        ))}
-                    </div>
-                )}
-
-                {rowFulfilled && fulfilledCourses.length > 0 && options.length === 0 && !hasAttrFulfillment && !(type === "Restriction" && data.attr?.length > 0) && (
-                    <div style={S.chips}>
-                        {fulfilledCourses.map((c, i) => (
-                            <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
-                        ))}
-                    </div>
-                )}
-
                 {!rowFulfilled && suggestedCourses.length > 0 && options.length === 0 && (
                     <div style={S.chips}>
-                        {suggestedCourses.map((c, i) => (
-                            <span key={i} style={S.chip(chipKindFor(c, chipCtx))}>{c}</span>
-                        ))}
+                        {suggestedCourses.map((c, i) => renderCourseChip(c, i))}
                     </div>
                 )}
             </div>
@@ -508,80 +509,23 @@ function renderItem(
     );
 }
 
-// ─── Helpers (logic unchanged) ───
-
-function parseRequirement(req) {
-    if (!req) return { type: "Unknown", data: {} };
-    const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
-    for (const v of variants) { if (req[v] !== undefined) return { type: v, data: req[v] }; }
-    if (req.possibilities) return { type: "SingleCourse", data: req };
-    if (req.department !== undefined || req.attr !== undefined) return { type: "Restriction", data: req };
-    return { type: "Unknown", data: req };
-}
-
-function getDescription(type, data) {
-    switch (type) {
-        case "SingleCourse": return "Complete one of the following:";
-        case "CourseGroup": return `Complete ${data.number || "N"} of the following:`;
-        case "Restriction": {
-            const p = [];
-            if (data.number) p.push(`${data.number} course(s)`);
-            if (data.department) p.push(`from dept ${Array.isArray(data.department) ? data.department.join("/") : data.department}`);
-            if (data.level) p.push(`level ${data.level}+`);
-            if (data.attr) p.push(`in ${data.attr.join(" or ")}`);
-            if (data.excluding) p.push(`excluding ${data.excluding.join(", ")}`);
-            if (data.no_school) p.push(`not from ${data.no_school}`);
-            return p.join(" ") || "Restriction requirement";
-        }
-        case "AnyOf": return "Complete one of the following options:";
-        case "AllOf": return "Complete all of the following:";
-        case "Concentration": return `Complete concentration (${data.number || "N"} courses):`;
-        case "DoubleCount": return "Double-counted with other requirements";
-        default: return "Requirement";
-    }
-}
-
-function formatSingleCoursePossibilities(possibilities) {
-    const list = possibilities || [];
-    if (list.length === 0) return "";
-    if (list.length === 1) return list[0];
-    return `One of: ${list.join(", ")}`;
-}
-
-function formatAllOfOptionLabel(requirements) {
-    const parts = (requirements || [])
-        .map((sub) => {
-            const { type, data } = parseRequirement(sub);
-            if (type === "SingleCourse") return formatSingleCoursePossibilities(data.possibilities);
-            if (type === "AllOf") return formatAllOfOptionLabel(data.requirements);
-            return getDescription(type, data);
-        })
-        .filter(Boolean);
-    return parts.join(" + ");
-}
+// ─── Helpers ───
 
 function formatAnyOfOptionLabel(sub) {
-    const { type, data } = parseRequirement(sub);
-    if (type === "SingleCourse") return formatSingleCoursePossibilities(data.possibilities);
-    if (type === "AllOf") return formatAllOfOptionLabel(data.requirements);
-    return getDescription(type, data);
+    return createRequirementDescription(sub);
 }
 
 function getOptions(type, data) {
     switch (type) {
         case "SingleCourse":
-            return [formatSingleCoursePossibilities(data.possibilities)].filter(Boolean);
+            return (data.possibilities || []).filter(Boolean);
         case "CourseGroup": return data.possibilities || [];
         case "Restriction": return data.attr?.length > 0 ? data.attr.map(a => `[${a}]`) : [];
         case "AnyOf":
             return (data.possibilities || []).map(formatAnyOfOptionLabel).filter(Boolean);
         case "AllOf":
             return (data.requirements || [])
-                .map((sub) => {
-                    const { type: t2, data: d2 } = parseRequirement(sub);
-                    if (t2 === "SingleCourse") return formatSingleCoursePossibilities(d2.possibilities);
-                    return formatAnyOfOptionLabel(sub);
-                })
+                .map((sub) => createRequirementDescription(sub))
                 .filter(Boolean);
         default: return [];
     }
@@ -598,17 +542,4 @@ function getCategory(req) {
     const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
     for (const v of variants) { if (req[v]?.category) return req[v].category; }
     return "Other";
-}
-
-function getReqKey(req) {
-    if (!req) return "unknown";
-    const { type, data } = parseRequirement(req);
-    switch (type) {
-        case "SingleCourse": return `SC:${(data.possibilities || []).slice(0, 3).join(",")}`;
-        case "CourseGroup": return `CG:${data.number}:${(data.possibilities || []).slice(0, 3).join(",")}`;
-        case "Restriction": return `R:${data.number}:${(data.department || []).join(",")}:${(data.attr || []).join(",")}:${data.level || ""}`;
-        case "AnyOf": return `AO:${(data.possibilities || []).length}`;
-        case "AllOf": return `AL:${(data.requirements || []).length}`;
-        default: return JSON.stringify(req).slice(0, 50);
-    }
 }
