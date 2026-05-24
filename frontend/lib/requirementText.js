@@ -125,20 +125,30 @@ export function createRequirementDescription(req) {
   }
 }
 
-/** Panel header text: requirement rule on the left, fulfilling course chips inline on the right. */
-export function createRequirementPanelDescription(req, { fulfilled = false } = {}) {
+/** Stable left-side stem for the requirements panel (never changes with fulfillment state). */
+export function getRequirementStem(req) {
   const { type, data } = parseRequirement(req);
-  if (fulfilled) {
-    switch (type) {
-      case "SingleCourse":
-        return "1 CU from:";
-      case "CourseGroup":
-        return `${data.number} CU from:`;
-      default:
-        return createRequirementDescription(req);
+  switch (type) {
+    case "SingleCourse": {
+      const count = (data.possibilities || []).filter(Boolean).length;
+      return count > 1 ? "One of" : null;
     }
+    case "CourseGroup":
+      return `${data.number} CU from`;
+    case "Restriction":
+      return formatRestriction(data);
+    case "AnyOf":
+      if (data.possibilities?.length === 1) return getRequirementStem(data.possibilities[0]);
+      return "One of the following options";
+    case "AllOf":
+      return "Complete all";
+    case "Concentration":
+      return `Concentration (${data.number} CU)`;
+    case "DoubleCount":
+      return createRequirementDescription(req);
+    default:
+      return createRequirementDescription(req);
   }
-  return createRequirementDescription(req);
 }
 
 /** Human-readable label for a requirement (never joins nested objects). */
