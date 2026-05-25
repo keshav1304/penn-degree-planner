@@ -116,6 +116,12 @@ export default function Home() {
       year: p.year,
       semester: p.semester,
     }));
+    const takenForValidation = [
+      ...new Set([
+        ...filterValidCourseCodes(takenCourses),
+        ...filterValidPlacements(assignedCourses).map((a) => a.courseId),
+      ]),
+    ];
 
     const requestId = ++scheduleRequestId.current;
     setLoading(true);
@@ -124,7 +130,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          taken: filterValidCourseCodes(takenCourses),
+          taken: takenForValidation,
           degrees: degrees.map(d => {
             const concentrations = (d.concentrations?.length
               ? d.concentrations
@@ -570,6 +576,7 @@ export default function Home() {
                 <RequirementsPanel
                   scheduleData={scheduleData}
                   degrees={degrees}
+                  allCourses={allCourses}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
                   navTarget={reqNavTarget}
