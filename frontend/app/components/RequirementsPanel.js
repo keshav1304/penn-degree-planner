@@ -74,7 +74,6 @@ const S = {
             open: { bg: C.gray100, border: C.gray300, color: C.gray500 },
             fulfilled: { bg: C.green100, border: C.green300, color: C.green700 },
             frozen: { bg: C.amber50, border: C.amber200, color: C.amber700 },
-            suggested: { bg: "#d1fae5", border: "#6ee7b7", color: "#047857" },
         };
         const t = map[kind] || map.open;
         return { fontSize: "0.67rem", fontWeight: 600, padding: "2px 7px", borderRadius: 4, whiteSpace: "nowrap", background: t.bg, border: `1px solid ${t.border}`, color: t.color, boxSizing: "border-box" };
@@ -132,12 +131,6 @@ export default function RequirementsPanel({
             attributeFulfillment: attributeFulfillmentMap(mapped),
         });
     });
-    const suggestionsMap = {};
-    (current.suggested_for_unfulfilled || []).forEach((mapped) => {
-        const cat = normalizeCategory(getCategory(mapped.requirement));
-        const id = getRequirementInstanceId(mapped);
-        suggestionsMap[`${cat}::${id}`] = mapped.course_ids || [];
-    });
     (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
         const req = mapped?.requirement ?? mapped;
         const cat = normalizeCategory(getCategory(req));
@@ -146,7 +139,6 @@ export default function RequirementsPanel({
             category: cat,
             fulfilled: false,
             fulfilledCourses: [],
-            suggestedCourses: suggestionsMap[`${cat}::${id}`] || [],
             requirement: req,
             instanceId: id,
             attributeFulfillment: attributeFulfillmentMap(mapped),
@@ -268,12 +260,10 @@ function groupTone(items, frozenIds) {
     return "fulfilled";
 }
 
-/** Badge color from schedule placement — never plain white/default for on-schedule courses. */
-function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet, suggestedSet }) {
+/** Badge color mirrors schedule grid: green = taken, orange = frozen, gray = not placed. */
+function badgeKindFor(courseId, { assignedIds, frozenIds }) {
     if (assignedIds.has(courseId)) return "fulfilled";
     if (frozenIds.has(courseId)) return "frozen";
-    if (fulfillingSet.has(courseId)) return "fulfilled";
-    if (suggestedSet.has(courseId)) return "suggested";
     return "open";
 }
 
@@ -282,21 +272,19 @@ function buildRowContent(item) {
     const stem = getRequirementStem(item.requirement);
     const fulfilling = collectFulfillingCourses(item);
     const fulfillingSet = new Set(fulfilling);
-    const suggested = filterValidCourseCodes(item.suggestedCourses || []);
-    const suggestedSet = new Set(suggested);
 
     if (type === "SingleCourse") {
         const possibilities = (data.possibilities || []).filter(Boolean);
         if (possibilities.length <= 1) {
             const ids = possibilities.length ? possibilities : fulfilling;
-            return { stem: null, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet, suggestedSet };
+            return { stem: null, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet };
         }
-        return { stem, badges: possibilities.map((id) => ({ kind: "course", id })), fulfillingSet, suggestedSet };
+        return { stem, badges: possibilities.map((id) => ({ kind: "course", id })), fulfillingSet };
     }
 
     if (type === "CourseGroup") {
         const ids = fulfilling.length ? fulfilling : (data.possibilities || []).filter(Boolean);
-        return { stem, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet, suggestedSet };
+        return { stem, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet };
     }
 
     if (type === "Restriction" && data.attr?.length > 0) {
@@ -308,24 +296,22 @@ function buildRowContent(item) {
                 courses: (item.attributeFulfillment?.get(code) || []).filter(isValidCourseCode),
             })),
             fulfillingSet,
-            suggestedSet,
         };
     }
 
     if (type === "Restriction") {
-        return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet, suggestedSet };
+        return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
     }
 
-    const scheduleCourses = fulfilling.length ? fulfilling : suggested;
-    return { stem, badges: scheduleCourses.map((id) => ({ kind: "course", id })), fulfillingSet, suggestedSet };
+    return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
 function renderItem(item, idx, scheduleCtx, isFirst, stemOverride, degreeIndex, flashRowId) {
     const rowTone = itemTone(item, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
-    const { stem, badges, fulfillingSet, suggestedSet } = buildRowContent(item);
+    const { stem, badges } = buildRowContent(item);
     const displayStem = stemOverride ?? stem;
-    const chipCtx = { ...scheduleCtx, fulfillingSet, suggestedSet };
+    const chipCtx = scheduleCtx;
 
     const renderBadge = (badge, key) => {
         if (badge.kind === "attr") {
