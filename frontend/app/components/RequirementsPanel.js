@@ -9,6 +9,7 @@ import {
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
+    createRequirementDescription,
     getAnyOfPossibilities,
     getRequirementInstanceId,
     getRequirementStem,
@@ -196,35 +197,26 @@ export default function RequirementsPanel({
                             </div>
                             {!isCollapsed && (
                                 <div className="req-group-body">
-                                    <table className="req-fulfillment-table">
-                                        <thead>
-                                            <tr>
-                                                <th className="req-col-status" scope="col" />
-                                                <th className="req-col-req" scope="col">Req</th>
-                                                <th className="req-col-courses" scope="col">Courses</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {items.map((item, rowIdx) => {
-                                                if (isExpandableAnyOf(item.requirement)) {
-                                                    return renderAnyOfRows(
-                                                        item,
-                                                        item.instanceId ?? String(rowIdx),
-                                                        scheduleCtx,
-                                                        tabIndex,
-                                                        flashRowId
-                                                    );
-                                                }
-                                                return renderItemRow(
-                                                    item,
-                                                    item.instanceId ?? String(rowIdx),
-                                                    scheduleCtx,
-                                                    tabIndex,
-                                                    flashRowId
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
+                                    {items.map((item, rowIdx) => {
+                                        if (isExpandableAnyOf(item.requirement)) {
+                                            return renderAnyOfGroup(
+                                                item,
+                                                item.instanceId ?? String(rowIdx),
+                                                scheduleCtx,
+                                                rowIdx === 0,
+                                                tabIndex,
+                                                flashRowId
+                                            );
+                                        }
+                                        return renderItem(
+                                            item,
+                                            item.instanceId ?? String(rowIdx),
+                                            scheduleCtx,
+                                            rowIdx === 0,
+                                            tabIndex,
+                                            flashRowId
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -321,38 +313,43 @@ function buildRowContent(item) {
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
-function renderBadges(item, scheduleCtx) {
-    const { badges, fulfillingSet } = buildRowContent(item);
+function renderRequirementLine(item, scheduleCtx) {
+    const { stem, badges, fulfillingSet } = buildRowContent(item);
+    const fullDesc = createRequirementDescription(item.requirement);
     const chipCtx = { ...scheduleCtx, fulfillingSet };
 
-    if (!badges.length) return <span className="req-chips"><span className="req-chip chip-default">—</span></span>;
+    const renderBadge = (badge, key) => {
+        if (badge.kind === "attr") {
+            const fulfillingForAttr = badge.courses.filter((c) => fulfillingSet.has(c));
+            const hasCourse = fulfillingForAttr.length > 0;
+            const label = hasCourse
+                ? `[${badge.code}] ${fulfillingForAttr.join(", ")}`
+                : `[${badge.code}]`;
+            const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
+            return <span key={key} className={chipClass(kind)}>{label}</span>;
+        }
+        return (
+            <span key={key} className={chipClass(badgeKindFor(badge.id, chipCtx))}>
+                {badge.id}
+            </span>
+        );
+    };
+
+    if (stem && badges.length > 0) {
+        return (
+            <div className="req-item-line">
+                <span className="req-stem-text">{stem}</span>
+                <span className="req-item-colon">:</span>
+                <span className="req-chips">{badges.map((b, i) => renderBadge(b, i))}</span>
+            </div>
+        );
+    }
 
     return (
-        <span className="req-chips">
-            {badges.map((badge, i) => {
-                if (badge.kind === "attr") {
-                    const fulfillingForAttr = badge.courses.filter((c) => fulfillingSet.has(c));
-                    const hasCourse = fulfillingForAttr.length > 0;
-                    const label = hasCourse
-                        ? `[${badge.code}] ${fulfillingForAttr.join(", ")}`
-                        : `[${badge.code}]`;
-                    const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
-                    return <span key={i} className={chipClass(kind)}>{label}</span>;
-                }
-                return (
-                    <span key={i} className={chipClass(badgeKindFor(badge.id, chipCtx))}>
-                        {badge.id}
-                    </span>
-                );
-            })}
-        </span>
+        <div className="req-item-line">
+            <span className="req-stem-text">{fullDesc}</span>
+        </div>
     );
-}
-
-function renderStemCell(item) {
-    const { stem } = buildRowContent(item);
-    if (!stem) return null;
-    return <span className="req-stem-text">{stem}</span>;
 }
 
 function makeAnyOfChildItem(parent, childReq, childIdx) {
@@ -380,60 +377,60 @@ function makeAnyOfChildItem(parent, childReq, childIdx) {
     };
 }
 
-function renderAnyOfRows(parentItem, idx, scheduleCtx, degreeIndex, flashRowId) {
+function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const possibilities = getAnyOfPossibilities(parentItem.requirement);
-    const rows = [];
-
-    rows.push(
-        <tr key={`${idx}-intro`} className="req-anyof-intro">
-            <td colSpan={3}>Choose one:</td>
-        </tr>
-    );
-
-    possibilities.forEach((childReq, childIdx) => {
-        const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
-        const childTone = childItem.fulfilled ? itemTone(childItem, scheduleCtx.frozenIds) : "open";
-        const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
-        const statusIcon = childItem.fulfilled ? "✓" : "○";
-
-        rows.push(
-            <tr
-                key={childItem.instanceId}
-                id={childRowId}
-                className={`req-table-row req-table-row--${childTone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
-            >
-                <td className="req-col-status">
-                    <span className="req-table-status">{statusIcon}</span>
-                </td>
-                <td className="req-col-req">{renderStemCell(childItem)}</td>
-                <td className="req-cell-courses">{renderBadges(childItem, scheduleCtx)}</td>
-            </tr>
-        );
-    });
-
-    return rows;
-}
-
-function renderItemRow(item, idx, scheduleCtx, degreeIndex, flashRowId) {
-    const rowTone = itemTone(item, scheduleCtx.frozenIds);
+    const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
-    const statusIcon = item.fulfilled ? "✓" : "○";
-    const { stem } = buildRowContent(item);
 
     return (
-        <tr
+        <div
             key={String(idx)}
             id={rowDomId}
-            className={`req-table-row req-table-row--${rowTone} ${flashRowId === rowDomId ? "req-row-flash" : ""}`}
+            className={`req-anyof-block req-anyof-block--${blockTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
         >
-            <td className="req-col-status">
-                <span className="req-table-status">{statusIcon}</span>
-            </td>
-            <td className="req-col-req">
-                {stem ? renderStemCell(item) : null}
-            </td>
-            <td className="req-cell-courses">{renderBadges(item, scheduleCtx)}</td>
-        </tr>
+            <div className="req-anyof-intro">Choose one of the following:</div>
+            {possibilities.map((childReq, childIdx) => {
+                const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
+                const childTone = childItem.fulfilled
+                    ? itemTone(childItem, scheduleCtx.frozenIds)
+                    : "open";
+                const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
+                return (
+                    <div
+                        key={childItem.instanceId}
+                        id={childRowId}
+                        className={`req-item req-item--${childTone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
+                    >
+                        <span className={`req-item-icon icon-${childTone}`}>
+                            {childItem.fulfilled ? "✓" : "•"}
+                        </span>
+                        <div className="req-item-body">
+                            {renderRequirementLine(childItem, scheduleCtx)}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
+    const rowTone = itemTone(item, scheduleCtx.frozenIds);
+    const rowDomId = reqRowDomId(degreeIndex, idx);
+
+    return (
+        <div
+            key={String(idx)}
+            id={rowDomId}
+            className={`req-item req-item--${rowTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
+        >
+            <span className={`req-item-icon icon-${rowTone}`}>
+                {item.fulfilled ? "✓" : "○"}
+            </span>
+            <div className="req-item-body">
+                {renderRequirementLine(item, scheduleCtx)}
+            </div>
+        </div>
     );
 }
 

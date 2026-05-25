@@ -386,7 +386,7 @@ export default function ScheduleGrid({
             </div>
 
             {/* Column headers */}
-            <div className="year-row" style={{ minHeight: 0, gridTemplateColumns: `90px repeat(${semesters.length}, 1fr)` }}>
+            <div className="year-row" style={{ minHeight: 0, gridTemplateColumns: `48px repeat(${semesters.length}, 1fr)` }}>
                 <div />
                 {semesters.map(sem => (
                     <div
@@ -407,7 +407,7 @@ export default function ScheduleGrid({
             </div>
 
             {uniqueYears.map(year => (
-                <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `90px repeat(${semesters.length}, 1fr)` }}>
+                <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `48px repeat(${semesters.length}, 1fr)` }}>
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
                     {semesters.map(sem => {
                         const plan = getSemesterPlan(year, sem);

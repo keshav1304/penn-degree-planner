@@ -545,7 +545,7 @@ select {
 .schedule-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 /* ── Credits Received ── */
@@ -582,8 +582,8 @@ select {
 
 .year-row {
   display: grid;
-  grid-template-columns: 90px repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: var(--schedule-year-col, 48px) repeat(3, 1fr);
+  gap: 6px;
   align-items: stretch;
 }
 
@@ -591,12 +591,13 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
   color: var(--text-muted);
   writing-mode: vertical-rl;
   text-orientation: mixed;
   transform: rotate(180deg);
+  padding: 0 2px;
 }
 
 .semester-col {
@@ -609,13 +610,13 @@ select {
 }
 
 .semester-col-header {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   color: var(--text-muted);
-  margin-bottom: 8px;
-  padding-bottom: 6px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--border-glass);
 }
 
@@ -1123,165 +1124,108 @@ select {
   border: 1px solid var(--border-glass);
 }
 
-/* ── Tabular fulfillment ── */
+/* ── Requirement rows (single-line) ── */
 .req-group-body {
-  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
 }
-
-.req-fulfillment-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  font-size: 0.68rem;
-}
-
-.req-fulfillment-table thead th {
-  padding: 3px 6px;
-  font-size: 0.58rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  text-align: left;
-  border-bottom: 1px solid var(--border-glass);
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.req-fulfillment-table tbody td {
-  padding: 3px 6px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  vertical-align: top;
-}
-
-.req-fulfillment-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.req-col-status {
-  width: 22px;
-  text-align: center;
-}
-
-.req-col-req {
-  width: 38%;
-}
-
-.req-table-status {
-  font-size: 0.65rem;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.req-table-row--fulfilled .req-table-status {
-  color: var(--success);
-}
-
-.req-table-row--frozen .req-table-status {
-  color: var(--accent-amber);
-}
-
-.req-table-row--open .req-table-status {
-  color: var(--text-muted);
-}
-
-.req-table-row--fulfilled td {
-  background: rgba(22, 163, 74, 0.04);
-}
-
-.req-table-row--frozen td {
-  background: var(--accent-amber-dim);
-}
-
-.req-stem-text {
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.3;
-  word-break: break-word;
-}
-
-.req-cell-courses {
-  word-break: break-word;
-}
-
-.req-anyof-intro td {
-  padding: 4px 6px 2px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-style: italic;
-  border-bottom: none;
-  background: transparent;
-}
-
-.req-anyof-child td:first-child {
-  padding-left: 10px;
-}
-
-.req-anyof-child .req-stem-text {
-  font-weight: 500;
-}
-
-/* ── Requirement items (legacy / any-of) ── */
 
 .req-item {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 9px 12px;
-  border-top: 1px solid var(--border-glass);
+  gap: 6px;
+  padding: 5px 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 0.68rem;
   transition: background var(--transition);
 }
 
-.req-item:first-child {
+.req-item-first,
+.req-anyof-block.req-item-first {
   border-top: none;
 }
 
-.req-item-fulfilled {
-  background: rgba(34, 197, 94, 0.03);
+.req-item--fulfilled {
+  background: rgba(22, 163, 74, 0.04);
 }
 
-.req-item-pending {
-  background: transparent;
-}
-
-.req-item-fulfilled:hover {
-  background: rgba(34, 197, 94, 0.06);
-}
-
-.req-item-pending:hover {
-  background: rgba(0, 0, 0, 0.02);
+.req-item--frozen {
+  background: var(--accent-amber-dim);
 }
 
 .req-item-icon {
   flex-shrink: 0;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
-  margin-top: 2px;
-  width: 14px;
+  margin-top: 1px;
+  width: 12px;
   text-align: center;
+  line-height: 1.3;
 }
 
 .icon-fulfilled {
   color: var(--success);
 }
 
-.icon-pending {
+.icon-frozen {
+  color: var(--accent-amber);
+}
+
+.icon-open {
   color: var(--text-muted);
 }
 
 .req-item-body {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
 }
 
-.req-item-desc {
-  font-size: 0.76rem;
-  font-weight: 500;
-  color: var(--text-secondary);
+.req-item-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
   line-height: 1.35;
+}
+
+.req-stem-text {
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.req-item-colon {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.req-anyof-block {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.req-anyof-block--fulfilled {
+  background: rgba(22, 163, 74, 0.03);
+}
+
+.req-anyof-block--frozen {
+  background: var(--accent-amber-dim);
+}
+
+.req-anyof-intro {
+  padding: 5px 8px 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.req-anyof-child {
+  padding-left: 16px;
+  border-top: none;
+}
+
+.req-anyof-child + .req-anyof-child {
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 /* ── Course chips ── */
@@ -1446,7 +1390,7 @@ select {
   }
 
   .year-row {
-    grid-template-columns: 70px repeat(3, 1fr);
+    grid-template-columns: 44px repeat(3, 1fr);
   }
 }
 

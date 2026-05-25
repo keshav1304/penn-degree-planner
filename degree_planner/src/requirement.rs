@@ -226,7 +226,7 @@ fn format_restriction_description(
         response.push_str(&depts.join("/"));
     }
     if let Some(min_level) = level {
-        response.push_str(&format!(" with minimum level {}", min_level));
+        response.push_str(&format!(" min. level {}", min_level));
     }
     if let Some(attr_names) = attr {
         response.push_str(" from attribute ");

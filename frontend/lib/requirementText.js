@@ -63,7 +63,7 @@ export function formatRestriction(data) {
     response += ` from ${depts.join("/")}`;
   }
   if (data.level != null) {
-    response += ` with minimum level ${data.level}`;
+    response += ` min. level ${data.level}`;
   }
   if (data.attr?.length) {
     const attrs = data.attr.filter((a) => typeof a === "string");
