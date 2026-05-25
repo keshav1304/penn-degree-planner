@@ -8,9 +8,12 @@ import {
     isValidCourseCode,
 } from "@/lib/courseUtils";
 import {
-    createRequirementDescription,
+    childMatchesAnyOfFulfillment,
+    getAnyOfCategory,
+    getAnyOfPossibilities,
     getRequirementInstanceId,
     getRequirementStem,
+    isExpandableAnyOf,
     parseRequirement,
 } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
@@ -79,6 +82,32 @@ const S = {
         return { fontSize: "0.67rem", fontWeight: 600, padding: "2px 7px", borderRadius: 4, whiteSpace: "nowrap", background: t.bg, border: `1px solid ${t.border}`, color: t.color, boxSizing: "border-box" };
     },
     empty: { textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem" },
+    anyOfBlock: (tone, isFirst) => ({
+        flexShrink: 0,
+        borderTop: isFirst ? "none" : `1px solid ${C.gray100}`,
+        borderLeft: `3px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`,
+        background: tone === "fulfilled" ? "#f8fff8" : tone === "frozen" ? C.amber50 : C.white,
+        boxSizing: "border-box",
+    }),
+    anyOfHeader: { padding: "8px 14px 4px 22px", fontSize: "0.75rem", fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.03em" },
+    anyOfChild: (tone) => ({
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        padding: "6px 14px 8px 22px",
+        minHeight: 32,
+        background: tone === "fulfilled" ? C.green50 : tone === "frozen" ? C.amber50 : "transparent",
+        boxSizing: "border-box",
+    }),
+    anyOfBullet: (tone) => ({
+        flexShrink: 0,
+        width: 12,
+        marginTop: 2,
+        fontSize: "0.85rem",
+        fontWeight: 700,
+        color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray400,
+        lineHeight: 1.2,
+    }),
 };
 
 export default function RequirementsPanel({
@@ -216,13 +245,25 @@ export default function RequirementsPanel({
                             {!isCollapsed && (
                                 <div style={S.groupBody}>
                                     {items.map((item, rowIdx) => {
-                                        const stemKey = getRequirementStem(item.requirement) ?? createRequirementDescription(item.requirement);
-                                        const sameStem = items.filter((o) => (getRequirementStem(o.requirement) ?? createRequirementDescription(o.requirement)) === stemKey);
-                                        const stemIndex = sameStem.indexOf(item);
-                                        const stemOverride = sameStem.length > 1 && getRequirementStem(item.requirement)
-                                            ? `${getRequirementStem(item.requirement)} (${stemIndex + 1}/${sameStem.length})`
-                                            : null;
-                                        return renderItem(item, item.instanceId ?? String(rowIdx), scheduleCtx, rowIdx === 0, stemOverride, tabIndex, flashRowId);
+                                        if (isExpandableAnyOf(item.requirement)) {
+                                            return renderAnyOfGroup(
+                                                item,
+                                                item.instanceId ?? String(rowIdx),
+                                                scheduleCtx,
+                                                rowIdx === 0,
+                                                tabIndex,
+                                                flashRowId
+                                            );
+                                        }
+                                        return renderItem(
+                                            item,
+                                            item.instanceId ?? String(rowIdx),
+                                            scheduleCtx,
+                                            rowIdx === 0,
+                                            null,
+                                            tabIndex,
+                                            flashRowId
+                                        );
                                     })}
                                 </div>
                             )}
@@ -306,11 +347,33 @@ function buildRowContent(item) {
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
-function renderItem(item, idx, scheduleCtx, isFirst, stemOverride, degreeIndex, flashRowId) {
-    const rowTone = itemTone(item, scheduleCtx.frozenIds);
-    const rowDomId = reqRowDomId(degreeIndex, idx);
+function makeAnyOfChildItem(parent, childReq, childIdx) {
+    const matched = childMatchesAnyOfFulfillment(childReq, parent);
+    const courses = matched ? collectFulfillingCourses(parent) : [];
+    let attrFulfillment = parent.attributeFulfillment;
+    if (matched && attrFulfillment) {
+        const { type, data } = parseRequirement(childReq);
+        if (type === "Restriction" && data.attr?.length) {
+            const filtered = new Map();
+            data.attr.forEach((code) => {
+                const ids = attrFulfillment.get(code);
+                if (ids?.length) filtered.set(code, ids);
+            });
+            attrFulfillment = filtered.size > 0 ? filtered : attrFulfillment;
+        }
+    }
+    return {
+        category: parent.category,
+        fulfilled: matched,
+        fulfilledCourses: courses,
+        requirement: childReq,
+        instanceId: `${parent.instanceId}::${childIdx}`,
+        attributeFulfillment: attrFulfillment,
+    };
+}
+
+function renderRequirementLine(item, scheduleCtx) {
     const { stem, badges } = buildRowContent(item);
-    const displayStem = stemOverride ?? stem;
     const chipCtx = scheduleCtx;
 
     const renderBadge = (badge, key) => {
@@ -328,21 +391,70 @@ function renderItem(item, idx, scheduleCtx, isFirst, stemOverride, degreeIndex, 
     };
 
     return (
+        <div style={S.itemLine}>
+            {stem && <span style={S.itemStem}>{stem}</span>}
+            {stem && badges.length > 0 && <span style={S.itemColon}>:</span>}
+            {badges.length > 0 && (
+                <span style={S.badges}>{badges.map((b, i) => renderBadge(b, i))}</span>
+            )}
+        </div>
+    );
+}
+
+function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
+    const possibilities = getAnyOfPossibilities(parentItem.requirement);
+    const groupLabel = getAnyOfCategory(parentItem.requirement);
+    const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
+    const rowDomId = reqRowDomId(degreeIndex, idx);
+    const isFlashing = flashRowId === rowDomId;
+
+    return (
         <div
             key={String(idx)}
             id={rowDomId}
-            className={flashRowId === rowDomId ? "req-row-flash" : undefined}
+            className={isFlashing ? "req-row-flash" : undefined}
+            style={S.anyOfBlock(blockTone, isFirst)}
+        >
+            {groupLabel && <div style={S.anyOfHeader}>{groupLabel}</div>}
+            {possibilities.map((childReq, childIdx) => {
+                const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
+                const childTone = childItem.fulfilled
+                    ? itemTone(childItem, scheduleCtx.frozenIds)
+                    : "open";
+                const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
+                return (
+                    <div
+                        key={childItem.instanceId}
+                        id={childRowId}
+                        className={flashRowId === childRowId ? "req-row-flash" : undefined}
+                        style={S.anyOfChild(childTone)}
+                    >
+                        <span style={S.anyOfBullet(childTone)}>{childItem.fulfilled ? "✓" : "•"}</span>
+                        <div style={S.itemBody}>
+                            {renderRequirementLine(childItem, scheduleCtx)}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function renderItem(item, idx, scheduleCtx, isFirst, _stemOverride, degreeIndex, flashRowId) {
+    const rowTone = itemTone(item, scheduleCtx.frozenIds);
+    const rowDomId = reqRowDomId(degreeIndex, idx);
+    const isFlashing = flashRowId === rowDomId;
+
+    return (
+        <div
+            key={String(idx)}
+            id={rowDomId}
+            className={isFlashing ? "req-row-flash" : undefined}
             style={S.item(rowTone, isFirst)}
         >
             <span style={S.itemIcon(rowTone)}>{item.fulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
-                <div style={S.itemLine}>
-                    {displayStem && <span style={S.itemStem}>{displayStem}</span>}
-                    {displayStem && badges.length > 0 && <span style={S.itemColon}>:</span>}
-                    {badges.length > 0 && (
-                        <span style={S.badges}>{badges.map((b, i) => renderBadge(b, i))}</span>
-                    )}
-                </div>
+                {renderRequirementLine(item, scheduleCtx)}
             </div>
         </div>
     );
