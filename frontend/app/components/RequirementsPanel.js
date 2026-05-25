@@ -9,7 +9,6 @@ import {
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
-    getAnyOfCategory,
     getAnyOfPossibilities,
     getRequirementInstanceId,
     getRequirementStem,
@@ -89,12 +88,12 @@ const S = {
         background: tone === "fulfilled" ? "#f8fff8" : tone === "frozen" ? C.amber50 : C.white,
         boxSizing: "border-box",
     }),
-    anyOfHeader: { padding: "8px 14px 4px 22px", fontSize: "0.75rem", fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.03em" },
+    anyOfIntro: { padding: "10px 14px 4px 14px", fontSize: "0.78rem", fontWeight: 600, color: C.gray700, lineHeight: 1.4 },
     anyOfChild: (tone) => ({
         display: "flex",
         alignItems: "flex-start",
         gap: 8,
-        padding: "6px 14px 8px 22px",
+        padding: "6px 14px 8px 32px",
         minHeight: 32,
         background: tone === "fulfilled" ? C.green50 : tone === "frozen" ? C.amber50 : "transparent",
         boxSizing: "border-box",
@@ -403,7 +402,6 @@ function renderRequirementLine(item, scheduleCtx) {
 
 function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const possibilities = getAnyOfPossibilities(parentItem.requirement);
-    const groupLabel = getAnyOfCategory(parentItem.requirement);
     const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
     const isFlashing = flashRowId === rowDomId;
@@ -415,7 +413,7 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
             className={isFlashing ? "req-row-flash" : undefined}
             style={S.anyOfBlock(blockTone, isFirst)}
         >
-            {groupLabel && <div style={S.anyOfHeader}>{groupLabel}</div>}
+            <div style={S.anyOfIntro}>Choose one of the following:</div>
             {possibilities.map((childReq, childIdx) => {
                 const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
                 const childTone = childItem.fulfilled
