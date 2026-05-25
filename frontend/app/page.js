@@ -512,6 +512,7 @@ export default function Home() {
                 allCourses={allCourses}
                 takenCourses={takenCourses}
                 assignedCourses={assignedCourses}
+                frozenCourses={frozenCourses}
                 onAdd={addCourse}
                 onRemove={removeCourse}
                 onAssign={assignCourse}

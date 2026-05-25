@@ -5,6 +5,7 @@ import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isRequirementSlotId } from "@/lib/courseUtils";
 import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
+import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 
 const YEAR_NAMES = {};
 
@@ -134,14 +135,23 @@ export default function ScheduleGrid({
 
     // Build degree label → color index map
     const degreeColorMap = {};
+    const degreeOrder = buildDegreeOrder(scheduleData);
     if (scheduleData?.degree_results) {
         scheduleData.degree_results.forEach((result, i) => {
             degreeColorMap[`${result.school}-${result.major}`] = DEGREE_COLORS[i % DEGREE_COLORS.length];
         });
     }
 
+    const sortSemesterCourses = (courseIds) =>
+        sortCourseCodesByDegree(courseIds, degreeOrder, courseDegreesMap);
+
     // Courses assigned to "Credits Received" (year 0)
     const creditsCourses = assignedCourses?.filter(a => a.year === 0) || [];
+    const sortedCreditsCourses = (() => {
+        const ids = sortSemesterCourses(creditsCourses.map((a) => a.courseId));
+        const byId = new Map(creditsCourses.map((a) => [a.courseId, a]));
+        return ids.map((id) => byId.get(id)).filter(Boolean);
+    })();
 
     const renderDegreeBar = (courseId) => {
         const degs = courseDegreesMap?.[courseId];
@@ -344,7 +354,7 @@ export default function ScheduleGrid({
                         <div className="credits-received-body">
                             {creditsCourses.length > 0 ? (
                                 <div className="credits-received-list">
-                                    {creditsCourses.map((a, idx) => (
+                                    {sortedCreditsCourses.map((a, idx) => (
                                         <DraggableCourse
                                             key={`${a.courseId}-${idx}`}
                                             id={`schedule-0-Credits-${a.courseId}-${idx}`}
@@ -401,7 +411,7 @@ export default function ScheduleGrid({
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
                     {semesters.map(sem => {
                         const plan = getSemesterPlan(year, sem);
-                        const courses = getDisplayCourses(year, sem);
+                        const courses = sortSemesterCourses(getDisplayCourses(year, sem));
                         const requirementSlots = getDisplayRequirementSlots(year, sem);
                         const itemCount = courses.length + requirementSlots.length;
                         const droppableId = `slot-${year}-${sem}`;

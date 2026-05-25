@@ -17,98 +17,6 @@ import {
 } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
-// ─── Design tokens ───
-const C = {
-    gray100: "#f1f5f9",
-    gray200: "#e2e8f0",
-    gray300: "#cbd5e1",
-    gray400: "#94a3b8",
-    gray500: "#64748b",
-    gray700: "#374151",
-    gray900: "#111827",
-    green50: "#f0fdf4",
-    green100: "#dcfce7",
-    green300: "#86efac",
-    green600: "#16a34a",
-    green700: "#15803d",
-    teal600: "#059669",
-    red500: "#dc2626",
-    amber50: "#fffbeb",
-    amber200: "#fde68a",
-    amber500: "#f59e0b",
-    amber700: "#b45309",
-    white: "#ffffff",
-};
-
-const S = {
-    wrap: { display: "flex", flexDirection: "column", gap: 12, minHeight: 0, height: "100%" },
-    tabs: { display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2, flexShrink: 0 },
-    tab: { padding: "6px 14px", background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 8, color: C.gray500, fontSize: "0.76rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" },
-    tabActive: { padding: "6px 14px", background: "rgba(5,150,105,0.1)", border: `1px solid ${C.teal600}`, borderRadius: 8, color: C.teal600, fontSize: "0.76rem", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" },
-    error: { padding: "10px 14px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)", borderRadius: 8, fontSize: "0.8rem", color: C.red500 },
-    summary: { display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 8, flexShrink: 0 },
-    summStats: { display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" },
-    statOk: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.green600 },
-    statPlanned: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.amber700 },
-    statRemaining: { display: "flex", alignItems: "center", gap: 6, fontSize: "0.78rem", fontWeight: 600, color: C.gray500 },
-    statPct: { marginLeft: "auto", fontSize: "0.78rem", fontWeight: 700, color: C.gray500 },
-    dot: (color) => ({ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }),
-    track: { height: 5, background: "rgba(0,0,0,0.08)", borderRadius: 3, overflow: "hidden", display: "flex" },
-    progressFulfilled: (pct) => ({ height: "100%", minWidth: pct > 0 ? 4 : 0, width: `${pct}%`, background: `linear-gradient(90deg, ${C.green600}, ${C.teal600})`, transition: "width 0.5s ease" }),
-    progressPlanned: (pct) => ({ height: "100%", minWidth: pct > 0 ? 4 : 0, width: `${pct}%`, background: `linear-gradient(90deg, ${C.amber200}, ${C.amber500})`, transition: "width 0.5s ease" }),
-    groups: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 2 },
-    group: (tone) => ({ border: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`, borderRadius: 8, overflow: "hidden", flexShrink: 0 }),
-    groupHdr: (tone) => ({ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: tone === "fulfilled" ? C.green50 : tone === "frozen" ? C.amber50 : C.gray100, borderBottom: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`, cursor: "pointer", userSelect: "none" }),
-    groupBadge: (tone) => ({ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: tone === "fulfilled" ? C.green100 : tone === "frozen" ? C.amber50 : C.gray200, color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray400, fontSize: tone === "incomplete" ? "1rem" : "0.65rem", fontWeight: 800, lineHeight: tone === "incomplete" ? 0.85 : 1 }),
-    groupName: { flex: 1, fontSize: "0.82rem", fontWeight: 700, color: C.gray900 },
-    groupPill: (tone) => ({ fontSize: "0.68rem", fontWeight: 700, padding: "2px 10px", borderRadius: 10, flexShrink: 0, background: tone === "fulfilled" ? C.green100 : tone === "frozen" ? C.amber50 : C.gray100, color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray500, border: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray300}` }),
-    chevron: { fontSize: "0.6rem", color: C.gray400, marginLeft: 2 },
-    groupBody: { display: "flex", flexDirection: "column", background: C.white },
-    item: (tone, isFirst) => ({ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 14px", minHeight: 40, flexShrink: 0, background: tone === "fulfilled" ? "#f8fff8" : tone === "frozen" ? C.amber50 : C.white, borderTop: isFirst ? "none" : `1px solid ${C.gray100}`, borderLeft: `3px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`, boxSizing: "border-box" }),
-    itemIcon: (tone) => ({ flexShrink: 0, fontSize: "0.72rem", fontWeight: 800, marginTop: 2, width: 14, textAlign: "center", color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray300 }),
-    itemBody: { flex: 1, minWidth: 0 },
-    itemLine: { display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" },
-    itemStem: { fontSize: "0.78rem", fontWeight: 600, color: C.gray700, lineHeight: 1.4 },
-    itemColon: { fontSize: "0.78rem", fontWeight: 600, color: C.gray500, lineHeight: 1.4 },
-    badges: { display: "inline-flex", flexWrap: "wrap", gap: 4, alignItems: "center" },
-    chip: (kind) => {
-        const map = {
-            open: { bg: C.gray100, border: C.gray300, color: C.gray500 },
-            fulfilled: { bg: C.green100, border: C.green300, color: C.green700 },
-            frozen: { bg: C.amber50, border: C.amber200, color: C.amber700 },
-        };
-        const t = map[kind] || map.open;
-        return { fontSize: "0.67rem", fontWeight: 600, padding: "2px 7px", borderRadius: 4, whiteSpace: "nowrap", background: t.bg, border: `1px solid ${t.border}`, color: t.color, boxSizing: "border-box" };
-    },
-    empty: { textAlign: "center", padding: "36px 20px", color: C.gray400, fontSize: "0.82rem" },
-    anyOfBlock: (tone, isFirst) => ({
-        flexShrink: 0,
-        borderTop: isFirst ? "none" : `1px solid ${C.gray100}`,
-        borderLeft: `3px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`,
-        background: tone === "fulfilled" ? "#f8fff8" : tone === "frozen" ? C.amber50 : C.white,
-        boxSizing: "border-box",
-    }),
-    anyOfIntro: { padding: "10px 14px 4px 14px", fontSize: "0.78rem", fontWeight: 600, color: C.gray700, lineHeight: 1.4 },
-    anyOfChild: (tone) => ({
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 8,
-        padding: "6px 14px 8px 32px",
-        minHeight: 32,
-        background: tone === "fulfilled" ? C.green50 : tone === "frozen" ? C.amber50 : "transparent",
-        boxSizing: "border-box",
-    }),
-    anyOfBullet: (tone) => ({
-        flexShrink: 0,
-        width: 12,
-        marginTop: 2,
-        fontSize: "0.85rem",
-        fontWeight: 700,
-        color: tone === "fulfilled" ? C.green600 : tone === "frozen" ? C.amber700 : C.gray400,
-        lineHeight: 1.2,
-    }),
-};
-
 export default function RequirementsPanel({
     scheduleData,
     degrees,
@@ -137,10 +45,15 @@ export default function RequirementsPanel({
     }, [navTarget, onNavTargetConsumed]);
 
     if (!degrees || degrees.length === 0) {
-        return <div style={S.empty}><div style={{ fontSize: "2rem", marginBottom: 8 }}>📋</div>Add degrees to see requirement fulfillment</div>;
+        return (
+            <div className="req-empty-state">
+                <div className="req-empty-icon">📋</div>
+                <div className="req-empty-text">Add degrees to see requirement fulfillment</div>
+            </div>
+        );
     }
     if (!scheduleData || !scheduleData.degree_results) {
-        return <div style={S.empty}>Loading requirements…</div>;
+        return <div className="req-empty-state"><div className="req-empty-text">Loading requirements…</div></div>;
     }
 
     const results = scheduleData.degree_results;
@@ -197,82 +110,138 @@ export default function RequirementsPanel({
     const pct = totalCount > 0 ? Math.round(((fulfilledCount + plannedCount) / totalCount) * 100) : 0;
 
     return (
-        <div style={S.wrap}>
+        <div className="req-panel">
             {results.length > 1 && (
-                <div style={S.tabs}>
-                    {results.map((result, i) => (
-                        <button key={i} style={tabIndex === i ? S.tabActive : S.tab} onClick={() => setActiveTab(i)}>
-                            {degrees[i]?.displayMajor || `${result.school} — ${result.major}`}
-                        </button>
-                    ))}
+                <div className="req-degree-tabs" role="tablist" aria-label="Degree requirements">
+                    {results.map((result, i) => {
+                        const { major, school } = degreeTabLabel(degrees[i], result);
+                        const isActive = tabIndex === i;
+                        return (
+                            <button
+                                key={i}
+                                type="button"
+                                role="tab"
+                                aria-selected={isActive}
+                                className={`req-degree-tab ${isActive ? "active" : ""}`}
+                                onClick={() => setActiveTab(i)}
+                                title={school ? `${major} (${school})` : major}
+                            >
+                                <span className="req-degree-tab-major">{major}</span>
+                                {school && <span className="req-degree-tab-school">{school}</span>}
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 
-            {current.error && <div style={S.error}>⚠️ {current.error}</div>}
+            {current.error && <div className="req-error-banner">⚠️ {current.error}</div>}
 
             {!current.error && totalCount > 0 && (
-                <div style={S.summary}>
-                    <div style={S.summStats}>
-                        <span style={S.statOk}><span style={S.dot(C.green600)} />{fulfilledCount} fulfilled</span>
-                        <span style={S.statPlanned}><span style={S.dot(C.amber500)} />{plannedCount} planned</span>
-                        <span style={S.statRemaining}><span style={S.dot(C.gray400)} />{remainingCount} remaining</span>
-                        <span style={S.statPct}>{pct}%</span>
+                <div className="req-summary">
+                    <div className="req-summary-stats">
+                        <span className="req-stat req-stat-fulfilled">
+                            <span className="req-stat-dot req-stat-dot-fulfilled" />
+                            {fulfilledCount}
+                        </span>
+                        <span className="req-stat req-stat-planned">
+                            <span className="req-stat-dot req-stat-dot-planned" />
+                            {plannedCount}
+                        </span>
+                        <span className="req-stat req-stat-remaining">
+                            <span className="req-stat-dot req-stat-dot-remaining" />
+                            {remainingCount}
+                        </span>
+                        <span className="req-stat-pct">{pct}%</span>
                     </div>
-                    <div style={S.track}>
-                        {fulfilledPct > 0 && <div style={S.progressFulfilled(fulfilledPct)} />}
-                        {plannedPct > 0 && <div style={S.progressPlanned(plannedPct)} />}
+                    <div className="req-progress-track">
+                        {fulfilledPct > 0 && (
+                            <div
+                                className="req-progress-fill"
+                                style={{ width: `${fulfilledPct}%`, background: "linear-gradient(90deg, var(--success), var(--accent-teal))" }}
+                            />
+                        )}
+                        {plannedPct > 0 && (
+                            <div
+                                className="req-progress-fill"
+                                style={{ width: `${plannedPct}%`, background: "var(--accent-amber)" }}
+                            />
+                        )}
                     </div>
                 </div>
             )}
 
-            <div style={S.groups}>
+            <div className="req-groups">
                 {orderedCategories.map((cat) => {
                     const items = categoryMap[cat];
                     if (!items?.length) return null;
                     const done = items.filter((r) => r.fulfilled).length;
                     const catTone = groupTone(items, frozenIds);
                     const isCollapsed = collapsedGroups[cat] ?? true;
+                    const groupClass = catTone === "fulfilled" ? "req-group req-group-done" : "req-group";
 
                     return (
-                        <div key={cat} style={S.group(catTone)}>
-                            <div style={S.groupHdr(catTone)} onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}>
-                                <span style={S.groupBadge(catTone)}>{done === items.length ? "✓" : "·"}</span>
-                                <span style={S.groupName}>{cat}</span>
-                                <span style={S.groupPill(catTone)}>{done}/{items.length}</span>
-                                <span style={S.chevron}>{isCollapsed ? "▶" : "▾"}</span>
+                        <div key={cat} className={groupClass}>
+                            <div
+                                className="req-group-header"
+                                onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
+                            >
+                                <span className={`req-group-badge ${done === items.length ? "badge-done" : "badge-pending"}`}>
+                                    {done === items.length ? "✓" : "·"}
+                                </span>
+                                <span className="req-group-name" title={cat}>{cat}</span>
+                                <span className={`req-group-pill ${done === items.length ? "pill-done" : "pill-pending"}`}>
+                                    {done}/{items.length}
+                                </span>
+                                <span className="req-group-chevron">{isCollapsed ? "▶" : "▾"}</span>
                             </div>
                             {!isCollapsed && (
-                                <div style={S.groupBody}>
-                                    {items.map((item, rowIdx) => {
-                                        if (isExpandableAnyOf(item.requirement)) {
-                                            return renderAnyOfGroup(
-                                                item,
-                                                item.instanceId ?? String(rowIdx),
-                                                scheduleCtx,
-                                                rowIdx === 0,
-                                                tabIndex,
-                                                flashRowId
-                                            );
-                                        }
-                                        return renderItem(
-                                            item,
-                                            item.instanceId ?? String(rowIdx),
-                                            scheduleCtx,
-                                            rowIdx === 0,
-                                            null,
-                                            tabIndex,
-                                            flashRowId
-                                        );
-                                    })}
+                                <div className="req-group-body">
+                                    <table className="req-fulfillment-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="req-col-status" scope="col" />
+                                                <th className="req-col-req" scope="col">Req</th>
+                                                <th className="req-col-courses" scope="col">Courses</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {items.map((item, rowIdx) => {
+                                                if (isExpandableAnyOf(item.requirement)) {
+                                                    return renderAnyOfRows(
+                                                        item,
+                                                        item.instanceId ?? String(rowIdx),
+                                                        scheduleCtx,
+                                                        tabIndex,
+                                                        flashRowId
+                                                    );
+                                                }
+                                                return renderItemRow(
+                                                    item,
+                                                    item.instanceId ?? String(rowIdx),
+                                                    scheduleCtx,
+                                                    tabIndex,
+                                                    flashRowId
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
                         </div>
                     );
                 })}
-                {totalCount === 0 && !current.error && <div style={S.empty}>No requirement data available for this program</div>}
+                {totalCount === 0 && !current.error && (
+                    <div className="req-empty-state"><div className="req-empty-text">No requirement data available</div></div>
+                )}
             </div>
         </div>
     );
+}
+
+function degreeTabLabel(degree, result) {
+    const major = degree?.displayMajor || result?.major || "Degree";
+    const school = degree?.schoolCode || result?.school || "";
+    return { major, school };
 }
 
 function collectFulfillingCourses(item) {
@@ -300,12 +269,17 @@ function groupTone(items, frozenIds) {
     return "fulfilled";
 }
 
-/** Green/orange only when this course fulfills the current requirement row (not another). */
 function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet }) {
     if (!fulfillingSet?.has(courseId)) return "open";
     if (frozenIds.has(courseId)) return "frozen";
     if (assignedIds.has(courseId)) return "fulfilled";
     return "fulfilled";
+}
+
+function chipClass(kind) {
+    if (kind === "fulfilled") return "req-chip chip-fulfilled";
+    if (kind === "frozen") return "req-chip chip-frozen";
+    return "req-chip chip-default";
 }
 
 function buildRowContent(item) {
@@ -347,6 +321,40 @@ function buildRowContent(item) {
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
+function renderBadges(item, scheduleCtx) {
+    const { badges, fulfillingSet } = buildRowContent(item);
+    const chipCtx = { ...scheduleCtx, fulfillingSet };
+
+    if (!badges.length) return <span className="req-chips"><span className="req-chip chip-default">—</span></span>;
+
+    return (
+        <span className="req-chips">
+            {badges.map((badge, i) => {
+                if (badge.kind === "attr") {
+                    const fulfillingForAttr = badge.courses.filter((c) => fulfillingSet.has(c));
+                    const hasCourse = fulfillingForAttr.length > 0;
+                    const label = hasCourse
+                        ? `[${badge.code}] ${fulfillingForAttr.join(", ")}`
+                        : `[${badge.code}]`;
+                    const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
+                    return <span key={i} className={chipClass(kind)}>{label}</span>;
+                }
+                return (
+                    <span key={i} className={chipClass(badgeKindFor(badge.id, chipCtx))}>
+                        {badge.id}
+                    </span>
+                );
+            })}
+        </span>
+    );
+}
+
+function renderStemCell(item) {
+    const { stem } = buildRowContent(item);
+    if (!stem) return null;
+    return <span className="req-stem-text">{stem}</span>;
+}
+
 function makeAnyOfChildItem(parent, childReq, childIdx) {
     const matched = childMatchesAnyOfFulfillment(childReq, parent);
     const courses = matched ? collectFulfillingCourses(parent) : [];
@@ -372,93 +380,60 @@ function makeAnyOfChildItem(parent, childReq, childIdx) {
     };
 }
 
-function renderRequirementLine(item, scheduleCtx) {
-    const { stem, badges, fulfillingSet } = buildRowContent(item);
-    const chipCtx = { ...scheduleCtx, fulfillingSet };
-
-    const renderBadge = (badge, key) => {
-        if (badge.kind === "attr") {
-            const fulfillingForAttr = badge.courses.filter((c) => fulfillingSet.has(c));
-            const hasCourse = fulfillingForAttr.length > 0;
-            const label = hasCourse
-                ? `[${badge.code}] - ${fulfillingForAttr.join(", ")}`
-                : `[${badge.code}]`;
-            const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
-            return <span key={key} style={S.chip(kind)}>{label}</span>;
-        }
-        return (
-            <span key={key} style={S.chip(badgeKindFor(badge.id, chipCtx))}>
-                {badge.id}
-            </span>
-        );
-    };
-
-    return (
-        <div style={S.itemLine}>
-            {stem && <span style={S.itemStem}>{stem}</span>}
-            {stem && badges.length > 0 && <span style={S.itemColon}>:</span>}
-            {badges.length > 0 && (
-                <span style={S.badges}>{badges.map((b, i) => renderBadge(b, i))}</span>
-            )}
-        </div>
-    );
-}
-
-function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
+function renderAnyOfRows(parentItem, idx, scheduleCtx, degreeIndex, flashRowId) {
     const possibilities = getAnyOfPossibilities(parentItem.requirement);
-    const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
-    const rowDomId = reqRowDomId(degreeIndex, idx);
-    const isFlashing = flashRowId === rowDomId;
+    const rows = [];
 
-    return (
-        <div
-            key={String(idx)}
-            id={rowDomId}
-            className={isFlashing ? "req-row-flash" : undefined}
-            style={S.anyOfBlock(blockTone, isFirst)}
-        >
-            <div style={S.anyOfIntro}>Choose one of the following:</div>
-            {possibilities.map((childReq, childIdx) => {
-                const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
-                const childTone = childItem.fulfilled
-                    ? itemTone(childItem, scheduleCtx.frozenIds)
-                    : "open";
-                const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
-                return (
-                    <div
-                        key={childItem.instanceId}
-                        id={childRowId}
-                        className={flashRowId === childRowId ? "req-row-flash" : undefined}
-                        style={S.anyOfChild(childTone)}
-                    >
-                        <span style={S.anyOfBullet(childTone)}>{childItem.fulfilled ? "✓" : "•"}</span>
-                        <div style={S.itemBody}>
-                            {renderRequirementLine(childItem, scheduleCtx)}
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
+    rows.push(
+        <tr key={`${idx}-intro`} className="req-anyof-intro">
+            <td colSpan={3}>Choose one:</td>
+        </tr>
     );
+
+    possibilities.forEach((childReq, childIdx) => {
+        const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
+        const childTone = childItem.fulfilled ? itemTone(childItem, scheduleCtx.frozenIds) : "open";
+        const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
+        const statusIcon = childItem.fulfilled ? "✓" : "○";
+
+        rows.push(
+            <tr
+                key={childItem.instanceId}
+                id={childRowId}
+                className={`req-table-row req-table-row--${childTone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
+            >
+                <td className="req-col-status">
+                    <span className="req-table-status">{statusIcon}</span>
+                </td>
+                <td className="req-col-req">{renderStemCell(childItem)}</td>
+                <td className="req-cell-courses">{renderBadges(childItem, scheduleCtx)}</td>
+            </tr>
+        );
+    });
+
+    return rows;
 }
 
-function renderItem(item, idx, scheduleCtx, isFirst, _stemOverride, degreeIndex, flashRowId) {
+function renderItemRow(item, idx, scheduleCtx, degreeIndex, flashRowId) {
     const rowTone = itemTone(item, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
-    const isFlashing = flashRowId === rowDomId;
+    const statusIcon = item.fulfilled ? "✓" : "○";
+    const { stem } = buildRowContent(item);
 
     return (
-        <div
+        <tr
             key={String(idx)}
             id={rowDomId}
-            className={isFlashing ? "req-row-flash" : undefined}
-            style={S.item(rowTone, isFirst)}
+            className={`req-table-row req-table-row--${rowTone} ${flashRowId === rowDomId ? "req-row-flash" : ""}`}
         >
-            <span style={S.itemIcon(rowTone)}>{item.fulfilled ? "✓" : "○"}</span>
-            <div style={S.itemBody}>
-                {renderRequirementLine(item, scheduleCtx)}
-            </div>
-        </div>
+            <td className="req-col-status">
+                <span className="req-table-status">{statusIcon}</span>
+            </td>
+            <td className="req-col-req">
+                {stem ? renderStemCell(item) : null}
+            </td>
+            <td className="req-cell-courses">{renderBadges(item, scheduleCtx)}</td>
+        </tr>
     );
 }
 

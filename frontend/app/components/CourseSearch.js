@@ -4,9 +4,11 @@ import { useState, useMemo } from "react";
 import DraggableCourse from "./DraggableCourse";
 import { buildSemesterOptions } from "@/lib/semesterOptions";
 import { filterValidCourseCodes } from "@/lib/courseUtils";
+import { sortCourseCodesBySemester } from "@/lib/courseOrdering";
 
 export default function CourseSearch({
-    allCourses, takenCourses, assignedCourses, onAdd, onRemove, onAssign,
+    allCourses, takenCourses, assignedCourses, frozenCourses = [],
+    onAdd, onRemove, onAssign,
     maxScheduleYear = 4, allowSummer = true,
 }) {
     const [search, setSearch] = useState("");
@@ -14,6 +16,16 @@ export default function CourseSearch({
     const semesterOptions = useMemo(
         () => buildSemesterOptions(maxScheduleYear, allowSummer),
         [maxScheduleYear, allowSummer]
+    );
+
+    const sortedCartCourses = useMemo(
+        () =>
+            sortCourseCodesBySemester(filterValidCourseCodes(takenCourses), {
+                assignedCourses,
+                frozenCourses,
+                semesterOptions,
+            }),
+        [takenCourses, assignedCourses, frozenCourses, semesterOptions]
     );
 
     const filteredCourses = useMemo(() => {
@@ -102,7 +114,7 @@ export default function CourseSearch({
                     </div>
                 ) : (
                     <div className="cart-list">
-                        {filterValidCourseCodes(takenCourses).map(code => {
+                        {sortedCartCourses.map(code => {
                             const assignValue = getAssignment(code);
                             return (
                                 <DraggableCourse
