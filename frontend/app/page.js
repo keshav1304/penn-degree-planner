@@ -55,6 +55,7 @@ export default function Home() {
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [activeDragId, setActiveDragId] = useState(null);
   const [reqNavTarget, setReqNavTarget] = useState(null);
+  const [requirementsOpen, setRequirementsOpen] = useState(true);
   const [allowSummer, setAllowSummer] = useState(true);
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
   const debounceRef = useRef(null);
@@ -208,6 +209,10 @@ export default function Home() {
       if (year === null || semester === null) return filtered;
       return [...filtered, { courseId, year, semester }];
     });
+    // Credits Received counts as taken — keep in My Courses and off the generated schedule
+    if (year === 0 && semester != null && !takenCourses.includes(courseId)) {
+      setTakenCourses(prev => [...prev, courseId]);
+    }
   };
 
   const toggleFreeze = (courseId, year, semester) => {
@@ -302,7 +307,7 @@ export default function Home() {
       assignCourse(courseId, targetYear, targetSemester);
     } else if (dragData.source === "schedule") {
       if (!isSchedulePlacementId(courseId)) return;
-      // Schedule → Credits Received: assign to year 0
+      // Schedule → Credits Received: mark taken (off future semesters)
       if (targetYear === 0) {
         if (!isValidCourseCode(courseId)) return;
         setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
@@ -494,8 +499,10 @@ export default function Home() {
           setDegrees={setDegrees}
         />
 
-        <div className="main-layout">
-          <div className="panel">
+        <div
+          className={`main-layout ${requirementsOpen ? "" : "requirements-collapsed"}`}
+        >
+          <div className="panel panel-courses">
             <div className="panel-header">
               <h2>📚 Courses</h2>
               {coursesLoading && <div className="loading-spinner" />}
@@ -514,57 +521,69 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div className="panel" style={{ flex: 1 }}>
-              <div className="panel-header">
-                <h2>📅 Schedule</h2>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <label className="summer-toggle" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer", userSelect: "none" }}>
-                    <input
-                      type="checkbox"
-                      checked={allowSummer}
-                      onChange={e => setAllowSummer(e.target.checked)}
-                      style={{ accentColor: "var(--accent-teal)" }}
-                    />
-                    ☀️ Summer courses
-                  </label>
-                  {degrees.length > 0 && (
-                    <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                      {assignedCourses.length} placed · {frozenCourses.length} frozen
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="panel-body">
-                <ScheduleGrid
-                  scheduleData={scheduleData}
-                  requirementSlotLabels={requirementSlotLabels}
-                  frozenCourses={frozenCourses}
-                  assignedCourses={assignedCourses}
-                  onToggleFreeze={toggleFreeze}
-                  onMarkTaken={markTaken}
-                  onUnmarkTaken={unmarkTaken}
-                  degrees={degrees}
-                  courseDegreesMap={courseDegreesMap}
-                  courseRequirementLinks={courseRequirementLinks}
-                  onNavigateToRequirement={setReqNavTarget}
-                  allowSummer={allowSummer}
-                  doubleCountData={doubleCountData}
-                  courseDoubleCountMap={courseDoubleCountMap}
-                  concentrationData={concentrationData}
-                  courseConcentrationMap={courseConcentrationMap}
-                  allCourses={allCourses}
-                  semesterCuLimits={semesterCuLimits}
-                  onSemesterCuLimitChange={(key, value) => {
-                    setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
-                  }}
-                />
+          <div className="panel panel-schedule">
+            <div className="panel-header">
+              <h2>📅 Schedule</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <label className="summer-toggle" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer", userSelect: "none" }}>
+                  <input
+                    type="checkbox"
+                    checked={allowSummer}
+                    onChange={e => setAllowSummer(e.target.checked)}
+                    style={{ accentColor: "var(--accent-teal)" }}
+                  />
+                  ☀️ Summer courses
+                </label>
+                {degrees.length > 0 && (
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                    {assignedCourses.length} placed · {frozenCourses.length} frozen
+                  </span>
+                )}
               </div>
             </div>
+            <div className="panel-body">
+              <ScheduleGrid
+                scheduleData={scheduleData}
+                requirementSlotLabels={requirementSlotLabels}
+                frozenCourses={frozenCourses}
+                assignedCourses={assignedCourses}
+                onToggleFreeze={toggleFreeze}
+                onMarkTaken={markTaken}
+                onUnmarkTaken={unmarkTaken}
+                degrees={degrees}
+                courseDegreesMap={courseDegreesMap}
+                courseRequirementLinks={courseRequirementLinks}
+                onNavigateToRequirement={(target) => {
+                  setRequirementsOpen(true);
+                  setReqNavTarget(target);
+                }}
+                allowSummer={allowSummer}
+                doubleCountData={doubleCountData}
+                courseDoubleCountMap={courseDoubleCountMap}
+                concentrationData={concentrationData}
+                courseConcentrationMap={courseConcentrationMap}
+                allCourses={allCourses}
+                semesterCuLimits={semesterCuLimits}
+                onSemesterCuLimitChange={(key, value) => {
+                  setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
+                }}
+              />
+            </div>
+          </div>
 
-            <div className="panel">
-              <div className="panel-header">
+          {requirementsOpen ? (
+            <div className="panel panel-requirements">
+              <div className="panel-header panel-header-compact">
                 <h2>✅ Requirements</h2>
+                <button
+                  type="button"
+                  className="btn-icon requirements-collapse-btn"
+                  onClick={() => setRequirementsOpen(false)}
+                  title="Collapse requirements"
+                  aria-label="Collapse requirements panel"
+                >
+                  ›
+                </button>
               </div>
               <div className="panel-body panel-body-requirements">
                 <RequirementsPanel
@@ -577,7 +596,18 @@ export default function Home() {
                 />
               </div>
             </div>
-          </div>
+          ) : (
+            <button
+              type="button"
+              className="requirements-collapsed-tab"
+              onClick={() => setRequirementsOpen(true)}
+              title="Show requirements"
+              aria-label="Show requirements panel"
+            >
+              <span className="requirements-collapsed-tab-icon">✅</span>
+              <span className="requirements-collapsed-tab-label">Requirements</span>
+            </button>
+          )}
         </div>
       </div>
 

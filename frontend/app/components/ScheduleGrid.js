@@ -80,10 +80,10 @@ export default function ScheduleGrid({
         );
     };
 
-    // User-pinned items win over API auto-placement
+    // User-pinned items win over API auto-placement (including Credits Received)
     const pinnedIds = new Set([
         ...frozenCourses.map((f) => f.courseId),
-        ...(assignedCourses || []).filter((a) => a.year > 0).map((a) => a.courseId),
+        ...(assignedCourses || []).map((a) => a.courseId),
     ]);
 
     const getDisplayCourses = (year, semester) => {

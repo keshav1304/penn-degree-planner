@@ -36,7 +36,7 @@ const C = {
     amber50: "#fffbeb",
     amber200: "#fde68a",
     amber500: "#f59e0b",
-    amber700: "#45309b",
+    amber700: "#b45309",
     white: "#ffffff",
 };
 

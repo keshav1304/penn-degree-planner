@@ -503,11 +503,11 @@ pub fn create_mse_major() -> Major {
 /// Based on the official CIS BSE sample four-year plan.
 const CIS_SCHEDULE: [Semester; 36] = [
     // Engineering core — 1100/1200 (Y1F), 1210 (Y1S), 2620 (Y2F), 2400 (Y2S), 3200/4480 (Y3F), 4710 (Y3S), 4000/4010 (Y4)
-    Y1F, Y1F, Y1S, Y2S, Y2F, Y3F, Y3F, Y3S, Y4F, Y4S,
+    Y1F, Y1F, Y1S, Y2F, Y2F, Y3F, Y3F, Y3S, Y4F, Y4S,
     // CIS Electives — soph fall/spring, junior fall/spring
     Y2F, Y2S, Y3F, Y3S,
     // Math and Natural Science — 1400 (Y1F), 1410 (Y1S), 2400 (Y2F), Math/NS (Y4F), PHYS151 (Y2F), 1600 (Y1F), PHYS150 (Y1S), STAT4300 (Y2S)
-    Y1F, Y1S, Y2F, Y4F, Y2F, Y1F, Y1S, Y2S,
+    Y1F, Y1S, Y2F, Y4F, Y2F, Y1F, Y1S, Y1S,
     // Technical Electives — soph spring, junior fall/spring, senior fall/spring (×2)
     Y2S, Y3F, Y3S, Y4F, Y4S, Y4S,
     // General Electives — Engr Ethics (Y3S), writing (Y1F), SSH/TBS across Y1–Y4
