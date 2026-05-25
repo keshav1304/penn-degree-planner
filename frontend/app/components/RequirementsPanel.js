@@ -8,14 +8,12 @@ import {
     isValidCourseCode,
 } from "@/lib/courseUtils";
 import {
-    buildCourseCuMap,
     childMatchesAnyOfFulfillment,
     getAnyOfPossibilities,
     getRequirementInstanceId,
     getRequirementStem,
     isExpandableAnyOf,
     parseRequirement,
-    scheduleCoursesFulfillingRestriction,
 } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
@@ -38,7 +36,7 @@ const C = {
     amber50: "#fffbeb",
     amber200: "#fde68a",
     amber500: "#f59e0b",
-    amber700: "#b45309",
+    amber700: "#45309b",
     white: "#ffffff",
 };
 
@@ -114,7 +112,6 @@ const S = {
 export default function RequirementsPanel({
     scheduleData,
     degrees,
-    allCourses = [],
     frozenCourses = [],
     assignedCourses = [],
     navTarget = null,
@@ -189,12 +186,11 @@ export default function RequirementsPanel({
 
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
-    const cuMap = buildCourseCuMap(allCourses);
-    const scheduleCtx = { assignedIds, frozenIds, cuMap, allReqs };
+    const scheduleCtx = { assignedIds, frozenIds };
 
     const totalCount = allReqs.length;
-    const fulfilledCount = allReqs.filter((r) => isItemFulfilled(r, scheduleCtx) && !itemIsPlannedOnly(r, scheduleCtx)).length;
-    const plannedCount = allReqs.filter((r) => isItemFulfilled(r, scheduleCtx) && itemIsPlannedOnly(r, scheduleCtx)).length;
+    const fulfilledCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled").length;
+    const plannedCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "frozen").length;
     const remainingCount = totalCount - fulfilledCount - plannedCount;
     const fulfilledPct = totalCount > 0 ? (fulfilledCount / totalCount) * 100 : 0;
     const plannedPct = totalCount > 0 ? (plannedCount / totalCount) * 100 : 0;
@@ -233,8 +229,8 @@ export default function RequirementsPanel({
                 {orderedCategories.map((cat) => {
                     const items = categoryMap[cat];
                     if (!items?.length) return null;
-                    const done = items.filter((r) => isItemFulfilled(r, scheduleCtx)).length;
-                    const catTone = groupTone(items, scheduleCtx);
+                    const done = items.filter((r) => r.fulfilled).length;
+                    const catTone = groupTone(items, frozenIds);
                     const isCollapsed = collapsedGroups[cat] ?? true;
 
                     return (
@@ -287,91 +283,35 @@ function collectFulfillingCourses(item) {
     return [...new Set(courses)];
 }
 
-function schedulePlacedIds(scheduleCtx) {
-    return [...new Set([...scheduleCtx.assignedIds, ...scheduleCtx.frozenIds])];
+function itemHasFrozenCourse(courses, frozenIds) {
+    return courses.some((c) => frozenIds.has(c));
 }
 
-/** Courses already allocated to other fulfilled requirements on this degree tab. */
-function coursesAllocatedElsewhere(allReqs, exceptInstanceId) {
-    const allocated = new Set();
-    (allReqs || []).forEach((other) => {
-        if (other.instanceId === exceptInstanceId || !other.fulfilled) return;
-        collectFulfillingCourses(other).forEach((c) => allocated.add(c));
-    });
-    return allocated;
-}
-
-function scheduleAvailableForItem(item, scheduleCtx) {
-    const excluded = coursesAllocatedElsewhere(scheduleCtx.allReqs, item.instanceId);
-    return schedulePlacedIds(scheduleCtx).filter((id) => !excluded.has(id));
-}
-
-function scheduleFulfillsItem(item, scheduleCtx) {
-    const placed = scheduleAvailableForItem(item, scheduleCtx);
-    if (!placed.length) return null;
-    const { type, data } = parseRequirement(item.requirement);
-    if (type === "Restriction") {
-        return scheduleCoursesFulfillingRestriction(
-            data,
-            placed,
-            scheduleCtx.cuMap,
-            item.attributeFulfillment
-        );
-    }
-    if (type === "SingleCourse") {
-        const opts = new Set(data.possibilities || []);
-        const matched = placed.filter((id) => opts.has(id));
-        return matched.length ? matched : null;
-    }
-    return null;
-}
-
-function getFulfillingCourses(item, scheduleCtx) {
-    const fromApi = collectFulfillingCourses(item);
-    if (fromApi.length) return fromApi;
-    return scheduleFulfillsItem(item, scheduleCtx) || [];
-}
-
-/** Requirement satisfied (API or schedule placement, e.g. two 0.5 CU courses → 1 CU slot). */
-function isItemFulfilled(item, scheduleCtx) {
-    if (item.fulfilled) return true;
-    return (scheduleFulfillsItem(item, scheduleCtx)?.length ?? 0) > 0;
-}
-
-/** Fulfilled only via frozen/planned courses on the schedule (for stats, not row color). */
-function itemIsPlannedOnly(item, scheduleCtx) {
-    if (!isItemFulfilled(item, scheduleCtx)) return false;
-    const courses = getFulfillingCourses(item, scheduleCtx);
-    if (!courses.length) return false;
-    const anyAssigned = courses.some((c) => scheduleCtx.assignedIds.has(c));
-    const allFrozen = courses.every((c) => scheduleCtx.frozenIds.has(c));
-    return allFrozen && !anyAssigned;
-}
-
-function itemTone(item, scheduleCtx) {
-    if (!isItemFulfilled(item, scheduleCtx)) return "open";
+function itemTone(item, frozenIds) {
+    if (!item.fulfilled) return "open";
+    if (itemHasFrozenCourse(collectFulfillingCourses(item), frozenIds)) return "frozen";
     return "fulfilled";
 }
 
-function groupTone(items, scheduleCtx) {
-    const done = items.filter((r) => isItemFulfilled(r, scheduleCtx)).length;
+function groupTone(items, frozenIds) {
+    const done = items.filter((r) => r.fulfilled).length;
     if (done !== items.length) return "incomplete";
-    if (items.some((item) => itemIsPlannedOnly(item, scheduleCtx))) return "frozen";
+    if (items.some((item) => itemTone(item, frozenIds) === "frozen")) return "frozen";
     return "fulfilled";
 }
 
-/** Green/orange only for courses allocated to this requirement; gray otherwise. */
+/** Green/orange only when this course fulfills the current requirement row (not another). */
 function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet }) {
     if (!fulfillingSet?.has(courseId)) return "open";
-    if (assignedIds.has(courseId)) return "fulfilled";
     if (frozenIds.has(courseId)) return "frozen";
+    if (assignedIds.has(courseId)) return "fulfilled";
     return "fulfilled";
 }
 
-function buildRowContent(item, scheduleCtx) {
+function buildRowContent(item) {
     const { type, data } = parseRequirement(item.requirement);
     const stem = getRequirementStem(item.requirement);
-    const fulfilling = getFulfillingCourses(item, scheduleCtx);
+    const fulfilling = collectFulfillingCourses(item);
     const fulfillingSet = new Set(fulfilling);
 
     if (type === "SingleCourse") {
@@ -407,16 +347,9 @@ function buildRowContent(item, scheduleCtx) {
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
-function makeAnyOfChildItem(parent, childReq, childIdx, scheduleCtx) {
-    const parentFulfilled = isItemFulfilled(parent, scheduleCtx);
-    const fulfillingCourses = parentFulfilled ? getFulfillingCourses(parent, scheduleCtx) : [];
-    const parentForMatch = {
-        ...parent,
-        fulfilled: parentFulfilled,
-        fulfilledCourses: fulfillingCourses,
-    };
-    const matched = childMatchesAnyOfFulfillment(childReq, parentForMatch, parentFulfilled);
-    const courses = matched ? fulfillingCourses : [];
+function makeAnyOfChildItem(parent, childReq, childIdx) {
+    const matched = childMatchesAnyOfFulfillment(childReq, parent);
+    const courses = matched ? collectFulfillingCourses(parent) : [];
     let attrFulfillment = parent.attributeFulfillment;
     if (matched && attrFulfillment) {
         const { type, data } = parseRequirement(childReq);
@@ -440,15 +373,17 @@ function makeAnyOfChildItem(parent, childReq, childIdx, scheduleCtx) {
 }
 
 function renderRequirementLine(item, scheduleCtx) {
-    const { stem, badges, fulfillingSet } = buildRowContent(item, scheduleCtx);
+    const { stem, badges, fulfillingSet } = buildRowContent(item);
     const chipCtx = { ...scheduleCtx, fulfillingSet };
 
     const renderBadge = (badge, key) => {
         if (badge.kind === "attr") {
-            const hasCourse = badge.courses.length > 0;
-            const label = hasCourse ? `[${badge.code}] - ${badge.courses.join(", ")}` : `[${badge.code}]`;
-            const allocated = badge.courses.find((c) => fulfillingSet.has(c));
-            const kind = allocated ? badgeKindFor(allocated, chipCtx) : "open";
+            const fulfillingForAttr = badge.courses.filter((c) => fulfillingSet.has(c));
+            const hasCourse = fulfillingForAttr.length > 0;
+            const label = hasCourse
+                ? `[${badge.code}] - ${fulfillingForAttr.join(", ")}`
+                : `[${badge.code}]`;
+            const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
             return <span key={key} style={S.chip(kind)}>{label}</span>;
         }
         return (
@@ -471,7 +406,7 @@ function renderRequirementLine(item, scheduleCtx) {
 
 function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const possibilities = getAnyOfPossibilities(parentItem.requirement);
-    const blockTone = itemTone(parentItem, scheduleCtx);
+    const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
     const isFlashing = flashRowId === rowDomId;
 
@@ -484,8 +419,10 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
         >
             <div style={S.anyOfIntro}>Choose one of the following:</div>
             {possibilities.map((childReq, childIdx) => {
-                const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx, scheduleCtx);
-                const childTone = childItem.fulfilled ? itemTone(childItem, scheduleCtx) : "open";
+                const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
+                const childTone = childItem.fulfilled
+                    ? itemTone(childItem, scheduleCtx.frozenIds)
+                    : "open";
                 const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
                 return (
                     <div
@@ -506,8 +443,7 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
 }
 
 function renderItem(item, idx, scheduleCtx, isFirst, _stemOverride, degreeIndex, flashRowId) {
-    const fulfilled = isItemFulfilled(item, scheduleCtx);
-    const rowTone = itemTone(item, scheduleCtx);
+    const rowTone = itemTone(item, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
     const isFlashing = flashRowId === rowDomId;
 
@@ -518,7 +454,7 @@ function renderItem(item, idx, scheduleCtx, isFirst, _stemOverride, degreeIndex,
             className={isFlashing ? "req-row-flash" : undefined}
             style={S.item(rowTone, isFirst)}
         >
-            <span style={S.itemIcon(rowTone)}>{fulfilled ? "✓" : "○"}</span>
+            <span style={S.itemIcon(rowTone)}>{item.fulfilled ? "✓" : "○"}</span>
             <div style={S.itemBody}>
                 {renderRequirementLine(item, scheduleCtx)}
             </div>

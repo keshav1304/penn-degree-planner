@@ -144,71 +144,7 @@ export function getAnyOfCategory(req) {
   return typeof cat === "string" && cat.trim() ? cat.trim() : null;
 }
 
-export function buildCourseCuMap(allCourses) {
-  const map = {};
-  (allCourses || []).forEach((c) => {
-    if (c?.course_code != null) map[c.course_code] = c.cu ?? 1;
-  });
-  return map;
-}
-
-function isHalfCu(cu) {
-  return Math.abs(cu - 0.5) < CU_EPS;
-}
-
-function lookupCourseCu(cuMap, courseId) {
-  return cuMap[courseId] ?? 1;
-}
-
-/** Pick courses reaching target CU (mirrors Rust `select_courses_for_cu_target`, small n). */
-export function selectCoursesForCuTarget(eligible, targetCu) {
-  if (targetCu <= CU_EPS) return [];
-  if (!eligible.length) return null;
-  if (Math.abs(targetCu - 0.5) < CU_EPS) {
-    const half = eligible.find(([, cu]) => isHalfCu(cu));
-    return half ? [half[0]] : null;
-  }
-  const maxBits = Math.min(eligible.length, 14);
-  const items = eligible.slice(0, maxBits);
-  let best = null;
-  for (let mask = 1; mask < 1 << maxBits; mask++) {
-    const picked = [];
-    let sum = 0;
-    items.forEach(([course, cu], i) => {
-      if (mask & (1 << i)) {
-        sum += cu;
-        picked.push([course, cu]);
-      }
-    });
-    if (sum + CU_EPS < targetCu) continue;
-    const overage = sum - targetCu;
-    const hasHalf = picked.some(([, cu]) => isHalfCu(cu));
-    const hasFull = picked.some(([, cu]) => !isHalfCu(cu));
-    const mixed = hasHalf && hasFull;
-    const courses = picked.map(([c]) => c);
-    const count = courses.length;
-    if (
-      !best
-      || overage < best.overage - CU_EPS
-      || (Math.abs(overage - best.overage) < CU_EPS && count < best.count)
-      || (Math.abs(overage - best.overage) < CU_EPS && count === best.count && !mixed && best.mixed)
-    ) {
-      best = { courses, overage, count, mixed };
-    }
-  }
-  return best?.courses ?? null;
-}
-
-/** Courses on the schedule (taken or planned) that fulfill a restriction by accumulated CU. */
-export function scheduleCoursesFulfillingRestriction(data, placedCourseIds, cuMap, attrMap) {
-  const target = restrictionRequiredCu(data.number, data.cu);
-  const eligible = [...placedCourseIds]
-    .filter((id) => courseMeetsRestriction(id, data, attrMap))
-    .map((id) => [id, lookupCourseCu(cuMap, id)]);
-  return selectCoursesForCuTarget(eligible, target);
-}
-
-export function courseMeetsRestriction(courseId, data, attrMap) {
+function courseMeetsRestriction(courseId, data, attrMap) {
   const parts = courseId.split(" ");
   if (parts.length < 2) return false;
   const dept = parts[0];
@@ -223,8 +159,8 @@ export function courseMeetsRestriction(courseId, data, attrMap) {
 }
 
 /** Whether this AnyOf child is the branch satisfied by the parent's fulfilling courses. */
-export function childMatchesAnyOfFulfillment(childReq, parent, parentFulfilled = parent?.fulfilled) {
-  if (!parentFulfilled) return false;
+export function childMatchesAnyOfFulfillment(childReq, parent) {
+  if (!parent?.fulfilled) return false;
   const courses = [];
   (parent.fulfilledCourses || []).forEach((c) => {
     if (c && typeof c === "string") courses.push(c);
