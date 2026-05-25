@@ -157,14 +157,14 @@ export default function RequirementsPanel({
                     <div className="req-progress-track">
                         {fulfilledPct > 0 && (
                             <div
-                                className="req-progress-fill"
-                                style={{ width: `${fulfilledPct}%`, background: "linear-gradient(90deg, var(--success), var(--accent-teal))" }}
+                                className="req-progress-fill req-progress-fill-fulfilled"
+                                style={{ width: `${fulfilledPct}%` }}
                             />
                         )}
                         {plannedPct > 0 && (
                             <div
-                                className="req-progress-fill"
-                                style={{ width: `${plannedPct}%`, background: "var(--accent-amber)" }}
+                                className="req-progress-fill req-progress-fill-planned"
+                                style={{ width: `${plannedPct}%` }}
                             />
                         )}
                     </div>
@@ -308,6 +308,15 @@ function buildRowContent(item) {
 
     if (type === "Restriction") {
         return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
+    }
+
+    if (type === "AllOf") {
+        const parts = (data.requirements || [])
+            .map((sub) => createRequirementDescription(sub))
+            .filter(Boolean);
+        if (parts.length > 0) {
+            return { stem: null, badges: [], fulfillingSet };
+        }
     }
 
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };

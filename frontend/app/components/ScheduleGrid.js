@@ -263,7 +263,6 @@ export default function ScheduleGrid({
                         <span className="schedule-requirement-label">{getSlotLabel(slotId)}</span>
                         <span className="course-card-actions">
                             {renderInfoLink(slotId)}
-                            <span className="lock-icon">{frozen ? "🔒" : "📌"}</span>
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>
@@ -316,9 +315,6 @@ export default function ScheduleGrid({
                             {renderConcBadges(courseId)}
                             {renderDcBadges(courseId)}
                             {renderInfoLink(courseId)}
-                            <span className="lock-icon">
-                                {assigned ? "📗" : frozen ? "🔒" : "📌"}
-                            </span>
                             <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
                         </span>
                     </div>
@@ -368,7 +364,6 @@ export default function ScheduleGrid({
                                         {renderConcBadges(a.courseId)}
                                         {renderDcBadges(a.courseId)}
                                         {renderInfoLink(a.courseId)}
-                                        <span className="lock-icon">📗</span>
                                     </span>
                                                 </div>
                                             </div>
