@@ -211,7 +211,7 @@ fn format_restriction_description(
     cu: &Option<i32>,
     level: &Option<i32>,
     attr: &Option<Vec<String>>,
-    excluding: &Option<Vec<String>>,
+    _excluding: &Option<Vec<String>>,
     number: &i32,
     no_school: &Option<String>,
 ) -> String {
@@ -222,7 +222,7 @@ fn format_restriction_description(
         format!("{target} CU")
     };
     if let Some(depts) = department {
-        response.push_str(" from dept ");
+        response.push_str(" from ");
         response.push_str(&depts.join("/"));
     }
     if let Some(min_level) = level {
@@ -232,10 +232,10 @@ fn format_restriction_description(
         response.push_str(" from attribute ");
         response.push_str(&attr_names.join("/"));
     }
-    if let Some(excluded_courses) = excluding {
-        response.push_str(" excluding ");
-        response.push_str(&excluded_courses.join(", "));
-    }
+    // if let Some(excluded_courses) = excluding {
+    //     response.push_str(" excluding ");
+    //     response.push_str(&excluded_courses.join(", "));
+    // }
     if let Some(no_school_name) = no_school {
         response.push_str(" not from ");
         response.push_str(no_school_name);

@@ -56,7 +56,7 @@ export default function Home() {
   const [activeDragId, setActiveDragId] = useState(null);
   const [reqNavTarget, setReqNavTarget] = useState(null);
   const [requirementsOpen, setRequirementsOpen] = useState(true);
-  const [allowSummer, setAllowSummer] = useState(true);
+  const [allowSummer, setAllowSummer] = useState(false);
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
   const debounceRef = useRef(null);
   const scheduleRequestId = useRef(0);

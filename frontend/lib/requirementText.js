@@ -60,7 +60,7 @@ export function formatRestriction(data) {
   let response = formatCuLabel(data.number, data.cu);
   if (data.department?.length) {
     const depts = Array.isArray(data.department) ? data.department : [data.department];
-    response += ` from dept ${depts.join("/")}`;
+    response += ` from ${depts.join("/")}`;
   }
   if (data.level != null) {
     response += ` with minimum level ${data.level}`;
@@ -69,10 +69,10 @@ export function formatRestriction(data) {
     const attrs = data.attr.filter((a) => typeof a === "string");
     if (attrs.length) response += ` from attribute ${attrs.join("/")}`;
   }
-  if (data.excluding?.length) {
-    const ex = data.excluding.filter((c) => typeof c === "string");
-    if (ex.length) response += ` excluding ${ex.join(", ")}`;
-  }
+  // if (data.excluding?.length) {
+  //   const ex = data.excluding.filter((c) => typeof c === "string");
+  //   if (ex.length) response += ` excluding ${ex.join(", ")}`;
+  // }
   if (data.no_school) response += ` not from ${data.no_school}`;
   return response || "Restriction requirement";
 }

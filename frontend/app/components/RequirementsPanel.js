@@ -55,7 +55,7 @@ const S = {
     dot: (color) => ({ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }),
     track: { height: 5, background: "rgba(0,0,0,0.08)", borderRadius: 3, overflow: "hidden", display: "flex" },
     progressFulfilled: (pct) => ({ height: "100%", minWidth: pct > 0 ? 4 : 0, width: `${pct}%`, background: `linear-gradient(90deg, ${C.green600}, ${C.teal600})`, transition: "width 0.5s ease" }),
-    progressPlanned: (pct) => ({ height: "100%", minWidth: pct > 0 ? 4 : 0, width: `${pct}%`, background: `linear-gradient(90deg, ${C.amber500}, ${C.amber700})`, transition: "width 0.5s ease" }),
+    progressPlanned: (pct) => ({ height: "100%", minWidth: pct > 0 ? 4 : 0, width: `${pct}%`, background: `linear-gradient(90deg, ${C.amber200}, ${C.amber500})`, transition: "width 0.5s ease" }),
     groups: { display: "flex", flexDirection: "column", gap: 8, flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 2 },
     group: (tone) => ({ border: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`, borderRadius: 8, overflow: "hidden", flexShrink: 0 }),
     groupHdr: (tone) => ({ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: tone === "fulfilled" ? C.green50 : tone === "frozen" ? C.amber50 : C.gray100, borderBottom: `1px solid ${tone === "fulfilled" ? C.green300 : tone === "frozen" ? C.amber200 : C.gray200}`, cursor: "pointer", userSelect: "none" }),
