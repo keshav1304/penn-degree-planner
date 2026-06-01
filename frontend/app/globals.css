@@ -25,6 +25,21 @@
   --radius-sm: 8px;
   --radius-lg: 16px;
   --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Spacing */
+  --page-pad: 12px;
+  --section-gap: 10px;
+  --panel-pad-x: 12px;
+  --panel-pad-y: 10px;
+  --panel-header-pad-x: 14px;
+  --panel-header-pad-y: 10px;
+
+  /* Three-column layout: side columns use % with caps; schedule fills remainder (capped) */
+  --col-courses: clamp(200px, 14%, 250px);
+  --col-schedule-min: 380px;
+  --col-schedule-max: 900px;
+  --col-requirements: clamp(220px, 16%, 320px);
+  --col-reqs-collapsed: 40px;
 }
 
 * {
@@ -72,12 +87,13 @@ body {
 
 /* ============ LAYOUT ============ */
 .app-container {
-  max-width: 1800px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--page-pad);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--section-gap);
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
@@ -93,7 +109,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 24px;
+  padding: var(--panel-header-pad-y) var(--panel-header-pad-x);
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-glass);
@@ -102,7 +118,7 @@ body {
 }
 
 .header h1 {
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   font-weight: 800;
   background: linear-gradient(135deg, var(--accent-red-light), var(--accent-amber));
   -webkit-background-clip: text;
@@ -118,33 +134,43 @@ body {
 
 .main-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(260px, 300px);
-  gap: 16px;
+  grid-template-columns: var(--col-courses) minmax(var(--col-schedule-min), 1fr) var(--col-requirements);
+  gap: var(--section-gap);
   flex: 1;
   min-height: 0;
   align-items: stretch;
+  width: 100%;
+  max-width: min(100%, 1680px);
+  margin-inline: auto;
 }
 
 .main-layout.requirements-collapsed {
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) 44px;
+  grid-template-columns: var(--col-courses) minmax(var(--col-schedule-min), 1fr) var(--col-reqs-collapsed);
 }
 
 .panel-courses,
 .panel-schedule,
 .panel-requirements {
   min-height: 0;
-}
-
-.panel-schedule {
   min-width: 0;
 }
 
+.panel-courses {
+  max-width: var(--col-courses);
+}
+
+.panel-schedule {
+  max-width: var(--col-schedule-max);
+  width: 100%;
+  justify-self: center;
+}
+
 .panel-requirements {
-  max-width: 300px;
+  max-width: var(--col-requirements);
 }
 
 .panel-header-compact {
-  padding: 12px 14px;
+  padding: var(--panel-header-pad-y) var(--panel-header-pad-x);
 }
 
 .panel-header-compact h2 {
@@ -153,7 +179,7 @@ body {
 }
 
 .panel-requirements .panel-body {
-  padding: 12px 14px;
+  padding: var(--panel-pad-y) var(--panel-pad-x);
 }
 
 .requirements-collapse-btn {
@@ -166,8 +192,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding: 14px 6px;
+  gap: 8px;
+  padding: 10px 4px;
   min-height: 0;
   height: 100%;
   background: var(--bg-card);
@@ -216,7 +242,7 @@ body {
 }
 
 .panel-header {
-  padding: 16px 20px;
+  padding: var(--panel-header-pad-y) var(--panel-header-pad-x);
   border-bottom: 1px solid var(--border-glass);
   display: flex;
   align-items: center;
@@ -233,7 +259,7 @@ body {
 }
 
 .panel-body {
-  padding: 16px 20px;
+  padding: var(--panel-pad-y) var(--panel-pad-x);
   overflow-y: auto;
   flex: 1;
 }
@@ -248,7 +274,7 @@ body {
 
 /* ============ BUTTONS ============ */
 .btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: none;
   border-radius: var(--radius-sm);
   font-family: inherit;
@@ -322,7 +348,7 @@ body {
 .input,
 select {
   width: 100%;
-  padding: 10px 14px;
+  padding: 8px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-sm);
@@ -357,8 +383,8 @@ select {
 .degree-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
+  gap: 10px;
+  padding: var(--panel-header-pad-y) var(--panel-header-pad-x);
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-glass);
@@ -370,8 +396,8 @@ select {
 .degree-chip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 6px 10px;
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius);
@@ -422,7 +448,7 @@ select {
 /* ============ COURSE SEARCH ============ */
 .search-box {
   position: relative;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .search-box .icon {
@@ -450,7 +476,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: var(--bg-glass);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -481,7 +507,7 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 200px;
 }
 
 .course-cu {
@@ -493,8 +519,8 @@ select {
 /* ============ CART ============ */
 .cart-section {
   border-top: 1px solid var(--border-glass);
-  padding-top: 14px;
-  margin-top: 14px;
+  padding-top: 10px;
+  margin-top: 10px;
 }
 
 .cart-header {
@@ -531,7 +557,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 5px 8px;
   background: var(--bg-glass);
   border-radius: var(--radius-sm);
   font-size: 0.8rem;
@@ -545,7 +571,7 @@ select {
 .schedule-container {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 /* ── Credits Received ── */
@@ -553,7 +579,7 @@ select {
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 10px 12px;
 }
 
 .credits-received-label {
@@ -604,7 +630,7 @@ select {
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius);
-  padding: 10px;
+  padding: 8px;
   min-height: 120px;
   transition: all var(--transition);
 }
@@ -1379,6 +1405,14 @@ select {
   opacity: 0.6;
 }
 
+@media (max-width: 1400px) {
+  :root {
+    --col-courses: clamp(200px, 15%, 240px);
+    --col-schedule-max: 820px;
+    --col-requirements: clamp(210px, 17%, 300px);
+  }
+}
+
 @media (max-width: 1100px) {
   .app-container {
     height: auto;
@@ -1391,14 +1425,21 @@ select {
   .main-layout.requirements-collapsed {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(400px, 1fr) auto;
+    max-width: none;
   }
 
   .main-layout.requirements-collapsed {
     grid-template-rows: auto minmax(400px, 1fr) auto;
   }
 
+  .panel-courses,
+  .panel-schedule,
   .panel-requirements {
     max-width: none;
+    justify-self: stretch;
+  }
+
+  .panel-requirements {
     max-height: min(40vh, 360px);
   }
 

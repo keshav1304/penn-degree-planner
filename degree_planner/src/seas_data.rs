@@ -60,7 +60,7 @@ pub fn create_ee_major() -> Major {
             }),
 
             (Y4F, Requirement::AnyOf { 
-                category: Some("Advanced ESE courses (other dept. options possible)".to_string()),
+                category: Some("Advanced ESE courses".to_string()),
                 possibilities: vec![
                     Requirement::Restriction { 
                         category: None, 
