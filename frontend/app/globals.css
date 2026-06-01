@@ -34,12 +34,18 @@
   --panel-header-pad-x: 14px;
   --panel-header-pad-y: 10px;
 
-  /* Three-column layout: side columns use % with caps; schedule fills remainder (capped) */
-  --col-courses: clamp(240px, 17%, 300px);
-  --col-schedule-min: 380px;
-  --col-schedule-max: 880px;
-  --col-requirements: clamp(260px, 19%, 380px);
+  /* Schedule width set first; courses + requirements share leftover space (1fr each) */
+  --col-courses-min: 240px;
+  --col-requirements-min: 260px;
+  --col-schedule: clamp(380px, 50%, 880px);
   --col-reqs-collapsed: 40px;
+
+  /* Shared typography for courses + requirements side columns */
+  --sidebar-font-emphasis: 0.82rem;
+  --sidebar-font-body: 0.8rem;
+  --sidebar-font-secondary: 0.75rem;
+  --sidebar-font-meta: 0.72rem;
+  --sidebar-font-small: 0.7rem;
 }
 
 * {
@@ -134,7 +140,10 @@ body {
 
 .main-layout {
   display: grid;
-  grid-template-columns: var(--col-courses) minmax(var(--col-schedule-min), 1fr) var(--col-requirements);
+  grid-template-columns:
+    minmax(var(--col-courses-min), 1fr)
+    var(--col-schedule)
+    minmax(var(--col-requirements-min), 1fr);
   gap: var(--section-gap);
   flex: 1;
   min-height: 0;
@@ -145,28 +154,42 @@ body {
 }
 
 .main-layout.requirements-collapsed {
-  grid-template-columns: var(--col-courses) minmax(var(--col-schedule-min), 1fr) var(--col-reqs-collapsed);
+  grid-template-columns:
+    minmax(var(--col-courses-min), 1fr)
+    var(--col-schedule)
+    var(--col-reqs-collapsed);
+}
+
+.panel-courses,
+.panel-requirements {
+  min-height: 0;
+  min-width: 0;
+  font-size: var(--sidebar-font-body);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.panel-courses .panel-header h2,
+.panel-requirements .panel-header h2 {
+  font-size: 0.88rem;
+  letter-spacing: 0.6px;
+}
+
+.panel-courses .input,
+.panel-requirements .input {
+  font-size: var(--sidebar-font-body);
+}
+
+.panel-schedule {
+  min-height: 0;
+  min-width: 0;
 }
 
 .panel-courses,
 .panel-schedule,
 .panel-requirements {
-  min-height: 0;
-  min-width: 0;
-}
-
-.panel-courses {
-  max-width: var(--col-courses);
-}
-
-.panel-schedule {
-  max-width: var(--col-schedule-max);
   width: 100%;
-  justify-self: center;
-}
-
-.panel-requirements {
-  max-width: var(--col-requirements);
+  min-width: 0;
 }
 
 .panel-header-compact {
@@ -495,13 +518,18 @@ select {
 }
 
 .course-code {
-  font-size: 0.82rem;
+  font-size: var(--sidebar-font-emphasis);
   font-weight: 700;
   color: var(--accent-teal);
 }
 
+.course-in-cart-mark {
+  margin-left: 6px;
+  font-size: var(--sidebar-font-small);
+}
+
 .course-title {
-  font-size: 0.75rem;
+  font-size: var(--sidebar-font-secondary);
   color: var(--text-secondary);
   margin-top: 2px;
   white-space: nowrap;
@@ -511,7 +539,7 @@ select {
 }
 
 .course-cu {
-  font-size: 0.7rem;
+  font-size: var(--sidebar-font-meta);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -531,18 +559,30 @@ select {
 }
 
 .cart-header h3 {
-  font-size: 0.82rem;
+  font-size: var(--sidebar-font-emphasis);
   font-weight: 700;
   color: var(--accent-amber);
 }
 
 .cart-count {
-  font-size: 0.72rem;
+  font-size: var(--sidebar-font-meta);
   padding: 2px 8px;
   background: var(--accent-amber-dim);
   color: var(--accent-amber);
   border-radius: 10px;
   font-weight: 700;
+}
+
+.cart-hint {
+  font-size: var(--sidebar-font-meta);
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.cart-empty {
+  font-size: var(--sidebar-font-secondary);
+  color: var(--text-muted);
+  padding: 8px 0;
 }
 
 .cart-list {
@@ -560,10 +600,7 @@ select {
   padding: 5px 8px;
   background: var(--bg-glass);
   border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-}
-
-.cart-item span {
+  font-size: var(--sidebar-font-body);
   font-weight: 600;
 }
 
@@ -859,9 +896,9 @@ select {
 .semester-assign-select {
   width: auto;
   min-width: 108px;
-  max-width: 130px;
+  max-width: 200px;
   padding: 3px 20px 3px 6px;
-  font-size: 0.7rem;
+  font-size: var(--sidebar-font-small);
   font-weight: 700;
   background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
@@ -932,7 +969,7 @@ select {
 
 .req-degree-tab-major {
   width: 100%;
-  font-size: 0.68rem;
+  font-size: var(--sidebar-font-emphasis);
   font-weight: 700;
   line-height: 1.25;
   overflow: hidden;
@@ -943,7 +980,7 @@ select {
 
 .req-degree-tab-school {
   width: 100%;
-  font-size: 0.6rem;
+  font-size: var(--sidebar-font-meta);
   font-weight: 600;
   color: var(--text-muted);
   overflow: hidden;
@@ -963,7 +1000,7 @@ select {
   background: var(--danger-dim);
   border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: var(--radius-sm);
-  font-size: 0.72rem;
+  font-size: var(--sidebar-font-secondary);
   color: var(--danger);
   flex-shrink: 0;
 }
@@ -991,7 +1028,7 @@ select {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.68rem;
+  font-size: var(--sidebar-font-meta);
   font-weight: 600;
 }
 
@@ -1024,7 +1061,7 @@ select {
 
 .req-stat-pct {
   margin-left: auto;
-  font-size: 0.68rem;
+  font-size: var(--sidebar-font-meta);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -1121,7 +1158,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.6rem;
+  font-size: var(--sidebar-font-small);
   font-weight: 800;
   flex-shrink: 0;
   line-height: 1;
@@ -1135,7 +1172,7 @@ select {
 .badge-pending {
   background: rgba(0, 0, 0, 0.06);
   color: var(--text-muted);
-  font-size: 1rem;
+  font-size: var(--sidebar-font-emphasis);
   font-weight: 900;
   line-height: 0.9;
 }
@@ -1143,7 +1180,7 @@ select {
 .req-group-name {
   flex: 1;
   min-width: 0;
-  font-size: 0.72rem;
+  font-size: var(--sidebar-font-emphasis);
   font-weight: 700;
   color: var(--text-primary);
   overflow: hidden;
@@ -1152,7 +1189,7 @@ select {
 }
 
 .req-group-pill {
-  font-size: 0.62rem;
+  font-size: var(--sidebar-font-meta);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 8px;
@@ -1160,7 +1197,7 @@ select {
 }
 
 .req-group-chevron {
-  font-size: 0.55rem;
+  font-size: var(--sidebar-font-small);
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -1189,7 +1226,7 @@ select {
   gap: 6px;
   padding: 5px 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
-  font-size: 0.68rem;
+  font-size: var(--sidebar-font-body);
   transition: background var(--transition);
 }
 
@@ -1208,7 +1245,7 @@ select {
 
 .req-item-icon {
   flex-shrink: 0;
-  font-size: 0.65rem;
+  font-size: var(--sidebar-font-meta);
   font-weight: 800;
   margin-top: 1px;
   width: 12px;
@@ -1242,12 +1279,14 @@ select {
 }
 
 .req-stem-text {
+  font-size: var(--sidebar-font-body);
   font-weight: 600;
   color: var(--text-primary);
   word-break: break-word;
 }
 
 .req-item-colon {
+  font-size: var(--sidebar-font-body);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1266,7 +1305,7 @@ select {
 
 .req-anyof-intro {
   padding: 5px 8px 2px;
-  font-size: 0.68rem;
+  font-size: var(--sidebar-font-secondary);
   font-weight: 600;
   color: var(--text-secondary);
   font-style: italic;
@@ -1290,7 +1329,7 @@ select {
 }
 
 .req-chip {
-  font-size: 0.62rem;
+  font-size: var(--sidebar-font-meta);
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 3px;
@@ -1356,7 +1395,7 @@ select {
 }
 
 .req-empty-text {
-  font-size: 0.82rem;
+  font-size: var(--sidebar-font-secondary);
   color: var(--text-muted);
   text-align: center;
 }
@@ -1408,9 +1447,9 @@ select {
 
 @media (max-width: 1400px) {
   :root {
-    --col-courses: clamp(230px, 18%, 285px);
-    --col-schedule-max: 820px;
-    --col-requirements: clamp(250px, 20%, 350px);
+    --col-courses-min: 220px;
+    --col-requirements-min: 240px;
+    --col-schedule: clamp(360px, 48%, 820px);
   }
 }
 

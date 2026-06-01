@@ -88,7 +88,7 @@ export default function CourseSearch({
                                     <div>
                                         <div className="course-code">
                                             {course.course_code}
-                                            {inCart && <span style={{ marginLeft: 6, fontSize: "0.7rem" }}>✓</span>}
+                                            {inCart && <span className="course-in-cart-mark">✓</span>}
                                         </div>
                                         <div className="course-title">{course.title}</div>
                                     </div>
@@ -105,11 +105,11 @@ export default function CourseSearch({
                     <h3>My Courses</h3>
                     <span className="cart-count">{filterValidCourseCodes(takenCourses).length}</span>
                 </div>
-                <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginBottom: 8 }}>
+                <div className="cart-hint">
                     Drag courses to a semester slot, or use the dropdown
                 </div>
                 {takenCourses.length === 0 ? (
-                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", padding: "8px 0" }}>
+                    <div className="cart-empty">
                         Search and add courses above
                     </div>
                 ) : (
