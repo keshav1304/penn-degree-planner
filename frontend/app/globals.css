@@ -35,10 +35,10 @@
   --panel-header-pad-y: 10px;
 
   /* Three-column layout: side columns use % with caps; schedule fills remainder (capped) */
-  --col-courses: clamp(200px, 14%, 250px);
+  --col-courses: clamp(240px, 17%, 300px);
   --col-schedule-min: 380px;
-  --col-schedule-max: 900px;
-  --col-requirements: clamp(220px, 16%, 320px);
+  --col-schedule-max: 880px;
+  --col-requirements: clamp(260px, 19%, 380px);
   --col-reqs-collapsed: 40px;
 }
 
@@ -507,7 +507,7 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 100%;
 }
 
 .course-cu {
@@ -858,7 +858,8 @@ select {
 /* ============ SEMESTER ASSIGN SELECT ============ */
 .semester-assign-select {
   width: auto;
-  min-width: 80px;
+  min-width: 108px;
+  max-width: 130px;
   padding: 3px 20px 3px 6px;
   font-size: 0.7rem;
   font-weight: 700;
@@ -1407,9 +1408,9 @@ select {
 
 @media (max-width: 1400px) {
   :root {
-    --col-courses: clamp(200px, 15%, 240px);
+    --col-courses: clamp(230px, 18%, 285px);
     --col-schedule-max: 820px;
-    --col-requirements: clamp(210px, 17%, 300px);
+    --col-requirements: clamp(250px, 20%, 350px);
   }
 }
 
