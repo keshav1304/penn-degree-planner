@@ -7,6 +7,7 @@ pub mod schedule_template;
 
 pub mod attributes_data;
 pub mod seas_data;
+pub mod seas_grad_data;
 pub mod wharton_data;
 pub mod courses_data;
 

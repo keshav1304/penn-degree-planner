@@ -62,14 +62,14 @@ pub fn create_ee_major() -> Major {
             (Y4F, Requirement::AnyOf { 
                 category: Some("Advanced ESE courses".to_string()),
                 possibilities: vec![
+                    Requirement::SingleCourse { category: None, possibilities: vec!["CIS 5200".to_string()] },
+                    Requirement::SingleCourse { category: None, possibilities: vec!["BE 5210".to_string()] },
+                    Requirement::SingleCourse { category: None, possibilities: vec!["CIS 4710".to_string()] },
                     Requirement::Restriction { 
                         category: None, 
                         department: Some(vec!["ESE".to_string()]), number: 1, cu: None, level: Some(3000), attr: None, excluding: None, 
                         no_school: None 
                     },
-                    Requirement::SingleCourse { category: None, possibilities: vec!["CIS 5200".to_string()] },
-                    Requirement::SingleCourse { category: None, possibilities: vec!["BE 5210".to_string()] },
-                    Requirement::SingleCourse { category: None, possibilities: vec!["CIS 4710".to_string()] },
                 ] 
             }),
 

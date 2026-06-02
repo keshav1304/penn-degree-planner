@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use crate::Requirement;
 use crate::seas_data;
+use crate::seas_grad_data;
 use crate::wharton_data;
 
 #[derive(Debug)]
@@ -67,6 +68,40 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                 MajorCatalogEntry {
                     display_name: "Computer Engineering (CE)".to_string(),
                     api_code: "CE".to_string(),
+                },
+            ],
+        },
+        SchoolCatalogEntry {
+            school_code: "SEAS_MS".to_string(),
+            display_name: "School of Engineering and Applied Science — Masters (SEAS Masters)".to_string(),
+            majors: vec![
+                MajorCatalogEntry {
+                    display_name: "Electrical Engineering, MSEng (MS_EE)".to_string(),
+                    api_code: "MS_EE".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Robotics, MSEng (MS_ROBO)".to_string(),
+                    api_code: "MS_ROBO".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Mechanical Engineering and Applied Mechanics, MSEng (MS_MEAM)".to_string(),
+                    api_code: "MS_MEAM".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Computer Science, MSEng (MS_CIS)".to_string(),
+                    api_code: "MS_CIS".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Materials Science and Engineering, MSEng (MS_MSE)".to_string(),
+                    api_code: "MS_MSE".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Artificial Intelligence, MSEng (MS_AI)".to_string(),
+                    api_code: "MS_AI".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Computer Engineering, MSEng (MS_CE)".to_string(),
+                    api_code: "MS_CE".to_string(),
                 },
             ],
         },
@@ -174,6 +209,18 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "AI" => Some(seas_data::create_ai_major()),
                 "CE" => Some(seas_data::create_compe_major()),
                 "CBE" => None,
+                _ => None,
+            }
+        },
+        "SEAS_MS" => {
+            match major {
+                "MS_EE" => Some(seas_grad_data::create_ms_ee_major()),
+                "MS_ROBO" => Some(seas_grad_data::create_ms_robo_major()),
+                "MS_MEAM" => Some(seas_grad_data::create_ms_meam_major()),
+                "MS_CIS" => Some(seas_grad_data::create_ms_cis_major()),
+                "MS_MSE" => Some(seas_grad_data::create_ms_mse_major()),
+                "MS_AI" => Some(seas_grad_data::create_ms_ai_major()),
+                "MS_CE" => Some(seas_grad_data::create_ms_ce_major()),
                 _ => None,
             }
         },
