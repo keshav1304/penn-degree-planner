@@ -11,7 +11,7 @@ pub mod seas_grad_data;
 pub mod wharton_data;
 pub mod courses_data;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use course::Course;
 use requirement::Requirement;
@@ -19,7 +19,10 @@ use requirement::MappedRequirement;
 use requirement::DoubleCountInfo;
 use requirement::ConcentrationInfo;
 use major::Major;
-use schedule_template::{later_semesters, resolve_semester_hint, semester_order};
+use schedule_template::{
+    later_semesters, ms_default_semester_target, ms_default_semester_target_for_requirement,
+    resolve_semester_hint, semester_order,
+};
 
 use axum:: {
     http::{header, Method, HeaderValue},
@@ -368,6 +371,8 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let mut all_requirement_slots: Vec<String> = Vec::new();
     let mut slot_labels: HashMap<String, String> = HashMap::new();
     let mut item_targets: HashMap<String, (i32, String)> = HashMap::new();
+    let mut ms_schedule_items: HashSet<String> = HashSet::new();
+    let mut ms_grad_schedule_items: HashSet<String> = HashSet::new();
 
     // Build a CU lookup map from all courses
     let all_courses = courses_data::all_courses();
@@ -407,6 +412,27 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                             item_targets
                                 .entry(course_id.clone())
                                 .or_insert_with(|| target.clone());
+                        }
+                    }
+                }
+                if degree.school == "SEAS_MS" {
+                    for course_id in &mapped.course_ids {
+                        let target = if course::is_valid_course_code(course_id) {
+                            ms_default_semester_target(course_id)
+                        } else if requirement::is_requirement_slot_id(course_id) {
+                            ms_default_semester_target_for_requirement(&mapped.requirement)
+                        } else {
+                            continue;
+                        };
+                        item_targets
+                            .entry(course_id.clone())
+                            .or_insert_with(|| target.clone());
+                        ms_schedule_items.insert(course_id.clone());
+                        let is_grad = (course::is_valid_course_code(course_id)
+                            && course::is_graduate_level(course_id))
+                            || (requirement::is_requirement_slot_id(course_id) && target.0 >= 3);
+                        if is_grad {
+                            ms_grad_schedule_items.insert(course_id.clone());
                         }
                     }
                 }
@@ -660,7 +686,29 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     partition_and_place(&mut remaining_courses, &mut schedule);
     partition_and_place(&mut remaining_slots, &mut schedule);
 
-    let distribute = |remaining: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>, allow_summer: bool| -> bool {
+    let ms_schedule_sort_key = |item: &str| -> u8 {
+        if !ms_schedule_items.contains(item) {
+            return 1;
+        }
+        if ms_grad_schedule_items.contains(item) {
+            return 2;
+        }
+        0
+    };
+    let sort_for_ms_degrees = |remaining: &mut Vec<String>| {
+        if ms_schedule_items.is_empty() {
+            return;
+        }
+        remaining.sort_by_key(|item| ms_schedule_sort_key(item));
+    };
+    sort_for_ms_degrees(&mut remaining_courses);
+    sort_for_ms_degrees(&mut remaining_slots);
+
+    let distribute = |remaining: &mut Vec<String>,
+                        schedule: &mut Vec<SemesterPlan>,
+                        allow_summer: bool,
+                        skip_summer_for: &HashSet<String>|
+     -> bool {
         if remaining.is_empty() {
             return false;
         }
@@ -693,18 +741,23 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                     continue;
                 }
                 let max_cu = get_max_cu(plan.year, &plan.semester);
-                while !remaining.is_empty() {
-                    let cu = get_cu(&remaining[0]);
+                let mut idx = 0;
+                while idx < remaining.len() {
+                    if skip_summer_for.contains(&remaining[idx]) {
+                        idx += 1;
+                        continue;
+                    }
+                    let cu = get_cu(&remaining[idx]);
                     if plan.total_cu + cu > max_cu {
                         if plan.total_cu > 0.0 {
                             break;
                         }
-                        let item = remaining.remove(0);
+                        let item = remaining.remove(idx);
                         place_in_semester(plan, &item);
                         placed_any = true;
                         break;
                     }
-                    let item = remaining.remove(0);
+                    let item = remaining.remove(idx);
                     place_in_semester(plan, &item);
                     placed_any = true;
                 }
@@ -717,8 +770,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         if remaining_courses.is_empty() && remaining_slots.is_empty() {
             break;
         }
-        let placed_courses = distribute(&mut remaining_courses, &mut schedule, allow_summer);
-        let placed_slots = distribute(&mut remaining_slots, &mut schedule, allow_summer);
+        let placed_courses =
+            distribute(&mut remaining_courses, &mut schedule, allow_summer, &ms_grad_schedule_items);
+        let placed_slots =
+            distribute(&mut remaining_slots, &mut schedule, allow_summer, &ms_grad_schedule_items);
         if remaining_courses.is_empty() && remaining_slots.is_empty() {
             break;
         }

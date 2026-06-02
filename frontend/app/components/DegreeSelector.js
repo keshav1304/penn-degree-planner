@@ -137,14 +137,12 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
                             </div>
                             {concLabel && (
                                 <div className="degree-chip-sub">
-                                    {d.displaySchool ? d.displaySchool.split("(")[0].trim() : d.schoolCode}
+                                    {d.displaySchool || d.schoolCode}
                                     {" · "}Conc: {concLabel}
                                 </div>
                             )}
                             {!concLabel && d.displaySchool && (
-                                <div className="degree-chip-sub">
-                                    {d.displaySchool.split("(")[0].trim()}
-                                </div>
+                                <div className="degree-chip-sub">{d.displaySchool}</div>
                             )}
                         </div>
                         <button className="remove-btn" onClick={() => removeDegree(i)}>✕</button>

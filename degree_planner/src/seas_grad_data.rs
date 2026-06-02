@@ -114,9 +114,49 @@ pub fn create_ms_robo_major() -> Major {
             Requirement::Restriction { category: Some("Technical Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EMRT".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Technical Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EMRT".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Technical Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EMRT".to_string()]), excluding: None, number: 1, no_school: None },
-            Requirement::Restriction { category: Some("General Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EMRE".to_string()]), excluding: None, number: 1, no_school: None },
-            Requirement::Restriction { category: Some("General Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EMRE".to_string()]), excluding: None, number: 1, no_school: None },
-            Requirement::Restriction { category: Some("General Elective".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EMRE".to_string()]), excluding: None, number: 1, no_school: None }
+
+            Requirement::Restriction { 
+                category: Some("General Elective".to_string()), 
+                department: Some(vec![
+                    "CIS".to_string(),
+                    "ESE".to_string(),
+                    "MEAM".to_string(),
+                    "EAS".to_string(),
+                    "CIT".to_string(),
+                    "ENM".to_string(),
+                    "IPD".to_string(),
+                    "MATH".to_string(),
+                ]), cu: None, level: Some(5000), attr: None, 
+                excluding: Some(vec!["EAS 8950".to_string(), "EAS 8960".to_string(), "EAS 8970".to_string()]), number: 1, no_school: None 
+            },
+            Requirement::Restriction { 
+                category: Some("General Elective".to_string()), 
+                department: Some(vec![
+                    "CIS".to_string(),
+                    "ESE".to_string(),
+                    "MEAM".to_string(),
+                    "EAS".to_string(),
+                    "CIT".to_string(),
+                    "ENM".to_string(),
+                    "IPD".to_string(),
+                    "MATH".to_string(),
+                ]), cu: None, level: Some(5000), attr: None, 
+                excluding: Some(vec!["EAS 8950".to_string(), "EAS 8960".to_string(), "EAS 8970".to_string()]), number: 1, no_school: None 
+            },
+            Requirement::Restriction { 
+                category: Some("General Elective".to_string()), 
+                department: Some(vec![
+                    "CIS".to_string(),
+                    "ESE".to_string(),
+                    "MEAM".to_string(),
+                    "EAS".to_string(),
+                    "CIT".to_string(),
+                    "ENM".to_string(),
+                    "IPD".to_string(),
+                    "MATH".to_string(),
+                ]), cu: None, level: Some(5000), attr: None, 
+                excluding: Some(vec!["EAS 8950".to_string(), "EAS 8960".to_string(), "EAS 8970".to_string()]), number: 1, no_school: None 
+            },
         ],
         schedule_hints: HashMap::new(),
         concentrations: None,
@@ -136,15 +176,5 @@ pub fn create_ms_cis_major() -> Major {
 pub fn create_ms_mse_major() -> Major {
     // TODO: populate MS Materials Science and Engineering requirements
     placeholder_ms_major("MS_MSE", "Materials Science and Engineering, MSE")
-}
-
-pub fn create_ms_ai_major() -> Major {
-    // TODO: populate MS Artificial Intelligence requirements
-    placeholder_ms_major("MS_AI", "Artificial Intelligence, MSE")
-}
-
-pub fn create_ms_ce_major() -> Major {
-    // TODO: populate MS Computer Engineering requirements
-    placeholder_ms_major("MS_CE", "Computer Engineering, MSE")
 }
 

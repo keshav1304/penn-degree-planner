@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::Requirement;
+use crate::course;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Semester {
@@ -105,6 +106,25 @@ pub fn later_semesters(
         .filter(|(y, s)| semester_order(*y, s) >= start_ord && *y <= max_year)
         .map(|(y, s)| (*y, s.to_string()))
         .collect()
+}
+
+/// Default semester target for MS degree courses: undergrad early, grad in upper years.
+pub fn ms_default_semester_target(course_id: &str) -> (i32, String) {
+    if course::is_valid_course_code(course_id) && !course::is_graduate_level(course_id) {
+        (1, "Fall".to_string())
+    } else {
+        (3, "Fall".to_string())
+    }
+}
+
+/// Default semester target for MS requirement slots (restriction placeholders).
+pub fn ms_default_semester_target_for_requirement(req: &Requirement) -> (i32, String) {
+    match req {
+        Requirement::Restriction { level, .. } if level.is_some_and(|l| l < 5000) => {
+            (1, "Fall".to_string())
+        }
+        _ => (3, "Fall".to_string()),
+    }
 }
 
 #[cfg(test)]

@@ -46,3 +46,14 @@ pub fn is_valid_course_code(s: &str) -> bool {
         false
     }
 }
+
+/// Numeric portion of a catalog course code (e.g. `CIS 5190` → 5190).
+pub fn course_number(s: &str) -> Option<i32> {
+    s.split_once(' ')
+        .and_then(|(_, num)| num.parse().ok())
+}
+
+/// Penn convention: course numbers 5000+ are graduate level.
+pub fn is_graduate_level(s: &str) -> bool {
+    course_number(s).is_some_and(|n| n >= 5000)
+}

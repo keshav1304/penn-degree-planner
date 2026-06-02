@@ -43,7 +43,7 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
         },
         SchoolCatalogEntry {
             school_code: "SEAS".to_string(),
-            display_name: "School of Engineering and Applied Science (SEAS)".to_string(),
+            display_name: "SEAS Undergraduate".to_string(),
             majors: vec![
                 MajorCatalogEntry {
                     display_name: "Electrical Engineering (EE)".to_string(),
@@ -73,35 +73,27 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
         },
         SchoolCatalogEntry {
             school_code: "SEAS_MS".to_string(),
-            display_name: "School of Engineering and Applied Science — Masters (SEAS Masters)".to_string(),
+            display_name: "SEAS Masters".to_string(),
             majors: vec![
                 MajorCatalogEntry {
-                    display_name: "Electrical Engineering, MSEng (MS_EE)".to_string(),
+                    display_name: "Electrical Engineering, MSE".to_string(),
                     api_code: "MS_EE".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Robotics, MSEng (MS_ROBO)".to_string(),
+                    display_name: "Robotics, MSE".to_string(),
                     api_code: "MS_ROBO".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Mechanical Engineering and Applied Mechanics, MSEng (MS_MEAM)".to_string(),
+                    display_name: "Mechanical Engineering and Applied Mechanics, MSE".to_string(),
                     api_code: "MS_MEAM".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Computer Science, MSEng (MS_CIS)".to_string(),
+                    display_name: "Computer Science, MSE".to_string(),
                     api_code: "MS_CIS".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Materials Science and Engineering, MSEng (MS_MSE)".to_string(),
+                    display_name: "Materials Science and Engineering, MSE".to_string(),
                     api_code: "MS_MSE".to_string(),
-                },
-                MajorCatalogEntry {
-                    display_name: "Artificial Intelligence, MSEng (MS_AI)".to_string(),
-                    api_code: "MS_AI".to_string(),
-                },
-                MajorCatalogEntry {
-                    display_name: "Computer Engineering, MSEng (MS_CE)".to_string(),
-                    api_code: "MS_CE".to_string(),
                 },
             ],
         },
@@ -219,8 +211,6 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "MS_MEAM" => Some(seas_grad_data::create_ms_meam_major()),
                 "MS_CIS" => Some(seas_grad_data::create_ms_cis_major()),
                 "MS_MSE" => Some(seas_grad_data::create_ms_mse_major()),
-                "MS_AI" => Some(seas_grad_data::create_ms_ai_major()),
-                "MS_CE" => Some(seas_grad_data::create_ms_ce_major()),
                 _ => None,
             }
         },
