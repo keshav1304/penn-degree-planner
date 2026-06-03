@@ -1,8 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::Serialize;
 
 use crate::attributes_data;
+use crate::course;
+use crate::cross_degree::{
+    self, CrossDegreeState, CrossDegreeSummary, detect_violations, is_graduate_degree,
+    crosses_undergrad_grad, UNDERGRAD_GRAD_CU_LIMIT,
+};
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize)]
 pub enum Requirement {
@@ -685,21 +690,22 @@ impl Requirement {
         attributes: &HashMap<String, Vec<String>>,
         cu_map: &HashMap<String, f64>,
         scope: Option<&str>,
+        cross_filter: Option<(&CrossDegreeState, usize)>,
     ) -> Option<Vec<String>> {
         match self {
             Requirement::SingleCourse { category, possibilities } => {
-                for course in possibilities {
-                    if !taken.contains(course) {
-                        return Some(vec![course.clone()]);
+                for course_code in possibilities {
+                    if course_suggestable(course_code, taken, cross_filter, cu_map) {
+                        return Some(vec![course_code.clone()]);
                     }
                 }
                 return None;
             },
             Requirement::CourseGroup { category, number, possibilities } => {
                 let mut suggested_courses = Vec::new();
-                for course in possibilities {
-                    if !taken.contains(course) {
-                        suggested_courses.push(course.clone());
+                for course_code in possibilities {
+                    if course_suggestable(course_code, taken, cross_filter, cu_map) {
+                        suggested_courses.push(course_code.clone());
                         if suggested_courses.len() as i32 == *number {
                             return Some(suggested_courses);
                         }
@@ -714,7 +720,7 @@ impl Requirement {
                     }
                 }
                 for req in possibilities {
-                    match req.suggest_for_requirement(taken, attributes, cu_map, scope) {
+                    match req.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter) {
                         Some(val) => return Some(val),
                         None => {},
                     }
@@ -724,7 +730,7 @@ impl Requirement {
             Requirement::AllOf { category, requirements } => {
                 let mut suggested_courses = Vec::new();
                 for req in requirements {
-                    match req.suggest_for_requirement(taken, attributes, cu_map, scope) {
+                    match req.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter) {
                         Some(mut val) => suggested_courses.append(&mut val),
                         None => return None,
                     }
@@ -733,7 +739,7 @@ impl Requirement {
             },
             Requirement::Concentration { category, number, requirements } => {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
-                composite_requirement.suggest_for_requirement(taken, attributes, cu_map, scope)
+                composite_requirement.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter)
             },
             Requirement::Restriction { .. } => self
                 .requirement_slot_id(scope)
@@ -756,7 +762,7 @@ impl Requirement {
                 // Build suggestions for unfulfilled base requirements
                 let mut suggestions: Vec<String> = Vec::new();
                 for req in &unfulfilled_base {
-                    if let Some(s) = req.suggest_for_requirement(taken, attributes, cu_map, scope) {
+                    if let Some(s) = req.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter) {
                         suggestions.extend(s);
                     }
                 }
@@ -999,14 +1005,19 @@ pub fn suggest_courses_for_requirements(
     unfulfilled_requirements: &[MappedRequirement],
     taken: &Vec<String>,
     cu_map: &HashMap<String, f64>,
+    cross_state: Option<&CrossDegreeState>,
+    degree_idx: Option<usize>,
 ) -> Vec<MappedRequirement> {
     let attributes = attributes_data::create_attributes();
+    let cross_filter = cross_state
+        .zip(degree_idx)
+        .map(|(state, idx)| (state, idx));
     let mut suggested_courses = Vec::new();
     for mapped in unfulfilled_requirements {
         let scope = mapped.instance_id.as_deref();
         match mapped
             .requirement
-            .suggest_for_requirement(taken, &attributes, cu_map, scope)
+            .suggest_for_requirement(taken, &attributes, cu_map, scope, cross_filter)
         {
             Some(val) => {
                 let course_ids = filter_schedule_suggestion_ids(val);
@@ -1287,6 +1298,239 @@ pub fn extract_concentration_info(
     results
 }
 
+fn course_suggestable(
+    course_code: &str,
+    taken: &[String],
+    cross_filter: Option<(&CrossDegreeState, usize)>,
+    cu_map: &HashMap<String, f64>,
+) -> bool {
+    if taken.contains(&course_code.to_string()) {
+        return false;
+    }
+    if let Some((state, degree_idx)) = cross_filter {
+        if course::is_valid_course_code(course_code) {
+            return state.can_claim(course_code, degree_idx, cu_map).is_ok();
+        }
+    }
+    true
+}
+
+fn fulfillment_score_for_course_in_degree(
+    per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    course: &str,
+    degree_idx: usize,
+) -> usize {
+    per_degree[degree_idx]
+        .0
+        .iter()
+        .filter(|m| m.course_ids.contains(&course.to_string()))
+        .count()
+}
+
+fn choose_best_two_degrees(
+    course: &str,
+    degree_indices: &[usize],
+    per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+) -> HashSet<usize> {
+    if degree_indices.len() <= 2 {
+        return degree_indices.iter().copied().collect();
+    }
+
+    let mut best: Option<(HashSet<usize>, usize)> = None;
+    for i in 0..degree_indices.len() {
+        for j in (i + 1)..degree_indices.len() {
+            let pair = HashSet::from([degree_indices[i], degree_indices[j]]);
+            let score = fulfillment_score_for_course_in_degree(per_degree, course, degree_indices[i])
+                + fulfillment_score_for_course_in_degree(per_degree, course, degree_indices[j]);
+            let replace = match &best {
+                None => true,
+                Some((_, best_score)) => score > *best_score,
+            };
+            if replace {
+                best = Some((pair, score));
+            }
+        }
+    }
+    best.map(|(pair, _)| pair).unwrap_or_default()
+}
+
+fn remove_course_from_degree_result(
+    per_degree: &mut [(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    course: &str,
+    degree_idx: usize,
+) {
+    let (fulfilled, unfulfilled) = &mut per_degree[degree_idx];
+    let mut to_unfulfill = Vec::new();
+
+    fulfilled.retain_mut(|mapped| {
+        if mapped.course_ids.contains(&course.to_string()) {
+            mapped.course_ids.retain(|c| c != course);
+            if mapped.course_ids.is_empty() {
+                to_unfulfill.push(mapped.clone());
+                return false;
+            }
+        }
+        true
+    });
+
+    for mapped in to_unfulfill {
+        if !unfulfilled
+            .iter()
+            .any(|u| u.instance_id == mapped.instance_id)
+        {
+            unfulfilled.push(mapped);
+        }
+    }
+}
+
+fn build_allocations_from_fulfilled(
+    per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+) -> HashMap<String, HashSet<usize>> {
+    let mut allocations: HashMap<String, HashSet<usize>> = HashMap::new();
+    for (degree_idx, (fulfilled, _)) in per_degree.iter().enumerate() {
+        for mapped in fulfilled {
+            for course in &mapped.course_ids {
+                if course::is_valid_course_code(course) {
+                    allocations
+                        .entry(course.clone())
+                        .or_default()
+                        .insert(degree_idx);
+                }
+            }
+        }
+    }
+    allocations
+}
+
+pub fn resolve_cross_degree_conflicts(
+    per_degree: &mut [(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    degree_schools: &[String],
+    degree_majors: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> CrossDegreeSummary {
+    let mut allocations = build_allocations_from_fulfilled(per_degree);
+
+    loop {
+        let violations = detect_violations(&allocations, degree_schools, cu_map);
+        if violations.is_empty() {
+            break;
+        }
+
+        let mut changed = false;
+
+        for violation in &violations {
+            match violation.kind {
+                cross_degree::CrossDegreeViolationKind::TooManyDegrees => {
+                    let course = &violation.course_id;
+                    let indices: Vec<usize> = allocations
+                        .get(course)
+                        .map(|s| s.iter().copied().collect())
+                        .unwrap_or_default();
+                    let keep = choose_best_two_degrees(course, &indices, per_degree);
+                    for idx in indices {
+                        if !keep.contains(&idx) {
+                            remove_course_from_degree_result(per_degree, course, idx);
+                            changed = true;
+                        }
+                    }
+                    if let Some(set) = allocations.get_mut(course) {
+                        set.retain(|idx| keep.contains(idx));
+                    }
+                }
+                cross_degree::CrossDegreeViolationKind::GradGradOverlap => {
+                    let course = &violation.course_id;
+                    let grad_indices = &violation.degree_indices;
+                    if grad_indices.len() <= 1 {
+                        continue;
+                    }
+                    let mut best_idx = grad_indices[0];
+                    let mut best_score =
+                        fulfillment_score_for_course_in_degree(per_degree, course, best_idx);
+                    for &idx in &grad_indices[1..] {
+                        let score =
+                            fulfillment_score_for_course_in_degree(per_degree, course, idx);
+                        if score > best_score {
+                            best_score = score;
+                            best_idx = idx;
+                        }
+                    }
+                    for &idx in grad_indices {
+                        if idx != best_idx {
+                            remove_course_from_degree_result(per_degree, course, idx);
+                            changed = true;
+                        }
+                    }
+                    if let Some(set) = allocations.get_mut(course) {
+                        let to_remove: Vec<usize> = set
+                            .iter()
+                            .copied()
+                            .filter(|&idx| {
+                                is_graduate_degree(&degree_schools[idx]) && idx != best_idx
+                            })
+                            .collect();
+                        for idx in to_remove {
+                            set.remove(&idx);
+                        }
+                    }
+                }
+                cross_degree::CrossDegreeViolationKind::UndergradGradCuCap => {
+                    let mut shared: Vec<(String, f64, Vec<usize>)> = allocations
+                        .iter()
+                        .filter(|(course, indices)| {
+                            course::is_valid_course_code(course)
+                                && !course::is_graduate_level(course)
+                                && crosses_undergrad_grad(course, indices, degree_schools)
+                        })
+                        .map(|(course, indices)| {
+                            (
+                                course.clone(),
+                                lookup_course_cu(cu_map, course),
+                                indices.iter().copied().collect(),
+                            )
+                        })
+                        .collect();
+
+                    shared.sort_by(|a, b| {
+                        b.1.partial_cmp(&a.1)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                            .then_with(|| a.0.cmp(&b.0))
+                    });
+
+                    let mut used = shared.iter().map(|(_, cu, _)| cu).sum::<f64>();
+                    while used > UNDERGRAD_GRAD_CU_LIMIT + CU_EPS {
+                        let Some((course, cu, indices)) = shared.pop() else {
+                            break;
+                        };
+                        let grad_indices: Vec<usize> = indices
+                            .iter()
+                            .copied()
+                            .filter(|&i| is_graduate_degree(&degree_schools[i]))
+                            .collect();
+                        for idx in grad_indices {
+                            remove_course_from_degree_result(per_degree, &course, idx);
+                            if let Some(set) = allocations.get_mut(&course) {
+                                set.remove(&idx);
+                            }
+                            changed = true;
+                        }
+                        used -= cu;
+                    }
+                }
+            }
+        }
+
+        if !changed {
+            break;
+        }
+        allocations = build_allocations_from_fulfilled(per_degree);
+    }
+
+    let mut state = CrossDegreeState::new(degree_schools.to_vec(), degree_majors.to_vec());
+    state.rebuild_from_allocations(&allocations, cu_map);
+    state.violations = detect_violations(&allocations, degree_schools, cu_map);
+    state.to_summary()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1511,5 +1755,41 @@ mod tests {
             req.fulfills_requirement(&taken, &attributes, &cu_map),
             Some(vec!["TEST 1000".to_string()])
         );
+    }
+
+    #[test]
+    fn resolve_keeps_best_two_degrees() {
+        let schools = vec![
+            "SEAS".to_string(),
+            "WH".to_string(),
+            "SEAS_MS".to_string(),
+        ];
+        let majors = vec!["CIS".to_string(), "WH_FL".to_string(), "MS_ROBO".to_string()];
+        let cu_map = HashMap::from([("CIS 1200".to_string(), 1.0)]);
+
+        let mapped = |course: &str| MappedRequirement {
+            requirement: Requirement::SingleCourse {
+                category: None,
+                possibilities: vec![course.to_string()],
+            },
+            course_ids: vec![course.to_string()],
+            instance_id: Some("0".to_string()),
+            attribute_fulfillment: None,
+        };
+
+        let mut per_degree = vec![
+            (vec![mapped("CIS 1200"), mapped("CIS 1200")], vec![]),
+            (vec![mapped("CIS 1200")], vec![]),
+            (vec![mapped("CIS 1200")], vec![]),
+        ];
+
+        let summary = resolve_cross_degree_conflicts(&mut per_degree, &schools, &majors, &cu_map);
+        let kept = summary
+            .course_allocations
+            .get("CIS 1200")
+            .map(|v| v.len())
+            .unwrap_or(0);
+        assert!(kept <= 2);
+        assert!(summary.violations.is_empty());
     }
 }

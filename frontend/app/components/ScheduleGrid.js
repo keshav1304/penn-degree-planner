@@ -27,6 +27,8 @@ export default function ScheduleGrid({
     scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementLinks,
+    crossDegreeViolationsByCourse = {},
+    undergradGradBudgetCourses = new Set(),
     onNavigateToRequirement, allowSummer,
     doubleCountData, courseDoubleCountMap,
     concentrationData, courseConcentrationMap,
@@ -274,9 +276,12 @@ export default function ScheduleGrid({
     const renderCourseCard = (courseId, year, sem, idx) => {
         const frozen = isFrozen(courseId);
         const assigned = isAssigned(courseId);
+        const violation = crossDegreeViolationsByCourse?.[courseId];
+        const usesBudget = undergradGradBudgetCourses?.has?.(courseId);
         let className = "schedule-course";
         if (assigned) className += " assigned";
         else if (frozen) className += " frozen";
+        if (violation) className += " cross-degree-violation";
 
         const handleClick = () => {
             if (!isValidCourseCode(courseId)) return;
@@ -305,13 +310,20 @@ export default function ScheduleGrid({
                         className="schedule-course-content"
                         onClick={handleClick}
                         title={
-                            assigned ? "Click to freeze (orange)"
+                            violation
+                                ? violation
+                                : assigned ? "Click to freeze (orange)"
                                 : frozen ? "Click to un-mark (default)"
                                     : "Click to mark taken (green)"
                         }
                     >
                         <span>{courseId}</span>
                         <span className="course-card-actions">
+                            {usesBudget && (
+                                <span className="cross-degree-budget-badge" title="Counts toward undergrad→grad double-count budget">
+                                    U→G
+                                </span>
+                            )}
                             {renderConcBadges(courseId)}
                             {renderDcBadges(courseId)}
                             {renderInfoLink(courseId)}

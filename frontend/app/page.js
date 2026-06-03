@@ -18,6 +18,12 @@ import {
 } from "@/lib/courseUtils";
 import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
 import { reqRowDomId } from "@/lib/requirementNav";
+import {
+  buildCourseDegreesMapFromAllocations,
+  courseViolationMap,
+  coursesUsingUndergradGradBudget,
+  formatUndergradGradBudget,
+} from "@/lib/crossDegree";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -349,8 +355,16 @@ export default function Home() {
     return labels;
   }, [scheduleData]);
 
-  // ─── Build course → degree map ───
+  const crossDegreeSummary = scheduleData?.cross_degree_summary ?? null;
+
+  // ─── Build course → degree map (authoritative allocations from backend) ───
   const courseDegreesMap = useMemo(() => {
+    const fromAllocations = buildCourseDegreesMapFromAllocations(
+      crossDegreeSummary,
+      scheduleData?.degree_results
+    );
+    if (Object.keys(fromAllocations).length > 0) return fromAllocations;
+
     const degMap = {};
     if (scheduleData?.degree_results) {
       scheduleData.degree_results.forEach((result) => {
@@ -369,7 +383,17 @@ export default function Home() {
       });
     }
     return degMap;
-  }, [scheduleData]);
+  }, [scheduleData, crossDegreeSummary]);
+
+  const crossDegreeViolationsByCourse = useMemo(
+    () => courseViolationMap(crossDegreeSummary),
+    [crossDegreeSummary]
+  );
+
+  const undergradGradBudgetCourses = useMemo(
+    () => coursesUsingUndergradGradBudget(crossDegreeSummary),
+    [crossDegreeSummary]
+  );
 
   const courseRequirementLinks = useMemo(() => {
     const links = {};
@@ -499,6 +523,27 @@ export default function Home() {
           setDegrees={setDegrees}
         />
 
+        {crossDegreeSummary && degrees.length > 1 && (
+          <div
+            className={`cross-degree-banner${
+              (crossDegreeSummary.violations?.length ?? 0) > 0 ? " cross-degree-banner-warn" : ""
+            }`}
+          >
+            <span className="cross-degree-banner-label">
+              {formatUndergradGradBudget(
+                crossDegreeSummary.undergrad_grad_cu_used,
+                crossDegreeSummary.undergrad_grad_cu_limit
+              )}
+            </span>
+            {(crossDegreeSummary.violations?.length ?? 0) > 0 && (
+              <span className="cross-degree-banner-note">
+                {crossDegreeSummary.violations.length} cross-degree conflict
+                {crossDegreeSummary.violations.length === 1 ? "" : "s"} resolved
+              </span>
+            )}
+          </div>
+        )}
+
         <div
           className={`main-layout ${requirementsOpen ? "" : "requirements-collapsed"}`}
         >
@@ -554,6 +599,8 @@ export default function Home() {
                 degrees={degrees}
                 courseDegreesMap={courseDegreesMap}
                 courseRequirementLinks={courseRequirementLinks}
+                crossDegreeViolationsByCourse={crossDegreeViolationsByCourse}
+                undergradGradBudgetCourses={undergradGradBudgetCourses}
                 onNavigateToRequirement={(target) => {
                   setRequirementsOpen(true);
                   setReqNavTarget(target);
@@ -592,6 +639,9 @@ export default function Home() {
                   degrees={degrees}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
+                  crossDegreeSummary={crossDegreeSummary}
+                  crossDegreeViolationsByCourse={crossDegreeViolationsByCourse}
+                  undergradGradBudgetCourses={undergradGradBudgetCourses}
                   navTarget={reqNavTarget}
                   onNavTargetConsumed={() => setReqNavTarget(null)}
                 />

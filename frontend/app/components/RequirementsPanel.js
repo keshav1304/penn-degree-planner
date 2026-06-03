@@ -17,12 +17,16 @@ import {
     parseRequirement,
 } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
+import { formatUndergradGradBudget } from "@/lib/crossDegree";
 
 export default function RequirementsPanel({
     scheduleData,
     degrees,
     frozenCourses = [],
     assignedCourses = [],
+    crossDegreeSummary = null,
+    crossDegreeViolationsByCourse = {},
+    undergradGradBudgetCourses = new Set(),
     navTarget = null,
     onNavTargetConsumed,
 }) {
@@ -100,7 +104,23 @@ export default function RequirementsPanel({
 
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
-    const scheduleCtx = { assignedIds, frozenIds };
+    const scheduleCtx = {
+        assignedIds,
+        frozenIds,
+        crossDegreeViolationsByCourse,
+        undergradGradBudgetCourses,
+    };
+
+    const crossDegreeChipTitle = (courseId) => {
+        const parts = [];
+        if (crossDegreeViolationsByCourse[courseId]) {
+            parts.push(crossDegreeViolationsByCourse[courseId]);
+        }
+        if (undergradGradBudgetCourses.has(courseId)) {
+            parts.push("Counts toward undergrad→grad double-count budget (max 3 CU total)");
+        }
+        return parts.length ? parts.join(" · ") : undefined;
+    };
 
     const totalCount = allReqs.length;
     const fulfilledCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled").length;
@@ -136,6 +156,15 @@ export default function RequirementsPanel({
             )}
 
             {current.error && <div className="req-error-banner">⚠️ {current.error}</div>}
+
+            {crossDegreeSummary && degrees.length > 1 && !current.error && (
+                <div className="req-cross-degree-note">
+                    {formatUndergradGradBudget(
+                        crossDegreeSummary.undergrad_grad_cu_used,
+                        crossDegreeSummary.undergrad_grad_cu_limit
+                    )}
+                </div>
+            )}
 
             {!current.error && totalCount > 0 && (
                 <div className="req-summary">
@@ -322,7 +351,7 @@ function buildRowContent(item) {
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
-function renderRequirementLine(item, scheduleCtx) {
+function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => undefined) {
     const { stem, badges, fulfillingSet } = buildRowContent(item);
     const fullDesc = createRequirementDescription(item.requirement);
     const chipCtx = { ...scheduleCtx, fulfillingSet };
@@ -337,8 +366,13 @@ function renderRequirementLine(item, scheduleCtx) {
             const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
             return <span key={key} className={chipClass(kind)}>{label}</span>;
         }
+        const chipTitle = crossDegreeChipTitle(badge.id);
         return (
-            <span key={key} className={chipClass(badgeKindFor(badge.id, chipCtx))}>
+            <span
+                key={key}
+                className={chipClass(badgeKindFor(badge.id, chipCtx))}
+                title={chipTitle}
+            >
                 {badge.id}
             </span>
         );
@@ -437,7 +471,7 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
                 {item.fulfilled ? "✓" : "○"}
             </span>
             <div className="req-item-body">
-                {renderRequirementLine(item, scheduleCtx)}
+                            {renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle)}
             </div>
         </div>
     );

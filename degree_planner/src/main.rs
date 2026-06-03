@@ -1,6 +1,7 @@
 use std::vec;
 
 pub mod course;
+pub mod cross_degree;
 pub mod major;
 pub mod requirement;
 pub mod schedule_template;
@@ -18,6 +19,7 @@ use requirement::Requirement;
 use requirement::MappedRequirement;
 use requirement::DoubleCountInfo;
 use requirement::ConcentrationInfo;
+use cross_degree::CrossDegreeSummary;
 use major::Major;
 use schedule_template::{
     later_semesters, ms_default_semester_target, ms_default_semester_target_for_requirement,
@@ -130,6 +132,8 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
             &unfulfilled_requirements,
             &taken,
             &cu_map,
+            None,
+            None,
         );
 
         let mut unapplicable_courses = taken.clone();
@@ -270,7 +274,7 @@ async fn course_get(Query(params): Query<CourseGetParams>) -> Json<Course> {
 }
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct DegreeInput {
     major: String,
     school: String,
@@ -336,6 +340,7 @@ struct ScheduleOutput {
     degree_results: Vec<DegreeResult>,
     /// Maps requirement slot id → human-readable description for the schedule UI.
     slot_labels: HashMap<String, String>,
+    cross_degree_summary: Option<CrossDegreeSummary>,
     error: Option<String>,
 }
 
@@ -380,13 +385,21 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         .map(|c| (c.course_code.clone(), c.cu))
         .collect();
 
-    // Process each degree
+    struct ResolvedDegree {
+        input: DegreeInput,
+        major_data: Major,
+        concs: Vec<String>,
+    }
+
+    let mut resolved_degrees: Vec<ResolvedDegree> = Vec::new();
+    let mut per_degree_validation: Vec<(Vec<MappedRequirement>, Vec<MappedRequirement>)> = Vec::new();
+    let mut degree_schools: Vec<String> = Vec::new();
+    let mut degree_majors: Vec<String> = Vec::new();
+
     for degree in &payload.degrees {
         let concs = degree.effective_concentrations();
-        let major_req = resolve_major(&degree.school, &degree.major, &concs);
-
-        if let Some(major_data) = major_req {
-            let (mut fulfilled, mut unfulfilled) = requirement::validate_courses_for_degree(
+        if let Some(major_data) = resolve_major(&degree.school, &degree.major, &concs) {
+            let (mut fulfilled, unfulfilled) = requirement::validate_courses_for_degree(
                 major_data.requirements.clone(),
                 &courses_for_validation,
                 &cu_map,
@@ -396,14 +409,90 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             }
             fulfilled.retain(|m| !m.course_ids.is_empty());
             fulfilled.sort_by_key(|r| r.requirement.get_category());
-            let suggested = requirement::suggest_courses_for_requirements(
-                &unfulfilled,
-                &courses_for_validation,
-                &cu_map,
-            );
 
-            // Collect unique suggested courses and requirement slots for the schedule
-            for mapped in &suggested {
+            per_degree_validation.push((fulfilled, unfulfilled));
+            degree_schools.push(degree.school.clone());
+            degree_majors.push(degree.major.clone());
+            resolved_degrees.push(ResolvedDegree {
+                input: degree.clone(),
+                major_data,
+                concs,
+            });
+        } else {
+            degree_results.push(DegreeResult {
+                school: degree.school.clone(),
+                major: degree.major.clone(),
+                fulfilled_requirements: vec![],
+                unfulfilled_requirements: vec![],
+                suggested_for_unfulfilled: vec![],
+                unapplicable_courses: vec![],
+                double_count_info: vec![],
+                concentration_info: vec![],
+                available_concentrations: vec![],
+                has_core_concentration: false,
+                category_order: vec![],
+                error: Some(format!(
+                    "Major '{}' in school '{}' is not implemented yet.",
+                    degree.major, degree.school
+                )),
+            });
+        }
+    }
+
+    let cross_degree_summary = if per_degree_validation.is_empty() {
+        None
+    } else {
+        Some(requirement::resolve_cross_degree_conflicts(
+            &mut per_degree_validation,
+            &degree_schools,
+            &degree_majors,
+            &cu_map,
+        ))
+    };
+
+    let mut cross_state = cross_degree::CrossDegreeState::new(
+        degree_schools.clone(),
+        degree_majors.clone(),
+    );
+    if let Some(summary) = &cross_degree_summary {
+        let allocations: HashMap<String, HashSet<usize>> = summary
+            .course_allocations
+            .iter()
+            .map(|(course, allocs)| {
+                (
+                    course.clone(),
+                    allocs.iter().map(|a| a.degree_index).collect(),
+                )
+            })
+            .collect();
+        cross_state.rebuild_from_allocations(&allocations, &cu_map);
+    }
+
+    for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
+        let degree = &resolved.input;
+        let major_data = &resolved.major_data;
+        let concs = &resolved.concs;
+        let (mut fulfilled, mut unfulfilled) = per_degree_validation[degree_idx].clone();
+        fulfilled.sort_by_key(|r| r.requirement.get_category());
+
+        let suggested = requirement::suggest_courses_for_requirements(
+            &unfulfilled,
+            &courses_for_validation,
+            &cu_map,
+            Some(&cross_state),
+            Some(degree_idx),
+        );
+
+        for mapped in &suggested {
+            for course_id in &mapped.course_ids {
+                if course::is_valid_course_code(course_id) {
+                    cross_state.register_claim(course_id, degree_idx, &cu_map);
+                }
+            }
+        }
+
+        // Collect unique suggested courses and requirement slots for the schedule
+        for mapped in &suggested {
                 if let Some(instance_id) = mapped.instance_id.as_deref() {
                     if let Some(target) =
                         resolve_semester_hint(instance_id, &major_data.schedule_hints)
@@ -440,8 +529,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                     if course::is_valid_course_code(course_id)
                         && !all_suggested_courses.contains(course_id)
                         && !courses_for_validation.contains(course_id)
+                        && cross_state
+                            .can_claim(course_id, degree_idx, &cu_map)
+                            .is_ok()
                     {
                         all_suggested_courses.push(course_id.clone());
+                        cross_state.register_claim(course_id, degree_idx, &cu_map);
                     } else if requirement::is_requirement_slot_id(course_id)
                         && !all_requirement_slots.contains(course_id)
                     {
@@ -512,22 +605,6 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 category_order,
                 error: None,
             });
-        } else {
-            degree_results.push(DegreeResult {
-                school: degree.school.clone(),
-                major: degree.major.clone(),
-                fulfilled_requirements: vec![],
-                unfulfilled_requirements: vec![],
-                suggested_for_unfulfilled: vec![],
-                unapplicable_courses: vec![],
-                double_count_info: vec![],
-                concentration_info: vec![],
-                available_concentrations: vec![],
-                has_core_concentration: false,
-                category_order: vec![],
-                error: Some(format!("Major '{}' in school '{}' is not implemented yet.", degree.major, degree.school)),
-            });
-        }
     }
 
     let get_cu = |course_id: &str| -> f64 {
@@ -787,6 +864,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         schedule,
         degree_results,
         slot_labels,
+        cross_degree_summary,
         error: None,
     })
 }

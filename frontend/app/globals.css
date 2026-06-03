@@ -779,6 +779,59 @@ select {
   min-height: 0;
 }
 
+.cross-degree-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 var(--page-pad) var(--panel-pad-y);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  font-size: var(--sidebar-font-sm, 0.78rem);
+  color: var(--text-secondary);
+}
+
+.cross-degree-banner-warn {
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
+.cross-degree-banner-label {
+  font-weight: 600;
+}
+
+.cross-degree-banner-note {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.schedule-course.cross-degree-violation {
+  box-shadow: inset 0 0 0 1px rgba(217, 119, 6, 0.55);
+}
+
+.cross-degree-budget-badge {
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(5, 150, 105, 0.15);
+  color: #047857;
+  margin-right: 2px;
+}
+
+.req-cross-degree-note {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.15);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
 .schedule-course-content {
   display: flex;
   align-items: center;
