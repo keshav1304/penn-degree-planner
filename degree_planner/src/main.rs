@@ -856,6 +856,8 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     }
 
     let cross_degree_summary = if degree_schools.len() > 1 {
+        cross_degree::enforce_claim_rules(&mut cross_state, &cu_map);
+
         for (degree_idx, result) in degree_results.iter_mut().enumerate() {
             requirement::filter_mapped_requirements_by_allocation(
                 &mut result.fulfilled_requirements,
@@ -864,6 +866,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             );
             requirement::filter_mapped_requirements_by_allocation(
                 &mut result.suggested_for_unfulfilled,
+                degree_idx,
+                &cross_state.claims,
+            );
+            requirement::filter_mapped_requirements_by_allocation(
+                &mut result.unfulfilled_requirements,
                 degree_idx,
                 &cross_state.claims,
             );

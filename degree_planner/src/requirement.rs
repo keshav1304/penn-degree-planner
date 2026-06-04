@@ -1740,7 +1740,6 @@ pub fn resolve_cross_degree_conflicts(
                         .iter()
                         .filter(|(course, indices)| {
                             course::is_valid_course_code(course)
-                                && !course::is_graduate_level(course)
                                 && crosses_undergrad_grad(course, indices, degree_schools)
                         })
                         .map(|(course, indices)| {

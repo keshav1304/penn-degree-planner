@@ -130,9 +130,7 @@ impl CrossDegreeState {
             }
         }
 
-        if !course::is_graduate_level(course)
-            && self.claim_crosses_undergrad_grad(degree_idx, existing)
-        {
+        if self.claim_crosses_undergrad_grad(degree_idx, existing) {
             let cu = lookup_course_cu(cu_map, course);
             if self.undergrad_grad_cu_used + cu > UNDERGRAD_GRAD_CU_LIMIT + CU_EPS {
                 return Err(CrossDegreeViolationKind::UndergradGradCuCap);
@@ -169,9 +167,7 @@ impl CrossDegreeState {
                 .insert(course.to_string(), degree_idx);
         }
 
-        if !course::is_graduate_level(course)
-            && self.claim_crosses_undergrad_grad(degree_idx, &existing_before)
-        {
+        if self.claim_crosses_undergrad_grad(degree_idx, &existing_before) {
             self.undergrad_grad_cu_used += lookup_course_cu(cu_map, course);
         }
     }
@@ -196,8 +192,7 @@ impl CrossDegreeState {
                     self.grad_course_owner.insert(course.clone(), degree_idx);
                 }
             }
-            if !course::is_graduate_level(course) && crosses_undergrad_grad(course, degree_indices, &self.degree_schools)
-            {
+            if crosses_undergrad_grad(course, degree_indices, &self.degree_schools) {
                 self.undergrad_grad_cu_used += lookup_course_cu(cu_map, course);
             }
         }
@@ -210,8 +205,8 @@ impl CrossDegreeState {
             if !course::is_valid_course_code(course) {
                 continue;
             }
-            let uses_budget = !course::is_graduate_level(course)
-                && crosses_undergrad_grad(course, degree_indices, &self.degree_schools);
+            let uses_budget =
+                crosses_undergrad_grad(course, degree_indices, &self.degree_schools);
 
             let mut allocs: Vec<CourseAllocation> = degree_indices
                 .iter()
@@ -301,9 +296,7 @@ pub fn detect_violations(
             }
         }
 
-        if !course::is_graduate_level(course)
-            && crosses_undergrad_grad(course, degree_indices, degree_schools)
-        {
+        if crosses_undergrad_grad(course, degree_indices, degree_schools) {
             undergrad_grad_cu += lookup_course_cu(cu_map, course);
         }
     }
@@ -322,15 +315,142 @@ pub fn detect_violations(
     violations
 }
 
+fn shared_undergrad_grad_cu(
+    claims: &HashMap<String, HashSet<usize>>,
+    degree_schools: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> f64 {
+    claims
+        .iter()
+        .filter(|(course, indices)| {
+            course::is_valid_course_code(course)
+                && crosses_undergrad_grad(course, indices, degree_schools)
+        })
+        .map(|(course, _)| lookup_course_cu(cu_map, course))
+        .sum()
+}
+
+fn choose_two_degree_indices(indices: &[usize], degree_schools: &[String]) -> HashSet<usize> {
+    if indices.len() <= 2 {
+        return indices.iter().copied().collect();
+    }
+    let mut sorted = indices.to_vec();
+    sorted.sort_by_key(|&i| (is_graduate_degree(&degree_schools[i]), i));
+    HashSet::from([sorted[0], sorted[1]])
+}
+
+/// Trim in-memory claims until all cross-degree rules are satisfied.
+pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String, f64>) {
+    loop {
+        let violations = detect_violations(&state.claims, &state.degree_schools, cu_map);
+        if violations.is_empty() {
+            break;
+        }
+
+        let mut changed = false;
+
+        for violation in &violations {
+            match violation.kind {
+                CrossDegreeViolationKind::TooManyDegrees => {
+                    let course = &violation.course_id;
+                    if let Some(indices) = state.claims.get(course).cloned() {
+                        let keep = choose_two_degree_indices(
+                            &indices.iter().copied().collect::<Vec<_>>(),
+                            &state.degree_schools,
+                        );
+                        if let Some(set) = state.claims.get_mut(course) {
+                            set.retain(|idx| keep.contains(idx));
+                            if set.is_empty() {
+                                state.claims.remove(course);
+                            }
+                            changed = true;
+                        }
+                    }
+                }
+                CrossDegreeViolationKind::GradGradOverlap => {
+                    let course = &violation.course_id;
+                    if violation.degree_indices.len() <= 1 {
+                        continue;
+                    }
+                    let best_idx = *violation
+                        .degree_indices
+                        .iter()
+                        .min_by_key(|&&i| i)
+                        .unwrap_or(&violation.degree_indices[0]);
+                    if let Some(set) = state.claims.get_mut(course) {
+                        set.retain(|&idx| {
+                            !is_graduate_degree(&state.degree_schools[idx]) || idx == best_idx
+                        });
+                        if set.is_empty() {
+                            state.claims.remove(course);
+                        }
+                        changed = true;
+                    }
+                }
+                CrossDegreeViolationKind::UndergradGradCuCap => {
+                    let mut shared: Vec<(String, f64)> = state
+                        .claims
+                        .iter()
+                        .filter(|(course, indices)| {
+                            course::is_valid_course_code(course)
+                                && crosses_undergrad_grad(course, indices, &state.degree_schools)
+                        })
+                        .map(|(course, _)| (course.clone(), lookup_course_cu(cu_map, course)))
+                        .collect();
+
+                    shared.sort_by(|a, b| {
+                        b.1.partial_cmp(&a.1)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                            .then_with(|| a.0.cmp(&b.0))
+                    });
+
+                    let mut used = shared_undergrad_grad_cu(
+                        &state.claims,
+                        &state.degree_schools,
+                        cu_map,
+                    );
+                    while used > UNDERGRAD_GRAD_CU_LIMIT + CU_EPS {
+                        let Some((course, cu)) = shared.pop() else {
+                            break;
+                        };
+                        if let Some(indices) = state.claims.get_mut(&course) {
+                            let grad_indices: Vec<usize> = indices
+                                .iter()
+                                .copied()
+                                .filter(|&i| is_graduate_degree(&state.degree_schools[i]))
+                                .collect();
+                            for idx in grad_indices {
+                                indices.remove(&idx);
+                            }
+                            if indices.is_empty() {
+                                state.claims.remove(&course);
+                            }
+                            changed = true;
+                        }
+                        used -= cu;
+                    }
+                }
+            }
+        }
+
+        if !changed {
+            break;
+        }
+    }
+
+    state.rebuild_from_allocations(&state.claims.clone(), cu_map);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::requirement::{MappedRequirement, Requirement};
 
     fn cu_map() -> HashMap<String, f64> {
         HashMap::from([
             ("CIS 1200".to_string(), 1.0),
             ("CIS 5190".to_string(), 1.0),
+            ("CIS 5200".to_string(), 1.0),
+            ("CIS 5210".to_string(), 1.0),
             ("MATH 1400".to_string(), 1.0),
             ("STAT 4300".to_string(), 1.0),
             ("MEAM 1100".to_string(), 0.5),
@@ -384,5 +504,93 @@ mod tests {
             state.can_claim("MEAM 1100", 1, &cu),
             Err(CrossDegreeViolationKind::UndergradGradCuCap)
         ));
+    }
+
+    #[test]
+    fn undergrad_grad_cu_cap_includes_graduate_courses() {
+        let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
+        let majors = vec!["CIS".to_string(), "MS_ROBO".to_string()];
+        let mut state = CrossDegreeState::new(schools, majors);
+        let cu = cu_map();
+
+        state.register_claim("CIS 5190", 0, &cu);
+        state.register_claim("CIS 5190", 1, &cu);
+        state.register_claim("CIS 5200", 0, &cu);
+        state.register_claim("CIS 5200", 1, &cu);
+        state.register_claim("CIS 5210", 0, &cu);
+        state.register_claim("CIS 5210", 1, &cu);
+        state.register_claim("MATH 1400", 0, &cu);
+        assert!(matches!(
+            state.can_claim("MATH 1400", 1, &cu),
+            Err(CrossDegreeViolationKind::UndergradGradCuCap)
+        ));
+    }
+
+    #[test]
+    fn enforce_claim_rules_trims_excess_undergrad_grad_sharing() {
+        let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
+        let majors = vec!["CIS".to_string(), "MS_ROBO".to_string()];
+        let mut state = CrossDegreeState::new(schools, majors);
+        let cu = cu_map();
+
+        for course in ["CIS 5190", "CIS 5200", "CIS 5210", "MATH 1400"] {
+            state.register_claim(course, 0, &cu);
+            state.register_claim(course, 1, &cu);
+        }
+
+        enforce_claim_rules(&mut state, &cu);
+
+        let shared_cu: f64 = state
+            .claims
+            .iter()
+            .filter(|(course, indices)| {
+                crosses_undergrad_grad(course, indices, &state.degree_schools)
+            })
+            .map(|(course, _)| lookup_course_cu(&cu, course))
+            .sum();
+        assert!(shared_cu <= UNDERGRAD_GRAD_CU_LIMIT + CU_EPS);
+        assert!(
+            state
+                .claims
+                .iter()
+                .filter(|(course, indices)| {
+                    crosses_undergrad_grad(course, indices, &state.degree_schools)
+                })
+                .count()
+                <= 3
+        );
+    }
+
+    #[test]
+    fn six_shared_grad_courses_trim_to_three_cu() {
+        let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
+        let majors = vec!["CIS".to_string(), "MS_ROBO".to_string()];
+        let mut state = CrossDegreeState::new(schools, majors);
+        let cu = HashMap::from([
+            ("CIS 5190".to_string(), 1.0),
+            ("CIS 5200".to_string(), 1.0),
+            ("CIS 5210".to_string(), 1.0),
+            ("CIS 5800".to_string(), 1.0),
+            ("ESE 5000".to_string(), 1.0),
+            ("MEAM 5100".to_string(), 1.0),
+        ]);
+
+        for course in [
+            "CIS 5190", "CIS 5200", "CIS 5210", "CIS 5800", "ESE 5000", "MEAM 5100",
+        ] {
+            state.register_claim(course, 0, &cu);
+            state.register_claim(course, 1, &cu);
+        }
+
+        enforce_claim_rules(&mut state, &cu);
+
+        let shared_count = state
+            .claims
+            .values()
+            .filter(|indices| crosses_undergrad_grad("", indices, &state.degree_schools))
+            .count();
+        let shared_cu = shared_undergrad_grad_cu(&state.claims, &state.degree_schools, &cu);
+        assert_eq!(shared_count, 3);
+        assert!((shared_cu - 3.0).abs() < CU_EPS);
     }
 }

@@ -233,3 +233,13 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_major;
+
+    #[test]
+    fn resolves_ms_robo() {
+        assert!(resolve_major("SEAS_MS", "MS_ROBO", &[]).is_some());
+    }
+}
