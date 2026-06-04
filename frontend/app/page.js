@@ -20,7 +20,9 @@ import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
 import { reqRowDomId } from "@/lib/requirementNav";
 import {
   buildCourseDegreesMapFromAllocations,
+  courseCountsForDegree,
   courseViolationMap,
+  filterConcentrationInfoForDegree,
 } from "@/lib/crossDegree";
 
 const STORAGE_KEY = "penn_degree_planner_state";
@@ -378,8 +380,7 @@ export default function Home() {
       const addLink = (mapped, courseId) => {
         if (!isValidCourseCode(courseId) && !isRequirementSlotId(courseId)) return;
         if (isValidCourseCode(courseId)) {
-          const allocatedDegrees = courseDegreesMap[courseId];
-          if (allocatedDegrees && !allocatedDegrees.includes(degreeLabel)) return;
+          if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
         }
         const category = requirementCategoryForNav(mapped.requirement);
         const instanceId = getRequirementInstanceId(mapped);
@@ -412,9 +413,9 @@ export default function Home() {
   }, [scheduleData, courseDegreesMap]);
 
   // ─── Build double-count tracker data ───
-  const { doubleCountData, courseDoubleCountMap } = (() => {
+  const { doubleCountData, courseDoubleCountMap } = useMemo(() => {
     const dcList = [];
-    const dcCourseMap = {}; // courseId → [{dcIndex, dcLabel, isDoubleCountMatch}]
+    const dcCourseMap = {};
     if (scheduleData?.degree_results) {
       let globalDcIndex = 0;
       scheduleData.degree_results.forEach((result) => {
@@ -425,9 +426,9 @@ export default function Home() {
             const dcLabel = `DC-${dcIdx + 1}`;
             dcList.push({ ...dc, dcLabel, degreeLabel, dcIndex: dcIdx });
 
-            // Map base courses → this DC tracker
             const matchedSet = new Set(dc.dc_matched_courses?.flat() || []);
             (dc.base_courses || []).forEach((courseId) => {
+              if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
               if (!dcCourseMap[courseId]) dcCourseMap[courseId] = [];
               if (!dcCourseMap[courseId].some(course => course.dcLabel === dcLabel)) {
                 dcCourseMap[courseId].push({
@@ -443,10 +444,10 @@ export default function Home() {
       });
     }
     return { doubleCountData: dcList, courseDoubleCountMap: dcCourseMap };
-  })();
+  }, [scheduleData, courseDegreesMap]);
 
   // ─── Build concentration tracker data ───
-  const { concentrationData, courseConcentrationMap } = (() => {
+  const { concentrationData, courseConcentrationMap } = useMemo(() => {
     const concList = [];
     const concCourseMap = {};
     if (scheduleData?.degree_results) {
@@ -454,13 +455,13 @@ export default function Home() {
         const degreeLabel = `${result.school}-${result.major}`;
         if (result.concentration_info) {
           result.concentration_info.forEach((ci) => {
-            if (ci.is_core) return; // core concentrations are handled via normal requirements
-            concList.push({ ...ci, degreeLabel });
+            if (ci.is_core) return;
+            const filtered = filterConcentrationInfoForDegree(ci, degreeLabel, courseDegreesMap);
+            concList.push({ ...filtered, degreeLabel });
 
-            // Map matched courses to this concentration tracker
-            (ci.matched_courses || []).flat().forEach((courseId) => {
+            (filtered.matched_courses || []).flat().forEach((courseId) => {
               if (!concCourseMap[courseId]) concCourseMap[courseId] = [];
-              if (!concCourseMap[courseId].some(e => e.name === ci.name)) {
+              if (!concCourseMap[courseId].some(e => e.name === ci.name && e.degreeLabel === degreeLabel)) {
                 concCourseMap[courseId].push({
                   name: ci.name,
                   degreeLabel,
@@ -472,7 +473,7 @@ export default function Home() {
       });
     }
     return { concentrationData: concList, courseConcentrationMap: concCourseMap };
-  })();
+  }, [scheduleData, courseDegreesMap]);
 
   return (
     <DndContext
@@ -601,6 +602,7 @@ export default function Home() {
                   degrees={degrees}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
+                  courseDegreesMap={courseDegreesMap}
                   crossDegreeViolationsByCourse={crossDegreeViolationsByCourse}
                   navTarget={reqNavTarget}
                   onNavTargetConsumed={() => setReqNavTarget(null)}

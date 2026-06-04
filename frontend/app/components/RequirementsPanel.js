@@ -17,6 +17,10 @@ import {
     isExpandableAnyOf,
     parseRequirement,
 } from "@/lib/requirementText";
+import {
+    filterAttributeFulfillmentForDegree,
+    filterCoursesForDegree,
+} from "@/lib/crossDegree";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
 export default function RequirementsPanel({
@@ -24,6 +28,7 @@ export default function RequirementsPanel({
     degrees,
     frozenCourses = [],
     assignedCourses = [],
+    courseDegreesMap = {},
     crossDegreeViolationsByCourse = {},
     navTarget = null,
     onNavTargetConsumed,
@@ -66,32 +71,48 @@ export default function RequirementsPanel({
     const current = results[tabIndex];
     if (!current) return null;
 
-    const allReqs = [];
-    (current.fulfilled_requirements || []).forEach((mapped) => {
-        allReqs.push({
+    const degreeLabel = `${current.school}-${current.major}`;
+
+    const mapRequirementForDegree = (mapped, { fulfilledDefault, partialDefault }) => {
+        const fulfilledCourses = filterCoursesForDegree(
+            mapped.course_ids || [],
+            degreeLabel,
+            courseDegreesMap,
+        );
+        const attributeFulfillment = filterAttributeFulfillmentForDegree(
+            attributeFulfillmentMap(mapped),
+            degreeLabel,
+            courseDegreesMap,
+        );
+        const hasAllocatedFulfillment =
+            fulfilledCourses.length > 0
+            || (attributeFulfillment
+                && [...attributeFulfillment.values()].some((ids) => ids.length > 0));
+        return {
             category: normalizeCategory(getCategory(mapped.requirement)),
-            fulfilled: true,
-            partial: false,
+            fulfilled: fulfilledDefault && hasAllocatedFulfillment,
+            partial: partialDefault && hasAllocatedFulfillment,
             committedAnyofBranch: mapped.committed_anyof_branch ?? null,
-            fulfilledCourses: mapped.course_ids || [],
+            fulfilledCourses,
             requirement: mapped.requirement,
             instanceId: getRequirementInstanceId(mapped),
-            attributeFulfillment: attributeFulfillmentMap(mapped),
-        });
+            attributeFulfillment,
+        };
+    };
+
+    const allReqs = [];
+    (current.fulfilled_requirements || []).forEach((mapped) => {
+        allReqs.push(mapRequirementForDegree(mapped, { fulfilledDefault: true, partialDefault: false }));
     });
     (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
         const req = mapped?.requirement ?? mapped;
-        const cat = normalizeCategory(getCategory(req));
-        const id = getRequirementInstanceId(mapped) ?? `u-${rowIdx}`;
+        const item = mapRequirementForDegree(
+            { ...mapped, requirement: req },
+            { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
+        );
         allReqs.push({
-            category: cat,
-            fulfilled: false,
-            partial: Boolean(mapped.partial),
-            committedAnyofBranch: mapped.committed_anyof_branch ?? null,
-            fulfilledCourses: mapped.course_ids || [],
-            requirement: req,
-            instanceId: id,
-            attributeFulfillment: attributeFulfillmentMap(mapped),
+            ...item,
+            instanceId: item.instanceId ?? `u-${rowIdx}`,
         });
     });
 

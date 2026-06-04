@@ -56,6 +56,8 @@ pub struct CrossDegreeState {
     pub grad_course_owner: HashMap<String, usize>,
     pub undergrad_grad_cu_used: f64,
     pub violations: Vec<CrossDegreeViolation>,
+    /// Courses required for overlay-style undergrad concentrations (course → UG degree indices).
+    pub ug_concentration_courses: HashMap<String, HashSet<usize>>,
     degree_schools: Vec<String>,
     degree_majors: Vec<String>,
 }
@@ -67,6 +69,7 @@ impl CrossDegreeState {
             grad_course_owner: HashMap::new(),
             undergrad_grad_cu_used: 0.0,
             violations: Vec::new(),
+            ug_concentration_courses: HashMap::new(),
             degree_schools,
             degree_majors,
         }
@@ -330,12 +333,23 @@ fn shared_undergrad_grad_cu(
         .sum()
 }
 
-fn choose_two_degree_indices(indices: &[usize], degree_schools: &[String]) -> HashSet<usize> {
+fn choose_two_degree_indices(
+    course: &str,
+    indices: &[usize],
+    degree_schools: &[String],
+    ug_concentration_courses: &HashMap<String, HashSet<usize>>,
+) -> HashSet<usize> {
     if indices.len() <= 2 {
         return indices.iter().copied().collect();
     }
+    let in_ug_conc = |idx: usize| {
+        ug_concentration_courses
+            .get(course)
+            .map(|set| set.contains(&idx))
+            .unwrap_or(false)
+    };
     let mut sorted = indices.to_vec();
-    sorted.sort_by_key(|&i| (is_graduate_degree(&degree_schools[i]), i));
+    sorted.sort_by_key(|&i| (is_graduate_degree(&degree_schools[i]), !in_ug_conc(i), i));
     HashSet::from([sorted[0], sorted[1]])
 }
 
@@ -355,8 +369,10 @@ pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String
                     let course = &violation.course_id;
                     if let Some(indices) = state.claims.get(course).cloned() {
                         let keep = choose_two_degree_indices(
+                            course,
                             &indices.iter().copied().collect::<Vec<_>>(),
                             &state.degree_schools,
+                            &state.ug_concentration_courses,
                         );
                         if let Some(set) = state.claims.get_mut(course) {
                             set.retain(|idx| keep.contains(idx));
@@ -398,9 +414,18 @@ pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String
                         .map(|(course, _)| (course.clone(), lookup_course_cu(cu_map, course)))
                         .collect();
 
+                    let ug_conc_priority = |course: &str| -> usize {
+                        state
+                            .ug_concentration_courses
+                            .get(course)
+                            .map(|set| set.len())
+                            .unwrap_or(0)
+                    };
+
                     shared.sort_by(|a, b| {
-                        b.1.partial_cmp(&a.1)
-                            .unwrap_or(std::cmp::Ordering::Equal)
+                        ug_conc_priority(&a.0)
+                            .cmp(&ug_conc_priority(&b.0))
+                            .then(a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
                             .then_with(|| a.0.cmp(&b.0))
                     });
 

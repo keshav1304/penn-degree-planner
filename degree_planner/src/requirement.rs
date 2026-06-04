@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Serialize;
 
@@ -1543,39 +1543,74 @@ fn fulfillment_score_for_course_in_degree(
     per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
     course: &str,
     degree_idx: usize,
+    conc_contexts: Option<&[DegreeConcentrationContext]>,
+    taken: Option<&[String]>,
+    cu_map: &HashMap<String, f64>,
 ) -> usize {
-    per_degree[degree_idx]
+    let mut score = per_degree[degree_idx]
         .0
         .iter()
         .filter(|m| m.course_ids.contains(&course.to_string()))
-        .count()
+        .count();
+
+    if let (Some(contexts), Some(taken)) = (conc_contexts, taken) {
+        if let Some(ctx) = contexts.get(degree_idx) {
+            score += CONCENTRATION_PRIORITY_WEIGHT
+                * concentration_slots_for_course(ctx, course, taken, cu_map);
+        }
+    }
+
+    score
 }
 
 fn choose_best_two_degrees(
     course: &str,
     degree_indices: &[usize],
     per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    conc_contexts: Option<&[DegreeConcentrationContext]>,
+    taken: Option<&[String]>,
+    cu_map: &HashMap<String, f64>,
+    degree_schools: &[String],
 ) -> HashSet<usize> {
     if degree_indices.len() <= 2 {
         return degree_indices.iter().copied().collect();
     }
 
-    let mut best: Option<(HashSet<usize>, usize)> = None;
+    let mut best: Option<(HashSet<usize>, usize, bool)> = None;
     for i in 0..degree_indices.len() {
         for j in (i + 1)..degree_indices.len() {
             let pair = HashSet::from([degree_indices[i], degree_indices[j]]);
-            let score = fulfillment_score_for_course_in_degree(per_degree, course, degree_indices[i])
-                + fulfillment_score_for_course_in_degree(per_degree, course, degree_indices[j]);
+            let score = fulfillment_score_for_course_in_degree(
+                per_degree,
+                course,
+                degree_indices[i],
+                conc_contexts,
+                taken,
+                cu_map,
+            ) + fulfillment_score_for_course_in_degree(
+                per_degree,
+                course,
+                degree_indices[j],
+                conc_contexts,
+                taken,
+                cu_map,
+            );
+            let has_undergrad = [degree_indices[i], degree_indices[j]]
+                .iter()
+                .any(|&idx| !is_graduate_degree(&degree_schools[idx]));
             let replace = match &best {
                 None => true,
-                Some((_, best_score)) => score > *best_score,
+                Some((_, best_score, best_has_undergrad)) => {
+                    score > *best_score
+                        || (score == *best_score && has_undergrad && !*best_has_undergrad)
+                }
             };
             if replace {
-                best = Some((pair, score));
+                best = Some((pair, score, has_undergrad));
             }
         }
     }
-    best.map(|(pair, _)| pair).unwrap_or_default()
+    best.map(|(pair, _, _)| pair).unwrap_or_default()
 }
 
 fn remove_course_from_degree_result(
@@ -1617,6 +1652,20 @@ fn remove_course_from_degree_result(
     }
 }
 
+fn course_allocated_to_degree(
+    course_id: &str,
+    degree_idx: usize,
+    claims: &HashMap<String, HashSet<usize>>,
+) -> bool {
+    if !course::is_valid_course_code(course_id) {
+        return true;
+    }
+    claims
+        .get(course_id)
+        .map(|indices| indices.contains(&degree_idx))
+        .unwrap_or(false)
+}
+
 pub fn filter_mapped_requirements_by_allocation(
     mapped_list: &mut [MappedRequirement],
     degree_idx: usize,
@@ -1624,15 +1673,187 @@ pub fn filter_mapped_requirements_by_allocation(
 ) {
     for mapped in mapped_list {
         mapped.course_ids.retain(|course_id| {
-            if !course::is_valid_course_code(course_id) {
-                return true;
-            }
-            claims
-                .get(course_id)
-                .map(|indices| indices.contains(&degree_idx))
-                .unwrap_or(false)
+            course_allocated_to_degree(course_id, degree_idx, claims)
         });
+        if let Some(ref mut attr_rows) = mapped.attribute_fulfillment {
+            for row in attr_rows.iter_mut() {
+                row.course_ids.retain(|course_id| {
+                    course_allocated_to_degree(course_id, degree_idx, claims)
+                });
+            }
+            attr_rows.retain(|row| !row.course_ids.is_empty());
+            if attr_rows.is_empty() {
+                mapped.attribute_fulfillment = None;
+            }
+        }
     }
+}
+
+const CONCENTRATION_PRIORITY_WEIGHT: usize = 100;
+
+#[derive(Debug, Clone)]
+pub struct DegreeConcentrationContext {
+    pub is_overlay: bool,
+    pub selected_concentrations: Vec<String>,
+    pub concentration_requirements: BTreeMap<String, Vec<Requirement>>,
+}
+
+pub fn degree_concentration_context_from_major(
+    requirements: &[Requirement],
+    concentrations: &Option<BTreeMap<String, Vec<Requirement>>>,
+    selected: &[String],
+) -> DegreeConcentrationContext {
+    let has_core = requirements
+        .iter()
+        .any(|r| matches!(r, Requirement::Concentration { .. }))
+        || requirements
+            .iter()
+            .any(|r| r.get_category() == "Concentration");
+    let is_overlay = !has_core && concentrations.is_some();
+    DegreeConcentrationContext {
+        is_overlay,
+        selected_concentrations: selected.to_vec(),
+        concentration_requirements: concentrations.clone().unwrap_or_default(),
+    }
+}
+
+fn overlay_concentration_courses_for_degree(
+    ctx: &DegreeConcentrationContext,
+    taken: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> HashSet<String> {
+    if !ctx.is_overlay {
+        return HashSet::new();
+    }
+
+    let attributes = attributes_data::create_attributes();
+    let mut remaining_taken = taken.to_vec();
+    let mut result = HashSet::new();
+
+    for selected in &ctx.selected_concentrations {
+        let Some(conc_reqs) = ctx.concentration_requirements.get(selected) else {
+            continue;
+        };
+        for req in conc_reqs {
+            if let Some(courses) = req.fulfills_requirement(&remaining_taken, &attributes, cu_map) {
+                for course in &courses {
+                    result.insert(course.clone());
+                }
+                remaining_taken.retain(|x| !courses.contains(x));
+            }
+        }
+    }
+
+    result
+}
+
+pub fn concentration_slots_for_course(
+    ctx: &DegreeConcentrationContext,
+    course: &str,
+    taken: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> usize {
+    if !ctx.is_overlay {
+        return 0;
+    }
+
+    let attributes = attributes_data::create_attributes();
+    let mut count = 0;
+
+    for selected in &ctx.selected_concentrations {
+        let Some(conc_reqs) = ctx.concentration_requirements.get(selected) else {
+            continue;
+        };
+        for req in conc_reqs {
+            if let Some(courses) = req.fulfills_requirement(&taken.to_vec(), &attributes, cu_map) {
+                if courses.iter().any(|c| c == course) {
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    count
+}
+
+pub fn build_ug_concentration_claims(
+    conc_contexts: &[DegreeConcentrationContext],
+    degree_schools: &[String],
+    taken: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> HashMap<String, HashSet<usize>> {
+    let mut claims: HashMap<String, HashSet<usize>> = HashMap::new();
+
+    for (degree_idx, ctx) in conc_contexts.iter().enumerate() {
+        if is_graduate_degree(&degree_schools[degree_idx]) {
+            continue;
+        }
+        for course in overlay_concentration_courses_for_degree(ctx, &taken, cu_map) {
+            claims.entry(course).or_default().insert(degree_idx);
+        }
+    }
+
+    claims
+}
+
+pub fn merge_concentration_claims_into(
+    allocations: &mut HashMap<String, HashSet<usize>>,
+    ug_conc_claims: &HashMap<String, HashSet<usize>>,
+) {
+    for (course, indices) in ug_conc_claims {
+        allocations
+            .entry(course.clone())
+            .or_default()
+            .extend(indices.iter().copied());
+    }
+}
+
+pub fn filter_concentration_info_by_claims(
+    conc_info: &mut [ConcentrationInfo],
+    degree_idx: usize,
+    claims: &HashMap<String, HashSet<usize>>,
+) {
+    for ci in conc_info.iter_mut() {
+        if ci.is_core {
+            continue;
+        }
+
+        for (slot_idx, courses) in ci.matched_courses.iter_mut().enumerate() {
+            courses.retain(|course_id| {
+                claims
+                    .get(course_id)
+                    .map(|indices| indices.contains(&degree_idx))
+                    .unwrap_or(false)
+            });
+            if let Some(fulfilled) = ci.requirement_fulfilled.get_mut(slot_idx) {
+                *fulfilled = !courses.is_empty();
+            }
+        }
+
+        ci.requirements_fulfilled = ci.requirement_fulfilled.iter().filter(|&&x| x).count();
+    }
+}
+
+fn merge_concentration_into_allocations(
+    allocations: &mut HashMap<String, HashSet<usize>>,
+    conc_contexts: &[DegreeConcentrationContext],
+    degree_schools: &[String],
+    taken: &[String],
+    cu_map: &HashMap<String, f64>,
+) {
+    let ug_conc_claims =
+        build_ug_concentration_claims(conc_contexts, degree_schools, taken, cu_map);
+    merge_concentration_claims_into(allocations, &ug_conc_claims);
+}
+
+fn ug_concentration_priority(
+    course: &str,
+    ug_conc_claims: &HashMap<String, HashSet<usize>>,
+) -> usize {
+    ug_conc_claims
+        .get(course)
+        .map(|set| set.len())
+        .unwrap_or(0)
 }
 
 pub fn build_allocations_from_fulfilled(
@@ -1669,8 +1890,25 @@ pub fn resolve_cross_degree_conflicts(
     degree_schools: &[String],
     degree_majors: &[String],
     cu_map: &HashMap<String, f64>,
+    conc_contexts: Option<&[DegreeConcentrationContext]>,
+    taken: Option<&[String]>,
 ) -> CrossDegreeSummary {
     let mut allocations = build_allocations_from_fulfilled(per_degree);
+    if let (Some(contexts), Some(taken)) = (conc_contexts, taken) {
+        merge_concentration_into_allocations(
+            &mut allocations,
+            contexts,
+            degree_schools,
+            taken,
+            cu_map,
+        );
+    }
+    let ug_conc_claims = match (conc_contexts, taken) {
+        (Some(contexts), Some(taken)) => {
+            build_ug_concentration_claims(contexts, degree_schools, taken, cu_map)
+        }
+        _ => HashMap::new(),
+    };
 
     loop {
         let violations = detect_violations(&allocations, degree_schools, cu_map);
@@ -1688,7 +1926,15 @@ pub fn resolve_cross_degree_conflicts(
                         .get(course)
                         .map(|s| s.iter().copied().collect())
                         .unwrap_or_default();
-                    let keep = choose_best_two_degrees(course, &indices, per_degree);
+                    let keep = choose_best_two_degrees(
+                        course,
+                        &indices,
+                        per_degree,
+                        conc_contexts,
+                        taken,
+                        cu_map,
+                        degree_schools,
+                    );
                     for idx in indices {
                         if !keep.contains(&idx) {
                             remove_course_from_degree_result(per_degree, course, idx);
@@ -1706,11 +1952,23 @@ pub fn resolve_cross_degree_conflicts(
                         continue;
                     }
                     let mut best_idx = grad_indices[0];
-                    let mut best_score =
-                        fulfillment_score_for_course_in_degree(per_degree, course, best_idx);
+                    let mut best_score = fulfillment_score_for_course_in_degree(
+                        per_degree,
+                        course,
+                        best_idx,
+                        conc_contexts,
+                        taken,
+                        cu_map,
+                    );
                     for &idx in &grad_indices[1..] {
-                        let score =
-                            fulfillment_score_for_course_in_degree(per_degree, course, idx);
+                        let score = fulfillment_score_for_course_in_degree(
+                            per_degree,
+                            course,
+                            idx,
+                            conc_contexts,
+                            taken,
+                            cu_map,
+                        );
                         if score > best_score {
                             best_score = score;
                             best_idx = idx;
@@ -1752,8 +2010,9 @@ pub fn resolve_cross_degree_conflicts(
                         .collect();
 
                     shared.sort_by(|a, b| {
-                        b.1.partial_cmp(&a.1)
-                            .unwrap_or(std::cmp::Ordering::Equal)
+                        ug_concentration_priority(&a.0, &ug_conc_claims)
+                            .cmp(&ug_concentration_priority(&b.0, &ug_conc_claims))
+                            .then(b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal))
                             .then_with(|| a.0.cmp(&b.0))
                     });
 
@@ -1784,10 +2043,20 @@ pub fn resolve_cross_degree_conflicts(
             break;
         }
         allocations = build_allocations_from_fulfilled(per_degree);
+        if let (Some(contexts), Some(taken)) = (conc_contexts, taken) {
+            merge_concentration_into_allocations(
+                &mut allocations,
+                contexts,
+                degree_schools,
+                taken,
+                cu_map,
+            );
+        }
     }
 
     let mut state = CrossDegreeState::new(degree_schools.to_vec(), degree_majors.to_vec());
     state.rebuild_from_allocations(&allocations, cu_map);
+    state.ug_concentration_courses = ug_conc_claims;
     state.violations = detect_violations(&allocations, degree_schools, cu_map);
     state.to_summary()
 }
@@ -2140,7 +2409,14 @@ mod tests {
             (vec![mapped("CIS 1200")], vec![]),
         ];
 
-        let summary = resolve_cross_degree_conflicts(&mut per_degree, &schools, &majors, &cu_map);
+        let summary = resolve_cross_degree_conflicts(
+            &mut per_degree,
+            &schools,
+            &majors,
+            &cu_map,
+            None,
+            None,
+        );
         let kept = summary
             .course_allocations
             .get("CIS 1200")
@@ -2148,5 +2424,94 @@ mod tests {
             .unwrap_or(0);
         assert!(kept <= 2);
         assert!(summary.violations.is_empty());
+    }
+
+    #[test]
+    fn ug_concentration_course_claimed_for_undergrad_degree() {
+        use crate::major::resolve_major;
+
+        let mut cu_map = HashMap::new();
+        cu_map.insert("MEAM 5200".to_string(), 1.0);
+        cu_map.insert("ESE 4210".to_string(), 1.0);
+
+        let ee = resolve_major("SEAS", "EE", &["Robotics".to_string()]).expect("EE major");
+        let ms_robo = resolve_major("SEAS_MS", "MS_ROBO", &[]).expect("MS Robotics");
+
+        let taken = vec!["MEAM 5200".to_string(), "ESE 4210".to_string()];
+        let (ee_fulfilled, ee_unfulfilled) =
+            validate_courses_for_degree(ee.requirements.clone(), &taken, &cu_map);
+        let (ms_fulfilled, ms_unfulfilled) =
+            validate_courses_for_degree(ms_robo.requirements.clone(), &taken, &cu_map);
+
+        let conc_contexts = vec![
+            degree_concentration_context_from_major(
+                &ee.requirements,
+                &ee.concentrations,
+                &["Robotics".to_string()],
+            ),
+            degree_concentration_context_from_major(
+                &ms_robo.requirements,
+                &ms_robo.concentrations,
+                &[],
+            ),
+        ];
+
+        let ug_conc = build_ug_concentration_claims(
+            &conc_contexts,
+            &["SEAS".to_string(), "SEAS_MS".to_string()],
+            &taken,
+            &cu_map,
+        );
+        assert!(
+            ug_conc
+                .get("MEAM 5200")
+                .map(|s| s.contains(&0))
+                .unwrap_or(false),
+            "MEAM 5200 should count toward UG EE via Robotics concentration"
+        );
+
+        let mut per_degree = vec![(ee_fulfilled, ee_unfulfilled), (ms_fulfilled, ms_unfulfilled)];
+        let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
+        let majors = vec!["EE".to_string(), "MS_ROBO".to_string()];
+
+        resolve_cross_degree_conflicts(
+            &mut per_degree,
+            &schools,
+            &majors,
+            &cu_map,
+            Some(&conc_contexts),
+            Some(&taken),
+        );
+
+        let mut allocations = build_allocations_from_fulfilled(&per_degree);
+        merge_concentration_claims_into(&mut allocations, &ug_conc);
+        assert!(
+            allocations
+                .get("MEAM 5200")
+                .map(|s| s.contains(&0))
+                .unwrap_or(false),
+            "MEAM 5200 should remain allocated to UG EE after conflict resolution"
+        );
+    }
+
+    #[test]
+    fn concentration_info_hides_courses_not_on_degree() {
+        let mut conc_info = vec![ConcentrationInfo {
+            name: "Robotics".to_string(),
+            is_core: false,
+            requirements_total: 1,
+            requirements_fulfilled: 1,
+            requirement_descriptions: vec!["Robotics elective".to_string()],
+            requirement_fulfilled: vec![true],
+            matched_courses: vec![vec!["MEAM 5200".to_string()]],
+        }];
+
+        let mut claims = HashMap::new();
+        claims.insert("MEAM 5200".to_string(), HashSet::from([1]));
+
+        filter_concentration_info_by_claims(&mut conc_info, 0, &claims);
+
+        assert_eq!(conc_info[0].requirements_fulfilled, 0);
+        assert!(conc_info[0].matched_courses[0].is_empty());
     }
 }

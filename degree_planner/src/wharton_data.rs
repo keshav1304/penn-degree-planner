@@ -478,18 +478,13 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
     let mgmt_is_conc = concs.iter().any(|c| c == "MGMT");
 
+    // MGMT 2370 (M&T Soph) counts as Business Breadth - I for non-MGMT concentrations.
     let extra_bb_default: Vec<&str> = if mgmt_is_conc {
         vec!["Business Breadth - I", "Business Breadth - II"]
-    } else if concs.len() >= 2 {
-        vec!["Business Breadth - II"]
     } else {
-        vec![]
+        vec!["Business Breadth - II"]
     };
-    let mut extra_bb_labels = wh_bb_slot_labels(&extra_bb_default, &concs);
-    // MGMT 2370 overlaps one breadth slot for non-MGMT concentrations (no DoubleCount).
-    if !mgmt_is_conc && !extra_bb_labels.is_empty() {
-        extra_bb_labels.remove(0);
-    }
+    let extra_bb_labels = wh_bb_slot_labels(&extra_bb_default, &concs);
     let extra_bb = business_breadth_requirements(&concs, &bb_pool, &extra_bb_labels, true);
 
     let conc_reqs = if mgmt_is_conc {
@@ -549,5 +544,60 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
         requirements,
         schedule_hints,
         concentrations: Some(wh_concentrations),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::create_wh_nofl_mt_major;
+    use crate::courses_data;
+    use crate::requirement::validate_courses_for_degree;
+    use std::collections::HashMap;
+
+    #[test]
+    fn mt_single_stat_includes_business_breadth_ii() {
+        let major = create_wh_nofl_mt_major(vec!["STAT".to_string()]);
+        let bb: Vec<_> = major
+            .requirements
+            .iter()
+            .filter(|r| {
+                r.get_category()
+                    .to_lowercase()
+                    .contains("business breadth")
+            })
+            .collect();
+        assert_eq!(bb.len(), 1);
+        assert!(bb[0].get_category().contains("Business Breadth - II"));
+    }
+
+    #[test]
+    fn mt_single_stat_surfaces_business_breadth_in_validation() {
+        let major = create_wh_nofl_mt_major(vec!["STAT".to_string()]);
+        let cu_map: HashMap<String, f64> = courses_data::all_courses()
+            .iter()
+            .map(|c| (c.course_code.clone(), c.cu))
+            .collect();
+        let taken: Vec<String> = vec![];
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(major.requirements.clone(), &taken, &cu_map);
+        let bb_unfulfilled: Vec<_> = unfulfilled
+            .iter()
+            .chain(fulfilled.iter())
+            .filter(|m| {
+                m.requirement
+                    .get_category()
+                    .to_lowercase()
+                    .contains("business breadth")
+            })
+            .collect();
+        assert_eq!(
+            bb_unfulfilled.len(),
+            1,
+            "categories: {:?}",
+            unfulfilled
+                .iter()
+                .map(|m| m.requirement.get_category())
+                .collect::<Vec<_>>()
+        );
     }
 }

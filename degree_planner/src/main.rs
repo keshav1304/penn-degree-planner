@@ -439,23 +439,45 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         }
     }
 
+    let conc_contexts: Vec<requirement::DegreeConcentrationContext> = resolved_degrees
+        .iter()
+        .map(|resolved| {
+            requirement::degree_concentration_context_from_major(
+                &resolved.major_data.requirements,
+                &resolved.major_data.concentrations,
+                &resolved.concs,
+            )
+        })
+        .collect();
+
     if !per_degree_validation.is_empty() {
         requirement::resolve_cross_degree_conflicts(
             &mut per_degree_validation,
             &degree_schools,
             &degree_majors,
             &cu_map,
+            Some(&conc_contexts),
+            Some(&courses_for_validation),
         );
     }
+
+    let ug_conc_claims = requirement::build_ug_concentration_claims(
+        &conc_contexts,
+        &degree_schools,
+        &courses_for_validation,
+        &cu_map,
+    );
 
     let mut cross_state = cross_degree::CrossDegreeState::new(
         degree_schools.clone(),
         degree_majors.clone(),
     );
     if !per_degree_validation.is_empty() {
-        let fulfilled_allocations =
+        let mut fulfilled_allocations =
             requirement::build_allocations_from_fulfilled(&per_degree_validation);
+        requirement::merge_concentration_claims_into(&mut fulfilled_allocations, &ug_conc_claims);
         cross_state.rebuild_from_allocations(&fulfilled_allocations, &cu_map);
+        cross_state.ug_concentration_courses = ug_conc_claims;
     }
 
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
@@ -871,6 +893,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             );
             requirement::filter_mapped_requirements_by_allocation(
                 &mut result.unfulfilled_requirements,
+                degree_idx,
+                &cross_state.claims,
+            );
+            requirement::filter_concentration_info_by_claims(
+                &mut result.concentration_info,
                 degree_idx,
                 &cross_state.claims,
             );

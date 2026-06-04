@@ -242,4 +242,17 @@ mod tests {
     fn resolves_ms_robo() {
         assert!(resolve_major("SEAS_MS", "MS_ROBO", &[]).is_some());
     }
+
+    #[test]
+    fn wh_nofl_mt_stat_has_business_breadth() {
+        let major = resolve_major("WH", "WH_NOFL_MT", &["STAT".to_string()])
+            .expect("WH_NOFL_MT");
+        let bb_count = major
+            .requirements
+            .iter()
+            .filter(|r| r.get_category().to_lowercase().contains("business breadth"))
+            .count();
+        assert_eq!(bb_count, 1, "requirements: {:?}", 
+            major.requirements.iter().map(|r| r.get_category()).collect::<Vec<_>>());
+    }
 }
