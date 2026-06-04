@@ -1292,6 +1292,10 @@ select {
   background: rgba(22, 163, 74, 0.04);
 }
 
+.req-item--partial {
+  background: rgba(59, 130, 246, 0.06);
+}
+
 .req-item--frozen {
   background: var(--accent-amber-dim);
 }
@@ -1308,6 +1312,10 @@ select {
 
 .icon-fulfilled {
   color: var(--success);
+}
+
+.icon-partial {
+  color: #3b82f6;
 }
 
 .icon-frozen {
@@ -1352,6 +1360,10 @@ select {
   background: rgba(22, 163, 74, 0.03);
 }
 
+.req-anyof-block--partial {
+  background: rgba(59, 130, 246, 0.04);
+}
+
 .req-anyof-block--frozen {
   background: var(--accent-amber-dim);
 }
@@ -1371,6 +1383,28 @@ select {
 
 .req-anyof-child + .req-anyof-child {
   border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.req-anyof-child--inactive {
+  opacity: 0.45;
+}
+
+.req-allof-partial {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.req-allof-partial-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding-left: 8px;
+}
+
+.req-allof-partial-row--partial {
+  background: rgba(59, 130, 246, 0.04);
+  border-radius: 3px;
 }
 
 /* ── Course chips ── */
@@ -1406,6 +1440,12 @@ select {
   background: var(--accent-amber-dim);
   border: 1px solid var(--accent-amber);
   color: var(--accent-amber);
+}
+
+.chip-partial {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #2563eb;
 }
 
 .chip-suggested {

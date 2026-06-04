@@ -21,8 +21,6 @@ import { reqRowDomId } from "@/lib/requirementNav";
 import {
   buildCourseDegreesMapFromAllocations,
   courseViolationMap,
-  coursesUsingUndergradGradBudget,
-  formatUndergradGradBudget,
 } from "@/lib/crossDegree";
 
 const STORAGE_KEY = "penn_degree_planner_state";
@@ -358,40 +356,17 @@ export default function Home() {
   const crossDegreeSummary = scheduleData?.cross_degree_summary ?? null;
 
   // ─── Build course → degree map (authoritative allocations from backend) ───
-  const courseDegreesMap = useMemo(() => {
-    const fromAllocations = buildCourseDegreesMapFromAllocations(
-      crossDegreeSummary,
-      scheduleData?.degree_results
-    );
-    if (Object.keys(fromAllocations).length > 0) return fromAllocations;
-
-    const degMap = {};
-    if (scheduleData?.degree_results) {
-      scheduleData.degree_results.forEach((result) => {
-        const degreeLabel = `${result.school}-${result.major}`;
-        const addDegree = (itemId) => {
-          if (!isValidCourseCode(itemId) && !isRequirementSlotId(itemId)) return;
-          if (!degMap[itemId]) degMap[itemId] = [];
-          if (!degMap[itemId].includes(degreeLabel)) degMap[itemId].push(degreeLabel);
-        };
-        result.fulfilled_requirements?.forEach((mapped) => {
-          mapped.course_ids?.forEach(addDegree);
-        });
-        result.suggested_for_unfulfilled?.forEach((mapped) => {
-          mapped.course_ids?.forEach(addDegree);
-        });
-      });
-    }
-    return degMap;
-  }, [scheduleData, crossDegreeSummary]);
+  const courseDegreesMap = useMemo(
+    () =>
+      buildCourseDegreesMapFromAllocations(
+        crossDegreeSummary,
+        scheduleData?.degree_results
+      ),
+    [scheduleData, crossDegreeSummary]
+  );
 
   const crossDegreeViolationsByCourse = useMemo(
     () => courseViolationMap(crossDegreeSummary),
-    [crossDegreeSummary]
-  );
-
-  const undergradGradBudgetCourses = useMemo(
-    () => coursesUsingUndergradGradBudget(crossDegreeSummary),
     [crossDegreeSummary]
   );
 
@@ -402,6 +377,10 @@ export default function Home() {
       const degreeLabel = `${result.school}-${result.major}`;
       const addLink = (mapped, courseId) => {
         if (!isValidCourseCode(courseId) && !isRequirementSlotId(courseId)) return;
+        if (isValidCourseCode(courseId)) {
+          const allocatedDegrees = courseDegreesMap[courseId];
+          if (allocatedDegrees && !allocatedDegrees.includes(degreeLabel)) return;
+        }
         const category = requirementCategoryForNav(mapped.requirement);
         const instanceId = getRequirementInstanceId(mapped);
         const entry = {
@@ -420,12 +399,17 @@ export default function Home() {
       result.fulfilled_requirements?.forEach((mapped) => {
         mapped.course_ids?.forEach((c) => addLink(mapped, c));
       });
+      result.unfulfilled_requirements?.forEach((mapped) => {
+        if (mapped.partial && mapped.course_ids?.length) {
+          mapped.course_ids.forEach((c) => addLink(mapped, c));
+        }
+      });
       result.suggested_for_unfulfilled?.forEach((mapped) => {
         mapped.course_ids?.forEach((c) => addLink(mapped, c));
       });
     });
     return links;
-  }, [scheduleData]);
+  }, [scheduleData, courseDegreesMap]);
 
   // ─── Build double-count tracker data ───
   const { doubleCountData, courseDoubleCountMap } = (() => {
@@ -523,27 +507,6 @@ export default function Home() {
           setDegrees={setDegrees}
         />
 
-        {crossDegreeSummary && degrees.length > 1 && (
-          <div
-            className={`cross-degree-banner${
-              (crossDegreeSummary.violations?.length ?? 0) > 0 ? " cross-degree-banner-warn" : ""
-            }`}
-          >
-            <span className="cross-degree-banner-label">
-              {formatUndergradGradBudget(
-                crossDegreeSummary.undergrad_grad_cu_used,
-                crossDegreeSummary.undergrad_grad_cu_limit
-              )}
-            </span>
-            {(crossDegreeSummary.violations?.length ?? 0) > 0 && (
-              <span className="cross-degree-banner-note">
-                {crossDegreeSummary.violations.length} cross-degree conflict
-                {crossDegreeSummary.violations.length === 1 ? "" : "s"} resolved
-              </span>
-            )}
-          </div>
-        )}
-
         <div
           className={`main-layout ${requirementsOpen ? "" : "requirements-collapsed"}`}
         >
@@ -600,7 +563,6 @@ export default function Home() {
                 courseDegreesMap={courseDegreesMap}
                 courseRequirementLinks={courseRequirementLinks}
                 crossDegreeViolationsByCourse={crossDegreeViolationsByCourse}
-                undergradGradBudgetCourses={undergradGradBudgetCourses}
                 onNavigateToRequirement={(target) => {
                   setRequirementsOpen(true);
                   setReqNavTarget(target);
@@ -639,9 +601,7 @@ export default function Home() {
                   degrees={degrees}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
-                  crossDegreeSummary={crossDegreeSummary}
                   crossDegreeViolationsByCourse={crossDegreeViolationsByCourse}
-                  undergradGradBudgetCourses={undergradGradBudgetCourses}
                   navTarget={reqNavTarget}
                   onNavTargetConsumed={() => setReqNavTarget(null)}
                 />

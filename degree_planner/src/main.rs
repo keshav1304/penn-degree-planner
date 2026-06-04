@@ -439,33 +439,23 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         }
     }
 
-    let cross_degree_summary = if per_degree_validation.is_empty() {
-        None
-    } else {
-        Some(requirement::resolve_cross_degree_conflicts(
+    if !per_degree_validation.is_empty() {
+        requirement::resolve_cross_degree_conflicts(
             &mut per_degree_validation,
             &degree_schools,
             &degree_majors,
             &cu_map,
-        ))
-    };
+        );
+    }
 
     let mut cross_state = cross_degree::CrossDegreeState::new(
         degree_schools.clone(),
         degree_majors.clone(),
     );
-    if let Some(summary) = &cross_degree_summary {
-        let allocations: HashMap<String, HashSet<usize>> = summary
-            .course_allocations
-            .iter()
-            .map(|(course, allocs)| {
-                (
-                    course.clone(),
-                    allocs.iter().map(|a| a.degree_index).collect(),
-                )
-            })
-            .collect();
-        cross_state.rebuild_from_allocations(&allocations, &cu_map);
+    if !per_degree_validation.is_empty() {
+        let fulfilled_allocations =
+            requirement::build_allocations_from_fulfilled(&per_degree_validation);
+        cross_state.rebuild_from_allocations(&fulfilled_allocations, &cu_map);
     }
 
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
@@ -485,7 +475,11 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
         for mapped in &suggested {
             for course_id in &mapped.course_ids {
-                if course::is_valid_course_code(course_id) {
+                if course::is_valid_course_code(course_id)
+                    && cross_state
+                        .can_claim(course_id, degree_idx, &cu_map)
+                        .is_ok()
+                {
                     cross_state.register_claim(course_id, degree_idx, &cu_map);
                 }
             }
@@ -530,11 +524,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         && !all_suggested_courses.contains(course_id)
                         && !courses_for_validation.contains(course_id)
                         && cross_state
-                            .can_claim(course_id, degree_idx, &cu_map)
-                            .is_ok()
+                            .claims
+                            .get(course_id)
+                            .map(|indices| indices.contains(&degree_idx))
+                            .unwrap_or(false)
                     {
                         all_suggested_courses.push(course_id.clone());
-                        cross_state.register_claim(course_id, degree_idx, &cu_map);
                     } else if requirement::is_requirement_slot_id(course_id)
                         && !all_requirement_slots.contains(course_id)
                     {
@@ -859,6 +854,31 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             ensure_year(&mut schedule, max_year + 1, allow_summer);
         }
     }
+
+    let cross_degree_summary = if degree_schools.len() > 1 {
+        for (degree_idx, result) in degree_results.iter_mut().enumerate() {
+            requirement::filter_mapped_requirements_by_allocation(
+                &mut result.fulfilled_requirements,
+                degree_idx,
+                &cross_state.claims,
+            );
+            requirement::filter_mapped_requirements_by_allocation(
+                &mut result.suggested_for_unfulfilled,
+                degree_idx,
+                &cross_state.claims,
+            );
+        }
+
+        let mut summary = cross_state.to_summary();
+        summary.violations = cross_degree::detect_violations(
+            &cross_state.claims,
+            &degree_schools,
+            &cu_map,
+        );
+        Some(summary)
+    } else {
+        None
+    };
 
     Json(ScheduleOutput {
         schedule,

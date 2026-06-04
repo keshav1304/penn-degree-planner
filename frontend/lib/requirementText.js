@@ -159,17 +159,16 @@ function courseMeetsRestriction(courseId, data, attrMap) {
 }
 
 /** Whether this AnyOf child is the branch satisfied by the parent's fulfilling courses. */
-export function childMatchesAnyOfFulfillment(childReq, parent) {
-  if (!parent?.fulfilled) return false;
-  const courses = [];
-  (parent.fulfilledCourses || []).forEach((c) => {
-    if (c && typeof c === "string") courses.push(c);
-  });
-  parent.attributeFulfillment?.forEach((ids) => {
-    ids.forEach((c) => { if (c && typeof c === "string") courses.push(c); });
-  });
-  const unique = [...new Set(courses)];
-  if (unique.length === 0) return false;
+export function childMatchesAnyOfFulfillment(childReq, parent, childIdx = null) {
+  const courses = collectParentCourses(parent);
+  if (courses.length === 0) return false;
+
+  if (parent.partial && parent.committedAnyofBranch != null && childIdx != null) {
+    if (childIdx !== parent.committedAnyofBranch) return false;
+    return childPartiallyMatches(childReq, courses, parent.attributeFulfillment);
+  }
+
+  if (!parent.fulfilled) return false;
 
   const attrMap = parent.attributeFulfillment;
   const { type, data } = parseRequirement(childReq);
@@ -177,11 +176,11 @@ export function childMatchesAnyOfFulfillment(childReq, parent) {
   switch (type) {
     case "SingleCourse": {
       const allowed = new Set(data.possibilities || []);
-      const matched = unique.filter((c) => allowed.has(c));
-      return matched.length > 0 && matched.length === unique.length;
+      const matched = courses.filter((c) => allowed.has(c));
+      return matched.length > 0 && matched.length === courses.length;
     }
     case "AllOf": {
-      const pool = [...unique];
+      const pool = [...courses];
       return (data.requirements || []).every((sub) => {
         const { type: st, data: sd } = parseRequirement(sub);
         if (st === "SingleCourse") {
@@ -200,15 +199,79 @@ export function childMatchesAnyOfFulfillment(childReq, parent) {
     }
     case "CourseGroup": {
       const opts = data.possibilities || [];
-      const matched = unique.filter((c) => opts.includes(c));
+      const matched = courses.filter((c) => opts.includes(c));
       return matched.length >= (data.number ?? 1);
     }
     case "Restriction":
-      return unique.every((c) => courseMeetsRestriction(c, data, attrMap))
-        && unique.some((c) => courseMeetsRestriction(c, data, attrMap));
+      return courses.every((c) => courseMeetsRestriction(c, data, attrMap))
+        && courses.some((c) => courseMeetsRestriction(c, data, attrMap));
     default:
       return false;
   }
+}
+
+function collectParentCourses(parent) {
+  const courses = [];
+  (parent.fulfilledCourses || []).forEach((c) => {
+    if (c && typeof c === "string") courses.push(c);
+  });
+  parent.attributeFulfillment?.forEach((ids) => {
+    ids.forEach((c) => { if (c && typeof c === "string") courses.push(c); });
+  });
+  return [...new Set(courses)];
+}
+
+/** Whether a child requirement has at least one matching course from the parent's pool (partial OK). */
+export function childPartiallyMatches(childReq, courses, attrMap = null) {
+  if (!courses?.length) return false;
+  const { type, data } = parseRequirement(childReq);
+
+  switch (type) {
+    case "SingleCourse": {
+      const allowed = new Set(data.possibilities || []);
+      return courses.some((c) => allowed.has(c));
+    }
+    case "AllOf":
+      return (data.requirements || []).some((sub) =>
+        childPartiallyMatches(sub, courses, attrMap)
+      );
+    case "CourseGroup": {
+      const opts = data.possibilities || [];
+      return courses.some((c) => opts.includes(c));
+    }
+    case "Restriction":
+      return courses.some((c) => courseMeetsRestriction(c, data, attrMap));
+    default:
+      return false;
+  }
+}
+
+/** Courses from the parent pool that fulfill a nested leaf (SingleCourse / CourseGroup). */
+export function coursesMatchingChildLeaf(childReq, parentCourses) {
+  const { type, data } = parseRequirement(childReq);
+  if (type === "SingleCourse") {
+    const allowed = new Set(data.possibilities || []);
+    return parentCourses.filter((c) => allowed.has(c));
+  }
+  if (type === "CourseGroup") {
+    const opts = data.possibilities || [];
+    const need = data.number ?? 1;
+    return parentCourses.filter((c) => opts.includes(c)).slice(0, need);
+  }
+  if (type === "AllOf") {
+    const pool = [...parentCourses];
+    const matched = [];
+    (data.requirements || []).forEach((sub) => {
+      const subMatches = coursesMatchingChildLeaf(sub, pool);
+      subMatches.forEach((c) => {
+        matched.push(c);
+        const idx = pool.indexOf(c);
+        if (idx >= 0) pool.splice(idx, 1);
+      });
+    });
+    return matched;
+  }
+  return [];
 }
 
 /** Stable left-side stem for the requirements panel (never changes with fulfillment state). */

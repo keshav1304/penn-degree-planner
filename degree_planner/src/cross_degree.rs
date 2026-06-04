@@ -36,12 +36,15 @@ pub struct CourseAllocation {
     pub degree_index: usize,
     pub school: String,
     pub major: String,
+    #[serde(skip_serializing)]
     pub uses_undergrad_grad_budget: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CrossDegreeSummary {
+    #[serde(skip_serializing)]
     pub undergrad_grad_cu_used: f64,
+    #[serde(skip_serializing)]
     pub undergrad_grad_cu_limit: f64,
     pub course_allocations: HashMap<String, Vec<CourseAllocation>>,
     pub violations: Vec<CrossDegreeViolation>,

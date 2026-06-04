@@ -9,6 +9,7 @@ import {
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
+    coursesMatchingChildLeaf,
     createRequirementDescription,
     getAnyOfPossibilities,
     getRequirementInstanceId,
@@ -17,16 +18,13 @@ import {
     parseRequirement,
 } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
-import { formatUndergradGradBudget } from "@/lib/crossDegree";
 
 export default function RequirementsPanel({
     scheduleData,
     degrees,
     frozenCourses = [],
     assignedCourses = [],
-    crossDegreeSummary = null,
     crossDegreeViolationsByCourse = {},
-    undergradGradBudgetCourses = new Set(),
     navTarget = null,
     onNavTargetConsumed,
 }) {
@@ -37,13 +35,13 @@ export default function RequirementsPanel({
     useEffect(() => {
         if (!navTarget) return;
         const { degreeIndex, instanceId, category } = navTarget;
-        if (degreeIndex != null) setActiveTab(degreeIndex);
-        if (category) setCollapsedGroups((prev) => ({ ...prev, [category]: false }));
         const rowId = reqRowDomId(degreeIndex ?? 0, instanceId);
         const timer = window.setTimeout(() => {
             document.getElementById(rowId)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
             setFlashRowId(rowId);
             window.setTimeout(() => setFlashRowId(null), 2200);
+            if (degreeIndex != null) setActiveTab(degreeIndex);
+            if (category) setCollapsedGroups((prev) => ({ ...prev, [category]: false }));
             onNavTargetConsumed?.();
         }, 80);
         return () => window.clearTimeout(timer);
@@ -62,7 +60,9 @@ export default function RequirementsPanel({
     }
 
     const results = scheduleData.degree_results;
-    const tabIndex = Math.min(activeTab, results.length - 1);
+    const tabIndex = navTarget?.degreeIndex != null
+        ? Math.min(navTarget.degreeIndex, results.length - 1)
+        : Math.min(activeTab, results.length - 1);
     const current = results[tabIndex];
     if (!current) return null;
 
@@ -71,6 +71,8 @@ export default function RequirementsPanel({
         allReqs.push({
             category: normalizeCategory(getCategory(mapped.requirement)),
             fulfilled: true,
+            partial: false,
+            committedAnyofBranch: mapped.committed_anyof_branch ?? null,
             fulfilledCourses: mapped.course_ids || [],
             requirement: mapped.requirement,
             instanceId: getRequirementInstanceId(mapped),
@@ -84,7 +86,9 @@ export default function RequirementsPanel({
         allReqs.push({
             category: cat,
             fulfilled: false,
-            fulfilledCourses: [],
+            partial: Boolean(mapped.partial),
+            committedAnyofBranch: mapped.committed_anyof_branch ?? null,
+            fulfilledCourses: mapped.course_ids || [],
             requirement: req,
             instanceId: id,
             attributeFulfillment: attributeFulfillmentMap(mapped),
@@ -104,28 +108,22 @@ export default function RequirementsPanel({
 
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
+    const crossDegreeChipTitle = (courseId) => {
+        return crossDegreeViolationsByCourse[courseId] || undefined;
+    };
+
     const scheduleCtx = {
         assignedIds,
         frozenIds,
         crossDegreeViolationsByCourse,
-        undergradGradBudgetCourses,
-    };
-
-    const crossDegreeChipTitle = (courseId) => {
-        const parts = [];
-        if (crossDegreeViolationsByCourse[courseId]) {
-            parts.push(crossDegreeViolationsByCourse[courseId]);
-        }
-        if (undergradGradBudgetCourses.has(courseId)) {
-            parts.push("Counts toward undergrad→grad double-count budget (max 3 CU total)");
-        }
-        return parts.length ? parts.join(" · ") : undefined;
+        crossDegreeChipTitle,
     };
 
     const totalCount = allReqs.length;
     const fulfilledCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled").length;
     const plannedCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "frozen").length;
-    const remainingCount = totalCount - fulfilledCount - plannedCount;
+    const partialCount = allReqs.filter((r) => itemTone(r, frozenIds) === "partial").length;
+    const remainingCount = totalCount - fulfilledCount - plannedCount - partialCount;
     const fulfilledPct = totalCount > 0 ? (fulfilledCount / totalCount) * 100 : 0;
     const plannedPct = totalCount > 0 ? (plannedCount / totalCount) * 100 : 0;
     const pct = totalCount > 0 ? Math.round(((fulfilledCount + plannedCount) / totalCount) * 100) : 0;
@@ -156,15 +154,6 @@ export default function RequirementsPanel({
             )}
 
             {current.error && <div className="req-error-banner">⚠️ {current.error}</div>}
-
-            {crossDegreeSummary && degrees.length > 1 && !current.error && (
-                <div className="req-cross-degree-note">
-                    {formatUndergradGradBudget(
-                        crossDegreeSummary.undergrad_grad_cu_used,
-                        crossDegreeSummary.undergrad_grad_cu_limit
-                    )}
-                </div>
-            )}
 
             {!current.error && totalCount > 0 && (
                 <div className="req-summary">
@@ -206,7 +195,12 @@ export default function RequirementsPanel({
                     if (!items?.length) return null;
                     const done = items.filter((r) => r.fulfilled).length;
                     const catTone = groupTone(items, frozenIds);
-                    const isCollapsed = collapsedGroups[cat] ?? true;
+                    const isCollapsed = (() => {
+                        if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
+                            return false;
+                        }
+                        return collapsedGroups[cat] ?? true;
+                    })();
                     const groupClass = catTone === "fulfilled" ? "req-group req-group-done" : "req-group";
 
                     return (
@@ -278,6 +272,7 @@ function itemHasFrozenCourse(courses, frozenIds) {
 }
 
 function itemTone(item, frozenIds) {
+    if (item.partial && collectFulfillingCourses(item).length > 0) return "partial";
     if (!item.fulfilled) return "open";
     if (itemHasFrozenCourse(collectFulfillingCourses(item), frozenIds)) return "frozen";
     return "fulfilled";
@@ -285,14 +280,17 @@ function itemTone(item, frozenIds) {
 
 function groupTone(items, frozenIds) {
     const done = items.filter((r) => r.fulfilled).length;
+    const partial = items.some((r) => itemTone(r, frozenIds) === "partial");
+    if (partial) return "incomplete";
     if (done !== items.length) return "incomplete";
     if (items.some((item) => itemTone(item, frozenIds) === "frozen")) return "frozen";
     return "fulfilled";
 }
 
-function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet }) {
+function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet, partialTone }) {
     if (!fulfillingSet?.has(courseId)) return "open";
     if (frozenIds.has(courseId)) return "frozen";
+    if (partialTone) return "partial";
     if (assignedIds.has(courseId)) return "fulfilled";
     return "fulfilled";
 }
@@ -300,6 +298,7 @@ function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet }) {
 function chipClass(kind) {
     if (kind === "fulfilled") return "req-chip chip-fulfilled";
     if (kind === "frozen") return "req-chip chip-frozen";
+    if (kind === "partial") return "req-chip chip-partial";
     return "req-chip chip-default";
 }
 
@@ -354,7 +353,11 @@ function buildRowContent(item) {
 function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => undefined) {
     const { stem, badges, fulfillingSet } = buildRowContent(item);
     const fullDesc = createRequirementDescription(item.requirement);
-    const chipCtx = { ...scheduleCtx, fulfillingSet };
+    const chipCtx = {
+        ...scheduleCtx,
+        fulfillingSet,
+        partialTone: scheduleCtx.partialTone ?? item.partial,
+    };
 
     const renderBadge = (badge, key) => {
         if (badge.kind === "attr") {
@@ -396,10 +399,18 @@ function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => u
 }
 
 function makeAnyOfChildItem(parent, childReq, childIdx) {
-    const matched = childMatchesAnyOfFulfillment(childReq, parent);
-    const courses = matched ? collectFulfillingCourses(parent) : [];
+    const matched = childMatchesAnyOfFulfillment(childReq, parent, childIdx);
+    const partialActive =
+        parent.partial
+        && parent.committedAnyofBranch === childIdx
+        && !matched;
+    const parentCourses = collectFulfillingCourses(parent);
+    let courses = matched ? parentCourses : [];
+    if (partialActive) {
+        courses = coursesMatchingChildLeaf(childReq, parentCourses);
+    }
     let attrFulfillment = parent.attributeFulfillment;
-    if (matched && attrFulfillment) {
+    if ((matched || partialActive) && attrFulfillment) {
         const { type, data } = parseRequirement(childReq);
         if (type === "Restriction" && data.attr?.length) {
             const filtered = new Map();
@@ -413,11 +424,54 @@ function makeAnyOfChildItem(parent, childReq, childIdx) {
     return {
         category: parent.category,
         fulfilled: matched,
+        partial: partialActive,
         fulfilledCourses: courses,
         requirement: childReq,
         instanceId: `${parent.instanceId}::${childIdx}`,
         attributeFulfillment: attrFulfillment,
+        committedAnyofBranch: null,
     };
+}
+
+function renderAllOfPartialRows(item, scheduleCtx) {
+    const { type, data } = parseRequirement(item.requirement);
+    if (type !== "AllOf") return null;
+    const parentCourses = collectFulfillingCourses(item);
+
+    return (
+        <div className="req-allof-partial">
+            {(data.requirements || []).map((subReq, subIdx) => {
+                const subMatches = coursesMatchingChildLeaf(subReq, parentCourses);
+                const subFulfilling = new Set(subMatches);
+                const subItem = {
+                    requirement: subReq,
+                    fulfilledCourses: subMatches,
+                    fulfilled: subMatches.length > 0,
+                    partial: subMatches.length > 0,
+                };
+                const subTone = subMatches.length > 0
+                    ? itemTone(subItem, scheduleCtx.frozenIds)
+                    : "open";
+                return (
+                    <div key={subIdx} className={`req-allof-partial-row req-allof-partial-row--${subTone}`}>
+                        <span className={`req-item-icon icon-${subTone}`}>
+                            {subMatches.length > 0 ? "◐" : "•"}
+                        </span>
+                        <div className="req-item-body">
+                            {renderRequirementLine(
+                                { ...subItem, attributeFulfillment: item.attributeFulfillment },
+                                {
+                                    ...scheduleCtx,
+                                    fulfillingSet: subFulfilling,
+                                    partialTone: subTone === "partial",
+                                },
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
@@ -434,21 +488,37 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
             <div className="req-anyof-intro">Choose one of the following:</div>
             {possibilities.map((childReq, childIdx) => {
                 const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
-                const childTone = childItem.fulfilled
+                const isCommittedBranch =
+                    parentItem.partial && parentItem.committedAnyofBranch === childIdx;
+                const isInactiveBranch =
+                    parentItem.partial
+                    && parentItem.committedAnyofBranch != null
+                    && parentItem.committedAnyofBranch !== childIdx;
+                const childTone = childItem.fulfilled || childItem.partial
                     ? itemTone(childItem, scheduleCtx.frozenIds)
                     : "open";
                 const childRowId = reqRowDomId(degreeIndex, childItem.instanceId);
+                const { type } = parseRequirement(childReq);
                 return (
                     <div
                         key={childItem.instanceId}
                         id={childRowId}
-                        className={`req-item req-item--${childTone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
+                        className={`req-item req-item--${childTone} req-anyof-child ${isInactiveBranch ? "req-anyof-child--inactive" : ""} ${flashRowId === childRowId ? "req-row-flash" : ""}`}
                     >
                         <span className={`req-item-icon icon-${childTone}`}>
-                            {childItem.fulfilled ? "✓" : "•"}
+                            {childItem.fulfilled ? "✓" : childItem.partial ? "◐" : "•"}
                         </span>
                         <div className="req-item-body">
-                            {renderRequirementLine(childItem, scheduleCtx)}
+                            {type === "AllOf" && isCommittedBranch && childItem.partial
+                                ? renderAllOfPartialRows(childItem, scheduleCtx)
+                                : renderRequirementLine(
+                                    childItem,
+                                    {
+                                        ...scheduleCtx,
+                                        partialTone: childTone === "partial",
+                                    },
+                                    scheduleCtx.crossDegreeChipTitle,
+                                )}
                         </div>
                     </div>
                 );
@@ -460,6 +530,7 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
 function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const rowTone = itemTone(item, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
+    const icon = item.fulfilled ? "✓" : item.partial ? "◐" : "○";
 
     return (
         <div
@@ -468,10 +539,14 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
             className={`req-item req-item--${rowTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
-                {item.fulfilled ? "✓" : "○"}
+                {icon}
             </span>
             <div className="req-item-body">
-                            {renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle)}
+                {renderRequirementLine(
+                    item,
+                    { ...scheduleCtx, partialTone: rowTone === "partial" },
+                    scheduleCtx.crossDegreeChipTitle,
+                )}
             </div>
         </div>
     );

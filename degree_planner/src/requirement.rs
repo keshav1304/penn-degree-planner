@@ -90,7 +90,7 @@ fn restriction_required_cu(number: i32, cu_field: &Option<i32>) -> f64 {
     number as f64
 }
 
-/// Fill order: SingleCourse first, then other requirement types, then Restriction last
+/// Fill order: SingleCourse first, then composites (incl. DoubleCount), then Restriction last
 /// (among restrictions, smaller-CU slots are matched before larger ones).
 fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
     match req {
@@ -100,8 +100,105 @@ fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
             let tenths = (target * 10.0).round() as u32;
             (2, tenths, req.specificity_score())
         }
+        Requirement::DoubleCount { .. } => (1, 0, req.specificity_score()),
         _ => (1, 0, req.specificity_score()),
     }
+}
+
+fn is_restriction_requirement(req: &Requirement) -> bool {
+    matches!(req, Requirement::Restriction { .. })
+}
+
+fn sorted_child_requirements<'a>(requirements: &'a [Requirement]) -> Vec<&'a Requirement> {
+    let mut children: Vec<&Requirement> = requirements.iter().collect();
+    children.sort_by_key(|r| requirement_fill_order_key(r));
+    children
+}
+
+/// Greedily assign courses from `taken` to leaf slots inside a composite (best AnyOf branch).
+/// Returns assigned courses and, for AnyOf roots, the committed branch index.
+fn partial_fulfill_composite(
+    req: &Requirement,
+    taken: &[String],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> (Vec<String>, Option<usize>) {
+    match req {
+        Requirement::SingleCourse { possibilities, .. } => {
+            if let Some(course) = taken.iter().find(|c| possibilities.contains(c)) {
+                (vec![course.clone()], None)
+            } else {
+                (vec![], None)
+            }
+        }
+        Requirement::CourseGroup {
+            possibilities, number, ..
+        } => {
+            let need = *number as usize;
+            let matched: Vec<String> = taken
+                .iter()
+                .filter(|c| possibilities.contains(c))
+                .take(need)
+                .cloned()
+                .collect();
+            (matched, None)
+        }
+        Requirement::AllOf { requirements, .. } => {
+            let mut pool: Vec<String> = taken.to_vec();
+            let mut assigned = Vec::new();
+            for child in sorted_child_requirements(requirements) {
+                let (courses, _) =
+                    partial_fulfill_composite(child, &pool, attributes, cu_map);
+                for course in &courses {
+                    pool.retain(|c| c != course);
+                }
+                assigned.extend(courses);
+            }
+            (assigned, None)
+        }
+        Requirement::AnyOf { possibilities, .. } => {
+            let branch_idx = select_best_anyof_branch(possibilities, taken, attributes, cu_map);
+            let branch = &possibilities[branch_idx];
+            let (courses, _) = partial_fulfill_composite(branch, taken, attributes, cu_map);
+            (courses, Some(branch_idx))
+        }
+        Requirement::Concentration { requirements, .. } => {
+            let composite = Requirement::AllOf {
+                category: Some("Concentration".to_string()),
+                requirements: requirements.clone(),
+            };
+            partial_fulfill_composite(&composite, taken, attributes, cu_map)
+        }
+        _ => (vec![], None),
+    }
+}
+
+/// Pick the AnyOf branch that best matches `taken`: prefer fully satisfiable, then most leaf matches.
+fn select_best_anyof_branch(
+    possibilities: &[Requirement],
+    taken: &[String],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> usize {
+    let mut best_idx = 0usize;
+    let mut best_key = (false, 0usize, 0usize);
+
+    for (i, branch) in possibilities.iter().enumerate() {
+        let taken_vec: Vec<String> = taken.to_vec();
+        let can_fully = branch
+            .fulfills_requirement(&taken_vec, attributes, cu_map)
+            .is_some();
+        let partial_count =
+            partial_fulfill_composite(branch, taken, attributes, cu_map).0.len();
+        let specificity = branch.specificity_score();
+        let key = (can_fully, partial_count, usize::MAX.saturating_sub(specificity));
+        if key > best_key {
+            best_key = key;
+            best_idx = i;
+        }
+    }
+
+    best_idx
 }
 
 fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
@@ -622,7 +719,7 @@ impl Requirement {
             Requirement::AllOf { category, requirements, .. } => {
                 let mut taken_copy = taken.clone();
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
-                for req in requirements {
+                for req in sorted_child_requirements(requirements) {
                     if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                         taken_copy.retain(|x| !courses_fulfilled.contains(x));
                         all_courses_fulfilled.append(&mut courses_fulfilled);
@@ -633,12 +730,8 @@ impl Requirement {
                 return Some(all_courses_fulfilled);
             },
             Requirement::AnyOf { category, possibilities, .. } => {
-                for req in possibilities {
-                    if let Some(courses_fulfilled) = req.fulfills_requirement(taken, attributes, cu_map) {
-                        return Some(courses_fulfilled);
-                    }
-                }
-                return None;
+                let branch_idx = select_best_anyof_branch(possibilities, taken, attributes, cu_map);
+                possibilities[branch_idx].fulfills_requirement(taken, attributes, cu_map)
             },
             Requirement::Concentration { category, number, requirements, .. } => {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
@@ -660,7 +753,7 @@ impl Requirement {
             Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
                 let mut taken_copy = taken.clone();
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
-                for req in base_requirements {
+                for req in sorted_child_requirements(base_requirements) {
                     if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                         taken_copy.retain(|x| !courses_fulfilled.contains(x));
                         all_courses_fulfilled.append(&mut courses_fulfilled);
@@ -934,25 +1027,16 @@ pub fn validate_courses_for_degree(
                 let mut base_courses: Vec<String> = Vec::new();
                 for (bi, base_req) in base_requirements.into_iter().enumerate() {
                     let child_id = Some(format!("{}:b{}", orig_idx, bi));
-                    if let Some(courses_fulfilling) =
-                        base_req.fulfills_requirement(&taken_mut, &attributes, cu_map)
-                    {
-                        taken_mut.retain(|x| !courses_fulfilling.contains(x));
-                        base_courses.extend(courses_fulfilling.clone());
-                        fulfilled_requirements.push(new_mapped_requirement(
-                            base_req,
-                            courses_fulfilling,
-                            child_id.clone(),
-                            &attributes,
-                        ));
-                    } else {
-                        requirements_not_fulfilled.push(new_mapped_requirement(
-                            base_req,
-                            vec![],
-                            child_id,
-                            &attributes,
-                        ));
-                    }
+                    let courses = try_fulfill_or_partial_base(
+                        &base_req,
+                        &mut taken_mut,
+                        &attributes,
+                        cu_map,
+                        child_id,
+                        &mut fulfilled_requirements,
+                        &mut requirements_not_fulfilled,
+                    );
+                    base_courses.extend(courses);
                 }
                 for (di, dc_req) in double_counting_requirements.into_iter().enumerate() {
                     let child_id = Some(format!("{}:d{}", orig_idx, di));
@@ -975,6 +1059,24 @@ pub fn validate_courses_for_degree(
                     }
                 }
             }
+            ref composite
+                if matches!(
+                    composite,
+                    Requirement::AnyOf { .. }
+                        | Requirement::AllOf { .. }
+                        | Requirement::Concentration { .. }
+                ) =>
+            {
+                try_fulfill_or_partial_composite(
+                    &req,
+                    &mut taken_mut,
+                    &attributes,
+                    cu_map,
+                    instance_id,
+                    &mut fulfilled_requirements,
+                    &mut requirements_not_fulfilled,
+                );
+            }
             _ => {
                 if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
                     taken_mut.retain(|x| !courses_fulfilling.contains(x));
@@ -982,6 +1084,13 @@ pub fn validate_courses_for_degree(
                     fulfilled_requirements.push(new_mapped_requirement(
                         req,
                         courses_fulfilling,
+                        instance_id,
+                        &attributes,
+                    ));
+                } else if is_restriction_requirement(&req) {
+                    requirements_not_fulfilled.push(new_mapped_requirement(
+                        req,
+                        vec![],
                         instance_id,
                         &attributes,
                     ));
@@ -1101,6 +1210,24 @@ fn new_mapped_requirement(
     instance_id: Option<String>,
     attributes: &HashMap<String, Vec<String>>,
 ) -> MappedRequirement {
+    new_mapped_requirement_with_options(
+        requirement,
+        course_ids,
+        instance_id,
+        attributes,
+        false,
+        None,
+    )
+}
+
+fn new_mapped_requirement_with_options(
+    requirement: Requirement,
+    course_ids: Vec<String>,
+    instance_id: Option<String>,
+    attributes: &HashMap<String, Vec<String>>,
+    partial: bool,
+    committed_anyof_branch: Option<usize>,
+) -> MappedRequirement {
     let attribute_fulfillment =
         attribute_fulfillment_for_requirement(&requirement, &course_ids, attributes);
     MappedRequirement {
@@ -1108,7 +1235,98 @@ fn new_mapped_requirement(
         course_ids,
         instance_id,
         attribute_fulfillment,
+        partial,
+        committed_anyof_branch,
     }
+}
+
+fn try_fulfill_or_partial_composite(
+    req: &Requirement,
+    taken: &mut Vec<String>,
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+    instance_id: Option<String>,
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+) {
+    if let Some(courses_fulfilling) = req.fulfills_requirement(taken, attributes, cu_map) {
+        taken.retain(|x| !courses_fulfilling.contains(x));
+        fulfilled.push(new_mapped_requirement(
+            req.clone(),
+            courses_fulfilling,
+            instance_id,
+            attributes,
+        ));
+        return;
+    }
+
+    let (partial_courses, branch) =
+        partial_fulfill_composite(req, taken, attributes, cu_map);
+    if partial_courses.is_empty() {
+        unfulfilled.push(new_mapped_requirement(
+            req.clone(),
+            vec![],
+            instance_id,
+            attributes,
+        ));
+        return;
+    }
+
+    taken.retain(|x| !partial_courses.contains(x));
+    unfulfilled.push(new_mapped_requirement_with_options(
+        req.clone(),
+        partial_courses,
+        instance_id,
+        attributes,
+        true,
+        branch,
+    ));
+}
+
+fn try_fulfill_or_partial_base(
+    base_req: &Requirement,
+    taken: &mut Vec<String>,
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+    child_id: Option<String>,
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+) -> Vec<String> {
+    if let Some(courses_fulfilling) = base_req.fulfills_requirement(taken, attributes, cu_map) {
+        taken.retain(|x| !courses_fulfilling.contains(x));
+        let courses = courses_fulfilling.clone();
+        fulfilled.push(new_mapped_requirement(
+            base_req.clone(),
+            courses_fulfilling,
+            child_id,
+            attributes,
+        ));
+        return courses;
+    }
+
+    let (partial_courses, branch) =
+        partial_fulfill_composite(base_req, taken, attributes, cu_map);
+    if partial_courses.is_empty() {
+        unfulfilled.push(new_mapped_requirement(
+            base_req.clone(),
+            vec![],
+            child_id,
+            attributes,
+        ));
+        return vec![];
+    }
+
+    taken.retain(|x| !partial_courses.contains(x));
+    let courses = partial_courses.clone();
+    unfulfilled.push(new_mapped_requirement_with_options(
+        base_req.clone(),
+        partial_courses,
+        child_id,
+        attributes,
+        true,
+        branch,
+    ));
+    courses
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1121,6 +1339,12 @@ pub struct MappedRequirement {
     /// For attribute-based restrictions: which attribute(s) were satisfied and by which courses.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attribute_fulfillment: Option<Vec<AttributeFulfillment>>,
+    /// True when some courses are assigned but the requirement is not fully satisfied.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub partial: bool,
+    /// For partially fulfilled AnyOf: index of the committed branch in `possibilities`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub committed_anyof_branch: Option<usize>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -1373,6 +1597,16 @@ fn remove_course_from_degree_result(
         true
     });
 
+    for mapped in unfulfilled.iter_mut() {
+        if mapped.partial && mapped.course_ids.contains(&course.to_string()) {
+            mapped.course_ids.retain(|c| c != course);
+            if mapped.course_ids.is_empty() {
+                mapped.partial = false;
+                mapped.committed_anyof_branch = None;
+            }
+        }
+    }
+
     for mapped in to_unfulfill {
         if !unfulfilled
             .iter()
@@ -1383,18 +1617,46 @@ fn remove_course_from_degree_result(
     }
 }
 
-fn build_allocations_from_fulfilled(
+pub fn filter_mapped_requirements_by_allocation(
+    mapped_list: &mut [MappedRequirement],
+    degree_idx: usize,
+    claims: &HashMap<String, HashSet<usize>>,
+) {
+    for mapped in mapped_list {
+        mapped.course_ids.retain(|course_id| {
+            if !course::is_valid_course_code(course_id) {
+                return true;
+            }
+            claims
+                .get(course_id)
+                .map(|indices| indices.contains(&degree_idx))
+                .unwrap_or(false)
+        });
+    }
+}
+
+pub fn build_allocations_from_fulfilled(
     per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
 ) -> HashMap<String, HashSet<usize>> {
     let mut allocations: HashMap<String, HashSet<usize>> = HashMap::new();
-    for (degree_idx, (fulfilled, _)) in per_degree.iter().enumerate() {
+    for (degree_idx, (fulfilled, unfulfilled)) in per_degree.iter().enumerate() {
+        let mut record = |course: &String| {
+            if course::is_valid_course_code(course) {
+                allocations
+                    .entry(course.clone())
+                    .or_default()
+                    .insert(degree_idx);
+            }
+        };
         for mapped in fulfilled {
             for course in &mapped.course_ids {
-                if course::is_valid_course_code(course) {
-                    allocations
-                        .entry(course.clone())
-                        .or_default()
-                        .insert(degree_idx);
+                record(course);
+            }
+        }
+        for mapped in unfulfilled {
+            if mapped.partial {
+                for course in &mapped.course_ids {
+                    record(course);
                 }
             }
         }
@@ -1758,6 +2020,100 @@ mod tests {
     }
 
     #[test]
+    fn validate_nested_single_course_reserved_before_restriction() {
+        use crate::seas_grad_data;
+
+        let major = seas_grad_data::create_ms_robo_major();
+        let taken = vec!["CIS 5190".to_string()];
+        let cu_map = HashMap::from([("CIS 5190".to_string(), 1.0)]);
+
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(major.requirements, &taken, &cu_map);
+
+        let restriction_with_cis = fulfilled.iter().any(|m| {
+            matches!(m.requirement, Requirement::Restriction { .. })
+                && m.course_ids.contains(&"CIS 5190".to_string())
+        });
+        assert!(
+            !restriction_with_cis,
+            "CIS 5190 should not be allocated to a Restriction when it matches a foundational SingleCourse slot"
+        );
+
+        let foundational = unfulfilled
+            .iter()
+            .find(|m| m.requirement.get_category() == "Foundational Courses")
+            .expect("foundational AnyOf should be present");
+        assert!(foundational.partial);
+        assert_eq!(foundational.course_ids, vec!["CIS 5190".to_string()]);
+        assert!(foundational.committed_anyof_branch.is_some());
+    }
+
+    #[test]
+    fn validate_allof_partial_single_course_not_stolen_by_restriction() {
+        let mut cu_map = HashMap::new();
+        cu_map.insert("MEAM 1100".to_string(), 1.0);
+        cu_map.insert("CIS 4000".to_string(), 1.0);
+
+        let requirements = vec![
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["PHYS 0150".to_string()],
+                    },
+                    Requirement::AllOf {
+                        category: None,
+                        requirements: vec![
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["MEAM 1100".to_string()],
+                            },
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["MEAM 1470".to_string()],
+                            },
+                        ],
+                    },
+                ],
+            },
+            Requirement::Restriction {
+                category: Some("Technical Elective".to_string()),
+                department: Some(vec!["CIS".to_string()]),
+                cu: None,
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+        ];
+
+        let taken = vec!["MEAM 1100".to_string(), "CIS 4000".to_string()];
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(requirements, &taken, &cu_map);
+
+        let restriction_with_meam = fulfilled.iter().any(|m| {
+            matches!(m.requirement, Requirement::Restriction { .. })
+                && m.course_ids.contains(&"MEAM 1100".to_string())
+        });
+        assert!(!restriction_with_meam);
+
+        let math_anyof = unfulfilled
+            .iter()
+            .find(|m| m.requirement.get_category() == "Math and Natural Science")
+            .expect("AnyOf should be unfulfilled with partial progress");
+        assert!(math_anyof.partial);
+        assert_eq!(math_anyof.course_ids, vec!["MEAM 1100".to_string()]);
+
+        let tech = fulfilled
+            .iter()
+            .find(|m| m.requirement.get_category() == "Technical Elective")
+            .expect("CIS course should fill restriction");
+        assert_eq!(tech.course_ids, vec!["CIS 4000".to_string()]);
+    }
+
+    #[test]
     fn resolve_keeps_best_two_degrees() {
         let schools = vec![
             "SEAS".to_string(),
@@ -1775,6 +2131,8 @@ mod tests {
             course_ids: vec![course.to_string()],
             instance_id: Some("0".to_string()),
             attribute_fulfillment: None,
+            partial: false,
+            committed_anyof_branch: None,
         };
 
         let mut per_degree = vec![

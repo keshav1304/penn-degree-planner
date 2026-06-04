@@ -28,7 +28,6 @@ export default function ScheduleGrid({
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementLinks,
     crossDegreeViolationsByCourse = {},
-    undergradGradBudgetCourses = new Set(),
     onNavigateToRequirement, allowSummer,
     doubleCountData, courseDoubleCountMap,
     concentrationData, courseConcentrationMap,
@@ -277,7 +276,6 @@ export default function ScheduleGrid({
         const frozen = isFrozen(courseId);
         const assigned = isAssigned(courseId);
         const violation = crossDegreeViolationsByCourse?.[courseId];
-        const usesBudget = undergradGradBudgetCourses?.has?.(courseId);
         let className = "schedule-course";
         if (assigned) className += " assigned";
         else if (frozen) className += " frozen";
@@ -319,11 +317,6 @@ export default function ScheduleGrid({
                     >
                         <span>{courseId}</span>
                         <span className="course-card-actions">
-                            {usesBudget && (
-                                <span className="cross-degree-budget-badge" title="Counts toward undergrad→grad double-count budget">
-                                    U→G
-                                </span>
-                            )}
                             {renderConcBadges(courseId)}
                             {renderDcBadges(courseId)}
                             {renderInfoLink(courseId)}
