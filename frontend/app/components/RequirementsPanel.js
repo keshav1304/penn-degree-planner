@@ -495,6 +495,34 @@ function renderAllOfPartialRows(item, scheduleCtx) {
     );
 }
 
+function choiceGroupHeaderLabel(requirement) {
+    const { type } = parseRequirement(requirement);
+    return type === "AllOf"
+        ? "Choose all of the following:"
+        : "Choose one of the following:";
+}
+
+function requirementStatusIcon(item, tone) {
+    if (item.fulfilled) return "✓";
+    if (item.partial || tone === "partial") return "◐";
+    return "○";
+}
+
+function renderChoiceGroupHeader(item, tone, { isFirst, label }) {
+    return (
+        <div className={`req-item req-item--${tone} req-choice-header ${isFirst ? "req-item-first" : ""}`}>
+            <span className={`req-item-icon icon-${tone}`}>
+                {requirementStatusIcon(item, tone)}
+            </span>
+            <div className="req-item-body">
+                <div className="req-item-line">
+                    <span className="req-stem-text">{label}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const possibilities = getAnyOfPossibilities(parentItem.requirement);
     const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
@@ -504,9 +532,13 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
         <div
             key={String(idx)}
             id={rowDomId}
-            className={`req-anyof-block req-anyof-block--${blockTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
+            className={`req-anyof-block ${flashRowId === rowDomId ? "req-row-flash" : ""}`}
         >
-            <div className="req-anyof-intro">Choose one of the following:</div>
+            {renderChoiceGroupHeader(parentItem, blockTone, {
+                isFirst,
+                label: choiceGroupHeaderLabel(parentItem.requirement),
+            })}
+            <div className="req-choice-children">
             {possibilities.map((childReq, childIdx) => {
                 const childItem = makeAnyOfChildItem(parentItem, childReq, childIdx);
                 const isCommittedBranch =
@@ -544,6 +576,7 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
                     </div>
                 );
             })}
+            </div>
         </div>
     );
 }
@@ -551,7 +584,6 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
 function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const rowTone = itemTone(item, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
-    const icon = item.fulfilled ? "✓" : item.partial ? "◐" : "○";
 
     return (
         <div
@@ -560,7 +592,7 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
             className={`req-item req-item--${rowTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
-                {icon}
+                {requirementStatusIcon(item, rowTone)}
             </span>
             <div className="req-item-body">
                 {renderRequirementLine(
