@@ -18,7 +18,6 @@ import {
     parseRequirement,
 } from "@/lib/requirementText";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
-import { buildDegreeColorMap, degreeLabelForResult } from "@/lib/degreeColors";
 
 export default function RequirementsPanel({
     scheduleData,
@@ -129,12 +128,6 @@ export default function RequirementsPanel({
     const plannedPct = totalCount > 0 ? (plannedCount / totalCount) * 100 : 0;
     const pct = totalCount > 0 ? Math.round(((fulfilledCount + plannedCount) / totalCount) * 100) : 0;
 
-    const degreeColorMap = buildDegreeColorMap(results);
-    const activeDegreeLabel = degreeLabelForResult(current);
-    const activeDegreeColor = activeDegreeLabel
-        ? degreeColorMap[activeDegreeLabel]
-        : undefined;
-
     return (
         <div className="req-panel">
             {results.length > 1 && (
@@ -142,8 +135,6 @@ export default function RequirementsPanel({
                     {results.map((result, i) => {
                         const { major, school } = degreeTabLabel(degrees[i], result);
                         const isActive = tabIndex === i;
-                        const tabLabel = degreeLabelForResult(result);
-                        const tabColor = tabLabel ? degreeColorMap[tabLabel] : undefined;
                         return (
                             <button
                                 key={i}
@@ -151,17 +142,9 @@ export default function RequirementsPanel({
                                 role="tab"
                                 aria-selected={isActive}
                                 className={`req-degree-tab ${isActive ? "active" : ""}`}
-                                style={tabColor ? { borderBottomColor: isActive ? tabColor : "transparent" } : undefined}
                                 onClick={() => setActiveTab(i)}
                                 title={school ? `${major} (${school})` : major}
                             >
-                                {tabColor && (
-                                    <span
-                                        className="req-degree-tab-stripe"
-                                        style={{ background: tabColor }}
-                                        aria-hidden
-                                    />
-                                )}
                                 <span className="req-degree-tab-major">{major}</span>
                                 {school && <span className="req-degree-tab-school">{school}</span>}
                             </button>
@@ -245,8 +228,7 @@ export default function RequirementsPanel({
                                                 scheduleCtx,
                                                 rowIdx === 0,
                                                 tabIndex,
-                                                flashRowId,
-                                                activeDegreeColor
+                                                flashRowId
                                             );
                                         }
                                         return renderItem(
@@ -255,8 +237,7 @@ export default function RequirementsPanel({
                                             scheduleCtx,
                                             rowIdx === 0,
                                             tabIndex,
-                                            flashRowId,
-                                            activeDegreeColor
+                                            flashRowId
                                         );
                                     })}
                                 </div>
@@ -493,7 +474,7 @@ function renderAllOfPartialRows(item, scheduleCtx) {
     );
 }
 
-function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId, degreeColor) {
+function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const possibilities = getAnyOfPossibilities(parentItem.requirement);
     const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
@@ -503,7 +484,6 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
             key={String(idx)}
             id={rowDomId}
             className={`req-anyof-block req-anyof-block--${blockTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
-            style={degreeColor ? { borderLeftColor: degreeColor } : undefined}
         >
             <div className="req-anyof-intro">Choose one of the following:</div>
             {possibilities.map((childReq, childIdx) => {
@@ -524,7 +504,6 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
                         key={childItem.instanceId}
                         id={childRowId}
                         className={`req-item req-item--${childTone} req-anyof-child ${isInactiveBranch ? "req-anyof-child--inactive" : ""} ${flashRowId === childRowId ? "req-row-flash" : ""}`}
-                        style={degreeColor ? { borderLeftColor: degreeColor } : undefined}
                     >
                         <span className={`req-item-icon icon-${childTone}`}>
                             {childItem.fulfilled ? "✓" : childItem.partial ? "◐" : "•"}
@@ -548,7 +527,7 @@ function renderAnyOfGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, fl
     );
 }
 
-function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId, degreeColor) {
+function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     const rowTone = itemTone(item, scheduleCtx.frozenIds);
     const rowDomId = reqRowDomId(degreeIndex, idx);
     const icon = item.fulfilled ? "✓" : item.partial ? "◐" : "○";
@@ -558,7 +537,6 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId, de
             key={String(idx)}
             id={rowDomId}
             className={`req-item req-item--${rowTone} ${flashRowId === rowDomId ? "req-row-flash" : ""} ${isFirst ? "req-item-first" : ""}`}
-            style={degreeColor ? { borderLeftColor: degreeColor } : undefined}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
                 {icon}

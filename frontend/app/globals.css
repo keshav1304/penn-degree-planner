@@ -1007,16 +1007,6 @@ select {
   font-family: inherit;
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
-  position: relative;
-}
-
-.req-degree-tab-stripe {
-  position: absolute;
-  left: 0;
-  top: 4px;
-  bottom: 4px;
-  width: 3px;
-  border-radius: 2px;
 }
 
 .req-degree-tab:hover {
@@ -1025,13 +1015,9 @@ select {
 }
 
 .req-degree-tab.active {
-  background: rgba(0, 0, 0, 0.03);
-  color: var(--text-primary);
-}
-
-.req-degree-tab.active .req-degree-tab-school {
-  color: var(--text-secondary);
-  opacity: 0.9;
+  background: var(--accent-teal-dim);
+  border-bottom-color: var(--accent-teal);
+  color: var(--accent-teal);
 }
 
 .req-degree-tab-major {
@@ -1054,6 +1040,11 @@ select {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
+}
+
+.req-degree-tab.active .req-degree-tab-school {
+  color: var(--accent-teal);
+  opacity: 0.85;
 }
 
 /* ── Error banner ── */
@@ -1288,9 +1279,8 @@ select {
   gap: 6px;
   padding: 5px 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
-  border-left: 3px solid transparent;
   font-size: var(--sidebar-font-body);
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--transition);
 }
 
 .req-item-first,
@@ -1364,7 +1354,6 @@ select {
 
 .req-anyof-block {
   border-top: 1px solid rgba(0, 0, 0, 0.06);
-  border-left: 3px solid transparent;
 }
 
 .req-anyof-block--fulfilled {
