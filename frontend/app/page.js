@@ -19,7 +19,7 @@ import {
 import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
 import { reqRowDomId } from "@/lib/requirementNav";
 import {
-  buildCourseDegreesMapFromAllocations,
+  buildCourseDegreesMap,
   courseViolationMap,
 } from "@/lib/crossDegree";
 
@@ -358,10 +358,7 @@ export default function Home() {
   // ─── Build course → degree map (authoritative allocations from backend) ───
   const courseDegreesMap = useMemo(
     () =>
-      buildCourseDegreesMapFromAllocations(
-        crossDegreeSummary,
-        scheduleData?.degree_results
-      ),
+      buildCourseDegreesMap(crossDegreeSummary, scheduleData?.degree_results),
     [scheduleData, crossDegreeSummary]
   );
 
