@@ -110,8 +110,12 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                     api_code: "WH_NOFL".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "M&T - Foreign Language Exempt (NOFL_MT)".to_string(),
+                    display_name: "M&T Wharton".to_string(),
                     api_code: "WH_NOFL_MT".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "M&T Wharton".to_string(),
+                    api_code: "WH_FL_MT".to_string(),
                 },
             ],
         },
@@ -153,7 +157,7 @@ pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
 
     let mut names = match school {
         "SEAS" => seas_data::concentration_names_for(major),
-        "WH" if matches!(major, "WH_FL" | "WH_NOFL" | "WH_NOFL_MT") => {
+        "WH" if matches!(major, "WH_FL" | "WH_NOFL" | "WH_NOFL_MT" | "WH_FL_MT") => {
             wharton_data::concentration_names()
         }
         _ => vec![],
@@ -171,7 +175,7 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
 
     for (school, majors) in [
         ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CE"]),
-        ("WH", vec!["WH_FL", "WH_NOFL", "WH_NOFL_MT"]),
+        ("WH", vec!["WH_FL", "WH_NOFL", "WH_NOFL_MT", "WH_FL_MT"]),
     ] {
         for major in majors {
             let concs = concentrations_for(school, major);
@@ -225,6 +229,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "WH_NOFL" => Some(wharton_data::create_wh_nofl_major(concs)),
                 "WH_FL" => Some(wharton_data::create_wh_fl_major(concs)),
                 "WH_NOFL_MT" => Some(wharton_data::create_wh_nofl_mt_major(concs)),
+                "WH_FL_MT" => Some(wharton_data::create_wh_fl_mt_major(concs)),
                 _ => None,
             }
         },

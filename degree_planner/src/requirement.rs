@@ -9,41 +9,89 @@ use crate::cross_degree::{
     crosses_undergrad_grad, UNDERGRAD_GRAD_CU_LIMIT,
 };
 
+/// A node in a degree's requirement tree. Variants compose via nesting (`AllOf`, `AnyOf`,
+/// `CourseGroup`) or match individual courses (`SingleCourse`, `Restriction`).
+///
+/// `category`, when set, groups related slots in the requirements panel (e.g. "Foundational Courses").
 #[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Clone, Serialize)]
 pub enum Requirement {
-    // pick 1 from possibilities
+    /// **Pick one course** from a list of acceptable alternatives (OR within a single slot).
+    ///
+    /// Example: "One of: CIS 5190, CIS 5200, CIS 5210"
+    ///
+    /// - `category` — panel grouping label; on nested children, often the area name
+    ///   (e.g. "Artificial Intelligence").
+    /// - `possibilities` — course codes that satisfy this slot; exactly one is needed.
     SingleCourse {
         category: Option<String>,
-        possibilities: Vec<String>    
+        possibilities: Vec<String>,
     },
 
-    // pick before you join N from possibilities
+    /// **Complete N of M child areas** — each child is typically a `SingleCourse` representing
+    /// one topical area; the student must fully satisfy `number` of them.
+    ///
+    /// Example: Robotics MSE foundational courses — 1 course from 3 of 4 areas.
+    ///
+    /// - `category` — panel grouping label for the whole group.
+    /// - `number` — how many child areas must be satisfied (e.g. `3`).
+    /// - `possibilities` — the M area requirements to choose from (e.g. 4 `SingleCourse` areas).
     CourseGroup {
         category: Option<String>,
         number: i32,
-        possibilities: Vec<String>
+        possibilities: Vec<Requirement>,
     },
 
-    // pick 1 from possibilities
+    /// **Pick one branch** from several alternative requirement paths (OR at the composite level).
+    ///
+    /// Example: "Take PHYS 0150" **or** "Take MEAM 1100 and MEAM 1470".
+    /// Each entry in `possibilities` is a complete alternative (often an `AllOf`).
+    ///
+    /// Partial fulfillment commits to the best-matching branch (`committed_anyof_branch`).
+    ///
+    /// - `category` — panel grouping label.
+    /// - `possibilities` — mutually exclusive alternative requirement subtrees.
     AnyOf {
         category: Option<String>,
-        possibilities: Vec<Requirement>
+        possibilities: Vec<Requirement>,
     },
 
-    // all the requirements
+    /// **Complete every child** requirement (AND semantics).
+    ///
+    /// Example: "Take MEAM 1100 and one of MEAM 1470, BIOL 1124, PHYS 0050".
+    ///
+    /// - `category` — panel grouping label.
+    /// - `requirements` — child requirements that must all be satisfied.
     AllOf {
         category: Option<String>,
-        requirements: Vec<Requirement>
+        requirements: Vec<Requirement>,
     },
 
-    // requirement of N courses that fulfills a concentration specified in concentration section of major
+    /// **Concentration block** — like `AllOf`, but tied to a student's chosen concentration.
+    ///
+    /// The `number` field records the concentration's credit requirement; child `requirements`
+    /// are the specific courses/electives for that concentration path.
+    ///
+    /// - `category` — usually "Concentration" or the concentration name.
+    /// - `number` — required CU for the concentration.
+    /// - `requirements` — courses and sub-requirements within the concentration.
     Concentration {
         category: Option<String>,
         number: i32,
         requirements: Vec<Requirement>,
     },
 
-    // pick how many ever from a restricted set of possibilities
+    /// **Flexible elective slot** matched by course attributes rather than a fixed course list.
+    ///
+    /// Example: "1 CU from CIS/ESE/MEAM at min. level 5000" or "1 CU from attribute EMRT".
+    ///
+    /// - `category` — panel grouping label (e.g. "Technical Elective").
+    /// - `department` — allowed departments (e.g. `["CIS", "ESE"]`); `None` = any.
+    /// - `cu` — optional override in tenths (e.g. `5` → 0.5 CU); when `None`, `number` is whole CUs.
+    /// - `level` — minimum course number (e.g. `5000` for graduate-level).
+    /// - `attr` — course-attribute tags the course must carry (e.g. `["EMRT"]`).
+    /// - `excluding` — course codes that cannot count toward this slot.
+    /// - `number` — credits required (whole CUs when `cu` is `None`).
+    /// - `no_school` — exclude courses from a given school.
     Restriction {
         category: Option<String>,
         department: Option<Vec<String>>,
@@ -55,11 +103,19 @@ pub enum Requirement {
         no_school: Option<String>,
     },
 
+    /// **Double-counting rule** — `base_requirements` must be taken, and at least one must
+    /// also satisfy each entry in `double_counting_requirements`.
+    ///
+    /// Example: a course that counts toward both a major requirement and a sector requirement.
+    ///
+    /// - `category` — panel grouping label.
+    /// - `base_requirements` — the primary requirements being satisfied.
+    /// - `double_counting_requirements` — additional requirements the same courses must also meet.
     DoubleCount {
         category: Option<String>,
         double_counting_requirements: Vec<Requirement>,
-        base_requirements: Vec<Requirement>
-    }
+        base_requirements: Vec<Requirement>,
+    },
 }
 
 const MAX_LISTED_COURSES: usize = 4;
@@ -137,16 +193,22 @@ fn partial_fulfill_composite(
             }
         }
         Requirement::CourseGroup {
-            possibilities, number, ..
+            possibilities, ..
         } => {
-            let need = *number as usize;
-            let matched: Vec<String> = taken
-                .iter()
-                .filter(|c| possibilities.contains(c))
-                .take(need)
-                .cloned()
-                .collect();
-            (matched, None)
+            let mut pool: Vec<String> = taken.to_vec();
+            let mut assigned = Vec::new();
+            for child in sorted_child_requirements(possibilities) {
+                let (courses, _) =
+                    partial_fulfill_composite(child, &pool, attributes, cu_map);
+                if courses.is_empty() {
+                    continue;
+                }
+                for course in &courses {
+                    pool.retain(|c| c != course);
+                }
+                assigned.extend(courses);
+            }
+            (assigned, None)
         }
         Requirement::AllOf { requirements, .. } => {
             let mut pool: Vec<String> = taken.to_vec();
@@ -507,6 +569,16 @@ impl Requirement {
                     }
                 }
             }
+            Requirement::CourseGroup { possibilities, .. } => {
+                for (j, child) in possibilities.iter().enumerate() {
+                    if child == needle {
+                        return Some(format!("{}#{}", path, j));
+                    }
+                    if let Some(p) = child.find_path_in_subtree(needle, &format!("{}#{}", path, j)) {
+                        return Some(p);
+                    }
+                }
+            }
             Requirement::DoubleCount {
                 base_requirements,
                 double_counting_requirements,
@@ -565,6 +637,13 @@ impl Requirement {
             }
             Requirement::AllOf { requirements, .. } | Requirement::Concentration { requirements, .. } => {
                 for child in requirements {
+                    if let Some(found) = child.find_for_slot_id(slot_id) {
+                        return Some(found);
+                    }
+                }
+            }
+            Requirement::CourseGroup { possibilities, .. } => {
+                for child in possibilities {
                     if let Some(found) = child.find_for_slot_id(slot_id) {
                         return Some(found);
                     }
@@ -708,17 +787,25 @@ impl Requirement {
                 }
                 return None;
             },
-            Requirement::CourseGroup { category, number, possibilities, .. } => {
-                let mut courses_taken_in_possibilities = Vec::new();
-                for course in taken {
-                    if possibilities.contains(course) {
-                        courses_taken_in_possibilities.push(course.clone());
+            Requirement::CourseGroup { number, possibilities, .. } => {
+                let need = *number as usize;
+                let mut pool = taken.clone();
+                let mut all_courses: Vec<String> = Vec::new();
+                let mut fulfilled_count = 0usize;
+                for child in sorted_child_requirements(possibilities) {
+                    if fulfilled_count >= need {
+                        break;
+                    }
+                    if let Some(mut courses) = child.fulfills_requirement(&pool, attributes, cu_map) {
+                        pool.retain(|x| !courses.contains(x));
+                        all_courses.append(&mut courses);
+                        fulfilled_count += 1;
                     }
                 }
-                if courses_taken_in_possibilities.len() as i32 >= *number {
-                    return Some(courses_taken_in_possibilities);
+                if fulfilled_count >= need {
+                    Some(all_courses)
                 } else {
-                    return None;
+                    None
                 }
             },
             Requirement::AllOf { category, requirements, .. } => {
@@ -799,17 +886,37 @@ impl Requirement {
                 }
                 return None;
             },
-            Requirement::CourseGroup { category, number, possibilities } => {
+            Requirement::CourseGroup { number, possibilities, .. } => {
+                let need = *number as usize;
+                let mut pool = taken.clone();
                 let mut suggested_courses = Vec::new();
-                for course_code in possibilities {
-                    if course_suggestable(course_code, taken, cross_filter, cu_map) {
-                        suggested_courses.push(course_code.clone());
-                        if suggested_courses.len() as i32 == *number {
-                            return Some(suggested_courses);
-                        }
+                let mut fulfilled_count = 0usize;
+                for child in sorted_child_requirements(possibilities) {
+                    if fulfilled_count >= need {
+                        break;
+                    }
+                    if child.fulfills_requirement(&pool, &attributes, cu_map).is_some() {
+                        fulfilled_count += 1;
+                        continue;
+                    }
+                    if let Some(mut val) = child.suggest_for_requirement(
+                        &pool,
+                        &attributes,
+                        cu_map,
+                        scope,
+                        cross_filter,
+                    ) {
+                        suggested_courses.append(&mut val);
+                        fulfilled_count += 1;
+                    } else {
+                        return None;
                     }
                 }
-                return None;
+                if suggested_courses.is_empty() {
+                    None
+                } else {
+                    Some(suggested_courses)
+                }
             },
             Requirement::AnyOf { category, possibilities } => {
                 if Self::is_business_breadth_category(category.as_ref()) {
@@ -880,8 +987,11 @@ impl Requirement {
                 format_truncated_list(possibilities, "One of: ")
             }
             Requirement::CourseGroup { number, possibilities, .. } => {
-                let prefix = format!("{} CU from: ", number);
-                format_truncated_list(possibilities, &prefix)
+                format!(
+                    "Complete {} of {} areas",
+                    number,
+                    possibilities.len()
+                )
             }
             Requirement::Restriction {
                 department,
@@ -963,7 +1073,11 @@ impl Requirement {
                 possibilities.len()
             },
             Requirement::CourseGroup { possibilities, .. } => {
-                possibilities.len()
+                possibilities
+                    .iter()
+                    .map(|r| r.specificity_score())
+                    .sum::<usize>()
+                    .max(1)
             },
             Requirement::AllOf { requirements, .. } => {
                 // Sum of children — each sub-req adds specificity
@@ -1070,6 +1184,7 @@ pub fn validate_courses_for_degree(
                     Requirement::AnyOf { .. }
                         | Requirement::AllOf { .. }
                         | Requirement::Concentration { .. }
+                        | Requirement::CourseGroup { .. }
                 ) =>
             {
                 try_fulfill_or_partial_composite(
@@ -2363,10 +2478,40 @@ mod tests {
         let foundational = unfulfilled
             .iter()
             .find(|m| m.requirement.get_category() == "Foundational Courses")
-            .expect("foundational AnyOf should be present");
+            .expect("foundational CourseGroup should be present");
         assert!(foundational.partial);
         assert_eq!(foundational.course_ids, vec!["CIS 5190".to_string()]);
-        assert!(foundational.committed_anyof_branch.is_some());
+        assert!(foundational.committed_anyof_branch.is_none());
+    }
+
+    #[test]
+    fn course_group_fulfills_three_of_four_foundational_areas() {
+        use crate::seas_grad_data;
+
+        let major = seas_grad_data::create_ms_robo_major();
+        let taken = vec![
+            "CIS 5190".to_string(),
+            "MEAM 5200".to_string(),
+            "ESE 5000".to_string(),
+        ];
+        let cu_map = HashMap::from([
+            ("CIS 5190".to_string(), 1.0),
+            ("MEAM 5200".to_string(), 1.0),
+            ("ESE 5000".to_string(), 1.0),
+        ]);
+
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(major.requirements, &taken, &cu_map);
+
+        let foundational = fulfilled
+            .iter()
+            .find(|m| m.requirement.get_category() == "Foundational Courses")
+            .expect("foundational CourseGroup should be fulfilled");
+        assert!(!foundational.partial);
+        assert_eq!(foundational.course_ids.len(), 3);
+        assert!(unfulfilled
+            .iter()
+            .all(|m| m.requirement.get_category() != "Foundational Courses"));
     }
 
     #[test]

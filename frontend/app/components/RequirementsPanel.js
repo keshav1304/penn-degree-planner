@@ -9,12 +9,16 @@ import {
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
+    courseGroupHeaderLabel,
     coursesMatchingChildLeaf,
     createRequirementDescription,
+    evaluateCourseGroupChildren,
     getAnyOfPossibilities,
+    getCourseGroupAreaLabel,
     getRequirementInstanceId,
     getRequirementStem,
     isExpandableAnyOf,
+    isExpandableCourseGroup,
     parseRequirement,
 } from "@/lib/requirementText";
 import {
@@ -255,6 +259,16 @@ export default function RequirementsPanel({
                             {!isCollapsed && (
                                 <div className="req-group-body">
                                     {items.map((item, rowIdx) => {
+                                        if (isExpandableCourseGroup(item.requirement)) {
+                                            return renderCourseGroup(
+                                                item,
+                                                item.instanceId ?? String(rowIdx),
+                                                scheduleCtx,
+                                                rowIdx === 0,
+                                                tabIndex,
+                                                flashRowId
+                                            );
+                                        }
                                         if (isExpandableAnyOf(item.requirement)) {
                                             return renderAnyOfGroup(
                                                 item,
@@ -346,8 +360,7 @@ function buildRowContent(item) {
     }
 
     if (type === "CourseGroup") {
-        const ids = fulfilling.length ? fulfilling : (data.possibilities || []).filter(Boolean);
-        return { stem, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet };
+        return { stem: null, badges: [], fulfillingSet };
     }
 
     if (type === "Restriction" && data.attr?.length > 0) {
@@ -525,6 +538,92 @@ function renderChoiceGroupHeader(item, tone, { isFirst, label }) {
                 <div className="req-item-line">
                     <span className="req-stem-text">{label}</span>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+function courseOptionsForArea(childReq) {
+    const { type, data } = parseRequirement(childReq);
+    if (type === "SingleCourse") {
+        return (data.possibilities || []).filter(Boolean);
+    }
+    if (type === "AllOf") {
+        return (data.requirements || []).flatMap((sub) => courseOptionsForArea(sub));
+    }
+    return [];
+}
+
+function renderCourseGroupAreaLine(childReq, areaTone, fulfilledCourses, scheduleCtx) {
+    const options = courseOptionsForArea(childReq);
+    const fulfillingSet = new Set(fulfilledCourses);
+    const chipCtx = {
+        ...scheduleCtx,
+        fulfillingSet,
+        partialTone: areaTone === "partial",
+    };
+
+    return (
+        <div className="req-item-line">
+            <span className="req-stem-text">{getCourseGroupAreaLabel(childReq)}</span>
+            {options.length > 0 && (
+                <>
+                    <span className="req-item-colon">:</span>
+                    <span className="req-chips">
+                        {options.map((id, i) => (
+                            <span
+                                key={i}
+                                className={chipClass(badgeKindFor(id, chipCtx))}
+                                title={scheduleCtx.crossDegreeChipTitle?.(id)}
+                            >
+                                {id}
+                            </span>
+                        ))}
+                    </span>
+                </>
+            )}
+        </div>
+    );
+}
+
+function renderCourseGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
+    const areaRows = evaluateCourseGroupChildren(parentItem);
+    const blockTone = itemTone(parentItem, scheduleCtx.frozenIds);
+    const rowDomId = reqRowDomId(degreeIndex, idx);
+
+    return (
+        <div
+            key={String(idx)}
+            id={rowDomId}
+            className={`req-anyof-block ${flashRowId === rowDomId ? "req-row-flash" : ""}`}
+        >
+            {renderChoiceGroupHeader(parentItem, blockTone, {
+                isFirst,
+                label: courseGroupHeaderLabel(parentItem.requirement),
+            })}
+            <div className="req-choice-children">
+                {areaRows.map(({ childReq, childIdx, fulfilledCourses, tone }) => {
+                    const childRowId = reqRowDomId(degreeIndex, `${parentItem.instanceId ?? idx}::${childIdx}`);
+                    return (
+                        <div
+                            key={childRowId}
+                            id={childRowId}
+                            className={`req-item req-item--${tone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
+                        >
+                            <span className={`req-item-icon icon-${tone}`}>
+                                {tone === "fulfilled" ? "✓" : tone === "partial" ? "◐" : "•"}
+                            </span>
+                            <div className="req-item-body">
+                                {renderCourseGroupAreaLine(
+                                    childReq,
+                                    tone,
+                                    fulfilledCourses,
+                                    scheduleCtx,
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );

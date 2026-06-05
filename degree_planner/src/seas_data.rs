@@ -212,7 +212,14 @@ pub fn create_ee_major() -> Major {
                                     Requirement::SingleCourse { category: None, possibilities: vec!["CIS 4710".to_string(), "ESE 5320".to_string(), "ESE 5390".to_string()] },
                                 ]
                             },
-                            Requirement::CourseGroup { category: None,number: 3, possibilities: vec!["CIS 4710".to_string(), "ESE 5320".to_string(), "ESE 5390".to_string()] },
+                            Requirement::AllOf {
+                                category: None,
+                                requirements: vec![
+                                    Requirement::SingleCourse { category: None, possibilities: vec!["CIS 4710".to_string()] },
+                                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 5320".to_string()] },
+                                    Requirement::SingleCourse { category: None, possibilities: vec!["ESE 5390".to_string()] },
+                                ],
+                            },
                         ]
                     }
                 ]

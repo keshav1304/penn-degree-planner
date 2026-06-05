@@ -75,30 +75,14 @@ fn ms_robo_perception_area() -> Requirement {
 
 /// Complete 1 course from 3 out of 4 foundational areas (3 courses total).
 fn ms_robo_foundational_courses() -> Requirement {
-    let ai = ms_robo_ai_area();
-    let robot = ms_robo_robot_design_area();
-    let control = ms_robo_control_area();
-    let perception = ms_robo_perception_area();
-
-    Requirement::AnyOf {
+    Requirement::CourseGroup {
         category: Some("Foundational Courses".to_string()),
+        number: 3,
         possibilities: vec![
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![ai.clone(), robot.clone(), control.clone()],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![ai.clone(), robot.clone(), perception.clone()],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![ai.clone(), control.clone(), perception.clone()],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![robot, control, perception],
-            },
+            ms_robo_ai_area(),
+            ms_robo_robot_design_area(),
+            ms_robo_control_area(),
+            ms_robo_perception_area(),
         ],
     }
 }
