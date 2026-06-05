@@ -1250,9 +1250,20 @@ select {
 }
 
 .req-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
   font-size: var(--sidebar-font-small);
+  line-height: 1;
   color: var(--text-muted);
   flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.req-group-chevron-open {
+  transform: rotate(90deg);
 }
 
 .pill-done {

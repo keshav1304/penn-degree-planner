@@ -2,10 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { API_BASE } from "@/lib/api";
-
-function normalizeConcentrations(list) {
-    return [...new Set(list.filter((c) => c && c !== "None"))];
-}
+import { formatDegreeDisplay, normalizeConcentrations } from "@/lib/degreeDisplay";
 
 export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
     const [selectedSchool, setSelectedSchool] = useState("");
@@ -66,11 +63,6 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
         return normalizeConcentrations([c1, selectedConcentration2]);
     };
 
-    const formatConcLabel = (concList) => {
-        if (!concList?.length) return null;
-        return concList.join(" + ");
-    };
-
     const addDegree = () => {
         if (!selectedSchoolEntry || !selectedMajorEntry) return;
         const concList = buildConcentrationsList();
@@ -125,24 +117,13 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
             </span>
 
             {degrees.map((d, i) => {
-                const concList = normalizeConcentrations(
-                    d.concentrations || (d.concentration ? [d.concentration] : [])
-                );
-                const concLabel = formatConcLabel(concList);
+                const { major, schoolLine } = formatDegreeDisplay(d, null, degreeCatalog);
                 return (
                     <div key={i} className="degree-chip fade-in">
                         <div>
-                            <div className="degree-chip-label">
-                                {d.displayMajor || `${d.schoolCode} — ${d.majorCode}`}
-                            </div>
-                            {concLabel && (
-                                <div className="degree-chip-sub">
-                                    {d.displaySchool || d.schoolCode}
-                                    {" · "}Conc: {concLabel}
-                                </div>
-                            )}
-                            {!concLabel && d.displaySchool && (
-                                <div className="degree-chip-sub">{d.displaySchool}</div>
+                            <div className="degree-chip-label">{major}</div>
+                            {schoolLine && (
+                                <div className="degree-chip-sub">{schoolLine}</div>
                             )}
                         </div>
                         <button className="remove-btn" onClick={() => removeDegree(i)}>✕</button>

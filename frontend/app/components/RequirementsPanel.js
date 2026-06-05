@@ -21,11 +21,13 @@ import {
     filterAttributeFulfillmentForDegree,
     filterCoursesForDegree,
 } from "@/lib/crossDegree";
+import { formatDegreeDisplay } from "@/lib/degreeDisplay";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
 export default function RequirementsPanel({
     scheduleData,
     degrees,
+    degreeCatalog = [],
     frozenCourses = [],
     assignedCourses = [],
     courseDegreesMap = {},
@@ -154,7 +156,11 @@ export default function RequirementsPanel({
             {results.length > 1 && (
                 <div className="req-degree-tabs" role="tablist" aria-label="Degree requirements">
                     {results.map((result, i) => {
-                        const { major, school } = degreeTabLabel(degrees[i], result);
+                        const { major, schoolLine } = formatDegreeDisplay(
+                            degrees[i],
+                            result,
+                            degreeCatalog,
+                        );
                         const isActive = tabIndex === i;
                         return (
                             <button
@@ -164,10 +170,12 @@ export default function RequirementsPanel({
                                 aria-selected={isActive}
                                 className={`req-degree-tab ${isActive ? "active" : ""}`}
                                 onClick={() => setActiveTab(i)}
-                                title={school ? `${major} (${school})` : major}
+                                title={schoolLine ? `${major} (${schoolLine})` : major}
                             >
                                 <span className="req-degree-tab-major">{major}</span>
-                                {school && <span className="req-degree-tab-school">{school}</span>}
+                                {schoolLine && (
+                                    <span className="req-degree-tab-school">{schoolLine}</span>
+                                )}
                             </button>
                         );
                     })}
@@ -237,7 +245,12 @@ export default function RequirementsPanel({
                                 <span className={`req-group-pill ${done === items.length ? "pill-done" : "pill-pending"}`}>
                                     {done}/{items.length}
                                 </span>
-                                <span className="req-group-chevron">{isCollapsed ? "▶" : "▾"}</span>
+                                <span
+                                    className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
+                                    aria-hidden
+                                >
+                                    ▶
+                                </span>
                             </div>
                             {!isCollapsed && (
                                 <div className="req-group-body">
@@ -272,12 +285,6 @@ export default function RequirementsPanel({
             </div>
         </div>
     );
-}
-
-function degreeTabLabel(degree, result) {
-    const major = degree?.displayMajor || result?.major || "Degree";
-    const school = degree?.schoolCode || result?.school || "";
-    return { major, school };
 }
 
 function collectFulfillingCourses(item) {

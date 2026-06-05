@@ -19,7 +19,7 @@ use requirement::Requirement;
 use requirement::MappedRequirement;
 use requirement::DoubleCountInfo;
 use requirement::ConcentrationInfo;
-use cross_degree::CrossDegreeSummary;
+use cross_degree::{is_graduate_degree, CrossDegreeSummary};
 use major::Major;
 use schedule_template::{
     later_semesters, ms_default_semester_target, ms_default_semester_target_for_requirement,
@@ -376,6 +376,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let mut all_requirement_slots: Vec<String> = Vec::new();
     let mut slot_labels: HashMap<String, String> = HashMap::new();
     let mut item_targets: HashMap<String, (i32, String)> = HashMap::new();
+    let mut ug_schedule_items: HashSet<String> = HashSet::new();
     let mut ms_schedule_items: HashSet<String> = HashSet::new();
     let mut ms_grad_schedule_items: HashSet<String> = HashSet::new();
 
@@ -520,7 +521,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         }
                     }
                 }
-                if degree.school == "SEAS_MS" {
+                if is_graduate_degree(&degree.school) {
                     for course_id in &mapped.course_ids {
                         let target = if course::is_valid_course_code(course_id) {
                             ms_default_semester_target(course_id)
@@ -539,6 +540,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         if is_grad {
                             ms_grad_schedule_items.insert(course_id.clone());
                         }
+                    }
+                } else {
+                    for course_id in &mapped.course_ids {
+                        ug_schedule_items.insert(course_id.clone());
                     }
                 }
                 for course_id in &mapped.course_ids {
@@ -716,6 +721,30 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let mut remaining_courses: Vec<String> = all_suggested_courses;
     let mut remaining_slots: Vec<String> = all_requirement_slots;
 
+    let has_undergrad = payload
+        .degrees
+        .iter()
+        .any(|d| !is_graduate_degree(&d.school));
+    if has_undergrad {
+        for (item, target) in item_targets.iter_mut() {
+            if ms_schedule_items.contains(item) {
+                target.0 = target.0.max(5);
+            }
+        }
+    }
+
+    let schedule_item_priority = |item: &str| -> u8 {
+        if ug_schedule_items.contains(item) {
+            0
+        } else if !ms_schedule_items.contains(item) {
+            1
+        } else if ms_grad_schedule_items.contains(item) {
+            3
+        } else {
+            2
+        }
+    };
+
     let try_place_item =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, year: i32, semester: &str| -> bool {
             ensure_year(schedule, year, allow_summer);
@@ -743,7 +772,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
     let place_with_template =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, target: &(i32, String)| -> bool {
-            let candidates = later_semesters((target.0, target.1.as_str()), 4);
+            let max_year = if has_undergrad && ms_schedule_items.contains(item_id) {
+                12
+            } else {
+                4
+            };
+            let candidates = later_semesters((target.0, target.1.as_str()), max_year);
             for (year, semester) in candidates {
                 if try_place_item(schedule, item_id, year, &semester) {
                     return true;
@@ -764,7 +798,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         }
         template_items.sort_by_key(|item| {
             let (y, s) = item_targets.get(item).expect("template item has target");
-            semester_order(*y, s)
+            (schedule_item_priority(item), semester_order(*y, s))
         });
         let mut overflow = Vec::new();
         for item in template_items {
@@ -780,23 +814,13 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     partition_and_place(&mut remaining_courses, &mut schedule);
     partition_and_place(&mut remaining_slots, &mut schedule);
 
-    let ms_schedule_sort_key = |item: &str| -> u8 {
-        if !ms_schedule_items.contains(item) {
-            return 1;
+    let sort_schedule_remaining = |remaining: &mut Vec<String>| {
+        if has_undergrad || !ms_schedule_items.is_empty() {
+            remaining.sort_by_key(|item| schedule_item_priority(item));
         }
-        if ms_grad_schedule_items.contains(item) {
-            return 2;
-        }
-        0
     };
-    let sort_for_ms_degrees = |remaining: &mut Vec<String>| {
-        if ms_schedule_items.is_empty() {
-            return;
-        }
-        remaining.sort_by_key(|item| ms_schedule_sort_key(item));
-    };
-    sort_for_ms_degrees(&mut remaining_courses);
-    sort_for_ms_degrees(&mut remaining_slots);
+    sort_schedule_remaining(&mut remaining_courses);
+    sort_schedule_remaining(&mut remaining_slots);
 
     let distribute = |remaining: &mut Vec<String>,
                         schedule: &mut Vec<SemesterPlan>,

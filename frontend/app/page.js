@@ -600,6 +600,7 @@ export default function Home() {
                 <RequirementsPanel
                   scheduleData={scheduleData}
                   degrees={degrees}
+                  degreeCatalog={degreeCatalog}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
                   courseDegreesMap={courseDegreesMap}

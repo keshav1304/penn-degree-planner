@@ -90,22 +90,16 @@ pub fn later_semesters(
     start: (i32, &str),
     max_year: i32,
 ) -> Vec<(i32, String)> {
-    let canonical = [
-        (1, "Fall"),
-        (1, "Spring"),
-        (2, "Fall"),
-        (2, "Spring"),
-        (3, "Fall"),
-        (3, "Spring"),
-        (4, "Fall"),
-        (4, "Spring"),
-    ];
     let start_ord = semester_order(start.0, start.1);
-    canonical
-        .iter()
-        .filter(|(y, s)| semester_order(*y, s) >= start_ord && *y <= max_year)
-        .map(|(y, s)| (*y, s.to_string()))
-        .collect()
+    let mut out = Vec::new();
+    for year in 1..=max_year.max(1) {
+        for sem in ["Fall", "Spring"] {
+            if semester_order(year, sem) >= start_ord {
+                out.push((year, sem.to_string()));
+            }
+        }
+    }
+    out
 }
 
 /// Default semester target for MS degree courses: undergrad early, grad in upper years.
@@ -146,6 +140,14 @@ mod tests {
         assert_eq!(reqs.len(), 2);
         assert_eq!(hints.get("0"), Some(&(1, "Fall".to_string())));
         assert_eq!(hints.get("1"), Some(&(1, "Spring".to_string())));
+    }
+
+    #[test]
+    fn later_semesters_extends_past_four_years() {
+        let semesters = later_semesters((5, "Fall"), 6);
+        assert!(semesters.contains(&(5, "Fall".to_string())));
+        assert!(semesters.contains(&(6, "Spring".to_string())));
+        assert!(!semesters.iter().any(|(y, _)| *y <= 4));
     }
 
     #[test]

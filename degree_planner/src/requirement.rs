@@ -90,9 +90,14 @@ fn restriction_required_cu(number: i32, cu_field: &Option<i32>) -> f64 {
     number as f64
 }
 
-/// Fill order: SingleCourse first, then composites (incl. DoubleCount), then Restriction last
-/// (among restrictions, smaller-CU slots are matched before larger ones).
+/// Fill order: SingleCourse first, then composites (incl. DoubleCount), then Restriction,
+/// then Business Breadth last (category contains "business breadth").
+/// Among restrictions, smaller-CU slots are matched before larger ones.
 fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
+    let cat = req.get_category();
+    if Requirement::is_business_breadth_category((!cat.is_empty()).then_some(&cat)) {
+        return (3, 0, req.specificity_score());
+    }
     match req {
         Requirement::SingleCourse { .. } => (0, 0, req.specificity_score()),
         Requirement::Restriction { number, cu, .. } => {
@@ -2136,6 +2141,54 @@ mod tests {
             .fulfills_requirement(&taken, &attributes, &cu_map)
             .expect("0.5 CU slot should use the half-credit course");
         assert_eq!(fulfilled, vec!["TEST 1000".to_string()]);
+    }
+
+    #[test]
+    fn validate_degree_fills_restriction_before_business_breadth() {
+        let mut cu_map = HashMap::new();
+        cu_map.insert("FNCE 2030".to_string(), 1.0);
+
+        let requirements = vec![
+            Requirement::AnyOf {
+                category: Some("Business Breadth".to_string()),
+                possibilities: vec![Requirement::Restriction {
+                    category: None,
+                    department: Some(vec!["FNCE".to_string()]),
+                    cu: None,
+                    level: None,
+                    attr: None,
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                }],
+            },
+            Requirement::Restriction {
+                category: Some("WUCP elective".to_string()),
+                department: Some(vec!["FNCE".to_string()]),
+                cu: None,
+                level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ];
+
+        let taken = vec!["FNCE 2030".to_string()];
+        let (fulfilled, unfulfilled) =
+            validate_courses_for_degree(requirements, &taken, &cu_map);
+
+        assert_eq!(unfulfilled.len(), 1);
+        assert_eq!(fulfilled.len(), 1);
+        assert_eq!(fulfilled[0].course_ids, vec!["FNCE 2030".to_string()]);
+        assert_eq!(fulfilled[0].requirement.get_category(), "WUCP elective");
+        assert!(
+            unfulfilled[0]
+                .requirement
+                .get_category()
+                .to_lowercase()
+                .contains("business breadth")
+        );
     }
 
     #[test]
