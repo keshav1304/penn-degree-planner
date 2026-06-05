@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::Requirement;
 use crate::course;
@@ -102,13 +102,51 @@ pub fn later_semesters(
     out
 }
 
-/// Default semester target for MS degree courses: undergrad early, grad in upper years.
+/// Default semester target for MS degree courses.
+///
+/// Undergrad-level MS courses start early; graduate-level courses prefer upper years but may
+/// still backfill empty semesters in years 1–4 when scheduling alongside a UG degree.
 pub fn ms_default_semester_target(course_id: &str) -> (i32, String) {
     if course::is_valid_course_code(course_id) && !course::is_graduate_level(course_id) {
         (1, "Fall".to_string())
     } else {
         (3, "Fall".to_string())
     }
+}
+
+/// Placement order for MS graduate items when co-scheduled with an undergrad degree.
+///
+/// 1. Preferred window: `target` through `undergrad_window_end` (grad courses after UG picks).
+/// 2. Backfill: any remaining capacity in years 1..=`undergrad_window_end`.
+/// 3. Extension: years beyond the undergrad window when years 1–4 are full.
+pub fn ms_grad_placement_candidates(
+    target: (i32, &str),
+    undergrad_window_end: i32,
+    max_year: i32,
+) -> Vec<(i32, String)> {
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+
+    let mut push = |year: i32, semester: &str| {
+        let ord = semester_order(year, semester);
+        if seen.insert(ord) {
+            out.push((year, semester.to_string()));
+        }
+    };
+
+    for (year, semester) in later_semesters(target, undergrad_window_end.max(target.0)) {
+        push(year, &semester);
+    }
+    for (year, semester) in later_semesters((1, "Fall"), undergrad_window_end) {
+        push(year, &semester);
+    }
+    if max_year > undergrad_window_end {
+        for (year, semester) in later_semesters((undergrad_window_end + 1, "Fall"), max_year) {
+            push(year, &semester);
+        }
+    }
+
+    out
 }
 
 /// Default semester target for MS requirement slots (restriction placeholders).
@@ -148,6 +186,22 @@ mod tests {
         assert!(semesters.contains(&(5, "Fall".to_string())));
         assert!(semesters.contains(&(6, "Spring".to_string())));
         assert!(!semesters.iter().any(|(y, _)| *y <= 4));
+    }
+
+    #[test]
+    fn ms_grad_placement_prefers_upper_years_then_backfills() {
+        let candidates = ms_grad_placement_candidates((3, "Fall"), 4, 6);
+        let orders: Vec<i32> = candidates
+            .iter()
+            .map(|(y, s)| semester_order(*y, s))
+            .collect();
+        assert_eq!(orders[0], semester_order(3, "Fall"));
+        assert_eq!(orders[1], semester_order(3, "Spring"));
+        assert_eq!(orders[2], semester_order(4, "Fall"));
+        assert!(orders.contains(&semester_order(1, "Fall")));
+        assert!(orders.contains(&semester_order(5, "Fall")));
+        assert!(orders.iter().position(|&o| o == semester_order(1, "Fall")).unwrap()
+            > orders.iter().position(|&o| o == semester_order(4, "Spring")).unwrap());
     }
 
     #[test]

@@ -23,7 +23,7 @@ use cross_degree::{is_graduate_degree, CrossDegreeSummary};
 use major::Major;
 use schedule_template::{
     later_semesters, ms_default_semester_target, ms_default_semester_target_for_requirement,
-    resolve_semester_hint, semester_order,
+    ms_grad_placement_candidates, resolve_semester_hint, semester_order,
 };
 
 use axum:: {
@@ -725,13 +725,6 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         .degrees
         .iter()
         .any(|d| !is_graduate_degree(&d.school));
-    if has_undergrad {
-        for (item, target) in item_targets.iter_mut() {
-            if ms_schedule_items.contains(item) {
-                target.0 = target.0.max(5);
-            }
-        }
-    }
 
     let schedule_item_priority = |item: &str| -> u8 {
         if ug_schedule_items.contains(item) {
@@ -770,14 +763,24 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             false
         };
 
+    const UNDERGRAD_SCHEDULE_WINDOW: i32 = 4;
+
     let place_with_template =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, target: &(i32, String)| -> bool {
             let max_year = if has_undergrad && ms_schedule_items.contains(item_id) {
                 12
             } else {
-                4
+                UNDERGRAD_SCHEDULE_WINDOW
             };
-            let candidates = later_semesters((target.0, target.1.as_str()), max_year);
+            let candidates = if has_undergrad && ms_grad_schedule_items.contains(item_id) {
+                ms_grad_placement_candidates(
+                    (target.0, target.1.as_str()),
+                    UNDERGRAD_SCHEDULE_WINDOW,
+                    max_year,
+                )
+            } else {
+                later_semesters((target.0, target.1.as_str()), max_year)
+            };
             for (year, semester) in candidates {
                 if try_place_item(schedule, item_id, year, &semester) {
                     return true;
