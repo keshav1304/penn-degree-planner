@@ -135,16 +135,16 @@ export default function RequirementsPanel({
         poolCoverageByCategory[cat].push(pool);
     });
 
-    const poolCategoriesWithRows = new Set(
-        Object.keys(poolCoverageByCategory).filter((cat) => categoryMap[cat]?.length),
-    );
-
     const categoryMap = {};
     allReqs.forEach((item) => {
         const cat = normalizeCategory(item.category);
         if (!categoryMap[cat]) categoryMap[cat] = [];
         categoryMap[cat].push(item);
     });
+
+    const poolCategoriesWithRows = new Set(
+        Object.keys(poolCoverageByCategory).filter((cat) => categoryMap[cat]?.length),
+    );
 
     const categoryOrder = (current.category_order || []).map(normalizeCategory);
     const orderedCategories = [...categoryOrder];
