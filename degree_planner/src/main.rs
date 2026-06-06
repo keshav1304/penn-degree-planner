@@ -717,9 +717,14 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         all_requirement_slots.retain(|s| s != &frozen.course_id);
     }
 
-    // Distribute remaining courses and requirement slots (template hints first)
-    let mut remaining_courses: Vec<String> = all_suggested_courses;
-    let mut remaining_slots: Vec<String> = all_requirement_slots;
+    // Courses and requirement slots share one queue so UG items always compete
+    // fairly with MS items regardless of item type.
+    let mut remaining_items: Vec<String> = all_suggested_courses;
+    for slot in all_requirement_slots {
+        if !remaining_items.contains(&slot) {
+            remaining_items.push(slot);
+        }
+    }
 
     let has_undergrad = payload
         .degrees
@@ -736,6 +741,47 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         } else {
             2
         }
+    };
+
+    let item_fits_semester =
+        |item_id: &str, plan_total_cu: f64, max_cu: f64| -> bool {
+            let cu = get_cu(item_id);
+            plan_total_cu + cu <= max_cu || plan_total_cu == 0.0
+        };
+
+    let find_best_fitting = |remaining: &[String],
+                             plan_total_cu: f64,
+                             max_cu: f64,
+                             skip_ids: &HashSet<String>,
+                             only_items: Option<&HashSet<String>>| -> Option<usize> {
+        let mut best_idx: Option<usize> = None;
+        let mut best_priority = u8::MAX;
+        for (idx, item) in remaining.iter().enumerate() {
+            if skip_ids.contains(item) {
+                continue;
+            }
+            if only_items.is_some_and(|set| !set.contains(item)) {
+                continue;
+            }
+            if !item_fits_semester(item, plan_total_cu, max_cu) {
+                continue;
+            }
+            let priority = schedule_item_priority(item);
+            if priority < best_priority {
+                best_priority = priority;
+                best_idx = Some(idx);
+            }
+        }
+        best_idx
+    };
+
+    let pop_best_fitting = |remaining: &mut Vec<String>,
+                            plan_total_cu: f64,
+                            max_cu: f64,
+                            skip_ids: &HashSet<String>,
+                            only_items: Option<&HashSet<String>>| -> Option<String> {
+        find_best_fitting(remaining, plan_total_cu, max_cu, skip_ids, only_items)
+            .map(|idx| remaining.remove(idx))
     };
 
     let try_place_item =
@@ -772,7 +818,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             } else {
                 UNDERGRAD_SCHEDULE_WINDOW
             };
-            let candidates = if has_undergrad && ms_grad_schedule_items.contains(item_id) {
+            let candidates = if has_undergrad && ms_schedule_items.contains(item_id) {
                 ms_grad_placement_candidates(
                     (target.0, target.1.as_str()),
                     UNDERGRAD_SCHEDULE_WINDOW,
@@ -789,116 +835,186 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             false
         };
 
-    let partition_and_place = |remaining: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>| {
-        let mut template_items: Vec<String> = Vec::new();
-        let mut greedy_items: Vec<String> = Vec::new();
-        for item in remaining.drain(..) {
-            if item_targets.contains_key(&item) {
-                template_items.push(item);
-            } else {
-                greedy_items.push(item);
+    let try_place_greedy =
+        |schedule: &mut Vec<SemesterPlan>, item_id: &str, max_year: i32| -> bool {
+            let mut best: Option<(i32, String)> = None;
+            let mut best_load = f64::MAX;
+            let mut best_tie_ord = i32::MIN;
+            for year in 1..=max_year {
+                for semester in ["Fall", "Spring"] {
+                    let max_cu = get_max_cu(year, semester);
+                    let load = schedule
+                        .iter()
+                        .find(|p| p.year == year && p.semester == semester)
+                        .map(|p| p.total_cu)
+                        .unwrap_or(0.0);
+                    if !item_fits_semester(item_id, load, max_cu) {
+                        continue;
+                    }
+                    let tie_ord = semester_order(year, semester);
+                    if load < best_load
+                        || (load == best_load && tie_ord > best_tie_ord)
+                    {
+                        best_load = load;
+                        best_tie_ord = tie_ord;
+                        best = Some((year, semester.to_string()));
+                    }
+                }
             }
-        }
-        template_items.sort_by_key(|item| {
-            let (y, s) = item_targets.get(item).expect("template item has target");
-            (schedule_item_priority(item), semester_order(*y, s))
+            if let Some((year, semester)) = best {
+                return try_place_item(schedule, item_id, year, &semester);
+            }
+            false
+        };
+
+    let sort_schedule_items = |items: &mut [String]| {
+        items.sort_by_key(|item| {
+            let template_ord = item_targets
+                .get(item)
+                .map(|(y, s)| semester_order(*y, s))
+                .unwrap_or(i32::MAX);
+            (schedule_item_priority(item), template_ord)
         });
-        let mut overflow = Vec::new();
-        for item in template_items {
-            let target = item_targets.get(&item).unwrap().clone();
-            if !place_with_template(schedule, &item, &target) {
-                overflow.push(item);
+    };
+
+    let place_schedule_batch =
+        |items: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>, greedy_max_year: i32| {
+            sort_schedule_items(items);
+            let mut overflow = Vec::new();
+            for item in items.drain(..) {
+                let placed = if let Some(target) = item_targets.get(&item) {
+                    place_with_template(schedule, &item, target)
+                } else {
+                    try_place_greedy(schedule, &item, greedy_max_year)
+                };
+                if !placed {
+                    overflow.push(item);
+                }
             }
+            overflow
+        };
+
+    let partition_and_place = |remaining: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>| {
+        let mut items: Vec<String> = remaining.drain(..).collect();
+        let mut overflow = Vec::new();
+        if has_undergrad {
+            let (mut ug_items, mut other_items): (Vec<String>, Vec<String>) =
+                items.into_iter().partition(|item| ug_schedule_items.contains(item));
+            overflow.extend(place_schedule_batch(
+                &mut ug_items,
+                schedule,
+                UNDERGRAD_SCHEDULE_WINDOW,
+            ));
+            overflow.extend(place_schedule_batch(&mut other_items, schedule, 12));
+        } else {
+            overflow.extend(place_schedule_batch(&mut items, schedule, 12));
         }
-        overflow.extend(greedy_items);
         *remaining = overflow;
     };
 
-    partition_and_place(&mut remaining_courses, &mut schedule);
-    partition_and_place(&mut remaining_slots, &mut schedule);
+    partition_and_place(&mut remaining_items, &mut schedule);
 
-    let sort_schedule_remaining = |remaining: &mut Vec<String>| {
-        if has_undergrad || !ms_schedule_items.is_empty() {
-            remaining.sort_by_key(|item| schedule_item_priority(item));
-        }
-    };
-    sort_schedule_remaining(&mut remaining_courses);
-    sort_schedule_remaining(&mut remaining_slots);
+    if has_undergrad || !ms_schedule_items.is_empty() {
+        remaining_items.sort_by_key(|item| schedule_item_priority(item));
+    }
 
     let distribute = |remaining: &mut Vec<String>,
                         schedule: &mut Vec<SemesterPlan>,
                         allow_summer: bool,
-                        skip_summer_for: &HashSet<String>|
+                        skip_summer_for: &HashSet<String>,
+                        only_items: Option<&HashSet<String>>|
      -> bool {
         if remaining.is_empty() {
             return false;
         }
+        let empty_skip: HashSet<String> = HashSet::new();
         let mut placed_any = false;
-        for plan in schedule.iter_mut() {
-            if plan.semester == "Summer" || remaining.is_empty() {
-                continue;
+        loop {
+            if remaining.is_empty() {
+                break;
             }
-            let max_cu = get_max_cu(plan.year, &plan.semester);
-            while !remaining.is_empty() {
-                let cu = get_cu(&remaining[0]);
-                if plan.total_cu + cu > max_cu {
-                    // Allow a single oversize course in an otherwise empty semester.
-                    if plan.total_cu > 0.0 {
-                        break;
-                    }
-                    let item = remaining.remove(0);
-                    place_in_semester(plan, &item);
-                    placed_any = true;
-                    break;
-                }
-                let item = remaining.remove(0);
-                place_in_semester(plan, &item);
-                placed_any = true;
+            if only_items.is_some_and(|set| !remaining.iter().any(|item| set.contains(item))) {
+                break;
             }
-        }
-        if allow_summer && !remaining.is_empty() {
-            for plan in schedule.iter_mut() {
-                if plan.semester != "Summer" || remaining.is_empty() {
+
+            let mut best_plan_idx: Option<usize> = None;
+            let mut best_item_idx: Option<usize> = None;
+            let mut best_load = f64::MAX;
+            let mut best_tie_ord = i32::MIN;
+
+            for (plan_idx, plan) in schedule.iter().enumerate() {
+                if plan.semester == "Summer" && !allow_summer {
                     continue;
                 }
+                if plan.semester != "Summer"
+                    && only_items.is_some_and(|set| plan.year > UNDERGRAD_SCHEDULE_WINDOW)
+                {
+                    continue;
+                }
+
                 let max_cu = get_max_cu(plan.year, &plan.semester);
-                let mut idx = 0;
-                while idx < remaining.len() {
-                    if skip_summer_for.contains(&remaining[idx]) {
-                        idx += 1;
-                        continue;
-                    }
-                    let cu = get_cu(&remaining[idx]);
-                    if plan.total_cu + cu > max_cu {
-                        if plan.total_cu > 0.0 {
-                            break;
-                        }
-                        let item = remaining.remove(idx);
-                        place_in_semester(plan, &item);
-                        placed_any = true;
-                        break;
-                    }
-                    let item = remaining.remove(idx);
-                    place_in_semester(plan, &item);
-                    placed_any = true;
+                let skip_ids = if plan.semester == "Summer" {
+                    skip_summer_for
+                } else {
+                    &empty_skip
+                };
+                let Some(item_idx) = find_best_fitting(
+                    remaining,
+                    plan.total_cu,
+                    max_cu,
+                    skip_ids,
+                    only_items,
+                ) else {
+                    continue;
+                };
+
+                let tie_ord = semester_order(plan.year, &plan.semester);
+                if plan.total_cu < best_load
+                    || (plan.total_cu == best_load && tie_ord > best_tie_ord)
+                {
+                    best_load = plan.total_cu;
+                    best_tie_ord = tie_ord;
+                    best_plan_idx = Some(plan_idx);
+                    best_item_idx = Some(item_idx);
                 }
             }
+
+            let (plan_idx, item_idx) = match (best_plan_idx, best_item_idx) {
+                (Some(p), Some(i)) => (p, i),
+                _ => break,
+            };
+            let item = remaining.remove(item_idx);
+            place_in_semester(&mut schedule[plan_idx], &item);
+            placed_any = true;
         }
         placed_any
     };
 
+    if has_undergrad && remaining_items.iter().any(|item| ug_schedule_items.contains(item)) {
+        distribute(
+            &mut remaining_items,
+            &mut schedule,
+            allow_summer,
+            &ms_grad_schedule_items,
+            Some(&ug_schedule_items),
+        );
+    }
+
     loop {
-        if remaining_courses.is_empty() && remaining_slots.is_empty() {
+        if remaining_items.is_empty() {
             break;
         }
-        let placed_courses =
-            distribute(&mut remaining_courses, &mut schedule, allow_summer, &ms_grad_schedule_items);
-        let placed_slots =
-            distribute(&mut remaining_slots, &mut schedule, allow_summer, &ms_grad_schedule_items);
-        if remaining_courses.is_empty() && remaining_slots.is_empty() {
+        let placed = distribute(
+            &mut remaining_items,
+            &mut schedule,
+            allow_summer,
+            &ms_grad_schedule_items,
+            None,
+        );
+        if remaining_items.is_empty() {
             break;
         }
-        if !placed_courses && !placed_slots {
+        if !placed {
             let max_year = schedule.iter().map(|p| p.year).max().unwrap_or(4);
             ensure_year(&mut schedule, max_year + 1, allow_summer);
         }

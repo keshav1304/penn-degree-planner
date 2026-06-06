@@ -9,6 +9,8 @@ use crate::schedule_template::{
 pub fn concentration_names_for(major_code: &str) -> Vec<String> {
     let concentrations = match major_code {
         "EE" => create_ee_major().concentrations,
+        "CIS" => create_cis_major().concentrations,
+        "CMPE" => create_cmpe_major().concentrations,
         "MEAM" => create_meam_major("General".to_string()).concentrations,
         "MSE" => create_mse_major().concentrations,
         _ => return vec![],
@@ -493,15 +495,41 @@ pub fn create_mse_major() -> Major {
         schedule_hints: schedule_hints_from_array(&MSE_SCHEDULE),
         concentrations: Some(BTreeMap::from([
             (
-                "Biomaterials and Biomimetics".to_string(), 
+                "Biomaterials and Biomimetics".to_string(),
                 vec![
                     Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 4300".to_string()] },
-                    Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 5850".to_string()] },
-                    Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 5180".to_string(), "MSE 4650".to_string(), "MSE 0099".to_string(), "CBE 5110".to_string(), "CBE 5640".to_string(), "BE 2200".to_string(), "BE 5120".to_string(), "PHYS 2280".to_string()] },
-                    Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 5180".to_string(), "MSE 4650".to_string(), "MSE 0099".to_string(), "CBE 5110".to_string(), "CBE 5640".to_string(), "BE 2200".to_string(), "BE 5120".to_string(), "PHYS 2280".to_string()] },
-                ]
+                    Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 5850".to_string(), "BE 5850".to_string()] },
+                    Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 5180".to_string(), "MSE 4650".to_string(), "MSE 5650".to_string(), "MSE 0099".to_string(), "CBE 5110".to_string(), "CBE 5640".to_string(), "BE 2200".to_string(), "BE 5120".to_string(), "PHYS 2280".to_string()] },
+                    Requirement::SingleCourse { category: Some("Biomaterials and Biomimetics".to_string()), possibilities: vec!["MSE 5180".to_string(), "MSE 4650".to_string(), "MSE 5650".to_string(), "MSE 0099".to_string(), "CBE 5110".to_string(), "CBE 5640".to_string(), "BE 2200".to_string(), "BE 5120".to_string(), "PHYS 2280".to_string()] },
+                ],
             ),
-            
+            (
+                "Electronic & Optical Devices and Sensors".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Electronic & Optical Devices and Sensors".to_string()), possibilities: vec!["MSE 5360".to_string()] },
+                    Requirement::SingleCourse { category: Some("Electronic & Optical Devices and Sensors".to_string()), possibilities: vec!["MSE 4650".to_string(), "MSE 5650".to_string()] },
+                    Requirement::SingleCourse { category: Some("Electronic & Optical Devices and Sensors".to_string()), possibilities: vec!["MSE 5250".to_string(), "MSE 6400".to_string(), "MSE 0099".to_string(), "ESE 2150".to_string(), "ESE 2180".to_string(), "ESE 5100".to_string(), "ESE 5210".to_string(), "ESE 5230".to_string()] },
+                    Requirement::SingleCourse { category: Some("Electronic & Optical Devices and Sensors".to_string()), possibilities: vec!["MSE 5250".to_string(), "MSE 6400".to_string(), "MSE 0099".to_string(), "ESE 2150".to_string(), "ESE 2180".to_string(), "ESE 5100".to_string(), "ESE 5210".to_string(), "ESE 5230".to_string()] },
+                ],
+            ),
+            (
+                "Energy and Sustainability".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Energy and Sustainability".to_string()), possibilities: vec!["MSE 4550".to_string()] },
+                    Requirement::SingleCourse { category: Some("Energy and Sustainability".to_string()), possibilities: vec!["MSE 5450".to_string()] },
+                    Requirement::SingleCourse { category: Some("Energy and Sustainability".to_string()), possibilities: vec!["MSE 5020".to_string(), "MSE 0099".to_string(), "CBE 5450".to_string(), "EAS 3010".to_string(), "EAS 4010".to_string(), "EAS 4020".to_string(), "EAS 4030".to_string(), "MEAM 5020".to_string(), "MEAM 5030".to_string(), "MEAM 5800".to_string()] },
+                    Requirement::SingleCourse { category: Some("Energy and Sustainability".to_string()), possibilities: vec!["MSE 5020".to_string(), "MSE 0099".to_string(), "CBE 5450".to_string(), "EAS 3010".to_string(), "EAS 4010".to_string(), "EAS 4020".to_string(), "EAS 4030".to_string(), "MEAM 5020".to_string(), "MEAM 5030".to_string(), "MEAM 5800".to_string()] },
+                ],
+            ),
+            (
+                "Nanotechnology".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Nanotechnology".to_string()), possibilities: vec!["MSE 5250".to_string()] },
+                    Requirement::SingleCourse { category: Some("Nanotechnology".to_string()), possibilities: vec!["MSE 4650".to_string(), "MSE 5650".to_string()] },
+                    Requirement::SingleCourse { category: Some("Nanotechnology".to_string()), possibilities: vec!["MSE 0099".to_string(), "MSE 6100".to_string(), "MSE 5360".to_string(), "ESE 3360".to_string(), "ESE 4230".to_string(), "ESE 5360".to_string(), "ESE 6210".to_string(), "MEAM 5290".to_string()] },
+                    Requirement::SingleCourse { category: Some("Nanotechnology".to_string()), possibilities: vec!["MSE 0099".to_string(), "MSE 6100".to_string(), "MSE 5360".to_string(), "ESE 3360".to_string(), "ESE 4230".to_string(), "ESE 5360".to_string(), "ESE 6210".to_string(), "MEAM 5290".to_string()] },
+                ],
+            ),
         ])),
     };
 }
@@ -610,8 +638,73 @@ pub fn create_cis_major() -> Major {
         ],
         schedule_hints: schedule_hints_from_array(&CIS_SCHEDULE),
         concentrations: Some(BTreeMap::from([
-            
-            
+            (
+                "Computer Vision".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Computer Vision".to_string()), possibilities: vec!["CIS 5800".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computer Vision".to_string()), possibilities: vec!["CIS 5810".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computer Vision".to_string()), possibilities: vec!["CIS 6800".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computer Vision".to_string()), possibilities: vec!["CIS 5200".to_string()] },
+                ],
+            ),
+            (
+                "Systems".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Systems".to_string()), possibilities: vec!["NETS 2120".to_string(), "CIS 3310".to_string(), "CIS 4510".to_string(), "CIS 5510".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4500".to_string(), "CIS 5500".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string(), "CIS 5530".to_string()] },
+                    Requirement::SingleCourse { category: Some("Systems".to_string()), possibilities: vec!["NETS 2120".to_string(), "CIS 3310".to_string(), "CIS 4510".to_string(), "CIS 5510".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4500".to_string(), "CIS 5500".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string(), "CIS 5530".to_string()] },
+                    Requirement::SingleCourse { category: Some("Systems".to_string()), possibilities: vec!["NETS 2120".to_string(), "CIS 3310".to_string(), "CIS 4510".to_string(), "CIS 5510".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4500".to_string(), "CIS 5500".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string(), "CIS 5530".to_string()] },
+                    Requirement::SingleCourse { category: Some("Systems".to_string()), possibilities: vec!["NETS 2120".to_string(), "CIS 3310".to_string(), "CIS 4510".to_string(), "CIS 5510".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4500".to_string(), "CIS 5500".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string(), "CIS 5530".to_string()] },
+                    Requirement::SingleCourse { category: Some("Systems".to_string()), possibilities: vec!["NETS 2120".to_string(), "CIS 3310".to_string(), "CIS 4510".to_string(), "CIS 5510".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4500".to_string(), "CIS 5500".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string(), "CIS 5530".to_string()] },
+                ],
+            ),
+            (
+                "Artificial Intelligence".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Artificial Intelligence".to_string()), possibilities: vec!["CIS 4210".to_string(), "CIS 5210".to_string()] },
+                    Requirement::SingleCourse { category: Some("Artificial Intelligence".to_string()), possibilities: vec!["CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string()] },
+                    Requirement::SingleCourse { category: Some("Artificial Intelligence".to_string()), possibilities: vec!["MEAM 5100".to_string(), "MEAM 5200".to_string(), "CIS 5220".to_string(), "CIS 5300".to_string(), "CIS 5800".to_string(), "CIS 5810".to_string(), "NETS 2130".to_string()] },
+                    Requirement::SingleCourse { category: Some("Artificial Intelligence".to_string()), possibilities: vec!["MEAM 5100".to_string(), "MEAM 5200".to_string(), "CIS 5220".to_string(), "CIS 5300".to_string(), "CIS 5800".to_string(), "CIS 5810".to_string(), "NETS 2130".to_string()] },
+                ],
+            ),
+            (
+                "Software Foundations".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Software Foundations".to_string()), possibilities: vec!["CIS 3410".to_string()] },
+                    Requirement::SingleCourse { category: Some("Software Foundations".to_string()), possibilities: vec!["CIS 5000".to_string()] },
+                    Requirement::SingleCourse { category: Some("Software Foundations".to_string()), possibilities: vec!["CIS 3500".to_string(), "CIS 5400".to_string(), "CIS 5470".to_string(), "CIS 5520".to_string(), "CIS 6730".to_string(), "CIS 6820".to_string()] },
+                    Requirement::SingleCourse { category: Some("Software Foundations".to_string()), possibilities: vec!["CIS 3500".to_string(), "CIS 5400".to_string(), "CIS 5470".to_string(), "CIS 5520".to_string(), "CIS 6730".to_string(), "CIS 6820".to_string()] },
+                ],
+            ),
+            (
+                "Data Science".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string(), "ESE 5450".to_string(), "STAT 4710".to_string()] },
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["CIS 5450".to_string(), "ESE 3050".to_string()] },
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["ENM 3210".to_string(), "ESE 4020".to_string(), "STAT 4310".to_string()] },
+                    Requirement::SingleCourse { category: Some("Data Science".to_string()), possibilities: vec!["CIS 4500".to_string(), "CIS 5500".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 4210".to_string(), "CIS 5210".to_string(), "CIS 5220".to_string(), "CIS 5800".to_string(), "STAT 4350".to_string(), "STAT 4740".to_string(), "STAT 4760".to_string(), "STAT 5200".to_string()] },
+                ],
+            ),
+            (
+                "Cognitive Science".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Cognitive Science".to_string()), possibilities: vec!["COGS 1001".to_string(), "CIS 1400".to_string()] },
+                    Requirement::SingleCourse { category: Some("Cognitive Science".to_string()), possibilities: vec!["CIS 4210".to_string(), "CIS 5210".to_string(), "CIS 5200".to_string(), "CIS 5300".to_string()] },
+                    Requirement::SingleCourse { category: Some("Cognitive Science".to_string()), possibilities: vec!["LING 0500".to_string(), "LING 2300".to_string(), "LING 2500".to_string(), "LING 2700".to_string()] },
+                    Requirement::SingleCourse { category: Some("Cognitive Science".to_string()), possibilities: vec!["PSYC 1210".to_string(), "PSYC 1340".to_string(), "PSYC 1230".to_string(), "PSYC 1310".to_string(), "PSYC 2737".to_string(), "PSYC 2377".to_string()] },
+                    Requirement::SingleCourse { category: Some("Cognitive Science".to_string()), possibilities: vec!["PHIL 1710".to_string(), "PHIL 2640".to_string(), "PHIL 4721".to_string(), "PHIL 4840".to_string()] },
+                ],
+            ),
+            (
+                "Computational Biology".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Computational Biology".to_string()), possibilities: vec!["BIOL 1101".to_string(), "BIOL 1121".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computational Biology".to_string()), possibilities: vec!["BIOL 2210".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computational Biology".to_string()), possibilities: vec!["ENM 3210".to_string(), "ESE 4020".to_string(), "STAT 4310".to_string(), "BIOL 2510".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computational Biology".to_string()), possibilities: vec!["CIS 5450".to_string(), "ESE 3050".to_string(), "CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string(), "ESE 5450".to_string(), "STAT 4710".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computational Biology".to_string()), possibilities: vec!["BIOL 4231".to_string(), "BE 5690".to_string(), "BE 4800".to_string(), "BE 3060".to_string()] },
+                    Requirement::SingleCourse { category: Some("Computational Biology".to_string()), possibilities: vec!["BIOL 4526".to_string(), "CIS 4360".to_string(), "BIOL 5536".to_string(), "GCB 5360".to_string(), "BIOL 5571".to_string()] },
+                ],
+            ),
         ])),
     };
 }
@@ -702,8 +795,8 @@ pub fn create_ai_major() -> Major {
     };
 }
 
-/// CE schedule template — one semester per top-level requirement, in list order.
-const CE_SCHEDULE: [Semester; 35] = [
+/// CMPE schedule template — one semester per top-level requirement, in list order.
+const CMPE_SCHEDULE: [Semester; 35] = [
     Y1F, Y1F, Y1F, Y1S, Y1S, Y2F, Y2F, Y2S, Y2S, Y3F, Y3F, // Engineering
     Y2S, Y3F, Y3S,                                            // Electives
     Y4F, Y4S,                                                 // Design and Project
@@ -713,9 +806,9 @@ const CE_SCHEDULE: [Semester; 35] = [
     Y4S,                                                      // Free Elective
 ];
 
-pub fn create_compe_major() -> Major {
+pub fn create_cmpe_major() -> Major {
         return Major {
-        short_name: "CE".to_string(),
+        short_name: "CMPE".to_string(),
         name: "Computer Engineering".to_string(),
         requirements: vec![
             // Engineering
@@ -757,10 +850,30 @@ pub fn create_compe_major() -> Major {
             // Math and Natural Science
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1400".to_string()] },
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1410".to_string(), "MATH 1610".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["ESE 2030".to_string()] },
+            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["ESE 2030".to_string(), "MATH 2400".to_string(), "MATH 2600".to_string()] },
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["ESE 3010".to_string(), "CIS 2610".to_string(), "STAT 4300".to_string()] },
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["CIS 1600".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science - Mechanics".to_string()), possibilities: vec!["MEAM 1100".to_string(), "PHYS 0140".to_string(), "PHYS 0150".to_string(), "PHYS 0170".to_string()] },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science - Mechanics".to_string()), 
+                possibilities: vec![
+                    Requirement::SingleCourse { category: None, possibilities: vec!["PHYS 0150".to_string()] },    
+                    Requirement::AllOf {
+                        category: None, 
+                        requirements: vec![
+                            Requirement::SingleCourse { category: None, possibilities: vec!["MEAM 1100".to_string()] },
+                            Requirement::SingleCourse { category: None, possibilities: vec!["MEAM 1470".to_string(), "BIOL 1124".to_string(), "PHYS 0050".to_string(), "CHEM 1101".to_string()] },
+                        ]
+                    },
+                    Requirement::AllOf {
+                        category: None, 
+                        requirements: vec![
+                            Requirement::SingleCourse { category: None, possibilities: vec!["PHYS 0140".to_string()] },
+                            Requirement::SingleCourse { category: None, possibilities: vec!["BIOL 1124".to_string(), "PHYS 0050".to_string(), "MEAM 1470".to_string(), "CHEM 1101".to_string()] },
+                        ]
+                    },
+                    Requirement::SingleCourse { category: None, possibilities: vec!["PHYS 0170".to_string()] },
+                ]
+            },
             Requirement::SingleCourse { category: Some("Math and Natural Science - E&M".to_string()), possibilities: vec!["ESE 1120".to_string()] },
             Requirement::SingleCourse { 
                 category: Some("Math and Natural Science - Chem/Bio".to_string()), 
@@ -797,10 +910,44 @@ pub fn create_compe_major() -> Major {
             // Free Elective
             Requirement::Restriction { category: Some("Free Elective".to_string()), department: None, cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
         ],
-        schedule_hints: schedule_hints_from_array(&CE_SCHEDULE),
+        schedule_hints: schedule_hints_from_array(&CMPE_SCHEDULE),
         concentrations: Some(BTreeMap::from([
-
-            
+            (
+                "AI & Robotics".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("AI & Robotics".to_string()), possibilities: vec!["CIS 2450".to_string(), "CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string(), "CIS 4300".to_string(), "CIS 5300".to_string(), "CIS 4810".to_string(), "CIS 5810".to_string(), "CIS 5210".to_string(), "CIS 5650".to_string(), "ESE 2000".to_string(), "ESE 2240".to_string(), "ESE 3060".to_string(), "ESE 3600".to_string(), "ESE 4210".to_string(), "ESE 5050".to_string(), "ESE 5390".to_string(), "ESE 6150".to_string(), "ESE 6500".to_string(), "MEAM 5200".to_string()] },
+                    Requirement::SingleCourse { category: Some("AI & Robotics".to_string()), possibilities: vec!["CIS 2450".to_string(), "CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string(), "CIS 4300".to_string(), "CIS 5300".to_string(), "CIS 4810".to_string(), "CIS 5810".to_string(), "CIS 5210".to_string(), "CIS 5650".to_string(), "ESE 2000".to_string(), "ESE 2240".to_string(), "ESE 3060".to_string(), "ESE 3600".to_string(), "ESE 4210".to_string(), "ESE 5050".to_string(), "ESE 5390".to_string(), "ESE 6150".to_string(), "ESE 6500".to_string(), "MEAM 5200".to_string()] },
+                    Requirement::SingleCourse { category: Some("AI & Robotics".to_string()), possibilities: vec!["CIS 2450".to_string(), "CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string(), "CIS 4300".to_string(), "CIS 5300".to_string(), "CIS 4810".to_string(), "CIS 5810".to_string(), "CIS 5210".to_string(), "CIS 5650".to_string(), "ESE 2000".to_string(), "ESE 2240".to_string(), "ESE 3060".to_string(), "ESE 3600".to_string(), "ESE 4210".to_string(), "ESE 5050".to_string(), "ESE 5390".to_string(), "ESE 6150".to_string(), "ESE 6500".to_string(), "MEAM 5200".to_string()] },
+                    Requirement::SingleCourse { category: Some("AI & Robotics".to_string()), possibilities: vec!["CIS 2450".to_string(), "CIS 4190".to_string(), "CIS 5190".to_string(), "CIS 5200".to_string(), "CIS 4300".to_string(), "CIS 5300".to_string(), "CIS 4810".to_string(), "CIS 5810".to_string(), "CIS 5210".to_string(), "CIS 5650".to_string(), "ESE 2000".to_string(), "ESE 2240".to_string(), "ESE 3060".to_string(), "ESE 3600".to_string(), "ESE 4210".to_string(), "ESE 5050".to_string(), "ESE 5390".to_string(), "ESE 6150".to_string(), "ESE 6500".to_string(), "MEAM 5200".to_string()] },
+                ],
+            ),
+            (
+                "CHIPs".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("CHIPs".to_string()), possibilities: vec!["ESE 3190".to_string(), "ESE 4190".to_string(), "ESE 5720".to_string(), "ESE 4730".to_string(), "ESE 5730".to_string(), "ESE 4750".to_string(), "ESE 5750".to_string(), "ESE 5320".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "CIS 6010".to_string()] },
+                    Requirement::SingleCourse { category: Some("CHIPs".to_string()), possibilities: vec!["ESE 3190".to_string(), "ESE 4190".to_string(), "ESE 5720".to_string(), "ESE 4730".to_string(), "ESE 5730".to_string(), "ESE 4750".to_string(), "ESE 5750".to_string(), "ESE 5320".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "CIS 6010".to_string()] },
+                    Requirement::SingleCourse { category: Some("CHIPs".to_string()), possibilities: vec!["ESE 3190".to_string(), "ESE 4190".to_string(), "ESE 5720".to_string(), "ESE 4730".to_string(), "ESE 5730".to_string(), "ESE 4750".to_string(), "ESE 5750".to_string(), "ESE 5320".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "CIS 6010".to_string()] },
+                    Requirement::SingleCourse { category: Some("CHIPs".to_string()), possibilities: vec!["ESE 3190".to_string(), "ESE 4190".to_string(), "ESE 5720".to_string(), "ESE 4730".to_string(), "ESE 5730".to_string(), "ESE 4750".to_string(), "ESE 5750".to_string(), "ESE 5320".to_string(), "ESE 5780".to_string(), "ESE 5800".to_string(), "ESE 6680".to_string(), "CIS 6010".to_string()] },
+                ],
+            ),
+            (
+                "Networks".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Networks".to_string()), possibilities: vec!["NETS 2120".to_string(), "ESE 4070".to_string(), "ESE 5070".to_string(), "CIS 5530".to_string(), "ESE 6650".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string()] },
+                    Requirement::SingleCourse { category: Some("Networks".to_string()), possibilities: vec!["NETS 2120".to_string(), "ESE 4070".to_string(), "ESE 5070".to_string(), "CIS 5530".to_string(), "ESE 6650".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string()] },
+                    Requirement::SingleCourse { category: Some("Networks".to_string()), possibilities: vec!["NETS 2120".to_string(), "ESE 4070".to_string(), "ESE 5070".to_string(), "CIS 5530".to_string(), "ESE 6650".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string()] },
+                    Requirement::SingleCourse { category: Some("Networks".to_string()), possibilities: vec!["NETS 2120".to_string(), "ESE 4070".to_string(), "ESE 5070".to_string(), "CIS 5530".to_string(), "ESE 6650".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string(), "CIS 5050".to_string()] },
+                ],
+            ),
+            (
+                "Security and Safety".to_string(),
+                vec![
+                    Requirement::SingleCourse { category: Some("Security and Safety".to_string()), possibilities: vec!["CIS 2330".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4510".to_string(), "CIS 5470".to_string(), "CIS 5560".to_string(), "ESE 5370".to_string()] },
+                    Requirement::SingleCourse { category: Some("Security and Safety".to_string()), possibilities: vec!["CIS 2330".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4510".to_string(), "CIS 5470".to_string(), "CIS 5560".to_string(), "ESE 5370".to_string()] },
+                    Requirement::SingleCourse { category: Some("Security and Safety".to_string()), possibilities: vec!["CIS 2330".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4510".to_string(), "CIS 5470".to_string(), "CIS 5560".to_string(), "ESE 5370".to_string()] },
+                    Requirement::SingleCourse { category: Some("Security and Safety".to_string()), possibilities: vec!["CIS 2330".to_string(), "CIS 4410".to_string(), "CIS 5410".to_string(), "CIS 4510".to_string(), "CIS 5470".to_string(), "CIS 5560".to_string(), "ESE 5370".to_string()] },
+                ],
+            ),
         ])),
     };
 }

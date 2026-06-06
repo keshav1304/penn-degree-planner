@@ -66,8 +66,8 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                     api_code: "AI".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Computer Engineering (CE)".to_string(),
-                    api_code: "CE".to_string(),
+                    display_name: "Computer Engineering (CMPE)".to_string(),
+                    api_code: "CMPE".to_string(),
                 },
             ],
         },
@@ -153,7 +153,7 @@ pub fn normalize_degree_concentrations(school: &str, concentrations: &[String]) 
 
 /// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".
 pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
-    let optional_overlay = school == "SEAS" && matches!(major, "EE" | "MSE");
+    let optional_overlay = school == "SEAS" && matches!(major, "EE" | "MSE" | "CIS" | "CMPE");
 
     let mut names = match school {
         "SEAS" => seas_data::concentration_names_for(major),
@@ -174,7 +174,7 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
     let mut map = BTreeMap::new();
 
     for (school, majors) in [
-        ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CE"]),
+        ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CMPE"]),
         ("WH", vec!["WH_FL", "WH_NOFL", "WH_NOFL_MT", "WH_FL_MT"]),
     ] {
         for major in majors {
@@ -203,7 +203,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "MSE" => Some(seas_data::create_mse_major()),
                 "CIS" => Some(seas_data::create_cis_major()),
                 "AI" => Some(seas_data::create_ai_major()),
-                "CE" => Some(seas_data::create_compe_major()),
+                "CMPE" => Some(seas_data::create_cmpe_major()),
                 "CBE" => None,
                 _ => None,
             }
