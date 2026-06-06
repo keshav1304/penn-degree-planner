@@ -3,7 +3,7 @@
 import { useState } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
-import { isValidCourseCode, isRequirementSlotId } from "@/lib/courseUtils";
+import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId } from "@/lib/courseUtils";
 import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
@@ -107,7 +107,7 @@ export default function ScheduleGrid({
     scheduleData?.degree_results?.forEach((result) => {
         result.suggested_for_unfulfilled?.forEach((mapped) => {
             mapped.course_ids?.forEach((id) => {
-                if (isRequirementSlotId(id)) openRequirementSlotIds.add(id);
+                if (isSchedulableRequirementSlotId(id)) openRequirementSlotIds.add(id);
             });
         });
     });
@@ -123,12 +123,12 @@ export default function ScheduleGrid({
                     (f) =>
                         f.year === year
                         && f.semester === semester
-                        && isRequirementSlotId(f.courseId)
+                        && isSchedulableRequirementSlotId(f.courseId)
                         && openRequirementSlotIds.has(f.courseId)
                 )
                 .map((f) => f.courseId),
         ];
-        return [...new Set([...pinnedHere, ...apiSlots])].filter(isRequirementSlotId);
+        return [...new Set([...pinnedHere, ...apiSlots])].filter(isSchedulableRequirementSlotId);
     };
 
     const getSlotLabel = (slotId) => requirementSlotLabels[slotId] || "Open requirement";
@@ -248,10 +248,17 @@ export default function ScheduleGrid({
         );
     };
 
+    const hasUnfulfilledDcOverlays = doubleCountData?.some(
+        (dc) => dc.dc_fulfilled?.some((fulfilled) => !fulfilled),
+    );
+
     const renderRequirementSlotCard = (slotId, year, sem, idx) => {
         const frozen = isFrozen(slotId);
         let className = "schedule-course schedule-requirement";
         if (frozen) className += " frozen";
+        const slotLabel = getSlotLabel(slotId);
+        const showDcHint = hasUnfulfilledDcOverlays
+            && /elective|unrestricted/i.test(slotLabel);
 
         const handleClick = () => {
             onToggleFreeze(slotId, year, sem);
@@ -270,7 +277,12 @@ export default function ScheduleGrid({
                         onClick={handleClick}
                         title={frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"}
                     >
-                        <span className="schedule-requirement-label">{getSlotLabel(slotId)}</span>
+                        <span className="schedule-requirement-label">{slotLabel}</span>
+                        {showDcHint && (
+                            <span className="schedule-requirement-dc-hint">
+                                May double-count for gen-ed
+                            </span>
+                        )}
                         <span className="course-card-actions">
                             {renderInfoLink(slotId)}
                             <span className="course-cu-label">1.0 CU</span>
@@ -488,6 +500,9 @@ export default function ScheduleGrid({
             {doubleCountData && doubleCountData.length > 0 && (
                 <div className="dc-tracker-section">
                     <div className="dc-tracker-title">🔗 Double Count Trackers</div>
+                    <div className="dc-tracker-hint">
+                        Overlay requirements apply to major and elective courses above — not as separate schedule slots.
+                    </div>
                     {doubleCountData.map((dc, i) => {
                         const fulfilledCount = dc.dc_fulfilled?.filter(Boolean).length || 0;
                         const totalCount = dc.dc_fulfilled?.length || 0;

@@ -172,7 +172,7 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 },
                 Requirement::Restriction { 
                     category: Some("Concentration - BUAN - WUBO".to_string()), department: None, 
-                    cu: None, level: None, attr: Some(vec!["WUBC".to_string()]), excluding: None, number: 1, no_school: None 
+                    cu: None, level: None, attr: Some(vec!["WUBO".to_string()]), excluding: None, number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
                     category: Some("Concentration - BUAN".to_string()), department: None, 
@@ -351,19 +351,19 @@ pub fn create_wh_fl_major(concentrations: Vec<String>) -> Major {
             Requirement::DoubleCount {
                 category: Some("Liberal Arts and Sciences".to_string()), 
                 double_counting_requirements: vec![
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
                 ],
                 base_requirements: vec![
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUNM".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUNM".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUSS".to_string()]), excluding: None, number: 1, no_school: None },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
+                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
                 ]
             },
-            Requirement::Restriction { category: Some("Liberal Arts and Sciences - Cross Cultural".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
+            Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },

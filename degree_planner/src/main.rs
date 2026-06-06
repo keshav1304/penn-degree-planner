@@ -573,7 +573,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                             .unwrap_or(false)
                     {
                         all_suggested_courses.push(course_id.clone());
-                    } else if requirement::is_requirement_slot_id(course_id)
+                    } else if requirement::is_schedulable_requirement_slot_id(course_id)
                         && !all_requirement_slots.contains(course_id)
                     {
                         all_requirement_slots.push(course_id.clone());
@@ -641,6 +641,9 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
     let place_in_semester = |plan: &mut SemesterPlan, item_id: &str| {
         if requirement::is_requirement_slot_id(item_id) {
+            if !requirement::is_schedulable_requirement_slot_id(item_id) {
+                return;
+            }
             if !plan.requirement_slots.contains(&item_id.to_string()) {
                 plan.requirement_slots.push(item_id.to_string());
                 plan.total_cu += get_cu(item_id);

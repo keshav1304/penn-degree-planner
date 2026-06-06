@@ -14,6 +14,19 @@ export function isRequirementSlotId(id) {
   return typeof id === "string" && id.startsWith("req:");
 }
 
+/** DoubleCount overlay slots (`req:1:d0:R:…`) — constraints, not schedulable CU. */
+export function isDoubleCountOverlaySlotId(id) {
+  if (!isRequirementSlotId(id)) return false;
+  const rest = id.slice(4);
+  const scope = rest.split(":R:")[0];
+  return scope.split(":").some((seg) => /^d\d+$/.test(seg));
+}
+
+/** Requirement slots that represent real schedule CU (base reqs only). */
+export function isSchedulableRequirementSlotId(id) {
+  return isRequirementSlotId(id) && !isDoubleCountOverlaySlotId(id);
+}
+
 /** Item that may appear on the schedule grid (course or requirement slot). */
 export function isSchedulePlacementId(id) {
   return isValidCourseCode(id) || isRequirementSlotId(id);

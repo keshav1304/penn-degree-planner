@@ -487,6 +487,35 @@ pub fn is_requirement_slot_id(s: &str) -> bool {
     s.starts_with("req:")
 }
 
+/// DoubleCount overlay children use instance ids like `"1:d0"` (not `"1:b0"` base slots).
+pub fn is_double_count_overlay_instance_id(instance_id: Option<&str>) -> bool {
+    instance_id.is_some_and(|id| {
+        id.split(':').any(|seg| {
+            seg.len() > 1
+                && seg.starts_with('d')
+                && seg[1..].chars().all(|c| c.is_ascii_digit())
+        })
+    })
+}
+
+/// Schedule slots scoped to a DoubleCount overlay should not appear on the grid.
+pub fn is_double_count_overlay_slot_id(slot_id: &str) -> bool {
+    if !is_requirement_slot_id(slot_id) {
+        return false;
+    }
+    let rest = match slot_id.strip_prefix("req:") {
+        Some(r) => r,
+        None => return false,
+    };
+    let scope = rest.split(":R:").next().unwrap_or(rest);
+    is_double_count_overlay_instance_id(Some(scope))
+}
+
+/// Base requirement slots that may be placed on the schedule (excludes DC overlays).
+pub fn is_schedulable_requirement_slot_id(slot_id: &str) -> bool {
+    is_requirement_slot_id(slot_id) && !is_double_count_overlay_slot_id(slot_id)
+}
+
 fn slot_scope_slug(s: &str) -> String {
     s.chars()
         .map(|c| {
@@ -1460,6 +1489,10 @@ pub fn suggest_courses_for_requirements(
         .map(|(state, idx)| (state, idx));
     let mut suggested_courses = Vec::new();
     for mapped in unfulfilled_requirements {
+        // DC overlays constrain base courses — they are not separate schedule CU slots.
+        if is_double_count_overlay_instance_id(mapped.instance_id.as_deref()) {
+            continue;
+        }
         let scope = mapped.instance_id.as_deref();
         match mapped
             .requirement
@@ -2991,5 +3024,45 @@ mod tests {
         assert!(order.iter().any(|c| c.starts_with("Foundational Approaches —") && c != "Foundational Approaches — Writing"));
         assert!(order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
         assert!(!order.iter().any(|c| c == "College of Arts and Sciences"));
+    }
+
+    #[test]
+    fn suggest_skips_double_count_overlay_slots() {
+        use crate::college_data;
+
+        let major = college_data::create_econ_major();
+        let cu_map = HashMap::new();
+        let taken: Vec<String> = vec![];
+
+        let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let suggested = suggest_courses_for_requirements(
+            &validation.unfulfilled,
+            &taken,
+            &cu_map,
+            None,
+            None,
+        );
+
+        assert!(
+            validation
+                .unfulfilled
+                .iter()
+                .any(|m| is_double_count_overlay_instance_id(m.instance_id.as_deref())),
+            "expected unfulfilled DC overlay rows for requirements panel"
+        );
+        assert!(
+            suggested.iter().all(|m| {
+                !is_double_count_overlay_instance_id(m.instance_id.as_deref())
+            }),
+            "DC overlays must not become schedule slots"
+        );
+        assert!(
+            suggested.iter().all(|m| {
+                m.course_ids
+                    .iter()
+                    .all(|id| !is_double_count_overlay_slot_id(id))
+            }),
+            "suggested slot ids must be base requirements only"
+        );
     }
 }

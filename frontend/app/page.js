@@ -11,6 +11,7 @@ import { maxYearFromSchedule } from "@/lib/semesterOptions";
 import {
   isValidCourseCode,
   isRequirementSlotId,
+  isSchedulableRequirementSlotId,
   isSchedulePlacementId,
   filterValidCourseCodes,
   filterValidPlacements,
@@ -180,12 +181,13 @@ export default function Home() {
       scheduleData?.degree_results?.forEach((result) => {
         result.suggested_for_unfulfilled?.forEach((mapped) => {
           mapped.course_ids?.forEach((id) => {
-            if (isRequirementSlotId(id)) openSlotIds.add(id);
+            if (isSchedulableRequirementSlotId(id)) openSlotIds.add(id);
           });
         });
       });
       const filtered = filterFrozenPlacements(prev).filter(
-        (f) => !isRequirementSlotId(f.courseId) || openSlotIds.has(f.courseId)
+        (f) => !isRequirementSlotId(f.courseId)
+            || (isSchedulableRequirementSlotId(f.courseId) && openSlotIds.has(f.courseId))
       );
       return filtered.length === prev.length ? prev : filtered;
     });
