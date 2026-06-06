@@ -58,13 +58,14 @@ fn wh_non_wh_constraint(label: &str, count: i32) -> PoolConstraint {
     }
 }
 
-/// WH_FL: 7 LAS courses covering WUFL×2, WUNM, WUSS, non-WH×3, WUCN×2, WUCU/WUCN×1.
+/// WH_FL: 7 LAS courses covering WUHM, WUFL×2, WUNM, WUSS, non-WH×3, WUCN×2, WUCU/WUCN×1.
 fn wh_fl_las_pool() -> Requirement {
     Requirement::CoursePool {
         category: Some("Liberal Arts and Sciences".to_string()),
         fixed_slots: vec![],
         flexible_slots: 7,
         constraints: vec![
+            wh_attr_constraint("Humanities (WUHM)", "WUHM", 1, "wh:wuhm"),
             wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:wufl"),
             wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:wunm"),
             wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:wuss"),

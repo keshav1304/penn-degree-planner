@@ -524,9 +524,9 @@ pub fn is_schedulable_requirement_slot_id(slot_id: &str) -> bool {
 }
 
 /// Generic 1-CU placeholder inside a course pool.
-pub fn pool_flexible_slot_requirement(pool_category: &str, index: usize) -> Requirement {
+pub fn pool_flexible_slot_requirement(pool_category: &str, _index: usize) -> Requirement {
     Requirement::Restriction {
-        category: Some(format!("{pool_category} — Pool course")),
+        category: Some(pool_category.to_string()),
         department: None,
         cu: None,
         level: None,
@@ -1356,20 +1356,121 @@ fn pool_fill_hint(evaluations: &[PoolConstraintEvaluation]) -> Option<String> {
     if open.is_empty() {
         return None;
     }
-    for i in 0..open.len() {
-        for j in (i + 1)..open.len() {
-            if open[i].consumption_group != open[j].consumption_group {
-                return Some(format!(
-                    "1 CU with {} + {} (double-count)",
-                    open[i].label, open[j].label
-                ));
+    let open_count = open.len();
+    if open_count <= 3 {
+        return Some(format!(
+            "{} open coverage requirement{} remaining",
+            open_count,
+            if open_count == 1 { "" } else { "s" }
+        ));
+    }
+    Some(format!("{open_count} open coverage requirements remaining"))
+}
+
+fn pop_group_unit(by_group: &mut HashMap<String, Vec<String>>, group: &str) -> Option<String> {
+    let units = by_group.get_mut(group)?;
+    units.pop()
+}
+
+fn push_group_unit(by_group: &mut HashMap<String, Vec<String>>, group: &str, label: String) {
+    by_group.entry(group.to_string()).or_default().push(label);
+}
+
+fn try_pop_priority_pair(
+    by_group: &mut HashMap<String, Vec<String>>,
+    g1: &str,
+    g2: &str,
+) -> Option<String> {
+    let a = pop_group_unit(by_group, g1)?;
+    if let Some(b) = pop_group_unit(by_group, g2) {
+        return Some(format!("{a} + {b} (double-count)"));
+    }
+    push_group_unit(by_group, g1, a);
+    None
+}
+
+fn try_pop_any_pair(by_group: &mut HashMap<String, Vec<String>>) -> Option<String> {
+    let groups: Vec<String> = by_group
+        .iter()
+        .filter(|(_, units)| !units.is_empty())
+        .map(|(g, _)| g.clone())
+        .collect();
+    for i in 0..groups.len() {
+        for j in (i + 1)..groups.len() {
+            if let Some(hint) = try_pop_priority_pair(by_group, &groups[i], &groups[j]) {
+                return Some(hint);
             }
         }
     }
-    Some(format!("1 CU — {}", open[0].label))
+    None
+}
+
+fn try_pop_single(by_group: &mut HashMap<String, Vec<String>>) -> Option<String> {
+    for group in by_group.keys().cloned().collect::<Vec<_>>() {
+        if let Some(label) = pop_group_unit(by_group, &group) {
+            return Some(label);
+        }
+    }
+    None
+}
+
+/// Greedy suggested allocation of open coverage units across unfilled flexible pool slots.
+pub fn plan_pool_slot_hints(
+    evaluations: &[PoolConstraintEvaluation],
+    flexible_slots_total: i32,
+    flexible_slots_filled: i32,
+) -> Vec<String> {
+    let open_flex = (flexible_slots_total - flexible_slots_filled).max(0) as usize;
+    if open_flex == 0 {
+        return vec![];
+    }
+
+    let mut by_group: HashMap<String, Vec<String>> = HashMap::new();
+    for eval in evaluations.iter().filter(|e| !e.fulfilled) {
+        by_group
+            .entry(eval.consumption_group.clone())
+            .or_default()
+            .push(eval.label.clone());
+    }
+
+    let pair_priority: [(&str, &str); 6] = [
+        ("wh:wucn", "wh:wufl"),
+        ("wh:wucu", "wh:wufl"),
+        ("wh:wucn", "wh:wucu"),
+        ("wh:wuhm", "wh:wunm"),
+        ("wh:wunm", "wh:wuss"),
+        ("cas:fa", "cas:sector"),
+    ];
+
+    let mut hints = Vec::with_capacity(open_flex);
+    for _ in 0..open_flex {
+        let mut assigned = false;
+        for (g1, g2) in pair_priority {
+            if let Some(hint) = try_pop_priority_pair(&mut by_group, g1, g2) {
+                hints.push(hint);
+                assigned = true;
+                break;
+            }
+        }
+        if assigned {
+            continue;
+        }
+        if let Some(hint) = try_pop_any_pair(&mut by_group) {
+            hints.push(hint);
+            continue;
+        }
+        if let Some(label) = try_pop_single(&mut by_group) {
+            hints.push(label);
+        } else {
+            hints.push("Open pool elective".to_string());
+        }
+    }
+
+    hints
 }
 
 fn build_pool_coverage_info(
+    pool_index: usize,
     category: Option<String>,
     pool_courses: Vec<String>,
     fixed_slots_total: i32,
@@ -1379,6 +1480,7 @@ fn build_pool_coverage_info(
     evaluations: &[PoolConstraintEvaluation],
 ) -> PoolCoverageInfo {
     PoolCoverageInfo {
+        pool_index,
         category: category.unwrap_or_else(|| "Course Pool".to_string()),
         pool_courses,
         fixed_slots_total,
@@ -1396,6 +1498,11 @@ fn build_pool_coverage_info(
             })
             .collect(),
         fill_hint: pool_fill_hint(evaluations),
+        slot_hints: plan_pool_slot_hints(
+            evaluations,
+            flexible_slots_total,
+            flexible_slots_filled,
+        ),
     }
 }
 
@@ -1480,6 +1587,7 @@ pub fn pool_coverage_info_from_degree_requirements(
                 unfulfilled,
             );
             result.push(build_pool_coverage_info(
+                pool_idx,
                 category.clone(),
                 pool_courses,
                 fixed_slots.len() as i32,
@@ -1907,6 +2015,7 @@ pub struct PoolConstraintStatus {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct PoolCoverageInfo {
+    pub pool_index: usize,
     pub category: String,
     pub pool_courses: Vec<String>,
     pub fixed_slots_total: i32,
@@ -1915,6 +2024,8 @@ pub struct PoolCoverageInfo {
     pub flexible_slots_filled: i32,
     pub constraints: Vec<PoolConstraintStatus>,
     pub fill_hint: Option<String>,
+    /// Suggested coverage allocation for each unfilled flexible pool slot (in order).
+    pub slot_hints: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -3214,6 +3325,47 @@ mod tests {
         assert_eq!(
             validation.pool_coverage_info[0].category,
             "College of Arts and Sciences"
+        );
+    }
+
+    #[test]
+    fn wh_fl_pool_slot_hints_prioritize_wucn_wufl_pairing() {
+        use crate::wharton_data;
+
+        let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
+        let pool_req = major
+            .requirements
+            .iter()
+            .find(|r| matches!(r, Requirement::CoursePool { .. }))
+            .expect("WH_FL LAS pool");
+        let Requirement::CoursePool {
+            constraints,
+            flexible_slots,
+            ..
+        } = pool_req
+        else {
+            panic!("expected CoursePool");
+        };
+
+        let attributes = attributes_data::create_attributes();
+        let cu_map = HashMap::new();
+        let evaluations = evaluate_pool_constraints(&[], constraints, &attributes, &cu_map);
+        let hints = plan_pool_slot_hints(&evaluations, *flexible_slots, 0);
+
+        assert_eq!(hints.len(), 7);
+        assert!(
+            hints[0].contains("WUCN") && hints[0].contains("WUFL"),
+            "first slot: {}",
+            hints[0]
+        );
+        assert!(
+            hints[1].contains("WUCN") && hints[1].contains("WUFL"),
+            "second slot: {}",
+            hints[1]
+        );
+        assert!(
+            evaluations.iter().any(|e| e.label == "WUHM"),
+            "WH_FL pool should include WUHM coverage"
         );
     }
 

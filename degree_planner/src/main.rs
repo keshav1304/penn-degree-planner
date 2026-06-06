@@ -503,6 +503,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         let fulfilled = validation.fulfilled.clone();
         let unfulfilled = validation.unfulfilled.clone();
         let pool_coverage = validation.pool_coverage_info.clone();
+        let mut pool_hint_cursor: HashMap<usize, usize> = HashMap::new();
 
         let suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
@@ -583,11 +584,22 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                             .as_deref()
                             .is_some_and(|id| id.contains(":p"))
                         {
-                            if let Some(hint) = pool_coverage
-                                .iter()
-                                .find_map(|p| p.fill_hint.clone())
+                            if let Some(pool_idx) = mapped
+                                .instance_id
+                                .as_deref()
+                                .and_then(|id| id.split(':').next())
+                                .and_then(|s| s.parse::<usize>().ok())
                             {
-                                label = format!("{label}\n↳ {hint}");
+                                if let Some(pool) = pool_coverage
+                                    .iter()
+                                    .find(|p| p.pool_index == pool_idx)
+                                {
+                                    let cursor = pool_hint_cursor.entry(pool_idx).or_insert(0);
+                                    if let Some(hint) = pool.slot_hints.get(*cursor) {
+                                        label = format!("{label}\n↳ {hint}");
+                                        *cursor += 1;
+                                    }
+                                }
                             }
                         }
                         slot_labels.insert(course_id.clone(), label);

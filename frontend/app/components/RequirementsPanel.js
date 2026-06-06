@@ -128,23 +128,29 @@ export default function RequirementsPanel({
         });
     });
 
-    const poolCoverageByCategory = {};
-    (current.pool_coverage_info || []).forEach((pool) => {
-        const cat = normalizeCategory(pool.category);
-        if (!poolCoverageByCategory[cat]) poolCoverageByCategory[cat] = [];
-        poolCoverageByCategory[cat].push(pool);
-    });
+    const pools = current.pool_coverage_info || [];
+
+    const categoryForItem = (item) => {
+        const cat = normalizeCategory(item.category);
+        for (const pool of pools) {
+            const poolCat = normalizeCategory(pool.category);
+            if (cat === poolCat || cat === `${poolCat} — Pool course`) {
+                return poolCat;
+            }
+        }
+        return cat;
+    };
 
     const categoryMap = {};
     allReqs.forEach((item) => {
-        const cat = normalizeCategory(item.category);
+        const cat = categoryForItem(item);
         if (!categoryMap[cat]) categoryMap[cat] = [];
         categoryMap[cat].push(item);
     });
-
-    const poolCategoriesWithRows = new Set(
-        Object.keys(poolCoverageByCategory).filter((cat) => categoryMap[cat]?.length),
-    );
+    pools.forEach((pool) => {
+        const cat = normalizeCategory(pool.category);
+        if (!categoryMap[cat]) categoryMap[cat] = [];
+    });
 
     const categoryOrder = (current.category_order || []).map(normalizeCategory);
     const orderedCategories = [...categoryOrder];
@@ -241,17 +247,26 @@ export default function RequirementsPanel({
 
             <div className="req-groups">
                 {orderedCategories.map((cat) => {
-                    const items = categoryMap[cat];
-                    if (!items?.length) return null;
+                    const items = categoryMap[cat] || [];
+                    const pool = pools.find((p) => normalizeCategory(p.category) === cat);
+                    if (!items.length && !pool) return null;
+
+                    const poolStats = pool ? poolGroupStats(pool) : null;
                     const done = items.filter((r) => r.fulfilled).length;
-                    const catTone = groupTone(items, frozenIds);
+                    const groupDone = poolStats
+                        ? poolStats.slotsFilled >= poolStats.slotsTotal
+                            && poolStats.covDone >= poolStats.covTotal
+                        : done === items.length;
                     const isCollapsed = (() => {
                         if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
                             return false;
                         }
                         return collapsedGroups[cat] ?? true;
                     })();
-                    const groupClass = catTone === "fulfilled" ? "req-group req-group-done" : "req-group";
+                    const groupClass = groupDone ? "req-group req-group-done" : "req-group";
+                    const pillLabel = poolStats
+                        ? `${poolStats.slotsFilled}/${poolStats.slotsTotal} · ${poolStats.covDone}/${poolStats.covTotal}`
+                        : `${done}/${items.length}`;
 
                     return (
                         <div key={cat} className={groupClass}>
@@ -259,12 +274,12 @@ export default function RequirementsPanel({
                                 className="req-group-header"
                                 onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
                             >
-                                <span className={`req-group-badge ${done === items.length ? "badge-done" : "badge-pending"}`}>
-                                    {done === items.length ? "✓" : "·"}
+                                <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
+                                    {groupDone ? "✓" : "·"}
                                 </span>
                                 <span className="req-group-name" title={cat}>{cat}</span>
-                                <span className={`req-group-pill ${done === items.length ? "pill-done" : "pill-pending"}`}>
-                                    {done}/{items.length}
+                                <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
+                                    {pillLabel}
                                 </span>
                                 <span
                                     className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
@@ -305,9 +320,25 @@ export default function RequirementsPanel({
                                             flashRowId
                                         );
                                     })}
-                                    {(poolCoverageByCategory[cat] || []).map((pool, poolIdx) => (
-                                        <PoolCoverageBlock key={`pool-${poolIdx}`} pool={pool} />
-                                    ))}
+                                    {pool && (pool.constraints || []).length > 0 && (
+                                        <>
+                                            <div className="req-pool-divider">
+                                                {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
+                                                {" "}cover{poolStats.slotsTotal === 1 ? "s" : ""}
+                                                {" "}{poolStats.covTotal} requirement{poolStats.covTotal === 1 ? "" : "s"}
+                                                {poolStats.covTotal > poolStats.slotsTotal
+                                                    ? " (double-counting allowed)"
+                                                    : ""}
+                                            </div>
+                                            {(pool.constraints || []).map((constraint, j) =>
+                                                renderPoolConstraintItem(
+                                                    constraint,
+                                                    `pool-${pool.pool_index ?? cat}-${j}`,
+                                                    items.length === 0 && j === 0,
+                                                ),
+                                            )}
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -316,38 +347,6 @@ export default function RequirementsPanel({
                 {totalCount === 0 && !current.error && (
                     <div className="req-empty-state"><div className="req-empty-text">No requirement data available</div></div>
                 )}
-                {(current.pool_coverage_info || []).map((pool, poolIdx) => {
-                    const cat = normalizeCategory(pool.category);
-                    if (poolCategoriesWithRows.has(cat)) return null;
-                    const constraintsDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
-                    const constraintsTotal = (pool.constraints || []).length;
-                    const isCollapsed = collapsedGroups[`pool:${poolIdx}`] ?? false;
-                    return (
-                        <div key={`pool-standalone-${poolIdx}`} className="req-group">
-                            <div
-                                className="req-group-header"
-                                onClick={() => setCollapsedGroups((p) => ({ ...p, [`pool:${poolIdx}`]: !(p[`pool:${poolIdx}`] ?? false) }))}
-                            >
-                                <span className="req-group-badge badge-pending">🔗</span>
-                                <span className="req-group-name" title={cat}>{cat} — coverage</span>
-                                <span className="req-group-pill pill-pending">
-                                    {constraintsDone}/{constraintsTotal || "—"}
-                                </span>
-                                <span
-                                    className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
-                                    aria-hidden
-                                >
-                                    ▶
-                                </span>
-                            </div>
-                            {!isCollapsed && (
-                                <div className="req-group-body">
-                                    <PoolCoverageBlock pool={pool} />
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );
@@ -763,46 +762,43 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     );
 }
 
-function PoolCoverageBlock({ pool }) {
-    const constraintsDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
-    const constraintsTotal = (pool.constraints || []).length;
+function poolGroupStats(pool) {
     const slotsFilled = (pool.fixed_slots_filled || 0) + (pool.flexible_slots_filled || 0);
     const slotsTotal = (pool.fixed_slots_total || 0) + (pool.flexible_slots_total || 0);
-    const allDone = constraintsDone === constraintsTotal
-        && (pool.fixed_slots_filled || 0) >= (pool.fixed_slots_total || 0)
-        && (pool.flexible_slots_filled || 0) >= (pool.flexible_slots_total || 0);
+    const covDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
+    const covTotal = (pool.constraints || []).length;
+    return { slotsFilled, slotsTotal, covDone, covTotal };
+}
 
+function renderPoolConstraintItem(constraint, rowKey, isFirst) {
+    const rowTone = constraint.fulfilled ? "fulfilled" : "open";
     return (
-        <div className={`req-pool-coverage ${allDone ? "req-pool-coverage-done" : ""}`}>
-            <div className="req-pool-coverage-header">
-                <span className="req-pool-coverage-title">🔗 Pool coverage</span>
-                <span className="req-pool-coverage-slots">
-                    Slots {slotsFilled}/{slotsTotal}
-                    {constraintsTotal > 0 && ` · Coverage ${constraintsDone}/${constraintsTotal}`}
-                </span>
-            </div>
-            {pool.fill_hint && (
-                <div className="req-pool-fill-hint">↳ {pool.fill_hint}</div>
-            )}
-            {(pool.constraints || []).length > 0 && (
-                <div className="req-pool-constraints">
-                    {pool.constraints.map((constraint, j) => (
-                        <div key={j} className="req-pool-constraint-row">
-                            <span className="req-pool-constraint-status">
-                                {constraint.fulfilled ? "✅" : "❌"}
+        <div
+            key={rowKey}
+            className={`req-item req-item--${rowTone} ${isFirst ? "req-item-first" : ""}`}
+        >
+            <span className={`req-item-icon icon-${rowTone}`}>
+                {constraint.fulfilled ? "✓" : "•"}
+            </span>
+            <div className="req-item-body">
+                <div className="req-item-line">
+                    <span className="req-stem-text">
+                        {constraint.description || constraint.label}
+                    </span>
+                    {constraint.matched_courses?.length > 0 && (
+                        <>
+                            <span className="req-item-colon">:</span>
+                            <span className="req-chips">
+                                {constraint.matched_courses.map((courseId) => (
+                                    <span key={courseId} className={chipClass("fulfilled")}>
+                                        {courseId}
+                                    </span>
+                                ))}
                             </span>
-                            <span className="req-pool-constraint-desc">
-                                {constraint.description || constraint.label}
-                            </span>
-                            {constraint.matched_courses?.length > 0 && (
-                                <span className="req-pool-matched-courses">
-                                    {constraint.matched_courses.join(", ")}
-                                </span>
-                            )}
-                        </div>
-                    ))}
+                        </>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     );
 }

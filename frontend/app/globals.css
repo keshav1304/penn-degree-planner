@@ -1324,81 +1324,13 @@ select {
   flex-direction: column;
 }
 
-.req-pool-coverage {
-  margin: 6px 8px 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px dashed var(--border-glass);
-  background: rgba(99, 102, 241, 0.04);
-}
-
-.req-pool-coverage-done {
-  background: rgba(22, 163, 74, 0.05);
-  border-color: rgba(22, 163, 74, 0.25);
-}
-
-.req-pool-coverage-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.req-pool-coverage-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.req-pool-coverage-slots {
-  font-size: 0.65rem;
+.req-pool-divider {
+  padding: 6px 8px 4px;
+  font-size: 0.68rem;
   font-weight: 600;
   color: var(--text-muted);
-  white-space: nowrap;
-}
-
-.req-pool-fill-hint {
-  font-size: 0.68rem;
-  font-style: italic;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   line-height: 1.35;
-}
-
-.req-pool-constraints {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.req-pool-constraint-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 0.7rem;
-  line-height: 1.35;
-}
-
-.req-pool-constraint-status {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-}
-
-.req-pool-constraint-desc {
-  flex: 1;
-  min-width: 0;
-  color: var(--text-secondary);
-}
-
-.req-pool-matched-courses {
-  flex-shrink: 0;
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  max-width: 45%;
-  text-align: right;
-  overflow-wrap: break-word;
 }
 
 .req-item {
