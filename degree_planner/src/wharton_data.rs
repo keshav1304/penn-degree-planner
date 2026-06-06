@@ -2,9 +2,109 @@ use std::collections::BTreeMap;
 
 use crate::Requirement;
 use crate::Major;
+use crate::requirement::PoolConstraint;
 use crate::schedule_template::{
     append_semester, scheduled, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S,
 };
+
+fn wh_attr_constraint(label: &str, attr: &str, count: i32, group: &str) -> PoolConstraint {
+    PoolConstraint {
+        requirement: Requirement::Restriction {
+            category: Some(label.to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec![attr.to_string()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        count,
+        consumption_group: Some(group.to_string()),
+    }
+}
+
+fn wh_attrs_constraint(label: &str, attrs: &[&str], count: i32, group: &str) -> PoolConstraint {
+    PoolConstraint {
+        requirement: Requirement::Restriction {
+            category: Some(label.to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(attrs.iter().map(|s| s.to_string()).collect()),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        count,
+        consumption_group: Some(group.to_string()),
+    }
+}
+
+fn wh_non_wh_constraint(label: &str, count: i32) -> PoolConstraint {
+    PoolConstraint {
+        requirement: Requirement::Restriction {
+            category: Some(label.to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: None,
+            excluding: None,
+            number: 1,
+            no_school: Some("WH".to_string()),
+        },
+        count,
+        consumption_group: Some("wh:non_wh".to_string()),
+    }
+}
+
+/// WH_FL: 7 LAS courses covering WUFL×2, WUNM, WUSS, non-WH×3, WUCN×2, WUCU/WUCN×1.
+fn wh_fl_las_pool() -> Requirement {
+    Requirement::CoursePool {
+        category: Some("Liberal Arts and Sciences".to_string()),
+        fixed_slots: vec![],
+        flexible_slots: 7,
+        constraints: vec![
+            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:wufl"),
+            wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:wunm"),
+            wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:wuss"),
+            wh_non_wh_constraint("Non-Wharton course", 3),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:wucn"),
+            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:wucu"),
+        ],
+    }
+}
+
+/// WH_NOFL SSH: humanities/social-science LAS bucket.
+fn wh_ssh_las_pool() -> Requirement {
+    Requirement::CoursePool {
+        category: Some("Liberal Arts and Sciences - SSH".to_string()),
+        fixed_slots: vec![],
+        flexible_slots: 6,
+        constraints: vec![
+            wh_attrs_constraint("Humanities (WUHM)", &["WUHM"], 1, "wh:wuhm"),
+            wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:wunm"),
+            wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:wuss"),
+            wh_non_wh_constraint("Non-Wharton course", 3),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:wucn"),
+        ],
+    }
+}
+
+/// M&T Wharton LAS bucket.
+fn wh_mt_las_pool() -> Requirement {
+    Requirement::CoursePool {
+        category: Some("Liberal Arts and Sciences".to_string()),
+        fixed_slots: vec![],
+        flexible_slots: 4,
+        constraints: vec![
+            wh_attrs_constraint("Humanities / Social Science", &["WUHM", "WUSS"], 2, "wh:ssh"),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 1, "wh:wucn"),
+            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:wucu"),
+            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:wufl"),
+        ],
+    }
+}
 
 pub fn concentration_names() -> Vec<String> {
     create_wh_concentrations().keys().cloned().collect()
@@ -348,22 +448,7 @@ pub fn create_wh_fl_major(concentrations: Vec<String>) -> Major {
 
     append_semester(&mut requirements, &mut schedule_hints, Y3F, bb_reqs);
     append_semester(&mut requirements, &mut schedule_hints, Y2S, vec![
-            Requirement::DoubleCount {
-                category: Some("Liberal Arts and Sciences".to_string()), 
-                double_counting_requirements: vec![
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                ],
-                base_requirements: vec![
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUNM".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                ]
-            },
-            Requirement::Restriction { category: Some("Liberal Arts and Sciences".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
+            wh_fl_las_pool(),
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
@@ -434,21 +519,7 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
 
     append_semester(&mut requirements, &mut schedule_hints, Y3F, bb_reqs);
     append_semester(&mut requirements, &mut schedule_hints, Y2S, vec![
-            Requirement::DoubleCount {
-                category: Some("Liberal Arts and Sciences - SSH".to_string()), 
-                double_counting_requirements: vec![
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences - Non-US CCP 1".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Liberal Arts and Sciences - Non-US CCP 2".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                ],
-                base_requirements: vec![
-                    Requirement::Restriction { category: Some("Wharton Humanities".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Wharton Natural Science & Math".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUNM".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Wharton Social Science".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: Some("Non-Wharton Course - 1".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                    Requirement::Restriction { category: Some("Non-Wharton Course - 2".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                    Requirement::Restriction { category: Some("Non-Wharton Course - 3".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: Some("WH".to_string()) },
-                ]
-            },
+            wh_ssh_las_pool(),
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - CCP".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
@@ -607,19 +678,7 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
 
     append_semester(&mut requirements, &mut schedule_hints, Y3F, extra_bb);
     append_semester(&mut requirements, &mut schedule_hints, Y2S, vec![
-            Requirement::DoubleCount {
-                category: Some("Liberal Arts and Sciences".to_string()),
-                double_counting_requirements: vec![
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUFL".to_string()]), excluding: None, number: 1, no_school: None },
-                ],
-                base_requirements: vec![
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string(), "WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string(), "WUSS".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string()]), excluding: None, number: 1, no_school: None },
-                    Requirement::Restriction { category: None, department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
-                ]
-            },
+            wh_mt_las_pool(),
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, conc_reqs);
 

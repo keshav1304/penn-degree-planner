@@ -6,6 +6,7 @@ import {
     filterValidPlacements,
     filterFrozenPlacements,
     isValidCourseCode,
+    isPoolConstraintInstanceId,
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
@@ -107,11 +108,16 @@ export default function RequirementsPanel({
     };
 
     const allReqs = [];
+    const pushIfSchedulable = (mapped, opts) => {
+        if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
+        allReqs.push(mapRequirementForDegree(mapped, opts));
+    };
     (current.fulfilled_requirements || []).forEach((mapped) => {
-        allReqs.push(mapRequirementForDegree(mapped, { fulfilledDefault: true, partialDefault: false }));
+        pushIfSchedulable(mapped, { fulfilledDefault: true, partialDefault: false });
     });
     (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
         const req = mapped?.requirement ?? mapped;
+        if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
         const item = mapRequirementForDegree(
             { ...mapped, requirement: req },
             { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
@@ -121,6 +127,17 @@ export default function RequirementsPanel({
             instanceId: item.instanceId ?? `u-${rowIdx}`,
         });
     });
+
+    const poolCoverageByCategory = {};
+    (current.pool_coverage_info || []).forEach((pool) => {
+        const cat = normalizeCategory(pool.category);
+        if (!poolCoverageByCategory[cat]) poolCoverageByCategory[cat] = [];
+        poolCoverageByCategory[cat].push(pool);
+    });
+
+    const poolCategoriesWithRows = new Set(
+        Object.keys(poolCoverageByCategory).filter((cat) => categoryMap[cat]?.length),
+    );
 
     const categoryMap = {};
     allReqs.forEach((item) => {
@@ -288,6 +305,9 @@ export default function RequirementsPanel({
                                             flashRowId
                                         );
                                     })}
+                                    {(poolCoverageByCategory[cat] || []).map((pool, poolIdx) => (
+                                        <PoolCoverageBlock key={`pool-${poolIdx}`} pool={pool} />
+                                    ))}
                                 </div>
                             )}
                         </div>
@@ -296,6 +316,38 @@ export default function RequirementsPanel({
                 {totalCount === 0 && !current.error && (
                     <div className="req-empty-state"><div className="req-empty-text">No requirement data available</div></div>
                 )}
+                {(current.pool_coverage_info || []).map((pool, poolIdx) => {
+                    const cat = normalizeCategory(pool.category);
+                    if (poolCategoriesWithRows.has(cat)) return null;
+                    const constraintsDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
+                    const constraintsTotal = (pool.constraints || []).length;
+                    const isCollapsed = collapsedGroups[`pool:${poolIdx}`] ?? false;
+                    return (
+                        <div key={`pool-standalone-${poolIdx}`} className="req-group">
+                            <div
+                                className="req-group-header"
+                                onClick={() => setCollapsedGroups((p) => ({ ...p, [`pool:${poolIdx}`]: !(p[`pool:${poolIdx}`] ?? false) }))}
+                            >
+                                <span className="req-group-badge badge-pending">🔗</span>
+                                <span className="req-group-name" title={cat}>{cat} — coverage</span>
+                                <span className="req-group-pill pill-pending">
+                                    {constraintsDone}/{constraintsTotal || "—"}
+                                </span>
+                                <span
+                                    className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
+                                    aria-hidden
+                                >
+                                    ▶
+                                </span>
+                            </div>
+                            {!isCollapsed && (
+                                <div className="req-group-body">
+                                    <PoolCoverageBlock pool={pool} />
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -711,6 +763,50 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     );
 }
 
+function PoolCoverageBlock({ pool }) {
+    const constraintsDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
+    const constraintsTotal = (pool.constraints || []).length;
+    const slotsFilled = (pool.fixed_slots_filled || 0) + (pool.flexible_slots_filled || 0);
+    const slotsTotal = (pool.fixed_slots_total || 0) + (pool.flexible_slots_total || 0);
+    const allDone = constraintsDone === constraintsTotal
+        && (pool.fixed_slots_filled || 0) >= (pool.fixed_slots_total || 0)
+        && (pool.flexible_slots_filled || 0) >= (pool.flexible_slots_total || 0);
+
+    return (
+        <div className={`req-pool-coverage ${allDone ? "req-pool-coverage-done" : ""}`}>
+            <div className="req-pool-coverage-header">
+                <span className="req-pool-coverage-title">🔗 Pool coverage</span>
+                <span className="req-pool-coverage-slots">
+                    Slots {slotsFilled}/{slotsTotal}
+                    {constraintsTotal > 0 && ` · Coverage ${constraintsDone}/${constraintsTotal}`}
+                </span>
+            </div>
+            {pool.fill_hint && (
+                <div className="req-pool-fill-hint">↳ {pool.fill_hint}</div>
+            )}
+            {(pool.constraints || []).length > 0 && (
+                <div className="req-pool-constraints">
+                    {pool.constraints.map((constraint, j) => (
+                        <div key={j} className="req-pool-constraint-row">
+                            <span className="req-pool-constraint-status">
+                                {constraint.fulfilled ? "✅" : "❌"}
+                            </span>
+                            <span className="req-pool-constraint-desc">
+                                {constraint.description || constraint.label}
+                            </span>
+                            {constraint.matched_courses?.length > 0 && (
+                                <span className="req-pool-matched-courses">
+                                    {constraint.matched_courses.join(", ")}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function normalizeCategory(cat) {
     if (!cat || typeof cat !== "string" || !cat.trim()) return "Other";
     return cat.trim();
@@ -719,7 +815,7 @@ function normalizeCategory(cat) {
 function getCategory(req) {
     if (!req) return "Other";
     if (req.category) return req.category;
-    for (const v of ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"]) {
+    for (const v of ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "CoursePool"]) {
         if (req[v]?.category) return req[v].category;
     }
     return "Other";

@@ -8,7 +8,7 @@ export function parseRequirement(req) {
     "AllOf",
     "Concentration",
     "Restriction",
-    "DoubleCount",
+    "CoursePool",
   ];
   for (const v of variants) {
     if (req[v] !== undefined) return { type: v, data: req[v] };
@@ -103,20 +103,18 @@ export function createRequirementDescription(req) {
     }
     case "Concentration":
       return `Concentration: ${data.number} CU`;
-    case "DoubleCount": {
-      const baseDescs = (data.base_requirements || []).map((sub) => {
-        const desc = createRequirementDescription(sub);
-        if (desc) return desc;
-        const { data: subData } = parseRequirement(sub);
-        return subData.category || "Requirement";
-      });
-      const dcDescs = (data.double_counting_requirements || []).map((sub) => {
-        const desc = createRequirementDescription(sub);
-        if (desc) return desc;
-        const { data: subData } = parseRequirement(sub);
-        return subData.category || "Requirement";
-      });
-      return `Take: ${baseDescs.join("; ")}. (${(data.double_counting_requirements || []).length} must also satisfy: ${dcDescs.join("; ")})`;
+    case "CoursePool": {
+      const flexCount = data.flexible_slots ?? 0;
+      const constraintLabels = (data.constraints || []).map((c) => c.label || createRequirementDescription(c.requirement));
+      const fixedPart = (data.fixed_slots || []).length
+        ? `${(data.fixed_slots || []).length} major course(s)`
+        : "";
+      const poolPart = flexCount > 0 ? `${flexCount} pool elective(s)` : "";
+      const slots = [fixedPart, poolPart].filter(Boolean).join(" + ");
+      if (constraintLabels.length) {
+        return `${slots}. Coverage: ${constraintLabels.join(", ")}`;
+      }
+      return slots || "Course pool";
     }
     default:
       return "Requirement";
@@ -409,7 +407,7 @@ export function getRequirementStem(req) {
       return "Complete all";
     case "Concentration":
       return `Concentration (${data.number} CU)`;
-    case "DoubleCount":
+    case "CoursePool":
       return createRequirementDescription(req);
     default:
       return createRequirementDescription(req);
@@ -435,8 +433,8 @@ export function getRequirementLabel(req) {
       return `Complete ${data.number ?? "N"} of ${(data.possibilities || []).length} areas`;
     case "Concentration":
       return `Concentration (${data.number ?? "N"} CU)`;
-    case "DoubleCount":
-      return "Double-counted requirement";
+    case "CoursePool":
+      return "Course pool requirement";
     default:
       return "Requirement";
   }
@@ -483,11 +481,8 @@ export function findRequirementForSlotId(req, slotId) {
       if (found) return found;
     }
   }
-  if (type === "DoubleCount") {
-    for (const child of [
-      ...(data.base_requirements || []),
-      ...(data.double_counting_requirements || []),
-    ]) {
+  if (type === "CoursePool") {
+    for (const child of data.fixed_slots || []) {
       const found = findRequirementForSlotId(child, slotId);
       if (found) return found;
     }
@@ -539,11 +534,8 @@ export function businessBreadthLabelForSlot(req, slotId) {
       if (label) return label;
     }
   }
-  if (type === "DoubleCount") {
-    for (const child of [
-      ...(data.base_requirements || []),
-      ...(data.double_counting_requirements || []),
-    ]) {
+  if (type === "CoursePool") {
+    for (const child of data.fixed_slots || []) {
       const label = businessBreadthLabelForSlot(child, slotId);
       if (label) return label;
     }

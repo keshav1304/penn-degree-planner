@@ -17,7 +17,7 @@ const DEGREE_COLORS = [
     "#7c3aed",  // purple
 ];
 
-const DC_COLORS = [
+const POOL_COLORS = [
     "#6366f1",  // indigo
     "#ec4899",  // pink
     "#14b8a6",  // teal
@@ -30,7 +30,7 @@ export default function ScheduleGrid({
     courseDegreesMap, courseRequirementLinks,
     crossDegreeViolationsByCourse = {},
     onNavigateToRequirement, allowSummer,
-    doubleCountData, courseDoubleCountMap,
+    coursePoolConstraintMap,
     concentrationData, courseConcentrationMap,
     allCourses,
     degreeCatalog = [],
@@ -210,19 +210,19 @@ export default function ScheduleGrid({
         );
     };
 
-    const renderDcBadges = (courseId) => {
-        const dcEntries = courseDoubleCountMap?.[courseId];
-        if (!dcEntries || dcEntries.length === 0) return null;
+    const renderPoolBadges = (courseId) => {
+        const poolEntries = coursePoolConstraintMap?.[courseId];
+        if (!poolEntries || poolEntries.length === 0) return null;
         return (
             <span className="dc-badges">
-                {dcEntries.map((entry, i) => (
+                {poolEntries.map((entry, i) => (
                     <span
                         key={i}
-                        className={`dc-badge ${entry.isDoubleCountMatch ? "dc-badge-matched" : ""}`}
-                        style={{ borderColor: DC_COLORS[entry.dcIndex % DC_COLORS.length] }}
-                        title={`${entry.dcCategory} (${entry.dcLabel})${entry.isDoubleCountMatch ? " ✓ double-counted" : ""}`}
+                        className={`dc-badge ${entry.isCoverageMatch ? "dc-badge-matched" : ""}`}
+                        style={{ borderColor: POOL_COLORS[entry.poolIndex % POOL_COLORS.length] }}
+                        title={`${entry.poolCategory} (${entry.poolLabel})${entry.constraintLabels?.length ? `: ${entry.constraintLabels.join(", ")}` : ""}${entry.isCoverageMatch ? " ✓ covered" : ""}`}
                     >
-                        {entry.dcLabel}
+                        {entry.poolLabel}
                     </span>
                 ))}
             </span>
@@ -248,17 +248,14 @@ export default function ScheduleGrid({
         );
     };
 
-    const hasUnfulfilledDcOverlays = doubleCountData?.some(
-        (dc) => dc.dc_fulfilled?.some((fulfilled) => !fulfilled),
-    );
-
     const renderRequirementSlotCard = (slotId, year, sem, idx) => {
         const frozen = isFrozen(slotId);
         let className = "schedule-course schedule-requirement";
         if (frozen) className += " frozen";
-        const slotLabel = getSlotLabel(slotId);
-        const showDcHint = hasUnfulfilledDcOverlays
-            && /elective|unrestricted/i.test(slotLabel);
+        const slotLabelRaw = getSlotLabel(slotId);
+        const hintSplit = slotLabelRaw.split(/\n↳\s*/);
+        const slotLabel = hintSplit[0];
+        const poolHint = hintSplit[1] || null;
 
         const handleClick = () => {
             onToggleFreeze(slotId, year, sem);
@@ -278,9 +275,9 @@ export default function ScheduleGrid({
                         title={frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"}
                     >
                         <span className="schedule-requirement-label">{slotLabel}</span>
-                        {showDcHint && (
+                        {poolHint && (
                             <span className="schedule-requirement-dc-hint">
-                                May double-count for gen-ed
+                                ↳ {poolHint}
                             </span>
                         )}
                         <span className="course-card-actions">
@@ -339,7 +336,7 @@ export default function ScheduleGrid({
                         <span>{courseId}</span>
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
-                            {renderDcBadges(courseId)}
+                            {renderPoolBadges(courseId)}
                             {renderInfoLink(courseId)}
                             <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
                         </span>
@@ -388,7 +385,7 @@ export default function ScheduleGrid({
                                                     <span>{a.courseId}</span>
                                     <span className="course-card-actions">
                                         {renderConcBadges(a.courseId)}
-                                        {renderDcBadges(a.courseId)}
+                                        {renderPoolBadges(a.courseId)}
                                         {renderInfoLink(a.courseId)}
                                     </span>
                                                 </div>
@@ -493,60 +490,6 @@ export default function ScheduleGrid({
                             <span>{degreeDisplayLabels[label] || label}</span>
                         </div>
                     ))}
-                </div>
-            )}
-
-            {/* Double Count Tracker Bars */}
-            {doubleCountData && doubleCountData.length > 0 && (
-                <div className="dc-tracker-section">
-                    <div className="dc-tracker-title">🔗 Double Count Trackers</div>
-                    <div className="dc-tracker-hint">
-                        Overlay requirements apply to major and elective courses above — not as separate schedule slots.
-                    </div>
-                    {doubleCountData.map((dc, i) => {
-                        const fulfilledCount = dc.dc_fulfilled?.filter(Boolean).length || 0;
-                        const totalCount = dc.dc_fulfilled?.length || 0;
-                        const allFulfilled = fulfilledCount === totalCount;
-                        const color = DC_COLORS[dc.dcIndex % DC_COLORS.length];
-                        return (
-                            <div
-                                key={i}
-                                className={`dc-tracker-bar ${allFulfilled ? "dc-tracker-fulfilled" : ""}`}
-                                style={{ borderLeftColor: color }}
-                            >
-                                <div className="dc-tracker-header">
-                                    <span className="dc-tracker-label" style={{ color }}>
-                                        {dc.dcLabel}
-                                    </span>
-                                    <span className="dc-tracker-category">
-                                        {dc.category}
-                                    </span>
-                                    <span className="dc-tracker-progress">
-                                        {fulfilledCount}/{totalCount}
-                                    </span>
-                                </div>
-                                <div className="dc-tracker-constraints">
-                                    {dc.dc_descriptions?.map((desc, j) => (
-                                        <div key={j} className="dc-constraint-row">
-                                            <span className="dc-constraint-status">
-                                                {dc.dc_fulfilled?.[j] ? "✅" : "❌"}
-                                            </span>
-                                            <span className="dc-constraint-desc">
-                                                {desc}
-                                            </span>
-                                            {dc.dc_fulfilled?.[j] && dc.dc_matched_courses?.[j]?.length > 0 && (
-                                                <span className="dc-constraint-courses">
-                                                    {dc.dc_matched_courses[j].map((c, k) => (
-                                                        <span key={k} className="dc-course-chip" style={{ borderColor: color }}>{c}</span>
-                                                    ))}
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    })}
                 </div>
             )}
 

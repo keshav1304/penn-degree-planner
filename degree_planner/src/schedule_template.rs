@@ -62,7 +62,7 @@ pub fn schedule_hints_from_array(schedule: &[Semester]) -> HashMap<String, (i32,
 }
 
 /// Resolve a schedule hint for an instance id, inheriting from the parent index for
-/// DoubleCount children (`"20:b0"` → `"20"`).
+/// CoursePool children (`"20:f0"` / `"20:p0"` → `"20"`).
 pub fn resolve_semester_hint(
     id: &str,
     hints: &HashMap<String, (i32, String)>,

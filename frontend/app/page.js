@@ -414,38 +414,35 @@ export default function Home() {
     return links;
   }, [scheduleData, courseDegreesMap]);
 
-  // ─── Build double-count tracker data ───
-  const { doubleCountData, courseDoubleCountMap } = useMemo(() => {
-    const dcList = [];
-    const dcCourseMap = {};
+  // ─── Build pool coverage data (for course badges) ───
+  const { coursePoolConstraintMap } = useMemo(() => {
+    const poolCourseMap = {};
     if (scheduleData?.degree_results) {
-      let globalDcIndex = 0;
       scheduleData.degree_results.forEach((result) => {
         const degreeLabel = `${result.school}-${result.major}`;
-        if (result.double_count_info) {
-          result.double_count_info.forEach((dc) => {
-            const dcIdx = globalDcIndex++;
-            const dcLabel = `DC-${dcIdx + 1}`;
-            dcList.push({ ...dc, dcLabel, degreeLabel, dcIndex: dcIdx });
-
-            const matchedSet = new Set(dc.dc_matched_courses?.flat() || []);
-            (dc.base_courses || []).forEach((courseId) => {
-              if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
-              if (!dcCourseMap[courseId]) dcCourseMap[courseId] = [];
-              if (!dcCourseMap[courseId].some(course => course.dcLabel === dcLabel)) {
-                dcCourseMap[courseId].push({
-                  dcIndex: dcIdx,
-                  dcLabel,
-                  dcCategory: dc.category,
-                  isDoubleCountMatch: matchedSet.has(courseId),
-                });
-              }
-            });
+        (result.pool_coverage_info || []).forEach((pool, poolIdx) => {
+          const poolLabel = `P${poolIdx + 1}`;
+          (pool.pool_courses || []).forEach((courseId) => {
+            if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
+            const matchedConstraints = (pool.constraints || []).filter(
+              (c) => c.matched_courses?.includes(courseId),
+            );
+            if (!poolCourseMap[courseId]) poolCourseMap[courseId] = [];
+            if (!poolCourseMap[courseId].some((e) => e.poolLabel === poolLabel && e.degreeLabel === degreeLabel)) {
+              poolCourseMap[courseId].push({
+                poolIndex: poolIdx,
+                poolLabel,
+                poolCategory: pool.category,
+                degreeLabel,
+                isCoverageMatch: matchedConstraints.some((c) => c.fulfilled),
+                constraintLabels: matchedConstraints.map((c) => c.label),
+              });
+            }
           });
-        }
+        });
       });
     }
-    return { doubleCountData: dcList, courseDoubleCountMap: dcCourseMap };
+    return { coursePoolConstraintMap: poolCourseMap };
   }, [scheduleData, courseDegreesMap]);
 
   // ─── Build concentration tracker data ───
@@ -571,8 +568,7 @@ export default function Home() {
                   setReqNavTarget(target);
                 }}
                 allowSummer={allowSummer}
-                doubleCountData={doubleCountData}
-                courseDoubleCountMap={courseDoubleCountMap}
+                coursePoolConstraintMap={coursePoolConstraintMap}
                 concentrationData={concentrationData}
                 courseConcentrationMap={courseConcentrationMap}
                 allCourses={allCourses}
@@ -651,7 +647,7 @@ function normalizeCategory(cat) {
 function requirementCategoryForNav(req) {
   if (!req) return "Other";
   if (req.category) return normalizeCategory(req.category);
-  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "DoubleCount"];
+  const variants = ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "CoursePool"];
   for (const v of variants) {
     if (req[v]?.category) return normalizeCategory(req[v].category);
   }

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
+use crate::requirement::PoolConstraint;
 
 // ── Path@Penn attribute codes ────────────────────────────────────────────────
 
@@ -91,21 +92,29 @@ fn cas_sector_requirement(label: &str, attr: &str) -> Requirement {
     }
 }
 
-/// Double-count overlay slots: FAs + non-auto-completed Sectors.
-pub fn cas_double_counting_requirements(auto_completed_sectors: &[String]) -> Vec<Requirement> {
-    let mut requirements = Vec::new();
+/// Coverage constraints: FAs + non-auto-completed Sectors.
+pub fn cas_pool_constraints(auto_completed_sectors: &[String]) -> Vec<PoolConstraint> {
+    let mut constraints = Vec::new();
 
     for (label, attr) in FOUNDATIONAL_APPROACHES {
-        requirements.push(cas_foundational_approach(label, attr));
+        constraints.push(PoolConstraint {
+            requirement: cas_foundational_approach(label, attr),
+            count: 1,
+            consumption_group: Some("cas:fa".to_string()),
+        });
     }
 
     for (label, attr) in SECTORS {
         if !auto_completed_sectors.iter().any(|s| s == attr) {
-            requirements.push(cas_sector_requirement(label, attr));
+            constraints.push(PoolConstraint {
+                requirement: cas_sector_requirement(label, attr),
+                count: 1,
+                consumption_group: Some("cas:sector".to_string()),
+            });
         }
     }
 
-    requirements
+    constraints
 }
 
 /// Approximate CU represented by a requirement subtree (whole-CU slots).
@@ -123,45 +132,26 @@ fn requirement_slot_cu(req: &Requirement) -> i32 {
                 *number
             }
         }
-        Requirement::DoubleCount {
-            base_requirements, ..
-        } => base_requirements.iter().map(requirement_slot_cu).sum(),
+        Requirement::CoursePool {
+            fixed_slots,
+            flexible_slots,
+            ..
+        } => fixed_slots.iter().map(requirement_slot_cu).sum::<i32>() + flexible_slots,
     }
 }
 
-/// Fill remaining non-writing CU with a single unrestricted-elective bucket.
-fn cas_unrestricted_electives(major_reqs: &[Requirement]) -> Vec<Requirement> {
-    let major_cu: i32 = major_reqs.iter().map(requirement_slot_cu).sum();
-    let base_cu = CAS_DEGREE_CU - 1;
-    let remaining = (base_cu - major_cu).max(0);
-    if remaining == 0 {
-        return vec![];
-    }
-    vec![Requirement::Restriction {
-        category: Some("Unrestricted Electives".to_string()),
-        department: None,
-        cu: None,
-        level: None,
-        attr: None,
-        excluding: None,
-        number: remaining,
-        no_school: None,
-    }]
-}
-
-/// Assemble a full CAS degree using one DoubleCount block for gen-ed overlays.
+/// Assemble a full CAS degree using a shared course pool for major + electives + gen-ed coverage.
 pub fn create_cas_major(config: CasMajorConfig) -> Major {
-    let mut base_requirements = config.major_requirements.clone();
-    base_requirements.extend(cas_unrestricted_electives(&config.major_requirements));
+    let major_cu: i32 = config.major_requirements.iter().map(requirement_slot_cu).sum();
+    let flexible_slots = (CAS_DEGREE_CU - 1 - major_cu).max(0);
 
     let requirements = vec![
         cas_writing_requirement(),
-        Requirement::DoubleCount {
+        Requirement::CoursePool {
             category: Some("College of Arts and Sciences".to_string()),
-            base_requirements,
-            double_counting_requirements: cas_double_counting_requirements(
-                &config.auto_completed_sectors,
-            ),
+            fixed_slots: config.major_requirements,
+            flexible_slots,
+            constraints: cas_pool_constraints(&config.auto_completed_sectors),
         },
     ];
 
@@ -173,7 +163,6 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
         concentrations: config.concentrations,
     }
 }
-
 // ── Major-specific requirement blocks ────────────────────────────────────────
 // Add `create_XX_major()` functions below. Each should define only major courses,
 // then call `create_cas_major` with the appropriate auto-completed sector(s).

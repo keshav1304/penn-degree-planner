@@ -103,19 +103,26 @@ pub enum Requirement {
         no_school: Option<String>,
     },
 
-    /// **Double-counting rule** — `base_requirements` must be taken, and at least one must
-    /// also satisfy each entry in `double_counting_requirements`.
-    ///
-    /// Example: a course that counts toward both a major requirement and a sector requirement.
-    ///
-    /// - `category` — panel grouping label.
-    /// - `base_requirements` — the primary requirements being satisfied.
-    /// - `double_counting_requirements` — additional requirements the same courses must also meet.
-    DoubleCount {
+    /// **Shared course pool** — fixed + flexible slots form a bucket; coverage constraints
+    /// must be satisfied by courses in that bucket (one course may cover several constraints).
+    CoursePool {
         category: Option<String>,
-        double_counting_requirements: Vec<Requirement>,
-        base_requirements: Vec<Requirement>,
+        /// Non-fungible slots (e.g. ECON 0100, specific major courses).
+        fixed_slots: Vec<Requirement>,
+        /// Number of generic 1-CU pool placeholders.
+        flexible_slots: i32,
+        /// Labeled coverage rules evaluated against the whole pool.
+        constraints: Vec<PoolConstraint>,
     },
+}
+
+/// One coverage unit inside a [`Requirement::CoursePool`].
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct PoolConstraint {
+    pub requirement: Requirement,
+    pub count: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub consumption_group: Option<String>,
 }
 
 const MAX_LISTED_COURSES: usize = 4;
@@ -161,7 +168,7 @@ fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
             let tenths = (target * 10.0).round() as u32;
             (2, tenths, req.specificity_score())
         }
-        Requirement::DoubleCount { .. } => (1, 0, req.specificity_score()),
+        Requirement::CoursePool { .. } => (1, 0, req.specificity_score()),
         _ => (1, 0, req.specificity_score()),
     }
 }
@@ -487,19 +494,19 @@ pub fn is_requirement_slot_id(s: &str) -> bool {
     s.starts_with("req:")
 }
 
-/// DoubleCount overlay children use instance ids like `"1:d0"` (not `"1:b0"` base slots).
-pub fn is_double_count_overlay_instance_id(instance_id: Option<&str>) -> bool {
+/// Pool coverage constraints use instance ids like `"1:c0"` (not slot ids `1:f0` / `1:p0`).
+pub fn is_pool_constraint_instance_id(instance_id: Option<&str>) -> bool {
     instance_id.is_some_and(|id| {
         id.split(':').any(|seg| {
             seg.len() > 1
-                && seg.starts_with('d')
+                && seg.starts_with('c')
                 && seg[1..].chars().all(|c| c.is_ascii_digit())
         })
     })
 }
 
-/// Schedule slots scoped to a DoubleCount overlay should not appear on the grid.
-pub fn is_double_count_overlay_slot_id(slot_id: &str) -> bool {
+/// Schedule slots scoped to a pool coverage constraint should not appear on the grid.
+pub fn is_pool_constraint_slot_id(slot_id: &str) -> bool {
     if !is_requirement_slot_id(slot_id) {
         return false;
     }
@@ -508,12 +515,26 @@ pub fn is_double_count_overlay_slot_id(slot_id: &str) -> bool {
         None => return false,
     };
     let scope = rest.split(":R:").next().unwrap_or(rest);
-    is_double_count_overlay_instance_id(Some(scope))
+    is_pool_constraint_instance_id(Some(scope))
 }
 
-/// Base requirement slots that may be placed on the schedule (excludes DC overlays).
+/// Pool slot placeholders (fixed / flexible) that may be placed on the schedule.
 pub fn is_schedulable_requirement_slot_id(slot_id: &str) -> bool {
-    is_requirement_slot_id(slot_id) && !is_double_count_overlay_slot_id(slot_id)
+    is_requirement_slot_id(slot_id) && !is_pool_constraint_slot_id(slot_id)
+}
+
+/// Generic 1-CU placeholder inside a course pool.
+pub fn pool_flexible_slot_requirement(pool_category: &str, index: usize) -> Requirement {
+    Requirement::Restriction {
+        category: Some(format!("{pool_category} — Pool course")),
+        department: None,
+        cu: None,
+        level: None,
+        attr: None,
+        excluding: None,
+        number: 1,
+        no_school: None,
+    }
 }
 
 fn slot_scope_slug(s: &str) -> String {
@@ -608,21 +629,22 @@ impl Requirement {
                     }
                 }
             }
-            Requirement::DoubleCount {
-                base_requirements,
-                double_counting_requirements,
+            Requirement::CoursePool {
+                fixed_slots,
+                constraints,
                 ..
             } => {
-                for (j, child) in base_requirements
-                    .iter()
-                    .chain(double_counting_requirements.iter())
-                    .enumerate()
-                {
+                for (j, child) in fixed_slots.iter().enumerate() {
                     if child == needle {
-                        return Some(format!("{}#dc{}", path, j));
+                        return Some(format!("{}#f{}", path, j));
                     }
-                    if let Some(p) = child.find_path_in_subtree(needle, &format!("{}#dc{}", path, j)) {
+                    if let Some(p) = child.find_path_in_subtree(needle, &format!("{}#f{}", path, j)) {
                         return Some(p);
+                    }
+                }
+                for (j, pc) in constraints.iter().enumerate() {
+                    if &pc.requirement == needle {
+                        return Some(format!("{}#c{}", path, j));
                     }
                 }
             }
@@ -678,15 +700,8 @@ impl Requirement {
                     }
                 }
             }
-            Requirement::DoubleCount {
-                base_requirements,
-                double_counting_requirements,
-                ..
-            } => {
-                for child in base_requirements
-                    .iter()
-                    .chain(double_counting_requirements.iter())
-                {
+            Requirement::CoursePool { fixed_slots, .. } => {
+                for child in fixed_slots {
                     if let Some(found) = child.find_for_slot_id(slot_id) {
                         return Some(found);
                     }
@@ -732,15 +747,11 @@ impl Requirement {
                 }
                 None
             }
-            Requirement::DoubleCount {
-                base_requirements,
-                double_counting_requirements,
+            Requirement::CoursePool {
+                fixed_slots,
                 ..
             } => {
-                for child in base_requirements
-                    .iter()
-                    .chain(double_counting_requirements.iter())
-                {
+                for child in fixed_slots {
                     if let Some(label) = child.business_breadth_label_for_slot(slot_id) {
                         return Some(label);
                     }
@@ -798,24 +809,25 @@ impl Requirement {
             | Requirement::CourseGroup { category, ..}
             | Requirement::Restriction { category, ..}
             | Requirement::Concentration { category, ..}
-            | Requirement::DoubleCount { category, ..}
+            | Requirement::CoursePool { category, ..}
             | Requirement::AllOf { category, ..}
             | Requirement::AnyOf { category, ..} => category.clone().unwrap_or("".to_string()),
         }
     }
 
-    /// Depth-first category list for UI grouping (skips generic DoubleCount wrapper labels).
+    /// Depth-first category list for UI grouping (skips generic pool wrapper labels).
     pub fn collect_category_order(&self, order: &mut Vec<String>) {
         match self {
-            Requirement::DoubleCount {
-                base_requirements,
-                double_counting_requirements,
+            Requirement::CoursePool {
+                category,
+                fixed_slots,
                 ..
             } => {
-                for req in base_requirements {
-                    req.collect_category_order(order);
+                let pool_cat = category.clone().unwrap_or_else(|| "Course Pool".to_string());
+                if !order.contains(&pool_cat) {
+                    order.push(pool_cat);
                 }
-                for req in double_counting_requirements {
+                for req in fixed_slots {
                     req.collect_category_order(order);
                 }
             }
@@ -915,28 +927,45 @@ impl Requirement {
                     cu_map,
                 )
             },
-            Requirement::DoubleCount { double_counting_requirements, base_requirements, .. } => {
+            Requirement::CoursePool {
+                category,
+                fixed_slots,
+                flexible_slots,
+                constraints,
+                ..
+            } => {
+                let pool_cat = category.as_deref().unwrap_or("Course Pool");
                 let mut taken_copy = taken.clone();
-                let mut all_courses_fulfilled: Vec<String> = Vec::new();
-                for req in sorted_child_requirements(base_requirements) {
-                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                        taken_copy.retain(|x| !courses_fulfilled.contains(x));
-                        all_courses_fulfilled.append(&mut courses_fulfilled);
+                let mut pool_courses: Vec<String> = Vec::new();
+
+                for req in sorted_child_requirements(fixed_slots) {
+                    if let Some(mut courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
+                        taken_copy.retain(|x| !courses.contains(x));
+                        pool_courses.append(&mut courses);
+                    } else {
+                        return None;
+                    }
+                }
+                for pi in 0..(*flexible_slots).max(0) as usize {
+                    let flex = pool_flexible_slot_requirement(pool_cat, pi);
+                    if let Some(mut courses) = flex.fulfills_requirement(&taken_copy, attributes, cu_map) {
+                        taken_copy.retain(|x| !courses.contains(x));
+                        pool_courses.append(&mut courses);
                     } else {
                         return None;
                     }
                 }
 
-                let dc_evaluations = evaluate_double_count_slots(
-                    &all_courses_fulfilled,
-                    double_counting_requirements,
+                let evaluations = evaluate_pool_constraints(
+                    &pool_courses,
+                    constraints,
                     attributes,
                     cu_map,
                 );
-                if dc_evaluations.iter().all(|e| e.fulfilled) {
-                    return Some(all_courses_fulfilled);
+                if evaluations.iter().all(|e| e.fulfilled) {
+                    return Some(pool_courses);
                 }
-                return None;
+                None
             }
         }
     }
@@ -1021,34 +1050,51 @@ impl Requirement {
             Requirement::Restriction { .. } => self
                 .requirement_slot_id(scope)
                 .map(|slot_id| vec![slot_id]),
-            Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
-                // Find which base requirements are still unfulfilled
+            Requirement::CoursePool {
+                category,
+                fixed_slots,
+                flexible_slots,
+                ..
+            } => {
+                let pool_cat = category.as_deref().unwrap_or("Course Pool");
                 let mut taken_copy = taken.clone();
-                let mut unfulfilled_base: Vec<&Requirement> = Vec::new();
-                let mut fulfilled_base_courses: Vec<String> = Vec::new();
+                let mut unfulfilled_slots: Vec<Requirement> = Vec::new();
 
-                for req in base_requirements {
-                    if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                        taken_copy.retain(|x| !courses.contains(x));
-                        fulfilled_base_courses.extend(courses);
+                for req in fixed_slots {
+                    if req.fulfills_requirement(&taken_copy, attributes, cu_map).is_some() {
+                        if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
+                            taken_copy.retain(|x| !courses.contains(x));
+                        }
                     } else {
-                        unfulfilled_base.push(req);
+                        unfulfilled_slots.push(req.clone());
+                    }
+                }
+                for pi in 0..(*flexible_slots).max(0) as usize {
+                    let flex = pool_flexible_slot_requirement(pool_cat, pi);
+                    if let Some(courses) = flex.fulfills_requirement(&taken_copy, attributes, cu_map) {
+                        taken_copy.retain(|x| !courses.contains(x));
+                    } else {
+                        unfulfilled_slots.push(flex);
                     }
                 }
 
-                // Build suggestions for unfulfilled base requirements
                 let mut suggestions: Vec<String> = Vec::new();
-                for req in &unfulfilled_base {
-                    if let Some(s) = req.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter) {
+                for req in &unfulfilled_slots {
+                    if let Some(s) = req.suggest_for_requirement(
+                        taken,
+                        attributes,
+                        cu_map,
+                        scope,
+                        cross_filter,
+                    ) {
                         suggestions.extend(s);
                     }
                 }
-
-                // Double-count overlay status lives on DegreeValidationResult::double_count_info
                 if suggestions.is_empty() {
-                    return None;
+                    None
+                } else {
+                    Some(suggestions)
                 }
-                return Some(suggestions);
             },
         }
     }
@@ -1099,38 +1145,20 @@ impl Requirement {
             Requirement::Concentration { number, .. } => {
                 format!("Concentration: {} CU", number)
             }
-            Requirement::DoubleCount {
-                double_counting_requirements,
-                base_requirements,
+            Requirement::CoursePool {
+                category,
+                fixed_slots,
+                flexible_slots,
+                constraints,
                 ..
             } => {
-                let base_descs: Vec<String> = base_requirements
-                    .iter()
-                    .map(|r| {
-                        let desc = r.create_requirement_description();
-                        if desc.is_empty() {
-                            r.get_category()
-                        } else {
-                            desc
-                        }
-                    })
-                    .collect();
-                let dc_descs: Vec<String> = double_counting_requirements
-                    .iter()
-                    .map(|r| {
-                        let desc = r.create_requirement_description();
-                        if desc.is_empty() {
-                            r.get_category()
-                        } else {
-                            desc
-                        }
-                    })
-                    .collect();
+                let name = category.clone().unwrap_or_else(|| "Course Pool".to_string());
                 format!(
-                    "Take: {}. ({} must also satisfy: {})",
-                    base_descs.join("; "),
-                    double_counting_requirements.len(),
-                    dc_descs.join("; ")
+                    "{}: {} fixed + {} pool CU; {} coverage rules",
+                    name,
+                    fixed_slots.len(),
+                    flexible_slots,
+                    constraints.len()
                 )
             }
         }
@@ -1162,8 +1190,17 @@ impl Requirement {
             Requirement::Concentration { requirements, .. } => {
                 requirements.iter().map(|r| r.specificity_score()).sum::<usize>().max(1)
             },
-            Requirement::DoubleCount { base_requirements, .. } => {
-                base_requirements.iter().map(|r| r.specificity_score()).sum::<usize>().max(1)
+            Requirement::CoursePool {
+                fixed_slots,
+                flexible_slots,
+                ..
+            } => {
+                fixed_slots
+                    .iter()
+                    .map(|r| r.specificity_score())
+                    .sum::<usize>()
+                    .max(1)
+                    + (*flexible_slots).max(0) as usize
             },
             Requirement::Restriction { category, department, attr, no_school, .. } => {
                 // Business Breadth is extremely broad — push to the back
@@ -1192,22 +1229,21 @@ impl Requirement {
 pub struct DegreeValidationResult {
     pub fulfilled: Vec<MappedRequirement>,
     pub unfulfilled: Vec<MappedRequirement>,
-    pub double_count_info: Vec<DoubleCountInfo>,
+    pub pool_coverage_info: Vec<PoolCoverageInfo>,
 }
 
-/// One double-count overlay slot evaluated against the base course pool.
+/// One coverage constraint evaluated against a course pool.
 #[derive(Debug, Clone)]
-pub struct DoubleCountSlotEvaluation {
+pub struct PoolConstraintEvaluation {
     pub requirement: Requirement,
     pub fulfilled: bool,
     pub course_ids: Vec<String>,
+    pub consumption_group: String,
+    pub label: String,
 }
 
-/// Group key controlling whether a matched course is removed from the pool for the next slot.
-/// CAS: FAs share a group, Sectors share a group, but FA ↔ Sector may reuse the same course.
-/// Other degrees: each slot is its own group (Wharton SSH, etc.).
-fn double_count_consumption_group(dc_req: &Requirement, index: usize) -> String {
-    let cat = dc_req.get_category();
+fn constraint_default_consumption_group(req: &Requirement, index: usize) -> String {
+    let cat = req.get_category();
     if cat.starts_with("Foundational Approaches") {
         return "cas:fa".to_string();
     }
@@ -1220,42 +1256,92 @@ fn double_count_consumption_group(dc_req: &Requirement, index: usize) -> String 
     format!("slot:{index}")
 }
 
-/// Match double-counting overlay requirements against courses already assigned to base slots.
-pub fn evaluate_double_count_slots(
-    base_courses: &[String],
-    double_counting_requirements: &[Requirement],
+fn constraint_short_label(req: &Requirement) -> String {
+    if let Requirement::Restriction {
+        attr,
+        no_school,
+        department,
+        ..
+    } = req
+    {
+        if let Some(attrs) = attr {
+            if attrs.len() > 1 {
+                return attrs.join("/");
+            }
+            if let Some(a) = attrs.first() {
+                return a.clone();
+            }
+        }
+        if let Some(school) = no_school {
+            return format!("non-{school}");
+        }
+        if let Some(depts) = department {
+            return depts.join("/");
+        }
+    }
+    let cat = req.get_category();
+    if cat.is_empty() {
+        "constraint".to_string()
+    } else {
+        cat
+    }
+}
+
+fn expanded_pool_constraint_units(constraints: &[PoolConstraint]) -> Vec<(Requirement, String)> {
+    let mut units = Vec::new();
+    for (ci, pc) in constraints.iter().enumerate() {
+        let group = pc
+            .consumption_group
+            .clone()
+            .unwrap_or_else(|| constraint_default_consumption_group(&pc.requirement, ci));
+        for _ in 0..pc.count.max(1) {
+            units.push((pc.requirement.clone(), group.clone()));
+        }
+    }
+    units
+}
+
+/// Match pool coverage constraints against courses assigned to pool slots.
+pub fn evaluate_pool_constraints(
+    pool_courses: &[String],
+    constraints: &[PoolConstraint],
     attributes: &HashMap<String, Vec<String>>,
     cu_map: &HashMap<String, f64>,
-) -> Vec<DoubleCountSlotEvaluation> {
+) -> Vec<PoolConstraintEvaluation> {
+    let units = expanded_pool_constraint_units(constraints);
     let mut blocked_by_group: HashMap<String, HashSet<String>> = HashMap::new();
     let mut results = Vec::new();
 
-    for (i, dc_req) in double_counting_requirements.iter().enumerate() {
-        let group = double_count_consumption_group(dc_req, i);
+    for (req, group) in units {
         let blocked = blocked_by_group.get(&group).cloned().unwrap_or_default();
-        let available: Vec<String> = base_courses
+        let available: Vec<String> = pool_courses
             .iter()
             .filter(|c| !blocked.contains(*c))
             .cloned()
             .collect();
+        let label = constraint_short_label(&req);
 
-        match dc_req.fulfills_requirement(&available, attributes, cu_map) {
+        match req.fulfills_requirement(&available, attributes, cu_map) {
             Some(courses) => {
                 blocked_by_group
-                    .entry(group)
+                    .entry(group.clone())
                     .or_default()
                     .extend(courses.iter().cloned());
-                results.push(DoubleCountSlotEvaluation {
-                    requirement: dc_req.clone(),
+                results.push(PoolConstraintEvaluation {
+                    requirement: req,
                     fulfilled: true,
                     course_ids: courses,
+                    consumption_group: group,
+                    label,
                 });
             }
             None => {
-                results.push(DoubleCountSlotEvaluation {
-                    requirement: dc_req.clone(),
+                results.push(PoolConstraintEvaluation {
+                    requirement: req,
                     fulfilled: false,
                     course_ids: vec![],
+                    consumption_group: group,
+                    label,
                 });
             }
         }
@@ -1264,68 +1350,142 @@ pub fn evaluate_double_count_slots(
     results
 }
 
-fn build_double_count_info(
+fn pool_fill_hint(evaluations: &[PoolConstraintEvaluation]) -> Option<String> {
+    let open: Vec<&PoolConstraintEvaluation> =
+        evaluations.iter().filter(|e| !e.fulfilled).collect();
+    if open.is_empty() {
+        return None;
+    }
+    for i in 0..open.len() {
+        for j in (i + 1)..open.len() {
+            if open[i].consumption_group != open[j].consumption_group {
+                return Some(format!(
+                    "1 CU with {} + {} (double-count)",
+                    open[i].label, open[j].label
+                ));
+            }
+        }
+    }
+    Some(format!("1 CU — {}", open[0].label))
+}
+
+fn build_pool_coverage_info(
     category: Option<String>,
-    base_courses: Vec<String>,
-    evaluations: &[DoubleCountSlotEvaluation],
-) -> DoubleCountInfo {
-    DoubleCountInfo {
-        category: category.unwrap_or_else(|| "Double Count".to_string()),
-        base_courses,
-        dc_descriptions: evaluations
+    pool_courses: Vec<String>,
+    fixed_slots_total: i32,
+    fixed_slots_filled: i32,
+    flexible_slots_total: i32,
+    flexible_slots_filled: i32,
+    evaluations: &[PoolConstraintEvaluation],
+) -> PoolCoverageInfo {
+    PoolCoverageInfo {
+        category: category.unwrap_or_else(|| "Course Pool".to_string()),
+        pool_courses,
+        fixed_slots_total,
+        fixed_slots_filled,
+        flexible_slots_total,
+        flexible_slots_filled,
+        constraints: evaluations
             .iter()
-            .map(|e| e.requirement.create_requirement_description())
+            .map(|e| PoolConstraintStatus {
+                label: e.label.clone(),
+                description: e.requirement.create_requirement_description(),
+                fulfilled: e.fulfilled,
+                matched_courses: e.course_ids.clone(),
+                consumption_group: e.consumption_group.clone(),
+            })
             .collect(),
-        dc_fulfilled: evaluations.iter().map(|e| e.fulfilled).collect(),
-        dc_matched_courses: evaluations.iter().map(|e| e.course_ids.clone()).collect(),
+        fill_hint: pool_fill_hint(evaluations),
     }
 }
 
-fn collect_base_courses_for_block(
-    base_requirements: &[Requirement],
+fn count_pool_prefix_slots_filled(
+    pool_idx: usize,
+    prefix: char,
+    total: i32,
+    fulfilled: &[MappedRequirement],
+    unfulfilled: &[MappedRequirement],
+) -> i32 {
+    let mut count = 0i32;
+    for pi in 0..total.max(0) {
+        let child_id = format!("{pool_idx}:{prefix}{pi}");
+        let filled = fulfilled.iter().chain(unfulfilled.iter()).any(|m| {
+            m.instance_id.as_deref() == Some(child_id.as_str()) && !m.course_ids.is_empty()
+        });
+        if filled {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn collect_pool_courses_for_block(
+    pool_idx: usize,
     fulfilled: &[MappedRequirement],
     unfulfilled: &[MappedRequirement],
 ) -> Vec<String> {
-    let mut base_courses = Vec::new();
+    let prefix = format!("{pool_idx}:");
+    let mut courses = Vec::new();
     for mapped in fulfilled
         .iter()
         .chain(unfulfilled.iter().filter(|m| m.partial))
     {
-        if base_requirements.contains(&mapped.requirement) {
-            base_courses.extend(mapped.course_ids.clone());
+        if let Some(id) = &mapped.instance_id {
+            if id.starts_with(&prefix) && !is_pool_constraint_instance_id(Some(id)) {
+                courses.extend(mapped.course_ids.clone());
+            }
         }
     }
-    base_courses
+    courses
 }
 
-/// Single source of truth for double-count overlay status given mapped requirement output.
-pub fn double_count_info_from_degree_requirements(
+/// Coverage status for each course pool in a degree.
+pub fn pool_coverage_info_from_degree_requirements(
     requirements: &[Requirement],
     fulfilled: &[MappedRequirement],
     unfulfilled: &[MappedRequirement],
     cu_map: &HashMap<String, f64>,
-) -> Vec<DoubleCountInfo> {
+) -> Vec<PoolCoverageInfo> {
     let attributes = attributes_data::create_attributes();
     let mut result = Vec::new();
 
-    for req in requirements {
-        if let Requirement::DoubleCount {
+    for (pool_idx, req) in requirements.iter().enumerate() {
+        if let Requirement::CoursePool {
             category,
-            double_counting_requirements,
-            base_requirements,
+            fixed_slots,
+            flexible_slots,
+            constraints,
         } = req
         {
-            let base_courses =
-                collect_base_courses_for_block(base_requirements, fulfilled, unfulfilled);
-            let evaluations = evaluate_double_count_slots(
-                &base_courses,
-                double_counting_requirements,
+            let pool_courses =
+                collect_pool_courses_for_block(pool_idx, fulfilled, unfulfilled);
+            let evaluations = evaluate_pool_constraints(
+                &pool_courses,
+                constraints,
                 &attributes,
                 cu_map,
             );
-            result.push(build_double_count_info(
+            let fixed_filled = count_pool_prefix_slots_filled(
+                pool_idx,
+                'f',
+                fixed_slots.len() as i32,
+                fulfilled,
+                unfulfilled,
+            );
+            let flex_filled = count_pool_prefix_slots_filled(
+                pool_idx,
+                'p',
+                *flexible_slots,
+                fulfilled,
+                unfulfilled,
+            );
+            result.push(build_pool_coverage_info(
                 category.clone(),
-                base_courses,
+                pool_courses,
+                fixed_slots.len() as i32,
+                fixed_filled,
+                *flexible_slots,
+                flex_filled,
                 &evaluations,
             ));
         }
@@ -1335,13 +1495,13 @@ pub fn double_count_info_from_degree_requirements(
 }
 
 impl DegreeValidationResult {
-    /// Recompute overlay metadata after fulfilled/unfulfilled lists change (e.g. cross-degree conflict resolution).
-    pub fn refresh_double_count_info(
+    /// Recompute pool coverage after fulfilled/unfulfilled lists change.
+    pub fn refresh_pool_coverage_info(
         &mut self,
         requirements: &[Requirement],
         cu_map: &HashMap<String, f64>,
     ) {
-        self.double_count_info = double_count_info_from_degree_requirements(
+        self.pool_coverage_info = pool_coverage_info_from_degree_requirements(
             requirements,
             &self.fulfilled,
             &self.unfulfilled,
@@ -1373,16 +1533,19 @@ pub fn validate_courses_for_degree(
         let instance_id = Some(orig_idx.to_string());
 
         match req {
-            Requirement::DoubleCount {
-                double_counting_requirements,
-                base_requirements,
-                ..
+            Requirement::CoursePool {
+                category,
+                fixed_slots,
+                flexible_slots,
+                constraints,
             } => {
-                let mut base_courses: Vec<String> = Vec::new();
-                for (bi, base_req) in base_requirements.into_iter().enumerate() {
-                    let child_id = Some(format!("{}:b{}", orig_idx, bi));
+                let pool_cat = category.clone().unwrap_or_else(|| "Course Pool".to_string());
+                let mut pool_courses: Vec<String> = Vec::new();
+
+                for (fi, slot_req) in fixed_slots.into_iter().enumerate() {
+                    let child_id = Some(format!("{}:f{}", orig_idx, fi));
                     let courses = try_fulfill_or_partial_base(
-                        &base_req,
+                        &slot_req,
                         &mut taken_mut,
                         &attributes,
                         cu_map,
@@ -1390,16 +1553,32 @@ pub fn validate_courses_for_degree(
                         &mut fulfilled_requirements,
                         &mut requirements_not_fulfilled,
                     );
-                    base_courses.extend(courses);
+                    pool_courses.extend(courses);
                 }
-                let dc_evaluations = evaluate_double_count_slots(
-                    &base_courses,
-                    &double_counting_requirements,
+
+                for pi in 0..flexible_slots.max(0) as usize {
+                    let flex_req = pool_flexible_slot_requirement(&pool_cat, pi);
+                    let child_id = Some(format!("{}:p{}", orig_idx, pi));
+                    let courses = try_fulfill_or_partial_base(
+                        &flex_req,
+                        &mut taken_mut,
+                        &attributes,
+                        cu_map,
+                        child_id,
+                        &mut fulfilled_requirements,
+                        &mut requirements_not_fulfilled,
+                    );
+                    pool_courses.extend(courses);
+                }
+
+                let constraint_evals = evaluate_pool_constraints(
+                    &pool_courses,
+                    &constraints,
                     &attributes,
                     cu_map,
                 );
-                for (di, eval) in dc_evaluations.iter().enumerate() {
-                    let child_id = Some(format!("{}:d{}", orig_idx, di));
+                for (ci, eval) in constraint_evals.iter().enumerate() {
+                    let child_id = Some(format!("{}:c{}", orig_idx, ci));
                     let mapped = new_mapped_requirement(
                         eval.requirement.clone(),
                         eval.course_ids.clone(),
@@ -1461,7 +1640,7 @@ pub fn validate_courses_for_degree(
         }
     }
 
-    let double_count_info = double_count_info_from_degree_requirements(
+    let pool_coverage_info = pool_coverage_info_from_degree_requirements(
         &root_requirements,
         &fulfilled_requirements,
         &requirements_not_fulfilled,
@@ -1471,7 +1650,7 @@ pub fn validate_courses_for_degree(
     DegreeValidationResult {
         fulfilled: fulfilled_requirements,
         unfulfilled: requirements_not_fulfilled,
-        double_count_info,
+        pool_coverage_info,
     }
 }
 
@@ -1489,8 +1668,8 @@ pub fn suggest_courses_for_requirements(
         .map(|(state, idx)| (state, idx));
     let mut suggested_courses = Vec::new();
     for mapped in unfulfilled_requirements {
-        // DC overlays constrain base courses — they are not separate schedule CU slots.
-        if is_double_count_overlay_instance_id(mapped.instance_id.as_deref()) {
+        // Pool coverage constraints are not schedulable CU slots.
+        if is_pool_constraint_instance_id(mapped.instance_id.as_deref()) {
             continue;
         }
         let scope = mapped.instance_id.as_deref();
@@ -1718,12 +1897,24 @@ pub struct MappedRequirement {
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub struct DoubleCountInfo {
+pub struct PoolConstraintStatus {
+    pub label: String,
+    pub description: String,
+    pub fulfilled: bool,
+    pub matched_courses: Vec<String>,
+    pub consumption_group: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct PoolCoverageInfo {
     pub category: String,
-    pub base_courses: Vec<String>,
-    pub dc_descriptions: Vec<String>,
-    pub dc_fulfilled: Vec<bool>,
-    pub dc_matched_courses: Vec<Vec<String>>,
+    pub pool_courses: Vec<String>,
+    pub fixed_slots_total: i32,
+    pub fixed_slots_filled: i32,
+    pub flexible_slots_total: i32,
+    pub flexible_slots_filled: i32,
+    pub constraints: Vec<PoolConstraintStatus>,
+    pub fill_hint: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -2796,17 +2987,17 @@ mod tests {
             DegreeValidationResult {
                 fulfilled: vec![mapped("CIS 1200"), mapped("CIS 1200")],
                 unfulfilled: vec![],
-                double_count_info: vec![],
+                pool_coverage_info: vec![],
             },
             DegreeValidationResult {
                 fulfilled: vec![mapped("CIS 1200")],
                 unfulfilled: vec![],
-                double_count_info: vec![],
+                pool_coverage_info: vec![],
             },
             DegreeValidationResult {
                 fulfilled: vec![mapped("CIS 1200")],
                 unfulfilled: vec![],
-                double_count_info: vec![],
+                pool_coverage_info: vec![],
             },
         ];
 
@@ -2917,36 +3108,44 @@ mod tests {
     }
 
     #[test]
-    fn cas_double_count_allows_fa_sector_overlap() {
+    fn cas_pool_allows_fa_sector_overlap() {
         let attributes = attributes_data::create_attributes();
         let cu_map = HashMap::from([("COLL 0200".to_string(), 1.0)]);
-        let base = vec!["COLL 0200".to_string()];
-        let dc_reqs = vec![
-            Requirement::Restriction {
-                category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                attr: Some(vec!["AUQD".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
+        let pool = vec!["COLL 0200".to_string()];
+        let constraints = vec![
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["AUQD".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("cas:fa".to_string()),
             },
-            Requirement::Restriction {
-                category: Some(
-                    "Sectors of Knowledge — VII — Natural Sciences Across Disciplines".to_string(),
-                ),
-                department: None,
-                cu: None,
-                level: None,
-                attr: Some(vec!["AUNM".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some(
+                        "Sectors of Knowledge — VII — Natural Sciences Across Disciplines".to_string(),
+                    ),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["AUNM".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("cas:sector".to_string()),
             },
         ];
 
-        let evaluations = evaluate_double_count_slots(&base, &dc_reqs, &attributes, &cu_map);
+        let evaluations = evaluate_pool_constraints(&pool, &constraints, &attributes, &cu_map);
 
         assert!(evaluations[0].fulfilled, "AUQD via COLL 0200");
         assert!(
@@ -2957,35 +3156,43 @@ mod tests {
     }
 
     #[test]
-    fn cas_double_count_blocks_fa_fa_overlap() {
+    fn cas_pool_blocks_fa_fa_overlap() {
         let attributes = attributes_data::create_attributes();
         let cu_map = HashMap::from([("COLL 0200".to_string(), 1.0)]);
 
-        let base = vec!["COLL 0200".to_string()];
-        let dc_reqs = vec![
-            Requirement::Restriction {
-                category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                attr: Some(vec!["AUQD".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
+        let pool = vec!["COLL 0200".to_string()];
+        let constraints = vec![
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["AUQD".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("cas:fa".to_string()),
             },
-            Requirement::Restriction {
-                category: Some("Foundational Approaches — Formal Reasoning & Analysis".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                attr: Some(vec!["AUFR".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some("Foundational Approaches — Formal Reasoning & Analysis".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["AUFR".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("cas:fa".to_string()),
             },
         ];
 
-        let evaluations = evaluate_double_count_slots(&base, &dc_reqs, &attributes, &cu_map);
+        let evaluations = evaluate_pool_constraints(&pool, &constraints, &attributes, &cu_map);
 
         assert!(evaluations[0].fulfilled);
         assert!(
@@ -2995,7 +3202,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_emits_double_count_info_for_cas_econ() {
+    fn validate_emits_pool_coverage_for_cas_econ() {
         use crate::college_data;
 
         let major = college_data::create_econ_major();
@@ -3003,15 +3210,15 @@ mod tests {
         let taken = vec!["WRIT 0100".to_string()];
 
         let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
-        assert_eq!(validation.double_count_info.len(), 1);
+        assert_eq!(validation.pool_coverage_info.len(), 1);
         assert_eq!(
-            validation.double_count_info[0].category,
+            validation.pool_coverage_info[0].category,
             "College of Arts and Sciences"
         );
     }
 
     #[test]
-    fn collect_category_order_flattens_cas_double_count_children() {
+    fn collect_category_order_flattens_cas_pool_children() {
         use crate::college_data;
 
         let major = college_data::create_econ_major();
@@ -3020,14 +3227,13 @@ mod tests {
             req.collect_category_order(&mut order);
         }
         assert_eq!(order.first().map(String::as_str), Some("Foundational Approaches — Writing"));
+        assert!(order.iter().any(|c| c == "College of Arts and Sciences"));
         assert!(order.iter().any(|c| c == "Introductory Econ"));
-        assert!(order.iter().any(|c| c.starts_with("Foundational Approaches —") && c != "Foundational Approaches — Writing"));
-        assert!(order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
-        assert!(!order.iter().any(|c| c == "College of Arts and Sciences"));
+        assert!(!order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
     }
 
     #[test]
-    fn suggest_skips_double_count_overlay_slots() {
+    fn suggest_skips_pool_constraint_slots() {
         use crate::college_data;
 
         let major = college_data::create_econ_major();
@@ -3047,22 +3253,22 @@ mod tests {
             validation
                 .unfulfilled
                 .iter()
-                .any(|m| is_double_count_overlay_instance_id(m.instance_id.as_deref())),
-            "expected unfulfilled DC overlay rows for requirements panel"
+                .any(|m| is_pool_constraint_instance_id(m.instance_id.as_deref())),
+            "expected unfulfilled pool constraint rows for requirements panel"
         );
         assert!(
             suggested.iter().all(|m| {
-                !is_double_count_overlay_instance_id(m.instance_id.as_deref())
+                !is_pool_constraint_instance_id(m.instance_id.as_deref())
             }),
-            "DC overlays must not become schedule slots"
+            "pool constraints must not become schedule slots"
         );
         assert!(
             suggested.iter().all(|m| {
                 m.course_ids
                     .iter()
-                    .all(|id| !is_double_count_overlay_slot_id(id))
+                    .all(|id| !is_pool_constraint_slot_id(id))
             }),
-            "suggested slot ids must be base requirements only"
+            "suggested slot ids must be pool slots only"
         );
     }
 }

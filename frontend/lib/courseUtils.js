@@ -14,17 +14,23 @@ export function isRequirementSlotId(id) {
   return typeof id === "string" && id.startsWith("req:");
 }
 
-/** DoubleCount overlay slots (`req:1:d0:R:…`) — constraints, not schedulable CU. */
-export function isDoubleCountOverlaySlotId(id) {
+/** Pool coverage constraints (`1:c0`) — not schedulable CU. */
+export function isPoolConstraintInstanceId(instanceId) {
+  if (!instanceId || typeof instanceId !== "string") return false;
+  return instanceId.split(":").some((seg) => /^c\d+$/.test(seg));
+}
+
+/** Schedule slots scoped to a pool coverage constraint. */
+export function isPoolConstraintSlotId(id) {
   if (!isRequirementSlotId(id)) return false;
   const rest = id.slice(4);
   const scope = rest.split(":R:")[0];
-  return scope.split(":").some((seg) => /^d\d+$/.test(seg));
+  return scope.split(":").some((seg) => /^c\d+$/.test(seg));
 }
 
-/** Requirement slots that represent real schedule CU (base reqs only). */
+/** Requirement slots that represent real schedule CU (pool fixed/flexible slots). */
 export function isSchedulableRequirementSlotId(id) {
-  return isRequirementSlotId(id) && !isDoubleCountOverlaySlotId(id);
+  return isRequirementSlotId(id) && !isPoolConstraintSlotId(id);
 }
 
 /** Item that may appear on the schedule grid (course or requirement slot). */

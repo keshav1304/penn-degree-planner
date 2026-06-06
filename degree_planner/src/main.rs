@@ -18,7 +18,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use course::Course;
 use requirement::Requirement;
 use requirement::MappedRequirement;
-use requirement::DoubleCountInfo;
+use requirement::PoolCoverageInfo;
 use requirement::ConcentrationInfo;
 use cross_degree::{is_graduate_degree, CrossDegreeSummary};
 use major::Major;
@@ -85,7 +85,7 @@ struct RootPostOutput {
     unfulfilled_requirements: Vec<MappedRequirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
-    double_count_info: Vec<DoubleCountInfo>,
+    pool_coverage_info: Vec<PoolCoverageInfo>,
     error: Option<String>
 }
 
@@ -129,7 +129,7 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
             );
         let mut fulfilled_requirements = validation.fulfilled;
         let unfulfilled_requirements = validation.unfulfilled;
-        let double_count_info = validation.double_count_info;
+        let pool_coverage_info = validation.pool_coverage_info;
 
         fulfilled_requirements.sort_by_key(|r| r.requirement.get_category());
         let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(
@@ -153,14 +153,14 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
             unfulfilled_requirements,
             suggested_for_unfulfilled,
             unapplicable_courses,
-            double_count_info,
+            pool_coverage_info,
             error: None,
         };
     } else {
         response = RootPostOutput { 
             fulfilled_requirements: vec![], unfulfilled_requirements: vec![], 
             suggested_for_unfulfilled: vec![], unapplicable_courses: vec![],
-            double_count_info: vec![],
+            pool_coverage_info: vec![],
             error: Some("Major provided is not valid or has no data associated with it yet!".to_string()),
         }
     }
@@ -332,7 +332,7 @@ struct DegreeResult {
     unfulfilled_requirements: Vec<MappedRequirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
-    double_count_info: Vec<DoubleCountInfo>,
+    pool_coverage_info: Vec<PoolCoverageInfo>,
     concentration_info: Vec<ConcentrationInfo>,
     available_concentrations: Vec<String>,
     has_core_concentration: bool,
@@ -435,7 +435,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 unfulfilled_requirements: vec![],
                 suggested_for_unfulfilled: vec![],
                 unapplicable_courses: vec![],
-                double_count_info: vec![],
+                pool_coverage_info: vec![],
                 concentration_info: vec![],
                 available_concentrations: vec![],
                 has_core_concentration: false,
@@ -494,7 +494,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         let major_data = &resolved.major_data;
         let concs = &resolved.concs;
         per_degree_validation[degree_idx]
-            .refresh_double_count_info(&major_data.requirements, &cu_map);
+            .refresh_pool_coverage_info(&major_data.requirements, &cu_map);
         let validation = &mut per_degree_validation[degree_idx];
         validation
             .fulfilled
@@ -502,7 +502,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
         let fulfilled = validation.fulfilled.clone();
         let unfulfilled = validation.unfulfilled.clone();
-        let dc_info = validation.double_count_info.clone();
+        let pool_coverage = validation.pool_coverage_info.clone();
 
         let suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
@@ -577,10 +577,20 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         && !all_requirement_slots.contains(course_id)
                     {
                         all_requirement_slots.push(course_id.clone());
-                        slot_labels.insert(
-                            course_id.clone(),
-                            mapped.requirement.slot_label_for_id(course_id),
-                        );
+                        let mut label = mapped.requirement.slot_label_for_id(course_id);
+                        if mapped
+                            .instance_id
+                            .as_deref()
+                            .is_some_and(|id| id.contains(":p"))
+                        {
+                            if let Some(hint) = pool_coverage
+                                .iter()
+                                .find_map(|p| p.fill_hint.clone())
+                            {
+                                label = format!("{label}\n↳ {hint}");
+                            }
+                        }
+                        slot_labels.insert(course_id.clone(), label);
                     }
                 }
             }
@@ -623,7 +633,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 unfulfilled_requirements: unfulfilled,
                 suggested_for_unfulfilled: suggested,
                 unapplicable_courses: unapplicable,
-                double_count_info: dc_info,
+                pool_coverage_info: pool_coverage,
                 concentration_info: conc_info,
                 available_concentrations: available_concs,
                 has_core_concentration: has_core,
