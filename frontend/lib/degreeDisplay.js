@@ -17,16 +17,51 @@ export function formatConcentrationLabel(concList) {
     return normalized.join(" + ");
 }
 
+/** Strip trailing catalog abbreviations like "(CIS)" or "(WH)" from display labels. */
+export function stripAbbreviationSuffix(label) {
+    if (!label || typeof label !== "string") return label || "";
+    return label.replace(/\s*\([A-Z][A-Z0-9_]+\)\s*$/, "").trim();
+}
+
 function resolveFromCatalog(degreeCatalog, schoolCode, majorCode) {
     if (!degreeCatalog?.length || !schoolCode) {
-        return { displaySchool: schoolCode || "", displayMajor: majorCode || "" };
+        return {
+            displaySchool: stripAbbreviationSuffix(schoolCode || ""),
+            displayMajor: stripAbbreviationSuffix(majorCode || ""),
+        };
     }
     const schoolEntry = degreeCatalog.find((s) => s.school_code === schoolCode);
     const majorEntry = schoolEntry?.majors?.find((m) => m.api_code === majorCode);
-    return {
-        displaySchool: schoolEntry?.display_name || schoolCode,
-        displayMajor: majorEntry?.display_name || majorCode || "Degree",
-    };
+    const displaySchool = stripAbbreviationSuffix(schoolEntry?.display_name || schoolCode);
+    const displayMajor = stripAbbreviationSuffix(majorEntry?.display_name || majorCode || "Degree");
+    return { displaySchool, displayMajor };
+}
+
+/** Human-readable label for API keys like `CAS-ECON`. */
+export function formatDegreeApiLabel(schoolCode, majorCode, degreeCatalog) {
+    const { displayMajor, displaySchool } = resolveFromCatalog(
+        degreeCatalog,
+        schoolCode,
+        majorCode,
+    );
+    if (displayMajor && displaySchool) {
+        return `${displayMajor} · ${displaySchool}`;
+    }
+    return displayMajor || `${schoolCode}-${majorCode}`;
+}
+
+/** Majors the UI should offer (excludes placeholder / not-implemented entries). */
+export function implementedMajorsForSchool(schoolEntry) {
+    return (schoolEntry?.majors || []).filter(
+        (m) => m.api_code && m.api_code !== "NA",
+    );
+}
+
+/** Schools that have at least one selectable major. */
+export function implementedSchools(degreeCatalog) {
+    return (degreeCatalog || []).filter(
+        (school) => implementedMajorsForSchool(school).length > 0,
+    );
 }
 
 /**
@@ -38,8 +73,12 @@ export function formatDegreeDisplay(degree, result, degreeCatalog) {
     const majorCode = degree?.majorCode || result?.major || "";
     const fromCatalog = resolveFromCatalog(degreeCatalog, schoolCode, majorCode);
 
-    const major = degree?.displayMajor || fromCatalog.displayMajor || "Degree";
-    const school = degree?.displaySchool || fromCatalog.displaySchool || schoolCode;
+    const major = fromCatalog.displayMajor
+        || stripAbbreviationSuffix(degree?.displayMajor)
+        || "Degree";
+    const school = fromCatalog.displaySchool
+        || stripAbbreviationSuffix(degree?.displaySchool)
+        || schoolCode;
     const concLabel = formatConcentrationLabel(getDegreeConcentrations(degree));
     const schoolLine = concLabel ? `${school} · Conc: ${concLabel}` : school;
 

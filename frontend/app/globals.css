@@ -180,6 +180,39 @@ body {
   font-size: var(--sidebar-font-body);
 }
 
+/* Courses panel: search stays fixed, My Courses fills remaining height */
+.panel-courses .panel-body {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-courses .search-box,
+.panel-courses .course-list {
+  flex-shrink: 0;
+}
+
+.panel-courses .cart-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-courses .cart-header,
+.panel-courses .cart-hint,
+.panel-courses .cart-empty {
+  flex-shrink: 0;
+}
+
+.panel-courses .cart-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  max-height: none;
+}
+
 .panel-schedule {
   min-height: 0;
   min-width: 0;
@@ -589,8 +622,6 @@ select {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 500px;
-  overflow-y: auto;
 }
 
 .cart-item {

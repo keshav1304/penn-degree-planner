@@ -775,6 +775,50 @@ impl Requirement {
         }
     }
 
+    /// Depth-first category list for UI grouping (skips generic DoubleCount wrapper labels).
+    pub fn collect_category_order(&self, order: &mut Vec<String>) {
+        match self {
+            Requirement::DoubleCount {
+                base_requirements,
+                double_counting_requirements,
+                ..
+            } => {
+                for req in base_requirements {
+                    req.collect_category_order(order);
+                }
+                for req in double_counting_requirements {
+                    req.collect_category_order(order);
+                }
+            }
+            Requirement::AllOf { requirements, .. }
+            | Requirement::Concentration { requirements, .. } => {
+                let cat = self.get_category();
+                if !cat.is_empty() && !order.contains(&cat) {
+                    order.push(cat);
+                }
+                for req in requirements {
+                    req.collect_category_order(order);
+                }
+            }
+            Requirement::AnyOf { possibilities, .. }
+            | Requirement::CourseGroup { possibilities, .. } => {
+                let cat = self.get_category();
+                if !cat.is_empty() && !order.contains(&cat) {
+                    order.push(cat);
+                }
+                for req in possibilities {
+                    req.collect_category_order(order);
+                }
+            }
+            _ => {
+                let cat = self.get_category();
+                if !cat.is_empty() && !order.contains(&cat) {
+                    order.push(cat);
+                }
+            }
+        }
+    }
+
     /// Checks if the requirements are fulfilled by a vector of taken courses and returns a vector with 
     /// all the courses that do fulfill requirements
     pub fn fulfills_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>, cu_map: &HashMap<String, f64>) -> Option<Vec<String>> {
@@ -842,7 +886,7 @@ impl Requirement {
                     cu_map,
                 )
             },
-            Requirement::DoubleCount { category, double_counting_requirements, base_requirements } => {
+            Requirement::DoubleCount { double_counting_requirements, base_requirements, .. } => {
                 let mut taken_copy = taken.clone();
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for req in sorted_child_requirements(base_requirements) {
@@ -854,17 +898,16 @@ impl Requirement {
                     }
                 }
 
-                let mut all_courses_fulfilled_copy = all_courses_fulfilled.clone();
-                let mut double_counting_fulfilled: Vec<String> = Vec::new();
-                for req in double_counting_requirements {
-                    if let Some(mut courses_fulfilled) = req.fulfills_requirement(&all_courses_fulfilled_copy, attributes, cu_map) {
-                        all_courses_fulfilled_copy.retain(|x| !courses_fulfilled.contains(x));
-                        double_counting_fulfilled.append(&mut courses_fulfilled);
-                    } else {
-                        return None;
-                    }
+                let dc_evaluations = evaluate_double_count_slots(
+                    &all_courses_fulfilled,
+                    double_counting_requirements,
+                    attributes,
+                    cu_map,
+                );
+                if dc_evaluations.iter().all(|e| e.fulfilled) {
+                    return Some(all_courses_fulfilled);
                 }
-                return Some(all_courses_fulfilled);
+                return None;
             }
         }
     }
@@ -972,7 +1015,7 @@ impl Requirement {
                     }
                 }
 
-                // Double-counting info is now exposed separately via extract_double_count_info
+                // Double-count overlay status lives on DegreeValidationResult::double_count_info
                 if suggestions.is_empty() {
                     return None;
                 }
@@ -1115,14 +1158,177 @@ impl Requirement {
     }
 }
 
+/// Result of validating a degree's requirement tree.
+#[derive(Debug, Clone)]
+pub struct DegreeValidationResult {
+    pub fulfilled: Vec<MappedRequirement>,
+    pub unfulfilled: Vec<MappedRequirement>,
+    pub double_count_info: Vec<DoubleCountInfo>,
+}
+
+/// One double-count overlay slot evaluated against the base course pool.
+#[derive(Debug, Clone)]
+pub struct DoubleCountSlotEvaluation {
+    pub requirement: Requirement,
+    pub fulfilled: bool,
+    pub course_ids: Vec<String>,
+}
+
+/// Group key controlling whether a matched course is removed from the pool for the next slot.
+/// CAS: FAs share a group, Sectors share a group, but FA ↔ Sector may reuse the same course.
+/// Other degrees: each slot is its own group (Wharton SSH, etc.).
+fn double_count_consumption_group(dc_req: &Requirement, index: usize) -> String {
+    let cat = dc_req.get_category();
+    if cat.starts_with("Foundational Approaches") {
+        return "cas:fa".to_string();
+    }
+    if cat.starts_with("Sectors of Knowledge") {
+        return "cas:sector".to_string();
+    }
+    if !cat.is_empty() {
+        return format!("slot:{cat}");
+    }
+    format!("slot:{index}")
+}
+
+/// Match double-counting overlay requirements against courses already assigned to base slots.
+pub fn evaluate_double_count_slots(
+    base_courses: &[String],
+    double_counting_requirements: &[Requirement],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> Vec<DoubleCountSlotEvaluation> {
+    let mut blocked_by_group: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut results = Vec::new();
+
+    for (i, dc_req) in double_counting_requirements.iter().enumerate() {
+        let group = double_count_consumption_group(dc_req, i);
+        let blocked = blocked_by_group.get(&group).cloned().unwrap_or_default();
+        let available: Vec<String> = base_courses
+            .iter()
+            .filter(|c| !blocked.contains(*c))
+            .cloned()
+            .collect();
+
+        match dc_req.fulfills_requirement(&available, attributes, cu_map) {
+            Some(courses) => {
+                blocked_by_group
+                    .entry(group)
+                    .or_default()
+                    .extend(courses.iter().cloned());
+                results.push(DoubleCountSlotEvaluation {
+                    requirement: dc_req.clone(),
+                    fulfilled: true,
+                    course_ids: courses,
+                });
+            }
+            None => {
+                results.push(DoubleCountSlotEvaluation {
+                    requirement: dc_req.clone(),
+                    fulfilled: false,
+                    course_ids: vec![],
+                });
+            }
+        }
+    }
+
+    results
+}
+
+fn build_double_count_info(
+    category: Option<String>,
+    base_courses: Vec<String>,
+    evaluations: &[DoubleCountSlotEvaluation],
+) -> DoubleCountInfo {
+    DoubleCountInfo {
+        category: category.unwrap_or_else(|| "Double Count".to_string()),
+        base_courses,
+        dc_descriptions: evaluations
+            .iter()
+            .map(|e| e.requirement.create_requirement_description())
+            .collect(),
+        dc_fulfilled: evaluations.iter().map(|e| e.fulfilled).collect(),
+        dc_matched_courses: evaluations.iter().map(|e| e.course_ids.clone()).collect(),
+    }
+}
+
+fn collect_base_courses_for_block(
+    base_requirements: &[Requirement],
+    fulfilled: &[MappedRequirement],
+    unfulfilled: &[MappedRequirement],
+) -> Vec<String> {
+    let mut base_courses = Vec::new();
+    for mapped in fulfilled
+        .iter()
+        .chain(unfulfilled.iter().filter(|m| m.partial))
+    {
+        if base_requirements.contains(&mapped.requirement) {
+            base_courses.extend(mapped.course_ids.clone());
+        }
+    }
+    base_courses
+}
+
+/// Single source of truth for double-count overlay status given mapped requirement output.
+pub fn double_count_info_from_degree_requirements(
+    requirements: &[Requirement],
+    fulfilled: &[MappedRequirement],
+    unfulfilled: &[MappedRequirement],
+    cu_map: &HashMap<String, f64>,
+) -> Vec<DoubleCountInfo> {
+    let attributes = attributes_data::create_attributes();
+    let mut result = Vec::new();
+
+    for req in requirements {
+        if let Requirement::DoubleCount {
+            category,
+            double_counting_requirements,
+            base_requirements,
+        } = req
+        {
+            let base_courses =
+                collect_base_courses_for_block(base_requirements, fulfilled, unfulfilled);
+            let evaluations = evaluate_double_count_slots(
+                &base_courses,
+                double_counting_requirements,
+                &attributes,
+                cu_map,
+            );
+            result.push(build_double_count_info(
+                category.clone(),
+                base_courses,
+                &evaluations,
+            ));
+        }
+    }
+
+    result
+}
+
+impl DegreeValidationResult {
+    /// Recompute overlay metadata after fulfilled/unfulfilled lists change (e.g. cross-degree conflict resolution).
+    pub fn refresh_double_count_info(
+        &mut self,
+        requirements: &[Requirement],
+        cu_map: &HashMap<String, f64>,
+    ) {
+        self.double_count_info = double_count_info_from_degree_requirements(
+            requirements,
+            &self.fulfilled,
+            &self.unfulfilled,
+            cu_map,
+        );
+    }
+}
 
 /// finding whether taken fulfills degree and to what extent
 pub fn validate_courses_for_degree(
     requirements: Vec<Requirement>,
     taken: &Vec<String>,
     cu_map: &HashMap<String, f64>,
-) -> (Vec<MappedRequirement>, Vec<MappedRequirement>) {
+) -> DegreeValidationResult {
     let attributes = attributes_data::create_attributes();
+    let root_requirements = requirements.clone();
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
     let mut requirements_not_fulfilled = Vec::new();
@@ -1157,24 +1363,24 @@ pub fn validate_courses_for_degree(
                     );
                     base_courses.extend(courses);
                 }
-                for (di, dc_req) in double_counting_requirements.into_iter().enumerate() {
+                let dc_evaluations = evaluate_double_count_slots(
+                    &base_courses,
+                    &double_counting_requirements,
+                    &attributes,
+                    cu_map,
+                );
+                for (di, eval) in dc_evaluations.iter().enumerate() {
                     let child_id = Some(format!("{}:d{}", orig_idx, di));
-                    if let Some(courses_fulfilling) =
-                        dc_req.fulfills_requirement(&base_courses, &attributes, cu_map)
-                    {
-                        fulfilled_requirements.push(new_mapped_requirement(
-                            dc_req,
-                            courses_fulfilling,
-                            child_id,
-                            &attributes,
-                        ));
-                    } else if !base_courses.is_empty() {
-                        requirements_not_fulfilled.push(new_mapped_requirement(
-                            dc_req,
-                            vec![],
-                            child_id,
-                            &attributes,
-                        ));
+                    let mapped = new_mapped_requirement(
+                        eval.requirement.clone(),
+                        eval.course_ids.clone(),
+                        child_id,
+                        &attributes,
+                    );
+                    if eval.fulfilled {
+                        fulfilled_requirements.push(mapped);
+                    } else {
+                        requirements_not_fulfilled.push(mapped);
                     }
                 }
             }
@@ -1226,7 +1432,18 @@ pub fn validate_courses_for_degree(
         }
     }
 
-    (fulfilled_requirements, requirements_not_fulfilled)
+    let double_count_info = double_count_info_from_degree_requirements(
+        &root_requirements,
+        &fulfilled_requirements,
+        &requirements_not_fulfilled,
+        cu_map,
+    );
+
+    DegreeValidationResult {
+        fulfilled: fulfilled_requirements,
+        unfulfilled: requirements_not_fulfilled,
+        double_count_info,
+    }
 }
 
 /// suggesting courses for certain requirements
@@ -1476,74 +1693,6 @@ pub struct DoubleCountInfo {
     pub dc_matched_courses: Vec<Vec<String>>,
 }
 
-/// Extract structured double-count metadata from a list of requirements and taken courses.
-
-
-// use fulfilled_requirements
-// find all the requirements that are DoubleCount requirements
-// find all the base requirements that are fulfilled for that DoubleCount
-// put that into base_courses
-// find all the base requirements in the suggestions
-// put those suggestions into base_courses
-// find the double_counting requirements' descriptions and put those into dc_descriptions
-// check whether dc is fulfilled for that base_req and put into dc_matched_courses
-// and set dc_fulfilled to true if all are fulfilled
-
-pub fn extract_double_count_info(requirements: &Vec<Requirement>, taken: &Vec<String>, fulfilled: &Vec<MappedRequirement>, suggested: &Vec<MappedRequirement>, cu_map: &HashMap<String, f64>) -> Vec<DoubleCountInfo> {
-    let attributes = attributes_data::create_attributes();
-    let mut result = Vec::new();
-
-    for req in requirements {
-        if let Requirement::DoubleCount { category, double_counting_requirements, base_requirements } = req {
-            let cat_name = category.clone().unwrap_or("Double Count".to_string());
-
-            // 1. Find which base requirement courses are fulfilled
-            let mut base_courses: Vec<String> = Vec::new();
-            for mapped_req in fulfilled {
-                if base_requirements.contains(&mapped_req.requirement) {
-                    base_courses.extend(mapped_req.course_ids.clone());
-                }
-            }
-            for mapped_req in suggested {
-                if base_requirements.contains(&mapped_req.requirement) {
-                    base_courses.extend(mapped_req.course_ids.clone());
-                }
-            }
-
-            // 2. Check each double-counting constraint against base courses
-            let mut dc_pool = base_courses.clone();
-            let mut dc_descriptions = Vec::new();
-            let mut dc_fulfilled = Vec::new();
-            let mut dc_matched_courses: Vec<Vec<String>> = Vec::new();
-
-            for dc_req in double_counting_requirements {
-                // Generate a human-readable description of this constraint
-                let desc = dc_req.create_requirement_description();
-                dc_descriptions.push(desc);
-
-                if let Some(courses) = dc_req.fulfills_requirement(&dc_pool, &attributes, cu_map) {
-                    dc_pool.retain(|x| !courses.contains(x));
-                    dc_fulfilled.push(true);
-                    dc_matched_courses.push(courses);
-                } else {
-                    dc_fulfilled.push(false);
-                    dc_matched_courses.push(vec![]);
-                }
-            }
-
-            result.push(DoubleCountInfo {
-                category: cat_name,
-                base_courses,
-                dc_descriptions,
-                dc_fulfilled,
-                dc_matched_courses,
-            });
-        }
-    }
-
-    result
-}
-
 #[derive(Debug, Serialize, Clone)]
 pub struct ConcentrationInfo {
     pub name: String,
@@ -1660,7 +1809,7 @@ fn course_suggestable(
 }
 
 fn fulfillment_score_for_course_in_degree(
-    per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    per_degree: &[DegreeValidationResult],
     course: &str,
     degree_idx: usize,
     conc_contexts: Option<&[DegreeConcentrationContext]>,
@@ -1668,7 +1817,7 @@ fn fulfillment_score_for_course_in_degree(
     cu_map: &HashMap<String, f64>,
 ) -> usize {
     let mut score = per_degree[degree_idx]
-        .0
+        .fulfilled
         .iter()
         .filter(|m| m.course_ids.contains(&course.to_string()))
         .count();
@@ -1686,7 +1835,7 @@ fn fulfillment_score_for_course_in_degree(
 fn choose_best_two_degrees(
     course: &str,
     degree_indices: &[usize],
-    per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    per_degree: &[DegreeValidationResult],
     conc_contexts: Option<&[DegreeConcentrationContext]>,
     taken: Option<&[String]>,
     cu_map: &HashMap<String, f64>,
@@ -1734,11 +1883,14 @@ fn choose_best_two_degrees(
 }
 
 fn remove_course_from_degree_result(
-    per_degree: &mut [(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    per_degree: &mut [DegreeValidationResult],
     course: &str,
     degree_idx: usize,
 ) {
-    let (fulfilled, unfulfilled) = &mut per_degree[degree_idx];
+    let (fulfilled, unfulfilled) = (
+        &mut per_degree[degree_idx].fulfilled,
+        &mut per_degree[degree_idx].unfulfilled,
+    );
     let mut to_unfulfill = Vec::new();
 
     fulfilled.retain_mut(|mapped| {
@@ -1977,10 +2129,10 @@ fn ug_concentration_priority(
 }
 
 pub fn build_allocations_from_fulfilled(
-    per_degree: &[(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    per_degree: &[DegreeValidationResult],
 ) -> HashMap<String, HashSet<usize>> {
     let mut allocations: HashMap<String, HashSet<usize>> = HashMap::new();
-    for (degree_idx, (fulfilled, unfulfilled)) in per_degree.iter().enumerate() {
+    for (degree_idx, validation) in per_degree.iter().enumerate() {
         let mut record = |course: &String| {
             if course::is_valid_course_code(course) {
                 allocations
@@ -1989,12 +2141,12 @@ pub fn build_allocations_from_fulfilled(
                     .insert(degree_idx);
             }
         };
-        for mapped in fulfilled {
+        for mapped in &validation.fulfilled {
             for course in &mapped.course_ids {
                 record(course);
             }
         }
-        for mapped in unfulfilled {
+        for mapped in &validation.unfulfilled {
             if mapped.partial {
                 for course in &mapped.course_ids {
                     record(course);
@@ -2006,7 +2158,7 @@ pub fn build_allocations_from_fulfilled(
 }
 
 pub fn resolve_cross_degree_conflicts(
-    per_degree: &mut [(Vec<MappedRequirement>, Vec<MappedRequirement>)],
+    per_degree: &mut [DegreeValidationResult],
     degree_schools: &[String],
     degree_majors: &[String],
     cu_map: &HashMap<String, f64>,
@@ -2290,8 +2442,9 @@ mod tests {
         ];
 
         let taken = vec!["FNCE 2030".to_string()];
-        let (fulfilled, unfulfilled) =
-            validate_courses_for_degree(requirements, &taken, &cu_map);
+        let validation = validate_courses_for_degree(requirements, &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
 
         assert_eq!(unfulfilled.len(), 1);
         assert_eq!(fulfilled.len(), 1);
@@ -2329,8 +2482,9 @@ mod tests {
         ];
 
         let taken = vec!["CIS 1200".to_string()];
-        let (fulfilled, unfulfilled) =
-            validate_courses_for_degree(requirements, &taken, &cu_map);
+        let validation = validate_courses_for_degree(requirements, &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
 
         assert_eq!(unfulfilled.len(), 1);
         assert_eq!(fulfilled.len(), 1);
@@ -2372,8 +2526,9 @@ mod tests {
         ];
 
         let taken = vec!["TEST 1000".to_string(), "TEST 1001".to_string()];
-        let (fulfilled, unfulfilled) =
-            validate_courses_for_degree(requirements, &taken, &cu_map);
+        let validation = validate_courses_for_degree(requirements, &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
 
         assert_eq!(unfulfilled.len(), 0);
         assert_eq!(fulfilled.len(), 2);
@@ -2463,8 +2618,9 @@ mod tests {
         let taken = vec!["CIS 5190".to_string()];
         let cu_map = HashMap::from([("CIS 5190".to_string(), 1.0)]);
 
-        let (fulfilled, unfulfilled) =
-            validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
 
         let restriction_with_cis = fulfilled.iter().any(|m| {
             matches!(m.requirement, Requirement::Restriction { .. })
@@ -2500,8 +2656,9 @@ mod tests {
             ("ESE 5000".to_string(), 1.0),
         ]);
 
-        let (fulfilled, unfulfilled) =
-            validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
 
         let foundational = fulfilled
             .iter()
@@ -2556,8 +2713,9 @@ mod tests {
         ];
 
         let taken = vec!["MEAM 1100".to_string(), "CIS 4000".to_string()];
-        let (fulfilled, unfulfilled) =
-            validate_courses_for_degree(requirements, &taken, &cu_map);
+        let validation = validate_courses_for_degree(requirements, &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
 
         let restriction_with_meam = fulfilled.iter().any(|m| {
             matches!(m.requirement, Requirement::Restriction { .. })
@@ -2602,9 +2760,21 @@ mod tests {
         };
 
         let mut per_degree = vec![
-            (vec![mapped("CIS 1200"), mapped("CIS 1200")], vec![]),
-            (vec![mapped("CIS 1200")], vec![]),
-            (vec![mapped("CIS 1200")], vec![]),
+            DegreeValidationResult {
+                fulfilled: vec![mapped("CIS 1200"), mapped("CIS 1200")],
+                unfulfilled: vec![],
+                double_count_info: vec![],
+            },
+            DegreeValidationResult {
+                fulfilled: vec![mapped("CIS 1200")],
+                unfulfilled: vec![],
+                double_count_info: vec![],
+            },
+            DegreeValidationResult {
+                fulfilled: vec![mapped("CIS 1200")],
+                unfulfilled: vec![],
+                double_count_info: vec![],
+            },
         ];
 
         let summary = resolve_cross_degree_conflicts(
@@ -2636,9 +2806,9 @@ mod tests {
         let ms_robo = resolve_major("SEAS_MS", "MS_ROBO", &[]).expect("MS Robotics");
 
         let taken = vec!["MEAM 5200".to_string(), "ESE 4210".to_string()];
-        let (ee_fulfilled, ee_unfulfilled) =
+        let ee_validation =
             validate_courses_for_degree(ee.requirements.clone(), &taken, &cu_map);
-        let (ms_fulfilled, ms_unfulfilled) =
+        let ms_validation =
             validate_courses_for_degree(ms_robo.requirements.clone(), &taken, &cu_map);
 
         let conc_contexts = vec![
@@ -2668,7 +2838,7 @@ mod tests {
             "MEAM 5200 should count toward UG EE via Robotics concentration"
         );
 
-        let mut per_degree = vec![(ee_fulfilled, ee_unfulfilled), (ms_fulfilled, ms_unfulfilled)];
+        let mut per_degree = vec![ee_validation, ms_validation];
         let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
         let majors = vec!["EE".to_string(), "MS_ROBO".to_string()];
 
@@ -2711,5 +2881,115 @@ mod tests {
 
         assert_eq!(conc_info[0].requirements_fulfilled, 0);
         assert!(conc_info[0].matched_courses[0].is_empty());
+    }
+
+    #[test]
+    fn cas_double_count_allows_fa_sector_overlap() {
+        let attributes = attributes_data::create_attributes();
+        let cu_map = HashMap::from([("COLL 0200".to_string(), 1.0)]);
+        let base = vec!["COLL 0200".to_string()];
+        let dc_reqs = vec![
+            Requirement::Restriction {
+                category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["AUQD".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some(
+                    "Sectors of Knowledge — VII — Natural Sciences Across Disciplines".to_string(),
+                ),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["AUNM".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ];
+
+        let evaluations = evaluate_double_count_slots(&base, &dc_reqs, &attributes, &cu_map);
+
+        assert!(evaluations[0].fulfilled, "AUQD via COLL 0200");
+        assert!(
+            evaluations[1].fulfilled,
+            "AUNM should reuse COLL 0200 across FA/Sector groups"
+        );
+        assert_eq!(evaluations[0].course_ids, evaluations[1].course_ids);
+    }
+
+    #[test]
+    fn cas_double_count_blocks_fa_fa_overlap() {
+        let attributes = attributes_data::create_attributes();
+        let cu_map = HashMap::from([("COLL 0200".to_string(), 1.0)]);
+
+        let base = vec!["COLL 0200".to_string()];
+        let dc_reqs = vec![
+            Requirement::Restriction {
+                category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["AUQD".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Foundational Approaches — Formal Reasoning & Analysis".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["AUFR".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ];
+
+        let evaluations = evaluate_double_count_slots(&base, &dc_reqs, &attributes, &cu_map);
+
+        assert!(evaluations[0].fulfilled);
+        assert!(
+            !evaluations[1].fulfilled,
+            "one course cannot satisfy two Foundational Approaches"
+        );
+    }
+
+    #[test]
+    fn validate_emits_double_count_info_for_cas_econ() {
+        use crate::college_data;
+
+        let major = college_data::create_econ_major();
+        let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
+        let taken = vec!["WRIT 0100".to_string()];
+
+        let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        assert_eq!(validation.double_count_info.len(), 1);
+        assert_eq!(
+            validation.double_count_info[0].category,
+            "College of Arts and Sciences"
+        );
+    }
+
+    #[test]
+    fn collect_category_order_flattens_cas_double_count_children() {
+        use crate::college_data;
+
+        let major = college_data::create_econ_major();
+        let mut order = Vec::new();
+        for req in &major.requirements {
+            req.collect_category_order(&mut order);
+        }
+        assert_eq!(order.first().map(String::as_str), Some("Foundational Approaches — Writing"));
+        assert!(order.iter().any(|c| c == "Introductory Econ"));
+        assert!(order.iter().any(|c| c.starts_with("Foundational Approaches —") && c != "Foundational Approaches — Writing"));
+        assert!(order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
+        assert!(!order.iter().any(|c| c == "College of Arts and Sciences"));
     }
 }

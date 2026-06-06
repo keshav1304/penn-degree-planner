@@ -6,6 +6,7 @@ import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isRequirementSlotId } from "@/lib/courseUtils";
 import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
+import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
 
 const YEAR_NAMES = {};
 
@@ -32,6 +33,7 @@ export default function ScheduleGrid({
     doubleCountData, courseDoubleCountMap,
     concentrationData, courseConcentrationMap,
     allCourses,
+    degreeCatalog = [],
     semesterCuLimits, onSemesterCuLimitChange,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
@@ -136,10 +138,17 @@ export default function ScheduleGrid({
 
     // Build degree label → color index map
     const degreeColorMap = {};
+    const degreeDisplayLabels = {};
     const degreeOrder = buildDegreeOrder(scheduleData);
     if (scheduleData?.degree_results) {
         scheduleData.degree_results.forEach((result, i) => {
-            degreeColorMap[`${result.school}-${result.major}`] = DEGREE_COLORS[i % DEGREE_COLORS.length];
+            const key = `${result.school}-${result.major}`;
+            degreeColorMap[key] = DEGREE_COLORS[i % DEGREE_COLORS.length];
+            degreeDisplayLabels[key] = formatDegreeApiLabel(
+                result.school,
+                result.major,
+                degreeCatalog,
+            );
         });
     }
 
@@ -230,7 +239,7 @@ export default function ScheduleGrid({
                         key={`${entry.name}-${entry.degreeLabel}-${i}`}
                         className="dc-badge conc-badge"
                         style={{ borderColor: degreeColorMap[entry.degreeLabel] || "#888" }}
-                        title={`Concentration: ${entry.name} (${entry.degreeLabel})`}
+                        title={`Concentration: ${entry.name} (${degreeDisplayLabels[entry.degreeLabel] || entry.degreeLabel})`}
                     >
                         {entry.name}
                     </span>
@@ -469,7 +478,7 @@ export default function ScheduleGrid({
                     {Object.entries(degreeColorMap).map(([label, color]) => (
                         <div key={label} className="degree-legend-item">
                             <span className="degree-legend-swatch" style={{ background: color }} />
-                            <span>{label}</span>
+                            <span>{degreeDisplayLabels[label] || label}</span>
                         </div>
                     ))}
                 </div>
@@ -546,7 +555,7 @@ export default function ScheduleGrid({
                                         {ci.name}
                                     </span>
                                     <span className="dc-tracker-category">
-                                        {ci.degreeLabel}
+                                        {degreeDisplayLabels[ci.degreeLabel] || ci.degreeLabel}
                                     </span>
                                     <span className="dc-tracker-progress">
                                         {fulfilledCount}/{totalCount}

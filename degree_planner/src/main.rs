@@ -10,6 +10,7 @@ pub mod attributes_data;
 pub mod seas_data;
 pub mod seas_grad_data;
 pub mod wharton_data;
+pub mod college_data;
 pub mod courses_data;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -84,6 +85,7 @@ struct RootPostOutput {
     unfulfilled_requirements: Vec<MappedRequirement>,
     suggested_for_unfulfilled: Vec<MappedRequirement>,
     unapplicable_courses: Vec<String>,
+    double_count_info: Vec<DoubleCountInfo>,
     error: Option<String>
 }
 
@@ -120,12 +122,14 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
         let cu_map: HashMap<String, f64> = all_courses.iter()
             .map(|c| (c.course_code.clone(), c.cu))
             .collect();
-        let (mut fulfilled_requirements, unfulfilled_requirements) =
-            requirement::validate_courses_for_degree(
+        let validation = requirement::validate_courses_for_degree(
                 major_req_unwrapped.requirements.clone(),
                 &taken,
                 &cu_map,
             );
+        let mut fulfilled_requirements = validation.fulfilled;
+        let unfulfilled_requirements = validation.unfulfilled;
+        let double_count_info = validation.double_count_info;
 
         fulfilled_requirements.sort_by_key(|r| r.requirement.get_category());
         let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(
@@ -149,12 +153,14 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
             unfulfilled_requirements,
             suggested_for_unfulfilled,
             unapplicable_courses,
+            double_count_info,
             error: None,
         };
     } else {
         response = RootPostOutput { 
             fulfilled_requirements: vec![], unfulfilled_requirements: vec![], 
             suggested_for_unfulfilled: vec![], unapplicable_courses: vec![],
+            double_count_info: vec![],
             error: Some("Major provided is not valid or has no data associated with it yet!".to_string()),
         }
     }
@@ -393,25 +399,27 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     }
 
     let mut resolved_degrees: Vec<ResolvedDegree> = Vec::new();
-    let mut per_degree_validation: Vec<(Vec<MappedRequirement>, Vec<MappedRequirement>)> = Vec::new();
+    let mut per_degree_validation: Vec<requirement::DegreeValidationResult> = Vec::new();
     let mut degree_schools: Vec<String> = Vec::new();
     let mut degree_majors: Vec<String> = Vec::new();
 
     for degree in &payload.degrees {
         let concs = degree.effective_concentrations();
         if let Some(major_data) = resolve_major(&degree.school, &degree.major, &concs) {
-            let (mut fulfilled, unfulfilled) = requirement::validate_courses_for_degree(
+            let mut validation = requirement::validate_courses_for_degree(
                 major_data.requirements.clone(),
                 &courses_for_validation,
                 &cu_map,
             );
-            for mapped in &mut fulfilled {
+            for mapped in &mut validation.fulfilled {
                 mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());
             }
-            fulfilled.retain(|m| !m.course_ids.is_empty());
-            fulfilled.sort_by_key(|r| r.requirement.get_category());
+            validation.fulfilled.retain(|m| !m.course_ids.is_empty());
+            validation
+                .fulfilled
+                .sort_by_key(|r| r.requirement.get_category());
 
-            per_degree_validation.push((fulfilled, unfulfilled));
+            per_degree_validation.push(validation);
             degree_schools.push(degree.school.clone());
             degree_majors.push(degree.major.clone());
             resolved_degrees.push(ResolvedDegree {
@@ -485,8 +493,16 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         let degree = &resolved.input;
         let major_data = &resolved.major_data;
         let concs = &resolved.concs;
-        let (mut fulfilled, mut unfulfilled) = per_degree_validation[degree_idx].clone();
-        fulfilled.sort_by_key(|r| r.requirement.get_category());
+        per_degree_validation[degree_idx]
+            .refresh_double_count_info(&major_data.requirements, &cu_map);
+        let validation = &mut per_degree_validation[degree_idx];
+        validation
+            .fulfilled
+            .sort_by_key(|r| r.requirement.get_category());
+
+        let fulfilled = validation.fulfilled.clone();
+        let unfulfilled = validation.unfulfilled.clone();
+        let dc_info = validation.double_count_info.clone();
 
         let suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
@@ -576,16 +592,6 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 }
             }
 
-            // Extract double-count metadata
-            let dc_info = requirement::extract_double_count_info(
-                &major_data.requirements,
-                &courses_for_validation,
-                &fulfilled,
-                &suggested,
-                &cu_map,
-            );
-
-            // Extract concentration info
             let conc_info = requirement::extract_concentration_info(
                 &major_data.requirements,
                 &major_data.concentrations,
@@ -604,13 +610,10 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 || major_data.requirements.iter()
                     .any(|r| matches!(r, Requirement::Concentration { .. }));
 
-            // Extract category order from requirement definition
+            // Extract category order from requirement definition (includes nested CAS/DC children)
             let mut category_order: Vec<String> = Vec::new();
             for req in &major_data.requirements {
-                let cat = req.get_category();
-                if !cat.is_empty() && !category_order.contains(&cat) {
-                    category_order.push(cat);
-                }
+                req.collect_category_order(&mut category_order);
             }
 
             degree_results.push(DegreeResult {

@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::Serialize;
 
 use crate::Requirement;
+use crate::college_data;
 use crate::seas_data;
 use crate::seas_grad_data;
 use crate::wharton_data;
@@ -35,38 +36,44 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
     vec![
         SchoolCatalogEntry {
             school_code: "CAS".to_string(),
-            display_name: "College of Arts and Sciences (CAS)".to_string(),
-            majors: vec![MajorCatalogEntry {
-                display_name: "Not implemented (NA)".to_string(),
-                api_code: "NA".to_string(),
-            }],
+            display_name: "College of Arts and Sciences".to_string(),
+            majors: vec![
+                MajorCatalogEntry {
+                    display_name: "Economics".to_string(),
+                    api_code: "ECON".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Mathematical Economics".to_string(),
+                    api_code: "MECON".to_string(),
+                },
+            ],
         },
         SchoolCatalogEntry {
             school_code: "SEAS".to_string(),
             display_name: "SEAS Undergraduate".to_string(),
             majors: vec![
                 MajorCatalogEntry {
-                    display_name: "Electrical Engineering (EE)".to_string(),
+                    display_name: "Electrical Engineering".to_string(),
                     api_code: "EE".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Computer Science, BSE (CIS)".to_string(),
+                    display_name: "Computer Science, BSE".to_string(),
                     api_code: "CIS".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Mechanical Engineering and Applied Mechanics (MEAM)".to_string(),
+                    display_name: "Mechanical Engineering and Applied Mechanics".to_string(),
                     api_code: "MEAM".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Material Science and Engineering (MSE)".to_string(),
+                    display_name: "Materials Science and Engineering".to_string(),
                     api_code: "MSE".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Artificial Intelligence (AI)".to_string(),
+                    display_name: "Artificial Intelligence".to_string(),
                     api_code: "AI".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Computer Engineering (CMPE)".to_string(),
+                    display_name: "Computer Engineering".to_string(),
                     api_code: "CMPE".to_string(),
                 },
             ],
@@ -99,14 +106,14 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
         },
         SchoolCatalogEntry {
             school_code: "WH".to_string(),
-            display_name: "The Wharton School (WH)".to_string(),
+            display_name: "The Wharton School".to_string(),
             majors: vec![
                 MajorCatalogEntry {
-                    display_name: "Foreign Language Required (FL)".to_string(),
+                    display_name: "Foreign Language Required".to_string(),
                     api_code: "WH_FL".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "Foreign Language Exempt (NO_FL)".to_string(),
+                    display_name: "Foreign Language Exempt".to_string(),
                     api_code: "WH_NOFL".to_string(),
                 },
                 MajorCatalogEntry {
@@ -121,9 +128,9 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
         },
         SchoolCatalogEntry {
             school_code: "NURS".to_string(),
-            display_name: "School of Nursing (NURS)".to_string(),
+            display_name: "School of Nursing".to_string(),
             majors: vec![MajorCatalogEntry {
-                display_name: "Not implemented (NA)".to_string(),
+                display_name: "Not implemented".to_string(),
                 api_code: "NA".to_string(),
             }],
         },
@@ -234,7 +241,11 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
             }
         },
         "NURS" => None,
-        "CAS" => None,
+        "CAS" => match major {
+            "ECON" => Some(college_data::create_econ_major()),
+            "MECON" => Some(college_data::create_mathecon_major()),
+            _ => None,
+        },
         _ => None,
     }
 }

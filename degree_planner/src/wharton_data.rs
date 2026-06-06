@@ -663,8 +663,10 @@ mod tests {
             .map(|c| (c.course_code.clone(), c.cu))
             .collect();
         let taken: Vec<String> = vec![];
-        let (fulfilled, unfulfilled) =
+        let validation =
             validate_courses_for_degree(major.requirements.clone(), &taken, &cu_map);
+        let fulfilled = validation.fulfilled;
+        let unfulfilled = validation.unfulfilled;
         let bb_unfulfilled: Vec<_> = unfulfilled
             .iter()
             .chain(fulfilled.iter())

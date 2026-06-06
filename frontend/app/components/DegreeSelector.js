@@ -2,7 +2,12 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { API_BASE } from "@/lib/api";
-import { formatDegreeDisplay, normalizeConcentrations } from "@/lib/degreeDisplay";
+import {
+    formatDegreeDisplay,
+    implementedMajorsForSchool,
+    implementedSchools,
+    normalizeConcentrations,
+} from "@/lib/degreeDisplay";
 
 export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
     const [selectedSchool, setSelectedSchool] = useState("");
@@ -12,14 +17,24 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
     const [concentrations, setConcentrations] = useState([]);
     const [concentrationsLoading, setConcentrationsLoading] = useState(false);
 
+    const selectableSchools = useMemo(
+        () => implementedSchools(degreeCatalog),
+        [degreeCatalog],
+    );
+
     const selectedSchoolEntry = useMemo(
-        () => degreeCatalog?.find((s) => s.display_name === selectedSchool),
-        [degreeCatalog, selectedSchool]
+        () => selectableSchools.find((s) => s.display_name === selectedSchool),
+        [selectableSchools, selectedSchool]
+    );
+
+    const selectableMajors = useMemo(
+        () => implementedMajorsForSchool(selectedSchoolEntry),
+        [selectedSchoolEntry],
     );
 
     const selectedMajorEntry = useMemo(
-        () => selectedSchoolEntry?.majors?.find((m) => m.display_name === selectedMajor),
-        [selectedSchoolEntry, selectedMajor]
+        () => selectableMajors.find((m) => m.display_name === selectedMajor),
+        [selectableMajors, selectedMajor]
     );
 
     const schoolCode = selectedSchoolEntry?.school_code ?? "";
@@ -142,7 +157,7 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
                     }}
                 >
                     <option value="">School…</option>
-                    {degreeCatalog.map((school) => (
+                    {selectableSchools.map((school) => (
                         <option key={school.school_code} value={school.display_name}>
                             {school.display_name}
                         </option>
@@ -159,7 +174,7 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
                         }}
                     >
                         <option value="">Major…</option>
-                        {selectedSchoolEntry?.majors?.map((m) => (
+                        {selectableMajors.map((m) => (
                             <option key={m.api_code} value={m.display_name}>
                                 {m.display_name}
                             </option>
