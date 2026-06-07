@@ -3439,7 +3439,7 @@ mod tests {
 
     #[test]
     fn validate_emits_pool_coverage_for_cas_econ() {
-        use crate::college_data;
+        use crate::college_data::{self};
 
         let major = college_data::create_econ_major();
         let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
@@ -3449,7 +3449,7 @@ mod tests {
         assert_eq!(validation.pool_coverage_info.len(), 1);
         assert_eq!(
             validation.pool_coverage_info[0].category,
-            "College of Arts and Sciences"
+            "General Education"
         );
     }
 
@@ -3571,8 +3571,8 @@ mod tests {
         for req in &major.requirements {
             req.collect_category_order(&mut order);
         }
-        assert_eq!(order.first().map(String::as_str), Some("Foundational Approaches — Writing"));
-        assert!(order.iter().any(|c| c == "College of Arts and Sciences"));
+        assert_eq!(order.first().map(String::as_str), Some("Writing Seminar"));
+        assert!(order.iter().any(|c| c == "General Education"));
         assert!(order.iter().any(|c| c == "Introductory Econ"));
         assert!(!order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
     }

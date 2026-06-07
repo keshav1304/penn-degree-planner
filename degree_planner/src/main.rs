@@ -607,6 +607,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 }
             }
 
+            for (key, target) in &major_data.schedule_hints {
+                if course::is_valid_course_code(key) {
+                    item_targets.insert(key.clone(), target.clone());
+                }
+            }
+
             let mut unapplicable = courses_for_validation.clone();
             for req in &fulfilled {
                 for course in &req.course_ids {

@@ -7,6 +7,7 @@ import {
     filterFrozenPlacements,
     isValidCourseCode,
     isPoolConstraintInstanceId,
+    isPoolFlexibleSlotInstanceId,
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
@@ -110,6 +111,7 @@ export default function RequirementsPanel({
     const allReqs = [];
     const pushIfSchedulable = (mapped, opts) => {
         if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
+        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
         allReqs.push(mapRequirementForDegree(mapped, opts));
     };
     (current.fulfilled_requirements || []).forEach((mapped) => {
@@ -118,6 +120,7 @@ export default function RequirementsPanel({
     (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
         const req = mapped?.requirement ?? mapped;
         if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
+        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
         const item = mapRequirementForDegree(
             { ...mapped, requirement: req },
             { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
@@ -293,7 +296,7 @@ export default function RequirementsPanel({
                             </div>
                             {!isCollapsed && (
                                 <div className="req-group-body">
-                                    {items.map((item, rowIdx) => {
+                                    {!pool && items.map((item, rowIdx) => {
                                         if (isExpandableCourseGroup(item.requirement)) {
                                             return renderCourseGroup(
                                                 item,
@@ -328,7 +331,7 @@ export default function RequirementsPanel({
                                             renderPoolConstraintItem(
                                                 constraint,
                                                 `pool-${pool.pool_index ?? cat}-${j}`,
-                                                items.length === 0 && j === 0,
+                                                j === 0,
                                                 scheduleCtx,
                                             ),
                                         )

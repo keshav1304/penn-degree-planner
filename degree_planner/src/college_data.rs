@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
 use crate::requirement::PoolConstraint;
+use crate::schedule_template::{Y1F, Y1S, Y2F, Y2S, Y3F};
 
 // ── Path@Penn attribute codes ────────────────────────────────────────────────
 
@@ -50,12 +51,14 @@ pub struct CasMajorConfig {
     /// `AULW` + `AUPW` for biology-style majors). Remaining sectors are required.
     pub auto_completed_sectors: Vec<String>,
     pub concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
+    /// Requirement-index and/or course-code keys → preferred `(year, semester)`.
+    pub schedule_hints: HashMap<String, (i32, String)>,
 }
 
 /// Writing is siloed: it may not double-count with any other College requirement.
 fn cas_writing_requirement() -> Requirement {
     Requirement::Restriction {
-        category: Some("Foundational Approaches — Writing".to_string()),
+        category: Some("Writing Seminar".to_string()),
         department: Some(vec!["WRIT".to_string()]),
         cu: None,
         level: None,
@@ -148,7 +151,7 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
     let requirements = vec![
         cas_writing_requirement(),
         Requirement::CoursePool {
-            category: Some("College of Arts and Sciences".to_string()),
+            category: Some("General Education".to_string()),
             fixed_slots: config.major_requirements,
             flexible_slots,
             constraints: cas_pool_constraints(&config.auto_completed_sectors),
@@ -159,7 +162,7 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
         short_name: config.short_name,
         name: config.name,
         requirements,
-        schedule_hints: HashMap::new(),
+        schedule_hints: config.schedule_hints,
         concentrations: config.concentrations,
     }
 }
@@ -170,11 +173,11 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
 fn econ_major_requirements() -> Vec<Requirement> {
     vec![
         Requirement::SingleCourse {
-            category: Some("Introductory Econ".to_string()),
+            category: Some("Introductory Econonomics".to_string()),
             possibilities: vec!["ECON 0100".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Introductory Econ".to_string()),
+            category: Some("Introductory Econonomics".to_string()),
             possibilities: vec!["ECON 0200".to_string()],
         },
         Requirement::SingleCourse {
@@ -242,7 +245,7 @@ fn econ_major_requirements() -> Vec<Requirement> {
             no_school: None,
         },
         Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
+            category: Some("Economics Electives".to_string()),
             department: Some(vec!["ECON".to_string()]),
             cu: None,
             level: Some(4000),
@@ -252,7 +255,7 @@ fn econ_major_requirements() -> Vec<Requirement> {
             no_school: None,
         },
         Requirement::AnyOf {
-            category: Some("Econ — Mathematics".to_string()),
+            category: Some("Mathematics".to_string()),
             possibilities: vec![
                 Requirement::AllOf {
                     category: None,
@@ -289,23 +292,32 @@ fn econ_major_requirements() -> Vec<Requirement> {
 }
 
 pub fn create_econ_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("MATH 1070".to_string(), Y1F.to_pair()),
+        ("MATH 1080".to_string(), Y1S.to_pair()),
+        ("ECON 2100".to_string(), Y2F.to_pair()),
+        ("ECON 2200".to_string(), Y2S.to_pair()),
+        ("ECON 2300".to_string(), Y2F.to_pair()),
+        ("ECON 2310".to_string(), Y2S.to_pair()),
+    ]);
     create_cas_major(CasMajorConfig {
         short_name: "ECON".to_string(),
         name: "Economics".to_string(),
         major_requirements: econ_major_requirements(),
         auto_completed_sectors: vec![SECTOR_SOCIETY.to_string()],
         concentrations: None,
+        schedule_hints,
     })
 }
 
 fn mathecon_major_requirements() -> Vec<Requirement> {
     vec![
         Requirement::SingleCourse {
-            category: Some("Introductory Econ".to_string()),
+            category: Some("Introductory Economics".to_string()),
             possibilities: vec!["ECON 0100".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Introductory Econ".to_string()),
+            category: Some("Introductory Economics".to_string()),
             possibilities: vec!["ECON 0200".to_string()],
         },
         Requirement::SingleCourse {
@@ -457,5 +469,6 @@ pub fn create_mathecon_major() -> Major {
         major_requirements: mathecon_major_requirements(),
         auto_completed_sectors: vec![SECTOR_SOCIETY.to_string()],
         concentrations: None,
+        schedule_hints: HashMap::new(),
     })
 }
