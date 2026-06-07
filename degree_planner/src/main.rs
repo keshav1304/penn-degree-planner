@@ -473,6 +473,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     let ug_conc_claims = requirement::build_ug_concentration_claims(
         &conc_contexts,
         &degree_schools,
+        &per_degree_validation,
         &courses_for_validation,
         &cu_map,
     );
@@ -619,6 +620,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 &concs,
                 &courses_for_validation,
                 &cu_map,
+                Some(&per_degree_validation[degree_idx]),
             );
 
             // Available concentration names

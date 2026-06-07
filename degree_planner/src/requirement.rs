@@ -2039,6 +2039,129 @@ pub struct ConcentrationInfo {
     pub matched_courses: Vec<Vec<String>>,
 }
 
+fn embedded_concentration_category(conc_name: &str) -> String {
+    format!("Concentration - {conc_name}")
+}
+
+fn requirement_has_category(req: &Requirement, target: &str) -> bool {
+    if req.get_category() == target {
+        return true;
+    }
+    match req {
+        Requirement::AllOf { requirements, .. } => requirements
+            .iter()
+            .any(|r| requirement_has_category(r, target)),
+        Requirement::AnyOf { possibilities, .. } => possibilities
+            .iter()
+            .any(|r| requirement_has_category(r, target)),
+        Requirement::CourseGroup { possibilities, .. } => possibilities
+            .iter()
+            .any(|r| requirement_has_category(r, target)),
+        Requirement::Concentration { requirements, .. } => requirements
+            .iter()
+            .any(|r| requirement_has_category(r, target)),
+        _ => false,
+    }
+}
+
+fn requirements_include_embedded_concentration(
+    requirements: &[Requirement],
+    conc_name: &str,
+) -> bool {
+    let target = embedded_concentration_category(conc_name);
+    requirements
+        .iter()
+        .any(|r| requirement_has_category(r, &target))
+}
+
+fn collect_embedded_concentration_slots<'a>(
+    validation: &'a DegreeValidationResult,
+    conc_name: &str,
+) -> Vec<&'a MappedRequirement> {
+    let category = embedded_concentration_category(conc_name);
+    let mut slots: Vec<_> = validation
+        .fulfilled
+        .iter()
+        .chain(validation.unfulfilled.iter())
+        .filter(|m| m.requirement.get_category() == category)
+        .collect();
+    slots.sort_by(|a, b| a.instance_id.cmp(&b.instance_id));
+    slots
+}
+
+fn extract_embedded_concentration_from_validation(
+    validation: &DegreeValidationResult,
+    conc_name: &str,
+    conc_reqs: &[Requirement],
+) -> ConcentrationInfo {
+    let slots = collect_embedded_concentration_slots(validation, conc_name);
+    let req_descriptions: Vec<String> = conc_reqs
+        .iter()
+        .map(|req| {
+            let desc = req.create_requirement_description();
+            if desc.is_empty() {
+                req.get_category()
+            } else {
+                desc
+            }
+        })
+        .collect();
+
+    let mut matched_courses = Vec::new();
+    let mut req_fulfilled = Vec::new();
+    for i in 0..conc_reqs.len() {
+        if let Some(mapped) = slots.get(i) {
+            matched_courses.push(mapped.course_ids.clone());
+            req_fulfilled.push(!mapped.course_ids.is_empty());
+        } else {
+            matched_courses.push(vec![]);
+            req_fulfilled.push(false);
+        }
+    }
+
+    ConcentrationInfo {
+        name: conc_name.to_string(),
+        is_core: false,
+        requirements_total: conc_reqs.len(),
+        requirements_fulfilled: req_fulfilled.iter().filter(|&&x| x).count(),
+        requirement_descriptions: req_descriptions,
+        requirement_fulfilled: req_fulfilled,
+        matched_courses,
+    }
+}
+
+fn fill_overlay_concentration_greedy(
+    conc_reqs: &[Requirement],
+    pool: &mut Vec<String>,
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> (Vec<String>, Vec<bool>, Vec<Vec<String>>) {
+    let mut req_descriptions = Vec::new();
+    let mut req_fulfilled = Vec::new();
+    let mut matched_courses = Vec::new();
+
+    for req in conc_reqs {
+        let desc = req.create_requirement_description();
+        let desc = if desc.is_empty() {
+            req.get_category()
+        } else {
+            desc
+        };
+        req_descriptions.push(desc);
+
+        if let Some(courses) = req.fulfills_requirement(pool, attributes, cu_map) {
+            pool.retain(|x| !courses.contains(x));
+            req_fulfilled.push(true);
+            matched_courses.push(courses);
+        } else {
+            req_fulfilled.push(false);
+            matched_courses.push(vec![]);
+        }
+    }
+
+    (req_descriptions, req_fulfilled, matched_courses)
+}
+
 /// Extract concentration progress info for overlay-style concentrations.
 /// For core concentrations (Requirement::Concentration in requirements), only name + is_core are populated.
 pub fn extract_concentration_info(
@@ -2047,6 +2170,7 @@ pub fn extract_concentration_info(
     selected_concentrations: &[String],
     taken: &Vec<String>,
     cu_map: &HashMap<String, f64>,
+    validation: Option<&DegreeValidationResult>,
 ) -> Vec<ConcentrationInfo> {
     let attributes = attributes_data::create_attributes();
 
@@ -2077,7 +2201,6 @@ pub fn extract_concentration_info(
             .collect();
     }
 
-    // Overlay-style: evaluate each selected concentration
     let mut results = Vec::new();
     let mut remaining_taken = taken.clone();
 
@@ -2087,28 +2210,19 @@ pub fn extract_concentration_info(
             None => continue,
         };
 
-        let mut req_descriptions = Vec::new();
-        let mut req_fulfilled = Vec::new();
-        let mut matched_courses: Vec<Vec<String>> = Vec::new();
-
-        for req in conc_reqs {
-            let desc = req.create_requirement_description();
-            let desc = if desc.is_empty() {
-                req.get_category()
-            } else {
-                desc
-            };
-            req_descriptions.push(desc);
-
-            if let Some(courses) = req.fulfills_requirement(&remaining_taken, &attributes, cu_map) {
-                remaining_taken.retain(|x| !courses.contains(x));
-                req_fulfilled.push(true);
-                matched_courses.push(courses);
-            } else {
-                req_fulfilled.push(false);
-                matched_courses.push(vec![]);
-            }
+        if validation.is_some()
+            && requirements_include_embedded_concentration(requirements, selected)
+        {
+            results.push(extract_embedded_concentration_from_validation(
+                validation.unwrap(),
+                selected,
+                conc_reqs,
+            ));
+            continue;
         }
+
+        let (req_descriptions, req_fulfilled, matched_courses) =
+            fill_overlay_concentration_greedy(conc_reqs, &mut remaining_taken, &attributes, cu_map);
 
         let fulfilled_count = req_fulfilled.iter().filter(|&&x| x).count();
 
@@ -2160,7 +2274,13 @@ fn fulfillment_score_for_course_in_degree(
     if let (Some(contexts), Some(taken)) = (conc_contexts, taken) {
         if let Some(ctx) = contexts.get(degree_idx) {
             score += CONCENTRATION_PRIORITY_WEIGHT
-                * concentration_slots_for_course(ctx, course, taken, cu_map);
+                * concentration_slots_for_course(
+                    ctx,
+                    course,
+                    taken,
+                    cu_map,
+                    per_degree.get(degree_idx),
+                );
         }
     }
 
@@ -2303,6 +2423,7 @@ pub struct DegreeConcentrationContext {
     pub is_overlay: bool,
     pub selected_concentrations: Vec<String>,
     pub concentration_requirements: BTreeMap<String, Vec<Requirement>>,
+    pub degree_requirements: Vec<Requirement>,
 }
 
 pub fn degree_concentration_context_from_major(
@@ -2321,6 +2442,7 @@ pub fn degree_concentration_context_from_major(
         is_overlay,
         selected_concentrations: selected.to_vec(),
         concentration_requirements: concentrations.clone().unwrap_or_default(),
+        degree_requirements: requirements.to_vec(),
     }
 }
 
@@ -2328,30 +2450,26 @@ fn overlay_concentration_courses_for_degree(
     ctx: &DegreeConcentrationContext,
     taken: &[String],
     cu_map: &HashMap<String, f64>,
+    validation: Option<&DegreeValidationResult>,
 ) -> HashSet<String> {
     if !ctx.is_overlay {
         return HashSet::new();
     }
 
-    let attributes = attributes_data::create_attributes();
-    let mut remaining_taken = taken.to_vec();
-    let mut result = HashSet::new();
+    let infos = extract_concentration_info(
+        &ctx.degree_requirements,
+        &Some(ctx.concentration_requirements.clone()),
+        &ctx.selected_concentrations,
+        &taken.to_vec(),
+        cu_map,
+        validation,
+    );
 
-    for selected in &ctx.selected_concentrations {
-        let Some(conc_reqs) = ctx.concentration_requirements.get(selected) else {
-            continue;
-        };
-        for req in conc_reqs {
-            if let Some(courses) = req.fulfills_requirement(&remaining_taken, &attributes, cu_map) {
-                for course in &courses {
-                    result.insert(course.clone());
-                }
-                remaining_taken.retain(|x| !courses.contains(x));
-            }
-        }
-    }
-
-    result
+    infos
+        .iter()
+        .flat_map(|ci| ci.matched_courses.iter().flatten())
+        .cloned()
+        .collect()
 }
 
 pub fn concentration_slots_for_course(
@@ -2359,33 +2477,30 @@ pub fn concentration_slots_for_course(
     course: &str,
     taken: &[String],
     cu_map: &HashMap<String, f64>,
+    validation: Option<&DegreeValidationResult>,
 ) -> usize {
     if !ctx.is_overlay {
         return 0;
     }
 
-    let attributes = attributes_data::create_attributes();
-    let mut count = 0;
-
-    for selected in &ctx.selected_concentrations {
-        let Some(conc_reqs) = ctx.concentration_requirements.get(selected) else {
-            continue;
-        };
-        for req in conc_reqs {
-            if let Some(courses) = req.fulfills_requirement(&taken.to_vec(), &attributes, cu_map) {
-                if courses.iter().any(|c| c == course) {
-                    count += 1;
-                }
-            }
-        }
-    }
-
-    count
+    extract_concentration_info(
+        &ctx.degree_requirements,
+        &Some(ctx.concentration_requirements.clone()),
+        &ctx.selected_concentrations,
+        &taken.to_vec(),
+        cu_map,
+        validation,
+    )
+    .iter()
+    .flat_map(|ci| ci.matched_courses.iter().flatten())
+    .filter(|c| *c == course)
+    .count()
 }
 
 pub fn build_ug_concentration_claims(
     conc_contexts: &[DegreeConcentrationContext],
     degree_schools: &[String],
+    per_degree: &[DegreeValidationResult],
     taken: &[String],
     cu_map: &HashMap<String, f64>,
 ) -> HashMap<String, HashSet<usize>> {
@@ -2395,7 +2510,8 @@ pub fn build_ug_concentration_claims(
         if is_graduate_degree(&degree_schools[degree_idx]) {
             continue;
         }
-        for course in overlay_concentration_courses_for_degree(ctx, &taken, cu_map) {
+        let validation = per_degree.get(degree_idx);
+        for course in overlay_concentration_courses_for_degree(ctx, taken, cu_map, validation) {
             claims.entry(course).or_default().insert(degree_idx);
         }
     }
@@ -2445,11 +2561,17 @@ fn merge_concentration_into_allocations(
     allocations: &mut HashMap<String, HashSet<usize>>,
     conc_contexts: &[DegreeConcentrationContext],
     degree_schools: &[String],
+    per_degree: &[DegreeValidationResult],
     taken: &[String],
     cu_map: &HashMap<String, f64>,
 ) {
-    let ug_conc_claims =
-        build_ug_concentration_claims(conc_contexts, degree_schools, taken, cu_map);
+    let ug_conc_claims = build_ug_concentration_claims(
+        conc_contexts,
+        degree_schools,
+        per_degree,
+        taken,
+        cu_map,
+    );
     merge_concentration_claims_into(allocations, &ug_conc_claims);
 }
 
@@ -2506,13 +2628,14 @@ pub fn resolve_cross_degree_conflicts(
             &mut allocations,
             contexts,
             degree_schools,
+            per_degree,
             taken,
             cu_map,
         );
     }
     let ug_conc_claims = match (conc_contexts, taken) {
         (Some(contexts), Some(taken)) => {
-            build_ug_concentration_claims(contexts, degree_schools, taken, cu_map)
+            build_ug_concentration_claims(contexts, degree_schools, per_degree, taken, cu_map)
         }
         _ => HashMap::new(),
     };
@@ -2655,6 +2778,7 @@ pub fn resolve_cross_degree_conflicts(
                 &mut allocations,
                 contexts,
                 degree_schools,
+                per_degree,
                 taken,
                 cu_map,
             );
@@ -3159,9 +3283,14 @@ mod tests {
             ),
         ];
 
+        let mut per_degree = vec![ee_validation, ms_validation];
+        let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
+        let majors = vec!["EE".to_string(), "MS_ROBO".to_string()];
+
         let ug_conc = build_ug_concentration_claims(
             &conc_contexts,
-            &["SEAS".to_string(), "SEAS_MS".to_string()],
+            &schools,
+            &per_degree,
             &taken,
             &cu_map,
         );
@@ -3172,10 +3301,6 @@ mod tests {
                 .unwrap_or(false),
             "MEAM 5200 should count toward UG EE via Robotics concentration"
         );
-
-        let mut per_degree = vec![ee_validation, ms_validation];
-        let schools = vec!["SEAS".to_string(), "SEAS_MS".to_string()];
-        let majors = vec!["EE".to_string(), "MS_ROBO".to_string()];
 
         resolve_cross_degree_conflicts(
             &mut per_degree,

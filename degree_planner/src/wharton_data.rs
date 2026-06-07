@@ -728,10 +728,60 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
 #[cfg(test)]
 mod tests {
     use super::{create_wh_fl_mt_major, create_wh_nofl_mt_major, Requirement};
+    use crate::major::resolve_major;
     use crate::attributes_data;
     use crate::courses_data;
-    use crate::requirement::{evaluate_pool_constraints, validate_courses_for_degree};
+    use crate::requirement::{evaluate_pool_constraints, extract_concentration_info, validate_courses_for_degree};
     use std::collections::HashMap;
+
+    #[test]
+    fn nofl_mt_concentration_tracker_excludes_flex_fundamental_course() {
+        let major = resolve_major("WH", "WH_NOFL_MT", &["FNCE".to_string()])
+            .expect("WH_NOFL_MT major");
+        let cu_map: HashMap<String, f64> = courses_data::all_courses()
+            .iter()
+            .map(|c| (c.course_code.clone(), c.cu))
+            .collect();
+        let taken = vec![
+            "FNCE 2310".to_string(),
+            "FNCE 2030".to_string(),
+            "FNCE 2050".to_string(),
+            "FNCE 2070".to_string(),
+        ];
+
+        let validation =
+            validate_courses_for_degree(major.requirements.clone(), &taken, &cu_map);
+        let conc_in_validation: Vec<_> = validation
+            .fulfilled
+            .iter()
+            .filter(|m| m.requirement.get_category() == "Concentration - FNCE")
+            .flat_map(|m| m.course_ids.clone())
+            .collect();
+        assert!(
+            !conc_in_validation.contains(&"FNCE 2310".to_string()),
+            "Flex Fundamental course should not fill a concentration slot"
+        );
+        assert_eq!(conc_in_validation.len(), 3);
+
+        let conc_info = extract_concentration_info(
+            &major.requirements,
+            &major.concentrations,
+            &["FNCE".to_string()],
+            &taken,
+            &cu_map,
+            Some(&validation),
+        );
+        assert_eq!(conc_info.len(), 1);
+        assert_eq!(conc_info[0].requirements_fulfilled, 3);
+        assert!(
+            !conc_info[0]
+                .matched_courses
+                .iter()
+                .flatten()
+                .any(|c| c == "FNCE 2310"),
+            "Concentration tracker should match requirements panel"
+        );
+    }
 
     #[test]
     fn nofl_mt_has_no_course_pool() {
