@@ -58,41 +58,44 @@ fn wh_non_wh_constraint(label: &str, count: i32) -> PoolConstraint {
     }
 }
 
-/// WH_FL: 7 LAS courses covering WUHM, WUFL×2, WUNM, WUSS, non-WH×3, WUCN×2, WUCU/WUCN×1.
+/// WH_FL: 7 LAS courses, 11 coverage units. Double-count policy via consumption groups:
+/// - `wh:cc_fl`: FL + CC slots are mutually exclusive per course
+/// - `wh:ssh`: WUHM / WUSS / WUNM mutually exclusive per course (CC may overlap)
+/// - `wh:non_wh`: non-Wharton slots (CC and FL may overlap)
 fn wh_fl_las_pool() -> Requirement {
     Requirement::CoursePool {
         category: Some("Liberal Arts and Sciences".to_string()),
         fixed_slots: vec![],
         flexible_slots: 7,
         constraints: vec![
-            wh_attr_constraint("Humanities (WUHM)", "WUHM", 1, "wh:wuhm"),
-            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:wufl"),
-            wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:wunm"),
-            wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:wuss"),
+            wh_attr_constraint("Humanities (WUHM)", "WUHM", 1, "wh:ssh"),
+            wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:ssh"),
+            wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:ssh"),
             wh_non_wh_constraint("Non-Wharton course", 3),
-            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:wucn"),
-            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:wucu"),
+            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:cc_fl"),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:cc_fl"),
+            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:cc_fl"),
         ],
     }
 }
 
-/// WH_NOFL SSH: humanities/social-science LAS bucket.
+/// WH_NOFL SSH: CC may double-count into SSH and non-Wharton; SSH tags are mutually exclusive.
 fn wh_ssh_las_pool() -> Requirement {
     Requirement::CoursePool {
         category: Some("Liberal Arts and Sciences - SSH".to_string()),
         fixed_slots: vec![],
         flexible_slots: 6,
         constraints: vec![
-            wh_attrs_constraint("Humanities (WUHM)", &["WUHM"], 1, "wh:wuhm"),
-            wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:wunm"),
-            wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:wuss"),
+            wh_attrs_constraint("Humanities (WUHM)", &["WUHM"], 1, "wh:ssh"),
+            wh_attr_constraint("Natural Science & Math (WUNM)", "WUNM", 1, "wh:ssh"),
+            wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:ssh"),
             wh_non_wh_constraint("Non-Wharton course", 3),
-            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:wucn"),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:cross_cultural"),
         ],
     }
 }
 
-/// M&T Wharton LAS bucket.
+/// M&T Wharton LAS bucket — same double-count group rules as WH_FL.
 fn wh_mt_las_pool() -> Requirement {
     Requirement::CoursePool {
         category: Some("Liberal Arts and Sciences".to_string()),
@@ -100,9 +103,9 @@ fn wh_mt_las_pool() -> Requirement {
         flexible_slots: 4,
         constraints: vec![
             wh_attrs_constraint("Humanities / Social Science", &["WUHM", "WUSS"], 2, "wh:ssh"),
-            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 1, "wh:wucn"),
-            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:wucu"),
-            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:wufl"),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 1, "wh:cc_fl"),
+            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:cc_fl"),
+            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:cc_fl"),
         ],
     }
 }

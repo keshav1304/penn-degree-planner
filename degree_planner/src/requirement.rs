@@ -1433,12 +1433,11 @@ pub fn plan_pool_slot_hints(
             .push(eval.label.clone());
     }
 
-    let pair_priority: [(&str, &str); 6] = [
-        ("wh:wucn", "wh:wufl"),
-        ("wh:wucu", "wh:wufl"),
-        ("wh:wucn", "wh:wucu"),
-        ("wh:wuhm", "wh:wunm"),
-        ("wh:wunm", "wh:wuss"),
+    let pair_priority: [(&str, &str); 5] = [
+        ("wh:cc_fl", "wh:ssh"),
+        ("wh:cross_cultural", "wh:ssh"),
+        ("wh:cc_fl", "wh:non_wh"),
+        ("wh:cross_cultural", "wh:non_wh"),
         ("cas:fa", "cas:sector"),
     ];
 
@@ -3329,7 +3328,7 @@ mod tests {
     }
 
     #[test]
-    fn wh_fl_pool_slot_hints_prioritize_wucn_wufl_pairing() {
+    fn wh_fl_pool_blocks_wufl_wucn_same_course() {
         use crate::wharton_data;
 
         let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
@@ -3338,34 +3337,102 @@ mod tests {
             .iter()
             .find(|r| matches!(r, Requirement::CoursePool { .. }))
             .expect("WH_FL LAS pool");
-        let Requirement::CoursePool {
-            constraints,
-            flexible_slots,
-            ..
-        } = pool_req
-        else {
+        let Requirement::CoursePool { constraints, .. } = pool_req else {
             panic!("expected CoursePool");
         };
 
-        let attributes = attributes_data::create_attributes();
-        let cu_map = HashMap::new();
-        let evaluations = evaluate_pool_constraints(&[], constraints, &attributes, &cu_map);
-        let hints = plan_pool_slot_hints(&evaluations, *flexible_slots, 0);
+        let mut attributes = attributes_data::create_attributes();
+        for attr in ["WUFL", "WUCN"] {
+            attributes
+                .entry(attr.to_string())
+                .or_default()
+                .push("SPAN 0100".to_string());
+        }
+        let cu_map = HashMap::from([("SPAN 0100".to_string(), 1.0)]);
+        let pool = vec!["SPAN 0100".to_string()];
 
-        assert_eq!(hints.len(), 7);
+        let evaluations = evaluate_pool_constraints(&pool, constraints, &attributes, &cu_map);
+        let cc_fl_fulfilled = evaluations
+            .iter()
+            .filter(|e| e.consumption_group == "wh:cc_fl" && e.fulfilled)
+            .count();
+        assert_eq!(
+            cc_fl_fulfilled, 1,
+            "WUFL and WUCN share wh:cc_fl — one course satisfies at most one slot"
+        );
+    }
+
+    #[test]
+    fn wh_fl_pool_allows_wucn_wuhm_overlap() {
+        use crate::wharton_data;
+
+        let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
+        let pool_req = major
+            .requirements
+            .iter()
+            .find(|r| matches!(r, Requirement::CoursePool { .. }))
+            .expect("WH_FL LAS pool");
+        let Requirement::CoursePool { constraints, .. } = pool_req else {
+            panic!("expected CoursePool");
+        };
+
+        let mut attributes = attributes_data::create_attributes();
+        for attr in ["WUCN", "WUHM"] {
+            attributes
+                .entry(attr.to_string())
+                .or_default()
+                .push("ANTH 0001".to_string());
+        }
+        let cu_map = HashMap::from([("ANTH 0001".to_string(), 1.0)]);
+        let pool = vec!["ANTH 0001".to_string()];
+
+        let evaluations = evaluate_pool_constraints(&pool, constraints, &attributes, &cu_map);
         assert!(
-            hints[0].contains("WUCN") && hints[0].contains("WUFL"),
-            "first slot: {}",
-            hints[0]
+            evaluations
+                .iter()
+                .any(|e| e.consumption_group == "wh:cc_fl" && e.fulfilled && e.label == "WUCN"),
+            "cross-cultural slot"
         );
         assert!(
-            hints[1].contains("WUCN") && hints[1].contains("WUFL"),
-            "second slot: {}",
-            hints[1]
+            evaluations
+                .iter()
+                .any(|e| e.consumption_group == "wh:ssh" && e.fulfilled && e.label == "WUHM"),
+            "humanities slot via CC double-count"
         );
-        assert!(
-            evaluations.iter().any(|e| e.label == "WUHM"),
-            "WH_FL pool should include WUHM coverage"
+    }
+
+    #[test]
+    fn wh_fl_pool_blocks_wuhm_wuss_same_course() {
+        use crate::wharton_data;
+
+        let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
+        let pool_req = major
+            .requirements
+            .iter()
+            .find(|r| matches!(r, Requirement::CoursePool { .. }))
+            .expect("WH_FL LAS pool");
+        let Requirement::CoursePool { constraints, .. } = pool_req else {
+            panic!("expected CoursePool");
+        };
+
+        let mut attributes = attributes_data::create_attributes();
+        for attr in ["WUHM", "WUSS"] {
+            attributes
+                .entry(attr.to_string())
+                .or_default()
+                .push("TEST 0001".to_string());
+        }
+        let cu_map = HashMap::from([("TEST 0001".to_string(), 1.0)]);
+        let pool = vec!["TEST 0001".to_string()];
+
+        let evaluations = evaluate_pool_constraints(&pool, constraints, &attributes, &cu_map);
+        let ssh_fulfilled = evaluations
+            .iter()
+            .filter(|e| e.consumption_group == "wh:ssh" && e.fulfilled)
+            .count();
+        assert_eq!(
+            ssh_fulfilled, 1,
+            "WUHM and WUSS share wh:ssh — one course satisfies at most one SSH slot"
         );
     }
 

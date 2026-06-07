@@ -503,7 +503,6 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         let fulfilled = validation.fulfilled.clone();
         let unfulfilled = validation.unfulfilled.clone();
         let pool_coverage = validation.pool_coverage_info.clone();
-        let mut pool_hint_cursor: HashMap<usize, usize> = HashMap::new();
 
         let suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
@@ -578,8 +577,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         && !all_requirement_slots.contains(course_id)
                     {
                         all_requirement_slots.push(course_id.clone());
-                        let mut label = mapped.requirement.slot_label_for_id(course_id);
-                        if mapped
+                        let label = if mapped
                             .instance_id
                             .as_deref()
                             .is_some_and(|id| id.contains(":p"))
@@ -590,18 +588,19 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                                 .and_then(|id| id.split(':').next())
                                 .and_then(|s| s.parse::<usize>().ok())
                             {
-                                if let Some(pool) = pool_coverage
+                                pool_coverage
                                     .iter()
                                     .find(|p| p.pool_index == pool_idx)
-                                {
-                                    let cursor = pool_hint_cursor.entry(pool_idx).or_insert(0);
-                                    if let Some(hint) = pool.slot_hints.get(*cursor) {
-                                        label = format!("{label}\n↳ {hint}");
-                                        *cursor += 1;
-                                    }
-                                }
+                                    .map(|p| format!("1 CU from {}", p.category))
+                                    .unwrap_or_else(|| {
+                                        mapped.requirement.slot_label_for_id(course_id)
+                                    })
+                            } else {
+                                mapped.requirement.slot_label_for_id(course_id)
                             }
-                        }
+                        } else {
+                            mapped.requirement.slot_label_for_id(course_id)
+                        };
                         slot_labels.insert(course_id.clone(), label);
                     }
                 }

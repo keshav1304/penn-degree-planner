@@ -17,20 +17,12 @@ const DEGREE_COLORS = [
     "#7c3aed",  // purple
 ];
 
-const POOL_COLORS = [
-    "#6366f1",  // indigo
-    "#ec4899",  // pink
-    "#14b8a6",  // teal
-    "#f59e0b",  // amber
-];
-
 export default function ScheduleGrid({
     scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementLinks,
     crossDegreeViolationsByCourse = {},
     onNavigateToRequirement, allowSummer,
-    coursePoolConstraintMap,
     concentrationData, courseConcentrationMap,
     allCourses,
     degreeCatalog = [],
@@ -203,29 +195,7 @@ export default function ScheduleGrid({
                 }}
             >
                 ℹ️
-                {links.length > 1 && (
-                    <span className="course-info-link-count">{links.length}</span>
-                )}
             </a>
-        );
-    };
-
-    const renderPoolBadges = (courseId) => {
-        const poolEntries = coursePoolConstraintMap?.[courseId];
-        if (!poolEntries || poolEntries.length === 0) return null;
-        return (
-            <span className="dc-badges">
-                {poolEntries.map((entry, i) => (
-                    <span
-                        key={i}
-                        className={`dc-badge ${entry.isCoverageMatch ? "dc-badge-matched" : ""}`}
-                        style={{ borderColor: POOL_COLORS[entry.poolIndex % POOL_COLORS.length] }}
-                        title={`${entry.poolCategory} (${entry.poolLabel})${entry.constraintLabels?.length ? `: ${entry.constraintLabels.join(", ")}` : ""}${entry.isCoverageMatch ? " ✓ covered" : ""}`}
-                    >
-                        {entry.poolLabel}
-                    </span>
-                ))}
-            </span>
         );
     };
 
@@ -252,10 +222,7 @@ export default function ScheduleGrid({
         const frozen = isFrozen(slotId);
         let className = "schedule-course schedule-requirement";
         if (frozen) className += " frozen";
-        const slotLabelRaw = getSlotLabel(slotId);
-        const hintSplit = slotLabelRaw.split(/\n↳\s*/);
-        const slotLabel = hintSplit[0];
-        const poolHint = hintSplit[1] || null;
+        const slotLabel = getSlotLabel(slotId).split(/\n↳/)[0].trim();
 
         const handleClick = () => {
             onToggleFreeze(slotId, year, sem);
@@ -275,11 +242,6 @@ export default function ScheduleGrid({
                         title={frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"}
                     >
                         <span className="schedule-requirement-label">{slotLabel}</span>
-                        {poolHint && (
-                            <span className="schedule-requirement-dc-hint">
-                                ↳ {poolHint}
-                            </span>
-                        )}
                         <span className="course-card-actions">
                             {renderInfoLink(slotId)}
                             <span className="course-cu-label">1.0 CU</span>
@@ -336,7 +298,6 @@ export default function ScheduleGrid({
                         <span>{courseId}</span>
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
-                            {renderPoolBadges(courseId)}
                             {renderInfoLink(courseId)}
                             <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
                         </span>
@@ -385,7 +346,6 @@ export default function ScheduleGrid({
                                                     <span>{a.courseId}</span>
                                     <span className="course-card-actions">
                                         {renderConcBadges(a.courseId)}
-                                        {renderPoolBadges(a.courseId)}
                                         {renderInfoLink(a.courseId)}
                                     </span>
                                                 </div>

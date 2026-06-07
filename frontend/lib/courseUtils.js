@@ -14,6 +14,12 @@ export function isRequirementSlotId(id) {
   return typeof id === "string" && id.startsWith("req:");
 }
 
+/** Flexible pool slot placeholders (`1:p0`) — shown on schedule, not in requirements panel. */
+export function isPoolFlexibleSlotInstanceId(instanceId) {
+  if (!instanceId || typeof instanceId !== "string") return false;
+  return instanceId.split(":").some((seg) => /^p\d+$/.test(seg));
+}
+
 /** Pool coverage constraints (`1:c0`) — not schedulable CU. */
 export function isPoolConstraintInstanceId(instanceId) {
   if (!instanceId || typeof instanceId !== "string") return false;

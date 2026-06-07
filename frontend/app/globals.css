@@ -1325,12 +1325,15 @@ select {
 }
 
 .req-pool-divider {
-  padding: 6px 8px 4px;
-  font-size: 0.68rem;
+  padding: 5px 8px;
+  font-size: var(--sidebar-font-body);
   font-weight: 600;
-  color: var(--text-muted);
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  color: var(--text-secondary);
   line-height: 1.35;
+}
+
+.req-pool-divider.req-item-first {
+  border-top: none;
 }
 
 .req-item {

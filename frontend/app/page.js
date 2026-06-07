@@ -414,37 +414,6 @@ export default function Home() {
     return links;
   }, [scheduleData, courseDegreesMap]);
 
-  // ─── Build pool coverage data (for course badges) ───
-  const { coursePoolConstraintMap } = useMemo(() => {
-    const poolCourseMap = {};
-    if (scheduleData?.degree_results) {
-      scheduleData.degree_results.forEach((result) => {
-        const degreeLabel = `${result.school}-${result.major}`;
-        (result.pool_coverage_info || []).forEach((pool, poolIdx) => {
-          const poolLabel = `P${poolIdx + 1}`;
-          (pool.pool_courses || []).forEach((courseId) => {
-            if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
-            const matchedConstraints = (pool.constraints || []).filter(
-              (c) => c.matched_courses?.includes(courseId),
-            );
-            if (!poolCourseMap[courseId]) poolCourseMap[courseId] = [];
-            if (!poolCourseMap[courseId].some((e) => e.poolLabel === poolLabel && e.degreeLabel === degreeLabel)) {
-              poolCourseMap[courseId].push({
-                poolIndex: poolIdx,
-                poolLabel,
-                poolCategory: pool.category,
-                degreeLabel,
-                isCoverageMatch: matchedConstraints.some((c) => c.fulfilled),
-                constraintLabels: matchedConstraints.map((c) => c.label),
-              });
-            }
-          });
-        });
-      });
-    }
-    return { coursePoolConstraintMap: poolCourseMap };
-  }, [scheduleData, courseDegreesMap]);
-
   // ─── Build concentration tracker data ───
   const { concentrationData, courseConcentrationMap } = useMemo(() => {
     const concList = [];
@@ -568,7 +537,6 @@ export default function Home() {
                   setReqNavTarget(target);
                 }}
                 allowSummer={allowSummer}
-                coursePoolConstraintMap={coursePoolConstraintMap}
                 concentrationData={concentrationData}
                 courseConcentrationMap={courseConcentrationMap}
                 allCourses={allCourses}
