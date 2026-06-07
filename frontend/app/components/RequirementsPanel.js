@@ -7,7 +7,6 @@ import {
     filterFrozenPlacements,
     isValidCourseCode,
     isPoolConstraintInstanceId,
-    isPoolFlexibleSlotInstanceId,
 } from "@/lib/courseUtils";
 import {
     childMatchesAnyOfFulfillment,
@@ -111,7 +110,6 @@ export default function RequirementsPanel({
     const allReqs = [];
     const pushIfSchedulable = (mapped, opts) => {
         if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
-        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
         allReqs.push(mapRequirementForDegree(mapped, opts));
     };
     (current.fulfilled_requirements || []).forEach((mapped) => {
@@ -120,7 +118,6 @@ export default function RequirementsPanel({
     (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
         const req = mapped?.requirement ?? mapped;
         if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
-        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
         const item = mapRequirementForDegree(
             { ...mapped, requirement: req },
             { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
@@ -280,11 +277,9 @@ export default function RequirementsPanel({
                                 className="req-group-header"
                                 onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
                             >
-                                {!pool && (
-                                    <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
-                                        {groupDone ? "✓" : "·"}
-                                    </span>
-                                )}
+                                <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
+                                    {groupDone ? "✓" : "·"}
+                                </span>
                                 <span className="req-group-name" title={cat}>{cat}</span>
                                 <span className={`req-group-pill ${pool ? (poolSlotsDone ? "pill-done" : "pill-pending") : (groupDone ? "pill-done" : "pill-pending")}`}>
                                     {pillLabel}
@@ -298,7 +293,7 @@ export default function RequirementsPanel({
                             </div>
                             {!isCollapsed && (
                                 <div className="req-group-body">
-                                    {!pool && items.map((item, rowIdx) => {
+                                    {items.map((item, rowIdx) => {
                                         if (isExpandableCourseGroup(item.requirement)) {
                                             return renderCourseGroup(
                                                 item,
@@ -329,23 +324,14 @@ export default function RequirementsPanel({
                                         );
                                     })}
                                     {pool && (pool.constraints || []).length > 0 && (
-                                        <>
-                                            <div className="req-pool-divider req-item-first">
-                                                {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
-                                                {" "}cover{poolStats.slotsTotal === 1 ? "s" : ""}
-                                                {" "}{poolStats.covTotal} requirement{poolStats.covTotal === 1 ? "" : "s"}
-                                                {poolStats.covTotal > poolStats.slotsTotal
-                                                    ? " (double-counting allowed)"
-                                                    : ""}
-                                            </div>
-                                            {(pool.constraints || []).map((constraint, j) =>
-                                                renderPoolConstraintItem(
-                                                    constraint,
-                                                    `pool-${pool.pool_index ?? cat}-${j}`,
-                                                    false,
-                                                ),
-                                            )}
-                                        </>
+                                        (pool.constraints || []).map((constraint, j) =>
+                                            renderPoolConstraintItem(
+                                                constraint,
+                                                `pool-${pool.pool_index ?? cat}-${j}`,
+                                                items.length === 0 && j === 0,
+                                                scheduleCtx,
+                                            ),
+                                        )
                                     )}
                                 </div>
                             )}
@@ -778,15 +764,16 @@ function poolGroupStats(pool) {
     return { slotsFilled, slotsTotal, covDone, covTotal };
 }
 
-function renderPoolConstraintItem(constraint, rowKey, isFirst) {
+function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx) {
     const rowTone = constraint.fulfilled ? "fulfilled" : "open";
+    const fulfillingSet = new Set(constraint.matched_courses || []);
     return (
         <div
             key={rowKey}
             className={`req-item req-item--${rowTone} ${isFirst ? "req-item-first" : ""}`}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
-                {constraint.fulfilled ? "✓" : "•"}
+                {constraint.fulfilled ? "✓" : "○"}
             </span>
             <div className="req-item-body">
                 <div className="req-item-line">
@@ -798,7 +785,15 @@ function renderPoolConstraintItem(constraint, rowKey, isFirst) {
                             <span className="req-item-colon">:</span>
                             <span className="req-chips">
                                 {constraint.matched_courses.map((courseId) => (
-                                    <span key={courseId} className={chipClass("fulfilled")}>
+                                    <span
+                                        key={courseId}
+                                        className={chipClass(badgeKindFor(courseId, {
+                                            ...scheduleCtx,
+                                            fulfillingSet,
+                                            partialTone: false,
+                                        }))}
+                                        title={scheduleCtx.crossDegreeChipTitle?.(courseId)}
+                                    >
                                         {courseId}
                                     </span>
                                 ))}

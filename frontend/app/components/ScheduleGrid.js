@@ -37,18 +37,18 @@ export default function ScheduleGrid({
 
     if (!degrees || degrees.length === 0) {
         return (
-            <div className="empty-state">
-                <div className="emoji" style={{ fontSize: "2rem", marginBottom: 8 }}>🏫</div>
-                <div style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8", fontSize: "0.82rem"}}>Add a degree above to generate your schedule</div>
+            <div className="req-empty-state">
+                <div className="req-empty-icon">🏫</div>
+                <div className="req-empty-text">Add a degree above to generate your schedule</div>
             </div>
         );
     }
 
     if (!scheduleData || !scheduleData.schedule) {
         return (
-            <div className="empty-state">
+            <div className="req-empty-state">
                 <div className="loading-spinner" style={{ width: 24, height: 24 }} />
-                <div style={{ textAlign: "center", padding: "36px 20px", color: "#94a3b8", fontSize: "0.82rem", marginTop: 10 }}>Generating schedule…</div>
+                <div className="req-empty-text">Generating schedule…</div>
             </div>
         );
     }
