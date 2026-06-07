@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
-use crate::requirement::PoolConstraint;
-use crate::schedule_template::{Y1F, Y1S, Y2F, Y2S, Y3F};
+use crate::requirement::{PoolConstraint, PoolCoverageInfo};
+use crate::schedule_template::{Y1F, Y1S, Y2F, Y2S, Y3F, Y3S};
+use serde::Serialize;
 
 // ── Path@Penn attribute codes ────────────────────────────────────────────────
 
@@ -40,6 +41,129 @@ const SECTORS: &[(&str, &str)] = &[
     ("VI — Physical World", SECTOR_PHYSICAL_WORLD),
     ("VII — Natural Sciences Across Disciplines", SECTOR_NAT_SCI),
 ];
+
+/// Sector attribute codes auto-completed when a CAS major is declared.
+pub fn cas_auto_completed_sectors_for(short_name: &str) -> Vec<String> {
+    match short_name {
+        "ECON" | "MECON" => vec![SECTOR_SOCIETY.to_string()],
+        _ => vec![],
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct CasGenEdRequirementStatus {
+    pub name: String,
+    pub attr: String,
+    pub fulfilled: bool,
+    pub fulfilled_by_major: bool,
+    pub matched_courses: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct CasGenEdInfo {
+    pub foundational_approaches: Vec<CasGenEdRequirementStatus>,
+    pub sectors: Vec<CasGenEdRequirementStatus>,
+}
+
+pub fn build_cas_gen_ed_info(
+    pool: &PoolCoverageInfo,
+    auto_completed_sectors: &[String],
+) -> CasGenEdInfo {
+    let constraint_for_attr = |attr: &str| {
+        pool.constraints
+            .iter()
+            .find(|c| c.label == attr)
+    };
+
+    let foundational_approaches = FOUNDATIONAL_APPROACHES
+        .iter()
+        .map(|(name, attr)| {
+            if let Some(c) = constraint_for_attr(attr) {
+                CasGenEdRequirementStatus {
+                    name: name.to_string(),
+                    attr: attr.to_string(),
+                    fulfilled: c.fulfilled,
+                    fulfilled_by_major: false,
+                    matched_courses: c.matched_courses.clone(),
+                }
+            } else {
+                CasGenEdRequirementStatus {
+                    name: name.to_string(),
+                    attr: attr.to_string(),
+                    fulfilled: false,
+                    fulfilled_by_major: false,
+                    matched_courses: vec![],
+                }
+            }
+        })
+        .collect();
+
+    let sectors = SECTORS
+        .iter()
+        .map(|(name, attr)| {
+            if auto_completed_sectors.iter().any(|s| s == attr) {
+                CasGenEdRequirementStatus {
+                    name: name.to_string(),
+                    attr: attr.to_string(),
+                    fulfilled: true,
+                    fulfilled_by_major: true,
+                    matched_courses: vec![],
+                }
+            } else if let Some(c) = constraint_for_attr(attr) {
+                CasGenEdRequirementStatus {
+                    name: name.to_string(),
+                    attr: attr.to_string(),
+                    fulfilled: c.fulfilled,
+                    fulfilled_by_major: false,
+                    matched_courses: c.matched_courses.clone(),
+                }
+            } else {
+                CasGenEdRequirementStatus {
+                    name: name.to_string(),
+                    attr: attr.to_string(),
+                    fulfilled: false,
+                    fulfilled_by_major: false,
+                    matched_courses: vec![],
+                }
+            }
+        })
+        .collect();
+
+    CasGenEdInfo {
+        foundational_approaches,
+        sectors,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cas_gen_ed_info_lists_major_completed_sector() {
+        let major = create_econ_major();
+        let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
+        let taken = vec!["WRIT 0100".to_string()];
+        let validation =
+            crate::requirement::validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let pool = validation
+            .pool_coverage_info
+            .into_iter()
+            .find(|p| p.category == "General Education")
+            .expect("gen ed pool");
+        let info = build_cas_gen_ed_info(&pool, &cas_auto_completed_sectors_for("ECON"));
+
+        assert_eq!(info.foundational_approaches.len(), 5);
+        assert_eq!(info.sectors.len(), 7);
+        let society = info
+            .sectors
+            .iter()
+            .find(|s| s.attr == SECTOR_SOCIETY)
+            .expect("society sector");
+        assert!(society.fulfilled);
+        assert!(society.fulfilled_by_major);
+    }
+}
 
 /// College-wide gen-ed configuration shared by every CAS major.
 pub struct CasMajorConfig {
@@ -158,11 +282,14 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
         },
     ];
 
+    let mut schedule_hints = config.schedule_hints;
+    schedule_hints.insert("0".to_string(), Y1F.to_pair());
+
     Major {
         short_name: config.short_name,
         name: config.name,
         requirements,
-        schedule_hints: config.schedule_hints,
+        schedule_hints,
         concentrations: config.concentrations,
     }
 }
@@ -181,11 +308,11 @@ fn econ_major_requirements() -> Vec<Requirement> {
             possibilities: vec!["ECON 0200".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Intermediate Econ".to_string()),
+            category: Some("Intermediate Economics".to_string()),
             possibilities: vec!["ECON 2100".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Intermediate Econ".to_string()),
+            category: Some("Intermediate Economics".to_string()),
             possibilities: vec!["ECON 2200".to_string()],
         },
         Requirement::AnyOf {
@@ -295,6 +422,8 @@ pub fn create_econ_major() -> Major {
     let schedule_hints = HashMap::from([
         ("MATH 1070".to_string(), Y1F.to_pair()),
         ("MATH 1080".to_string(), Y1S.to_pair()),
+        ("ECON 0100".to_string(), Y1F.to_pair()),
+        ("ECON 0200".to_string(), Y1S.to_pair()),
         ("ECON 2100".to_string(), Y2F.to_pair()),
         ("ECON 2200".to_string(), Y2S.to_pair()),
         ("ECON 2300".to_string(), Y2F.to_pair()),
@@ -321,15 +450,15 @@ fn mathecon_major_requirements() -> Vec<Requirement> {
             possibilities: vec!["ECON 0200".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Intermediate Econ".to_string()),
+            category: Some("Intermediate Economics".to_string()),
             possibilities: vec!["ECON 2100".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Intermediate Econ".to_string()),
+            category: Some("Intermediate Economics".to_string()),
             possibilities: vec!["ECON 2200".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Intermediate Econ".to_string()),
+            category: Some("Intermediate Economics".to_string()),
             possibilities: vec!["ECON 6100".to_string()],
         },
 
@@ -463,12 +592,35 @@ fn mathecon_major_requirements() -> Vec<Requirement> {
 }
 
 pub fn create_mathecon_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("ECON 0100".to_string(), Y1F.to_pair()),
+        ("ECON 0200".to_string(), Y1S.to_pair()),
+        ("MATH 1080".to_string(), Y1S.to_pair()),
+        ("MATH 1410".to_string(), Y1F.to_pair()),
+        ("MATH 1610".to_string(), Y1F.to_pair()),
+        ("ECON 2100".to_string(), Y2F.to_pair()),
+        ("ECON 2200".to_string(), Y2S.to_pair()),
+        ("ECON 2300".to_string(), Y2F.to_pair()),
+        ("ECON 2310".to_string(), Y2S.to_pair()),
+        ("STAT 4300".to_string(), Y2F.to_pair()),
+        ("STAT 4310".to_string(), Y2S.to_pair()),
+        ("ESE 3010".to_string(), Y2F.to_pair()),
+        ("ESE 4020".to_string(), Y2S.to_pair()),
+        ("MATH 3000".to_string(), Y2F.to_pair()),
+        ("ECON 6100".to_string(), Y3F.to_pair()),
+        ("MATH 3600".to_string(), Y3F.to_pair()),
+        ("MATH 3610".to_string(), Y3S.to_pair()),
+        ("MATH 5080".to_string(), Y3F.to_pair()),
+        ("MATH 5090".to_string(), Y3S.to_pair()),
+        ("MATH 5460".to_string(), Y3S.to_pair()),
+        ("ESE 2310".to_string(), Y3S.to_pair()),
+    ]);
     create_cas_major(CasMajorConfig {
         short_name: "MECON".to_string(),
         name: "Mathematical Economics".to_string(),
         major_requirements: mathecon_major_requirements(),
         auto_completed_sectors: vec![SECTOR_SOCIETY.to_string()],
         concentrations: None,
-        schedule_hints: HashMap::new(),
+        schedule_hints,
     })
 }

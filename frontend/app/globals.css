@@ -1336,6 +1336,52 @@ select {
   border-top: none;
 }
 
+.req-cas-gened-section + .req-cas-gened-section {
+  margin-top: 4px;
+}
+
+.req-cas-gened-heading {
+  padding: 8px 8px 2px;
+  font-size: var(--sidebar-font-meta);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.req-cas-gened-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: var(--sidebar-font-body);
+}
+
+.req-cas-gened-section .req-cas-gened-row:first-of-type {
+  border-top: none;
+}
+
+.req-cas-gened-row--fulfilled {
+  background: rgba(22, 163, 74, 0.04);
+}
+
+.req-cas-gened-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.req-cas-gened-attr {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.req-cas-gened-note {
+  font-size: var(--sidebar-font-meta);
+  color: var(--success);
+  font-style: italic;
+}
+
 .req-item {
   display: flex;
   align-items: flex-start;

@@ -254,11 +254,27 @@ export default function RequirementsPanel({
                     const pool = pools.find((p) => normalizeCategory(p.category) === cat);
                     if (!items.length && !pool) return null;
 
+                    const casGenEd = current.school === "CAS"
+                        && pool
+                        && normalizeCategory(pool.category) === "General Education"
+                        && current.cas_gen_ed
+                        ? current.cas_gen_ed
+                        : null;
+                    const casProgress = casGenEd ? casGenEdProgress(casGenEd) : null;
+                    const { major: majorDisplayName } = formatDegreeDisplay(
+                        degrees[tabIndex],
+                        current,
+                        degreeCatalog,
+                    );
+
                     const poolStats = pool ? poolGroupStats(pool) : null;
                     const done = items.filter((r) => r.fulfilled).length;
                     const groupDone = poolStats
-                        ? poolStats.slotsFilled >= poolStats.slotsTotal
-                            && poolStats.covDone >= poolStats.covTotal
+                        ? casProgress
+                            ? casProgress.done === casProgress.total
+                                && poolStats.slotsFilled >= poolStats.slotsTotal
+                            : poolStats.slotsFilled >= poolStats.slotsTotal
+                                && poolStats.covDone >= poolStats.covTotal
                         : done === items.length;
                     const isCollapsed = (() => {
                         if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
@@ -326,15 +342,35 @@ export default function RequirementsPanel({
                                             flashRowId
                                         );
                                     })}
-                                    {pool && (pool.constraints || []).length > 0 && (
-                                        (pool.constraints || []).map((constraint, j) =>
-                                            renderPoolConstraintItem(
-                                                constraint,
-                                                `pool-${pool.pool_index ?? cat}-${j}`,
-                                                j === 0,
-                                                scheduleCtx,
-                                            ),
+                                    {casGenEd ? (
+                                        renderCasGenEdPool(
+                                            casGenEd,
+                                            poolStats,
+                                            casProgress,
+                                            majorDisplayName,
+                                            scheduleCtx,
+                                            degreeLabel,
+                                            courseDegreesMap,
                                         )
+                                    ) : pool && (pool.constraints || []).length > 0 && (
+                                        <>
+                                            <div className="req-pool-divider req-item-first">
+                                                {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
+                                                {" "}to fulfill{" "}
+                                                {poolStats.covTotal} requirement{poolStats.covTotal === 1 ? "" : "s"}
+                                                {poolStats.covTotal > poolStats.slotsTotal
+                                                    ? " (double-counting permitted)"
+                                                    : ""}
+                                            </div>
+                                            {(pool.constraints || []).map((constraint, j) =>
+                                                renderPoolConstraintItem(
+                                                    constraint,
+                                                    `pool-${pool.pool_index ?? cat}-${j}`,
+                                                    false,
+                                                    scheduleCtx,
+                                                ),
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             )}
@@ -765,6 +801,119 @@ function poolGroupStats(pool) {
     const covDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
     const covTotal = (pool.constraints || []).length;
     return { slotsFilled, slotsTotal, covDone, covTotal };
+}
+
+function casGenEdProgress(casGenEd) {
+    const rows = [
+        ...(casGenEd.foundational_approaches || []),
+        ...(casGenEd.sectors || []),
+    ];
+    return {
+        done: rows.filter((r) => r.fulfilled).length,
+        total: rows.length,
+    };
+}
+
+function renderCasGenEdPool(
+    casGenEd,
+    poolStats,
+    casProgress,
+    majorDisplayName,
+    scheduleCtx,
+    degreeLabel,
+    courseDegreesMap,
+) {
+    const reqTotal = casProgress?.total ?? poolStats.covTotal;
+    const doubleCount = reqTotal > poolStats.slotsTotal;
+
+    return (
+        <div className="req-cas-gened">
+            <div className="req-pool-divider req-item-first">
+                {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
+                {" "}to fulfill{" "}
+                {reqTotal} requirement{reqTotal === 1 ? "" : "s"}
+                {doubleCount ? " (double-counting permitted)" : ""}
+            </div>
+            <div className="req-cas-gened-section">
+                <div className="req-cas-gened-heading">Foundational Approaches</div>
+                {(casGenEd.foundational_approaches || []).map((row) =>
+                    renderCasGenEdRow(
+                        row,
+                        null,
+                        scheduleCtx,
+                        degreeLabel,
+                        courseDegreesMap,
+                    ),
+                )}
+            </div>
+            <div className="req-cas-gened-section">
+                <div className="req-cas-gened-heading">Sectors of Knowledge</div>
+                {(casGenEd.sectors || []).map((row) =>
+                    renderCasGenEdRow(
+                        row,
+                        majorDisplayName,
+                        scheduleCtx,
+                        degreeLabel,
+                        courseDegreesMap,
+                    ),
+                )}
+            </div>
+        </div>
+    );
+}
+
+function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, degreeLabel, courseDegreesMap) {
+    const rowTone = row.fulfilled ? "fulfilled" : "open";
+    const courses = filterCoursesForDegree(
+        row.matched_courses || [],
+        degreeLabel,
+        courseDegreesMap,
+    );
+    const fulfillingSet = new Set(courses);
+
+    return (
+        <div
+            key={`${row.attr}-${row.name}`}
+            className={`req-cas-gened-row req-cas-gened-row--${rowTone}`}
+        >
+            <span className={`req-item-icon icon-${rowTone}`}>
+                {row.fulfilled ? "✓" : "○"}
+            </span>
+            <div className="req-item-body">
+                <div className="req-item-line">
+                    <span className="req-cas-gened-label">
+                        {row.name}
+                        <span className="req-cas-gened-attr"> [{row.attr}]</span>
+                    </span>
+                    {row.fulfilled_by_major && majorDisplayName && (
+                        <span className="req-cas-gened-note">
+                            Fulfilled by {majorDisplayName} major
+                        </span>
+                    )}
+                    {!row.fulfilled_by_major && courses.length > 0 && (
+                        <>
+                            <span className="req-item-colon">:</span>
+                            <span className="req-chips">
+                                {courses.map((courseId) => (
+                                    <span
+                                        key={courseId}
+                                        className={chipClass(badgeKindFor(courseId, {
+                                            ...scheduleCtx,
+                                            fulfillingSet,
+                                            partialTone: false,
+                                        }))}
+                                        title={scheduleCtx.crossDegreeChipTitle?.(courseId)}
+                                    >
+                                        {courseId}
+                                    </span>
+                                ))}
+                            </span>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx) {

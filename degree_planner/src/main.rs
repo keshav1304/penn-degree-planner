@@ -20,6 +20,7 @@ use requirement::Requirement;
 use requirement::MappedRequirement;
 use requirement::PoolCoverageInfo;
 use requirement::ConcentrationInfo;
+use college_data::CasGenEdInfo;
 use cross_degree::{is_graduate_degree, CrossDegreeSummary};
 use major::Major;
 use schedule_template::{
@@ -337,6 +338,7 @@ struct DegreeResult {
     available_concentrations: Vec<String>,
     has_core_concentration: bool,
     category_order: Vec<String>,
+    cas_gen_ed: Option<CasGenEdInfo>,
     error: Option<String>,
 }
 
@@ -440,6 +442,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 available_concentrations: vec![],
                 has_core_concentration: false,
                 category_order: vec![],
+                cas_gen_ed: None,
                 error: Some(format!(
                     "Major '{}' in school '{}' is not implemented yet.",
                     degree.major, degree.school
@@ -645,6 +648,20 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 req.collect_category_order(&mut category_order);
             }
 
+            let cas_gen_ed = if degree.school == "CAS" {
+                pool_coverage
+                    .iter()
+                    .find(|p| p.category == "General Education")
+                    .map(|pool| {
+                        college_data::build_cas_gen_ed_info(
+                            pool,
+                            &college_data::cas_auto_completed_sectors_for(&major_data.short_name),
+                        )
+                    })
+            } else {
+                None
+            };
+
             degree_results.push(DegreeResult {
                 school: degree.school.clone(),
                 major: degree.major.clone(),
@@ -657,6 +674,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                 available_concentrations: available_concs,
                 has_core_concentration: has_core,
                 category_order,
+                cas_gen_ed,
                 error: None,
             });
     }
