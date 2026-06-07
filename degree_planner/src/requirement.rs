@@ -1433,7 +1433,8 @@ pub fn plan_pool_slot_hints(
             .push(eval.label.clone());
     }
 
-    let pair_priority: [(&str, &str); 5] = [
+    let pair_priority: [(&str, &str); 6] = [
+        ("wh:wufl", "wh:mt_las"),
         ("wh:cc_fl", "wh:ssh"),
         ("wh:cross_cultural", "wh:ssh"),
         ("wh:cc_fl", "wh:non_wh"),

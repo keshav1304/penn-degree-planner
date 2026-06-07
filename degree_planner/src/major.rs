@@ -117,11 +117,11 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                     api_code: "WH_NOFL".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "M&T Wharton".to_string(),
+                    display_name: "M&T - Foreign Language Exempt".to_string(),
                     api_code: "WH_NOFL_MT".to_string(),
                 },
                 MajorCatalogEntry {
-                    display_name: "M&T Wharton".to_string(),
+                    display_name: "M&T - Foreign Language Required".to_string(),
                     api_code: "WH_FL_MT".to_string(),
                 },
             ],

@@ -268,8 +268,11 @@ export default function RequirementsPanel({
                     })();
                     const groupClass = groupDone ? "req-group req-group-done" : "req-group";
                     const pillLabel = poolStats
-                        ? `${poolStats.slotsFilled}/${poolStats.slotsTotal} · ${poolStats.covDone}/${poolStats.covTotal}`
+                        ? `${poolStats.slotsFilled}/${poolStats.slotsTotal}`
                         : `${done}/${items.length}`;
+                    const poolSlotsDone = poolStats
+                        ? poolStats.slotsFilled >= poolStats.slotsTotal
+                        : false;
 
                     return (
                         <div key={cat} className={groupClass}>
@@ -277,11 +280,13 @@ export default function RequirementsPanel({
                                 className="req-group-header"
                                 onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
                             >
-                                <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
-                                    {groupDone ? "✓" : "·"}
-                                </span>
+                                {!pool && (
+                                    <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
+                                        {groupDone ? "✓" : "·"}
+                                    </span>
+                                )}
                                 <span className="req-group-name" title={cat}>{cat}</span>
-                                <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
+                                <span className={`req-group-pill ${pool ? (poolSlotsDone ? "pill-done" : "pill-pending") : (groupDone ? "pill-done" : "pill-pending")}`}>
                                     {pillLabel}
                                 </span>
                                 <span

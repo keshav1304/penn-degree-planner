@@ -74,7 +74,12 @@ fn wh_fl_las_pool() -> Requirement {
             wh_non_wh_constraint("Non-Wharton course", 3),
             wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:cc_fl"),
             wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:cc_fl"),
-            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:cc_fl"),
+            wh_attrs_constraint(
+                "Cross-Cultural (WUCN/WUCU)",
+                &["WUCN", "WUCU"],
+                1,
+                "wh:cc_fl",
+            ),
         ],
     }
 }
@@ -91,21 +96,46 @@ fn wh_ssh_las_pool() -> Requirement {
             wh_attr_constraint("Social Science (WUSS)", "WUSS", 1, "wh:ssh"),
             wh_non_wh_constraint("Non-Wharton course", 3),
             wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 2, "wh:cross_cultural"),
+            wh_attrs_constraint(
+                "Cross-Cultural (WUCN/WUCU)",
+                &["WUCN", "WUCU"],
+                1,
+                "wh:cross_cultural",
+            ),
         ],
     }
 }
 
-/// M&T Wharton LAS bucket — same double-count group rules as WH_FL.
-fn wh_mt_las_pool() -> Requirement {
+/// M&T FL-required LAS: 4 courses, 6 coverage units. The four non-FL requirements
+/// share `wh:mt_las` (no cross-double-count among them); WUFL uses `wh:wufl` and
+/// may double-count with any `wh:mt_las` slot.
+fn wh_fl_mt_las_pool() -> Requirement {
     Requirement::CoursePool {
         category: Some("Liberal Arts and Sciences".to_string()),
         fixed_slots: vec![],
         flexible_slots: 4,
         constraints: vec![
-            wh_attrs_constraint("Humanities / Social Science", &["WUHM", "WUSS"], 2, "wh:ssh"),
-            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 1, "wh:cc_fl"),
-            wh_attrs_constraint("Cross-Cultural (WUCN/WUCU)", &["WUCN", "WUCU"], 1, "wh:cc_fl"),
-            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 2, "wh:cc_fl"),
+            wh_attrs_constraint(
+                "Humanities / Social Science (WUHM/WUSS)",
+                &["WUHM", "WUSS"],
+                1,
+                "wh:mt_las",
+            ),
+            wh_attrs_constraint(
+                "Humanities / Social Science (WUHM/WUSS)",
+                &["WUHM", "WUSS"],
+                1,
+                "wh:mt_las",
+            ),
+            wh_attr_constraint("Cross-Cultural (WUCN)", "WUCN", 1, "wh:mt_las"),
+            wh_attrs_constraint(
+                "Cross-Cultural (WUCN/WUCU)",
+                &["WUCN", "WUCU"],
+                1,
+                "wh:mt_las",
+            ),
+            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 1, "wh:wufl"),
+            wh_attr_constraint("Foreign Language (WUFL)", "WUFL", 1, "wh:wufl"),
         ],
     }
 }
@@ -524,7 +554,6 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
     append_semester(&mut requirements, &mut schedule_hints, Y3F, bb_reqs);
     append_semester(&mut requirements, &mut schedule_hints, Y2S, vec![
             wh_ssh_las_pool(),
-            Requirement::Restriction { category: Some("Liberal Arts and Sciences - CCP".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCN".to_string(), "WUCU".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
@@ -606,6 +635,7 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     ]);
 
     append_semester(&mut requirements, &mut schedule_hints, Y3F, extra_bb);
+    // NOFL M&T LAS: four standalone 1-CU requirements (no CoursePool).
     append_semester(&mut requirements, &mut schedule_hints, Y2S, vec![
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Humanities and Social Science".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string(), "WUSS".to_string()]), excluding: None, number: 1, no_school: None },
             Requirement::Restriction { category: Some("Liberal Arts and Sciences - Humanities and Social Science".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUHM".to_string(), "WUSS".to_string()]), excluding: None, number: 1, no_school: None },
@@ -616,7 +646,7 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
 
     return Major {
         short_name: "WH_NOFL_MT".to_string(), 
-        name: "M&T Wharton".to_string(), 
+        name: "M&T - Foreign Language Exempt".to_string(), 
         requirements,
         schedule_hints,
         concentrations: Some(wh_concentrations),
@@ -682,13 +712,13 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
 
     append_semester(&mut requirements, &mut schedule_hints, Y3F, extra_bb);
     append_semester(&mut requirements, &mut schedule_hints, Y2S, vec![
-            wh_mt_las_pool(),
+            wh_fl_mt_las_pool(),
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, conc_reqs);
 
     Major {
         short_name: "WH".to_string(),
-        name: "M&T Wharton".to_string(),
+        name: "M&T - Foreign Language Required".to_string(),
         requirements,
         schedule_hints,
         concentrations: Some(wh_concentrations),
@@ -697,10 +727,93 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
 
 #[cfg(test)]
 mod tests {
-    use super::create_wh_nofl_mt_major;
+    use super::{create_wh_fl_mt_major, create_wh_nofl_mt_major, Requirement};
+    use crate::attributes_data;
     use crate::courses_data;
-    use crate::requirement::validate_courses_for_degree;
+    use crate::requirement::{evaluate_pool_constraints, validate_courses_for_degree};
     use std::collections::HashMap;
+
+    #[test]
+    fn nofl_mt_has_no_course_pool() {
+        let major = create_wh_nofl_mt_major(vec!["STAT".to_string()]);
+        assert!(
+            !major
+                .requirements
+                .iter()
+                .any(|r| matches!(r, Requirement::CoursePool { .. })),
+            "NOFL M&T should use standalone LAS requirements only"
+        );
+    }
+
+    #[test]
+    fn fl_mt_pool_blocks_cc_ssh_overlap_without_fl() {
+        let major = create_wh_fl_mt_major(vec!["FNCE".to_string()]);
+        let pool_req = major
+            .requirements
+            .iter()
+            .find(|r| matches!(r, Requirement::CoursePool { .. }))
+            .expect("FL M&T LAS pool");
+        let Requirement::CoursePool { constraints, .. } = pool_req else {
+            panic!("expected CoursePool");
+        };
+
+        let mut attributes = attributes_data::create_attributes();
+        for attr in ["WUCN", "WUHM"] {
+            attributes
+                .entry(attr.to_string())
+                .or_default()
+                .push("ANTH 0001".to_string());
+        }
+        let cu_map = HashMap::from([("ANTH 0001".to_string(), 1.0)]);
+        let pool = vec!["ANTH 0001".to_string()];
+
+        let evaluations = evaluate_pool_constraints(&pool, constraints, &attributes, &cu_map);
+        let mt_las_fulfilled = evaluations
+            .iter()
+            .filter(|e| e.consumption_group == "wh:mt_las" && e.fulfilled)
+            .count();
+        assert_eq!(
+            mt_las_fulfilled, 1,
+            "CC and SSH share wh:mt_las — one course covers at most one slot"
+        );
+    }
+
+    #[test]
+    fn fl_mt_pool_allows_wufl_to_double_with_mt_las() {
+        let major = create_wh_fl_mt_major(vec!["FNCE".to_string()]);
+        let pool_req = major
+            .requirements
+            .iter()
+            .find(|r| matches!(r, Requirement::CoursePool { .. }))
+            .expect("FL M&T LAS pool");
+        let Requirement::CoursePool { constraints, .. } = pool_req else {
+            panic!("expected CoursePool");
+        };
+
+        let mut attributes = attributes_data::create_attributes();
+        for attr in ["WUFL", "WUHM"] {
+            attributes
+                .entry(attr.to_string())
+                .or_default()
+                .push("SPAN 0100".to_string());
+        }
+        let cu_map = HashMap::from([("SPAN 0100".to_string(), 1.0)]);
+        let pool = vec!["SPAN 0100".to_string()];
+
+        let evaluations = evaluate_pool_constraints(&pool, constraints, &attributes, &cu_map);
+        assert!(
+            evaluations
+                .iter()
+                .any(|e| e.consumption_group == "wh:mt_las" && e.fulfilled),
+            "WUHM/WUSS slot"
+        );
+        assert!(
+            evaluations
+                .iter()
+                .any(|e| e.consumption_group == "wh:wufl" && e.fulfilled),
+            "WUFL may double-count with mt_las"
+        );
+    }
 
     #[test]
     fn mt_single_stat_includes_business_breadth_ii() {
