@@ -90,7 +90,8 @@ pub enum Requirement {
     /// - `level` — minimum course number (e.g. `5000` for graduate-level).
     /// - `attr` — course-attribute tags the course must carry (e.g. `["EMRT"]`).
     /// - `excluding` — course codes that cannot count toward this slot.
-    /// - `number` — credits required (whole CUs when `cu` is `None`).
+    /// - `number` — when `cu` is `None`, duplicate this slot `number` times at load time
+    ///   (each copy requires 1 CU). When `cu` is set, `number` is ignored.
     /// - `no_school` — exclude courses from a given school.
     Restriction {
         category: Option<String>,
@@ -144,8 +145,8 @@ fn format_truncated_list(items: &[String], prefix: &str) -> String {
 
 const CU_EPS: f64 = 0.001;
 
-/// Required CU for a Restriction slot. `number` is whole credits (1 → 1.0 CU).
-/// When `cu` is set it overrides as tenths (5 → 0.5 CU) for half-credit slots.
+/// Required CU for a Restriction slot. After [`expand_restriction_slots`], `number` is 1 when
+/// `cu` is `None`. When `cu` is set it overrides as tenths (5 → 0.5 CU) for half-credit slots.
 fn restriction_required_cu(number: i32, cu_field: &Option<i32>) -> f64 {
     if let Some(tenths) = cu_field {
         return (*tenths as f64) / 10.0;
@@ -175,6 +176,116 @@ fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
 
 fn is_restriction_requirement(req: &Requirement) -> bool {
     matches!(req, Requirement::Restriction { .. })
+}
+
+fn wrap_expanded_requirement_children(expanded: Vec<Requirement>) -> Requirement {
+    match expanded.len() {
+        0 => panic!("expand_restriction_slots produced an empty requirement list"),
+        1 => expanded.into_iter().next().expect("single expanded requirement"),
+        _ => Requirement::AllOf {
+            category: None,
+            requirements: expanded,
+        },
+    }
+}
+
+fn expand_pool_constraint(pc: PoolConstraint) -> Vec<PoolConstraint> {
+    expand_restriction_slots(vec![pc.requirement])
+        .into_iter()
+        .map(|requirement| PoolConstraint {
+            requirement,
+            count: pc.count,
+            consumption_group: pc.consumption_group.clone(),
+        })
+        .collect()
+}
+
+fn expand_restriction_slot(req: Requirement) -> Vec<Requirement> {
+    match req {
+        Requirement::Restriction {
+            category,
+            department,
+            cu,
+            level,
+            attr,
+            excluding,
+            number,
+            no_school,
+        } if number > 1 && cu.is_none() => (0..number)
+            .map(|_| Requirement::Restriction {
+                category: category.clone(),
+                department: department.clone(),
+                cu: None,
+                level: level.clone(),
+                attr: attr.clone(),
+                excluding: excluding.clone(),
+                number: 1,
+                no_school: no_school.clone(),
+            })
+            .collect(),
+        Requirement::AllOf {
+            category,
+            requirements,
+        } => vec![Requirement::AllOf {
+            category,
+            requirements: expand_restriction_slots(requirements),
+        }],
+        Requirement::AnyOf {
+            category,
+            possibilities,
+        } => vec![Requirement::AnyOf {
+            category,
+            possibilities: possibilities
+                .into_iter()
+                .map(|child| wrap_expanded_requirement_children(expand_restriction_slot(child)))
+                .collect(),
+        }],
+        Requirement::CourseGroup {
+            category,
+            number,
+            possibilities,
+        } => vec![Requirement::CourseGroup {
+            category,
+            number,
+            possibilities: possibilities
+                .into_iter()
+                .map(|child| wrap_expanded_requirement_children(expand_restriction_slot(child)))
+                .collect(),
+        }],
+        Requirement::Concentration {
+            category,
+            number,
+            requirements,
+        } => vec![Requirement::Concentration {
+            category,
+            number,
+            requirements: expand_restriction_slots(requirements),
+        }],
+        Requirement::CoursePool {
+            category,
+            fixed_slots,
+            flexible_slots,
+            constraints,
+        } => vec![Requirement::CoursePool {
+            category,
+            fixed_slots: expand_restriction_slots(fixed_slots),
+            flexible_slots,
+            constraints: constraints
+                .into_iter()
+                .flat_map(expand_pool_constraint)
+                .collect(),
+        }],
+        other => vec![other],
+    }
+}
+
+/// Expand [`Requirement::Restriction`] entries with `number > 1` and `cu: None` into that many
+/// separate 1-CU slots. Composites are traversed recursively.
+pub fn expand_restriction_slots(requirements: Vec<Requirement>) -> Vec<Requirement> {
+    requirements
+        .into_iter()
+        .flat_map(expand_restriction_slot)
+        .collect()
 }
 
 fn sorted_child_requirements<'a>(requirements: &'a [Requirement]) -> Vec<&'a Requirement> {
@@ -1625,6 +1736,7 @@ pub fn validate_courses_for_degree(
     cu_map: &HashMap<String, f64>,
 ) -> DegreeValidationResult {
     let attributes = attributes_data::create_attributes();
+    let requirements = expand_restriction_slots(requirements);
     let root_requirements = requirements.clone();
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
@@ -2810,6 +2922,60 @@ mod tests {
     }
 
     #[test]
+    fn restriction_number_expands_to_duplicate_slots() {
+        let attributes = attributes_data::create_attributes();
+        let mut cu_map = HashMap::new();
+        cu_map.insert("TEST 1000".to_string(), 1.0);
+        cu_map.insert("TEST 1001".to_string(), 1.0);
+        cu_map.insert("TEST 1002".to_string(), 1.0);
+        cu_map.insert("TEST 1003".to_string(), 1.0);
+
+        let slot = || Requirement::Restriction {
+            category: Some("Test elective".to_string()),
+            department: Some(vec!["TEST".to_string()]),
+            cu: None,
+            level: None,
+            attr: None,
+            excluding: None,
+            number: 1,
+            no_school: None,
+        };
+
+        let expanded = expand_restriction_slots(vec![Requirement::Restriction {
+            category: Some("Test elective".to_string()),
+            department: Some(vec!["TEST".to_string()]),
+            cu: None,
+            level: None,
+            attr: None,
+            excluding: None,
+            number: 4,
+            no_school: None,
+        }]);
+        let explicit = vec![slot(), slot(), slot(), slot()];
+
+        let taken = vec![
+            "TEST 1000".to_string(),
+            "TEST 1001".to_string(),
+            "TEST 1002".to_string(),
+            "TEST 1003".to_string(),
+        ];
+
+        let expanded_validation =
+            validate_courses_for_degree(expanded, &taken, &cu_map);
+        let explicit_validation =
+            validate_courses_for_degree(explicit, &taken, &cu_map);
+
+        assert_eq!(
+            expanded_validation.fulfilled.len(),
+            explicit_validation.fulfilled.len()
+        );
+        assert_eq!(
+            expanded_validation.unfulfilled.len(),
+            explicit_validation.unfulfilled.len()
+        );
+    }
+
+    #[test]
     fn restriction_single_half_cu_does_not_fulfill_one_cu_slot() {
         let attributes = attributes_data::create_attributes();
         let mut cu_map = HashMap::new();
@@ -3400,7 +3566,7 @@ mod tests {
         let constraints = vec![
             PoolConstraint {
                 requirement: Requirement::Restriction {
-                    category: Some("Foundational Approaches — Quantitative Data Analysis".to_string()),
+                    category: Some("Foundational Approaches - Quantitative Data Analysis".to_string()),
                     department: None,
                     cu: None,
                     level: None,
@@ -3414,7 +3580,7 @@ mod tests {
             },
             PoolConstraint {
                 requirement: Requirement::Restriction {
-                    category: Some("Foundational Approaches — Formal Reasoning & Analysis".to_string()),
+                    category: Some("Foundational Approaches - Formal Reasoning & Analysis".to_string()),
                     department: None,
                     cu: None,
                     level: None,
@@ -3573,7 +3739,7 @@ mod tests {
         }
         assert_eq!(order.first().map(String::as_str), Some("Writing Seminar"));
         assert!(order.iter().any(|c| c == "General Education"));
-        assert!(order.iter().any(|c| c == "Introductory Econ"));
+        assert!(order.iter().any(|c| c == "Introductory Economics"));
         assert!(!order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
     }
 

@@ -137,7 +137,7 @@ export default function RequirementsPanel({
         const cat = normalizeCategory(item.category);
         for (const pool of pools) {
             const poolCat = normalizeCategory(pool.category);
-            if (cat === poolCat || cat === `${poolCat} — Pool course`) {
+            if (cat === poolCat || cat === `${poolCat} - Pool course`) {
                 return poolCat;
             }
         }
@@ -158,6 +158,13 @@ export default function RequirementsPanel({
     const categoryOrder = (current.category_order || []).map(normalizeCategory);
     const orderedCategories = [...categoryOrder];
     Object.keys(categoryMap).forEach((c) => { if (!orderedCategories.includes(c)) orderedCategories.push(c); });
+    if (current.school === "CAS") {
+        const genEdIdx = orderedCategories.indexOf("General Education");
+        if (genEdIdx !== -1) {
+            orderedCategories.splice(genEdIdx, 1);
+            orderedCategories.push("General Education");
+        }
+    }
 
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
@@ -300,9 +307,11 @@ export default function RequirementsPanel({
                                     {groupDone ? "✓" : "·"}
                                 </span>
                                 <span className="req-group-name" title={cat}>{cat}</span>
-                                <span className={`req-group-pill ${pool ? (poolSlotsDone ? "pill-done" : "pill-pending") : (groupDone ? "pill-done" : "pill-pending")}`}>
-                                    {pillLabel}
-                                </span>
+                                {!casGenEd && (
+                                    <span className={`req-group-pill ${pool ? (poolSlotsDone ? "pill-done" : "pill-pending") : (groupDone ? "pill-done" : "pill-pending")}`}>
+                                        {pillLabel}
+                                    </span>
+                                )}
                                 <span
                                     className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
                                     aria-hidden
@@ -345,8 +354,6 @@ export default function RequirementsPanel({
                                     {casGenEd ? (
                                         renderCasGenEdPool(
                                             casGenEd,
-                                            poolStats,
-                                            casProgress,
                                             majorDisplayName,
                                             scheduleCtx,
                                             degreeLabel,
@@ -816,24 +823,13 @@ function casGenEdProgress(casGenEd) {
 
 function renderCasGenEdPool(
     casGenEd,
-    poolStats,
-    casProgress,
     majorDisplayName,
     scheduleCtx,
     degreeLabel,
     courseDegreesMap,
 ) {
-    const reqTotal = casProgress?.total ?? poolStats.covTotal;
-    const doubleCount = reqTotal > poolStats.slotsTotal;
-
     return (
         <div className="req-cas-gened">
-            <div className="req-pool-divider req-item-first">
-                {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
-                {" "}to fulfill{" "}
-                {reqTotal} requirement{reqTotal === 1 ? "" : "s"}
-                {doubleCount ? " (double-counting permitted)" : ""}
-            </div>
             <div className="req-cas-gened-section">
                 <div className="req-cas-gened-heading">Foundational Approaches</div>
                 {(casGenEd.foundational_approaches || []).map((row) =>

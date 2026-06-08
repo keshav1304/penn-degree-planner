@@ -33,13 +33,13 @@ const FOUNDATIONAL_APPROACHES: &[(&str, &str)] = &[
 ];
 
 const SECTORS: &[(&str, &str)] = &[
-    ("I — Society", SECTOR_SOCIETY),
-    ("II — History and Tradition", SECTOR_HISTORY),
-    ("III — Arts and Letters", SECTOR_ARTS_LETTERS),
-    ("IV — Humanities & Social Sciences", SECTOR_HUM_SOC_SCI),
-    ("V — Living World", SECTOR_LIVING_WORLD),
-    ("VI — Physical World", SECTOR_PHYSICAL_WORLD),
-    ("VII — Natural Sciences Across Disciplines", SECTOR_NAT_SCI),
+    ("I - Society", SECTOR_SOCIETY),
+    ("II - History and Tradition", SECTOR_HISTORY),
+    ("III - Arts and Letters", SECTOR_ARTS_LETTERS),
+    ("IV - Humanities & Social Sciences", SECTOR_HUM_SOC_SCI),
+    ("V - Living World", SECTOR_LIVING_WORLD),
+    ("VI - Physical World", SECTOR_PHYSICAL_WORLD),
+    ("VII - Natural Sciences Across Disciplines", SECTOR_NAT_SCI),
 ];
 
 /// Sector attribute codes auto-completed when a CAS major is declared.
@@ -195,7 +195,7 @@ fn cas_writing_requirement() -> Requirement {
 
 fn cas_foundational_approach(label: &str, attr: &str) -> Requirement {
     Requirement::Restriction {
-        category: Some(format!("Foundational Approaches — {label}")),
+        category: Some(format!("Foundational Approaches - {label}")),
         department: None,
         cu: None,
         level: None,
@@ -208,7 +208,7 @@ fn cas_foundational_approach(label: &str, attr: &str) -> Requirement {
 
 fn cas_sector_requirement(label: &str, attr: &str) -> Requirement {
     Requirement::Restriction {
-        category: Some(format!("Sectors of Knowledge — {label}")),
+        category: Some(format!("Sectors of Knowledge - {label}")),
         department: None,
         cu: None,
         level: None,
@@ -300,11 +300,11 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
 fn econ_major_requirements() -> Vec<Requirement> {
     vec![
         Requirement::SingleCourse {
-            category: Some("Introductory Econonomics".to_string()),
+            category: Some("Introductory Economics".to_string()),
             possibilities: vec!["ECON 0100".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Introductory Econonomics".to_string()),
+            category: Some("Introductory Economics".to_string()),
             possibilities: vec!["ECON 0200".to_string()],
         },
         Requirement::SingleCourse {
@@ -389,19 +389,6 @@ fn econ_major_requirements() -> Vec<Requirement> {
                     requirements: vec![
                         Requirement::SingleCourse {
                             category: None,
-                            possibilities: vec!["MATH 1070".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 1080".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
                             possibilities: vec!["MATH 1400".to_string()],
                         },
                         Requirement::SingleCourse {
@@ -410,6 +397,19 @@ fn econ_major_requirements() -> Vec<Requirement> {
                                 "MATH 1410".to_string(),
                                 "MATH 1610".to_string(),
                             ],
+                        },
+                    ],
+                },
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["MATH 1070".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["MATH 1080".to_string()],
                         },
                     ],
                 },
@@ -620,6 +620,134 @@ pub fn create_mathecon_major() -> Major {
         name: "Mathematical Economics".to_string(),
         major_requirements: mathecon_major_requirements(),
         auto_completed_sectors: vec![SECTOR_SOCIETY.to_string()],
+        concentrations: None,
+        schedule_hints,
+    })
+}
+
+const CIS_PROJECT_ELECTIVES: &[&str] = &[
+    "CIS 3500",
+    "CIS 4120",
+    "CIS 5120",
+    "CIS 4410",
+    "CIS 5410",
+    "CIS 4480",
+    "CIS 5480",
+    "CIS 4500",
+    "CIS 5500",
+    "CIS 4521",
+    "CIS 5521",
+    "CIS 4550",
+    "CIS 5550",
+    "CIS 4600",
+    "CIS 5600",
+    "CIS 4710",
+    "CIS 5710",
+    "CIS 5050",
+    "CIS 5530",
+    "ESE 3500",
+    "NETS 2120",
+];
+
+fn cis_major_requirements() -> Vec<Requirement> {
+    let project_electives: Vec<String> = CIS_PROJECT_ELECTIVES
+        .iter()
+        .map(|code| code.to_string())
+        .collect();
+
+    vec![
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 1100".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 1200".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 1600".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 1210".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 2400".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 2620".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Courses".to_string()),
+            possibilities: vec!["CIS 3200".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Project Electives".to_string()),
+            possibilities: project_electives.clone(),
+        },
+        Requirement::SingleCourse {
+            category: Some("Project Electives".to_string()),
+            possibilities: project_electives,
+        },
+        Requirement::AnyOf {
+            category: Some("CIS Elective".to_string()),
+            possibilities: vec![
+                Requirement::Restriction {
+                    category: None,
+                    department: Some(vec!["CIS".to_string(), "NETS".to_string()]),
+                    cu: None,
+                    level: None,
+                    attr: None,
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["ESE 3500".to_string()],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("CIS Elective >= 2000".to_string()),
+            possibilities: vec![
+                Requirement::Restriction {
+                    category: None,
+                    department: Some(vec!["CIS".to_string(), "NETS".to_string()]),
+                    cu: None,
+                    level: Some(2000),
+                    attr: None,
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["ESE 3500".to_string()],
+                },
+            ],
+        },
+    ]
+}
+
+pub fn create_cis_cas_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("CIS 1100".to_string(), Y1F.to_pair()),
+        ("CIS 1200".to_string(), Y1S.to_pair()),
+        ("CIS 1600".to_string(), Y1F.to_pair()),
+        ("CIS 1210".to_string(), Y2F.to_pair()),
+        ("CIS 2400".to_string(), Y2S.to_pair()),
+        ("CIS 2620".to_string(), Y3F.to_pair()),
+        ("CIS 3200".to_string(), Y3S.to_pair()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "CIS".to_string(),
+        name: "Computer Science (2nd major only)".to_string(),
+        major_requirements: cis_major_requirements(),
+        auto_completed_sectors: vec![],
         concentrations: None,
         schedule_hints,
     })

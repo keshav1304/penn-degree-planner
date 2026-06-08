@@ -46,6 +46,10 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                     display_name: "Mathematical Economics".to_string(),
                     api_code: "MECON".to_string(),
                 },
+                MajorCatalogEntry {
+                    display_name: "Computer Science (2nd major only)".to_string(),
+                    api_code: "CIS".to_string(),
+                },
             ],
         },
         SchoolCatalogEntry {
@@ -196,7 +200,7 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
 }
 
 pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Option<Major> {
-    match school {
+    let major = match school {
         "SEAS" => {
             match major {
                 "EE" => Some(seas_data::create_ee_major()),
@@ -244,9 +248,25 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
         "CAS" => match major {
             "ECON" => Some(college_data::create_econ_major()),
             "MECON" => Some(college_data::create_mathecon_major()),
+            "CIS" => Some(college_data::create_cis_cas_major()),
             _ => None,
         },
         _ => None,
+    };
+    major.map(normalize_major)
+}
+
+fn normalize_major(major: Major) -> Major {
+    Major {
+        requirements: crate::requirement::expand_restriction_slots(major.requirements),
+        concentrations: major.concentrations.map(|map| {
+            map.into_iter()
+                .map(|(name, requirements)| {
+                    (name, crate::requirement::expand_restriction_slots(requirements))
+                })
+                .collect()
+        }),
+        ..major
     }
 }
 
