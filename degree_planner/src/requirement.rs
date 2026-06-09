@@ -105,7 +105,9 @@ pub enum Requirement {
     },
 
     /// **Shared course pool** — fixed + flexible slots form a bucket; coverage constraints
-    /// must be satisfied by courses in that bucket (one course may cover several constraints).
+    /// must be satisfied by courses in that bucket. A course may count toward at most two
+    /// coverage constraints in the pool (double-counting); consumption groups still block
+    /// reuse within the same group.
     CoursePool {
         category: Option<String>,
         /// Non-fungible slots (e.g. ECON 0100, specific major courses).
@@ -127,6 +129,9 @@ pub struct PoolConstraint {
 }
 
 const MAX_LISTED_COURSES: usize = 4;
+
+/// Max coverage constraints a single pool course may satisfy (double-count limit).
+const POOL_MAX_CONSTRAINT_USES_PER_COURSE: usize = 2;
 
 fn format_truncated_list(items: &[String], prefix: &str) -> String {
     if items.is_empty() {
@@ -1412,7 +1417,32 @@ fn expanded_pool_constraint_units(constraints: &[PoolConstraint]) -> Vec<(Requir
     units
 }
 
+/// Attribute-specific pool units are matched before broad catch-alls (e.g. non-Wharton).
+fn pool_constraint_unit_priority(req: &Requirement) -> u8 {
+    match req {
+        Requirement::Restriction {
+            attr,
+            department,
+            no_school,
+            ..
+        } => {
+            if attr.as_ref().is_some_and(|a| !a.is_empty()) {
+                0
+            } else if department.as_ref().is_some_and(|d| !d.is_empty()) {
+                1
+            } else if no_school.is_some() {
+                3
+            } else {
+                2
+            }
+        }
+        _ => 2,
+    }
+}
+
 /// Match pool coverage constraints against courses assigned to pool slots.
+/// Each course may satisfy at most [`POOL_MAX_CONSTRAINT_USES_PER_COURSE`] constraints
+/// across the pool; [`PoolConstraint::consumption_group`] still prevents reuse within one group.
 pub fn evaluate_pool_constraints(
     pool_courses: &[String],
     constraints: &[PoolConstraint],
@@ -1420,45 +1450,64 @@ pub fn evaluate_pool_constraints(
     cu_map: &HashMap<String, f64>,
 ) -> Vec<PoolConstraintEvaluation> {
     let units = expanded_pool_constraint_units(constraints);
-    let mut blocked_by_group: HashMap<String, HashSet<String>> = HashMap::new();
-    let mut results = Vec::new();
+    let unit_count = units.len();
+    let mut eval_order: Vec<usize> = (0..unit_count).collect();
+    eval_order.sort_by_key(|&i| {
+        (
+            pool_constraint_unit_priority(&units[i].0),
+            i,
+        )
+    });
 
-    for (req, group) in units {
+    let mut blocked_by_group: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut course_constraint_uses: HashMap<String, usize> = HashMap::new();
+    let mut results: Vec<Option<PoolConstraintEvaluation>> = vec![None; unit_count];
+
+    for i in eval_order {
+        let (req, group) = units[i].clone();
         let blocked = blocked_by_group.get(&group).cloned().unwrap_or_default();
         let available: Vec<String> = pool_courses
             .iter()
-            .filter(|c| !blocked.contains(*c))
+            .filter(|c| {
+                !blocked.contains(*c)
+                    && course_constraint_uses
+                        .get(*c)
+                        .copied()
+                        .unwrap_or(0)
+                        < POOL_MAX_CONSTRAINT_USES_PER_COURSE
+            })
             .cloned()
             .collect();
         let label = constraint_short_label(&req);
 
-        match req.fulfills_requirement(&available, attributes, cu_map) {
+        results[i] = Some(match req.fulfills_requirement(&available, attributes, cu_map) {
             Some(courses) => {
                 blocked_by_group
                     .entry(group.clone())
                     .or_default()
                     .extend(courses.iter().cloned());
-                results.push(PoolConstraintEvaluation {
+                for course in &courses {
+                    *course_constraint_uses.entry(course.clone()).or_insert(0) += 1;
+                }
+                PoolConstraintEvaluation {
                     requirement: req,
                     fulfilled: true,
                     course_ids: courses,
                     consumption_group: group,
                     label,
-                });
+                }
             }
-            None => {
-                results.push(PoolConstraintEvaluation {
-                    requirement: req,
-                    fulfilled: false,
-                    course_ids: vec![],
-                    consumption_group: group,
-                    label,
-                });
-            }
-        }
+            None => PoolConstraintEvaluation {
+                requirement: req,
+                fulfilled: false,
+                course_ids: vec![],
+                consumption_group: group,
+                label,
+            },
+        });
     }
 
-    results
+    results.into_iter().map(|r| r.expect("all units evaluated")).collect()
 }
 
 fn pool_fill_hint(evaluations: &[PoolConstraintEvaluation]) -> Option<String> {
@@ -3507,6 +3556,71 @@ mod tests {
 
         assert_eq!(conc_info[0].requirements_fulfilled, 0);
         assert!(conc_info[0].matched_courses[0].is_empty());
+    }
+
+    #[test]
+    fn cas_pool_blocks_triple_constraint_reuse() {
+        let mut attributes = attributes_data::create_attributes();
+        let cu_map = HashMap::from([("MULTI 0100".to_string(), 1.0)]);
+        let pool = vec!["MULTI 0100".to_string()];
+        let constraints = vec![
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some("Group A".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["ATTR_A".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("group:a".to_string()),
+            },
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some("Group B".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["ATTR_B".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("group:b".to_string()),
+            },
+            PoolConstraint {
+                requirement: Requirement::Restriction {
+                    category: Some("Group C".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["ATTR_C".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                count: 1,
+                consumption_group: Some("group:c".to_string()),
+            },
+        ];
+
+        for attr in ["ATTR_A", "ATTR_B", "ATTR_C"] {
+            attributes
+                .entry(attr.to_string())
+                .or_default()
+                .push("MULTI 0100".to_string());
+        }
+
+        let evaluations = evaluate_pool_constraints(&pool, &constraints, &attributes, &cu_map);
+        let fulfilled = evaluations.iter().filter(|e| e.fulfilled).count();
+        assert_eq!(
+            fulfilled, 2,
+            "one course may satisfy at most two pool constraints"
+        );
     }
 
     #[test]

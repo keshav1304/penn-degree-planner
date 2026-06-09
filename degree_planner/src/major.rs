@@ -280,6 +280,13 @@ mod tests {
     }
 
     #[test]
+    fn resolves_ms_cis() {
+        let major = resolve_major("SEAS_MS", "MS_CIS", &[]).expect("MS CIS");
+        assert_eq!(major.short_name, "MS_CIS");
+        assert!(!major.schedule_hints.is_empty());
+    }
+
+    #[test]
     fn wh_nofl_mt_stat_has_business_breadth() {
         let major = resolve_major("WH", "WH_NOFL_MT", &["STAT".to_string()])
             .expect("WH_NOFL_MT");
