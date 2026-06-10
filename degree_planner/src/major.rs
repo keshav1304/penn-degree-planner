@@ -37,20 +37,13 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
         SchoolCatalogEntry {
             school_code: "CAS".to_string(),
             display_name: "College of Arts and Sciences".to_string(),
-            majors: vec![
-                MajorCatalogEntry {
-                    display_name: "Economics".to_string(),
-                    api_code: "ECON".to_string(),
-                },
-                MajorCatalogEntry {
-                    display_name: "Mathematical Economics".to_string(),
-                    api_code: "MECON".to_string(),
-                },
-                MajorCatalogEntry {
-                    display_name: "Computer Science (2nd major only)".to_string(),
-                    api_code: "CIS".to_string(),
-                },
-            ],
+            majors: college_data::CAS_DEGREE_CATALOG
+                .iter()
+                .map(|entry| MajorCatalogEntry {
+                    display_name: entry.display_name.to_string(),
+                    api_code: entry.api_code.to_string(),
+                })
+                .collect(),
         },
         SchoolCatalogEntry {
             school_code: "SEAS".to_string(),
@@ -171,6 +164,9 @@ pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
         "WH" if matches!(major, "WH_FL" | "WH_NOFL" | "WH_NOFL_MT" | "WH_FL_MT") => {
             wharton_data::concentration_names()
         }
+        "CAS" if college_data::cas_catalog_entry(major).is_some() => {
+            college_data::cas_concentration_names(major)
+        }
         _ => vec![],
     };
 
@@ -183,6 +179,13 @@ pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
 
 pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
     let mut map = BTreeMap::new();
+
+    for entry in college_data::CAS_DEGREE_CATALOG {
+        let concs = concentrations_for("CAS", entry.api_code);
+        if !concs.is_empty() {
+            map.insert(format!("CAS:{}", entry.api_code), concs);
+        }
+    }
 
     for (school, majors) in [
         ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CMPE"]),
@@ -249,7 +252,15 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
             "ECON" => Some(college_data::create_econ_major()),
             "MECON" => Some(college_data::create_mathecon_major()),
             "CIS" => Some(college_data::create_cis_cas_major()),
-            _ => None,
+            "PPE" => {
+                let conc = concentrations
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "Choice and Behaviour".to_string());
+                Some(college_data::create_ppe_major(conc))
+            }
+            other => college_data::cas_catalog_entry(other)
+                .map(college_data::create_cas_placeholder_major),
         },
         _ => None,
     };
@@ -273,6 +284,8 @@ fn normalize_major(major: Major) -> Major {
 #[cfg(test)]
 mod tests {
     use super::resolve_major;
+    use crate::Requirement;
+    use crate::college_data;
 
     #[test]
     fn resolves_ms_robo() {
@@ -284,6 +297,56 @@ mod tests {
         let major = resolve_major("SEAS_MS", "MS_CIS", &[]).expect("MS CIS");
         assert_eq!(major.short_name, "MS_CIS");
         assert!(!major.schedule_hints.is_empty());
+    }
+
+    #[test]
+    fn cas_catalog_lists_all_majors() {
+        assert_eq!(college_data::CAS_DEGREE_CATALOG.len(), 56);
+        assert!(college_data::cas_catalog_entry("BIOL").is_some());
+        assert!(college_data::cas_catalog_entry("NOT_A_MAJOR").is_none());
+        assert_eq!(college_data::cas_concentration_names("PHIL").len(), 4);
+    }
+
+    #[test]
+    fn resolves_cas_placeholder() {
+        let major = resolve_major("CAS", "BIOL", &[]).expect("BIOL placeholder");
+        assert_eq!(major.short_name, "BIOL");
+        assert!(major.concentrations.is_none());
+    }
+
+    #[test]
+    fn resolves_ppe() {
+        let major =
+            resolve_major("CAS", "PPE", &["Globalization".to_string()]).expect("PPE");
+        assert_eq!(major.short_name, "PPE");
+        let pool = major
+            .requirements
+            .iter()
+            .find_map(|r| match r {
+                Requirement::CoursePool { .. } => Some(r),
+                _ => None,
+            })
+            .expect("gen ed pool");
+        let Requirement::CoursePool {
+            fixed_slots,
+            flexible_slots,
+            ..
+        } = pool
+        else {
+            panic!("expected pool");
+        };
+        assert_eq!(*flexible_slots, 15, "11 core + 5 concentration = 16 major CU");
+        let conc_block = fixed_slots
+            .iter()
+            .find_map(|r| match r {
+                Requirement::Concentration { number, category, .. } => {
+                    Some((*number, category.clone()))
+                }
+                _ => None,
+            })
+            .expect("concentration block");
+        assert_eq!(conc_block.0, 5);
+        assert_eq!(conc_block.1.as_deref(), Some("Globalization"));
     }
 
     #[test]

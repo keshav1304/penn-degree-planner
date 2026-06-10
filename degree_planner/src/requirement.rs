@@ -89,7 +89,7 @@ pub enum Requirement {
     /// - `cu` — optional override in tenths (e.g. `5` → 0.5 CU); when `None`, `number` is whole CUs.
     /// - `level` — minimum course number (e.g. `5000` for graduate-level).
     /// - `attr` — course-attribute tags the course must carry (e.g. `["EMRT"]`).
-    /// - `excluding` — course codes that cannot count toward this slot.
+    /// - `excluding` — course codes and/or attribute codes that cannot count toward this slot.
     /// - `number` — when `cu` is `None`, duplicate this slot `number` times at load time
     ///   (each copy requires 1 CU). When `cu` is set, `number` is ignored.
     /// - `no_school` — exclude courses from a given school.
@@ -297,6 +297,74 @@ fn sorted_child_requirements<'a>(requirements: &'a [Requirement]) -> Vec<&'a Req
     let mut children: Vec<&Requirement> = requirements.iter().collect();
     children.sort_by_key(|r| requirement_fill_order_key(r));
     children
+}
+
+/// Expand [`Requirement::Concentration`] blocks inside pool fixed slots into their children.
+fn expand_pool_fixed_slots(
+    fixed_slots: Vec<Requirement>,
+) -> Vec<(usize, usize, Requirement)> {
+    let mut out = Vec::new();
+    for (fi, slot_req) in fixed_slots.into_iter().enumerate() {
+        match slot_req {
+            Requirement::Concentration { requirements, .. } => {
+                for (ci, child) in requirements.into_iter().enumerate() {
+                    out.push((fi, ci, child));
+                }
+            }
+            other => out.push((fi, 0, other)),
+        }
+    }
+    out
+}
+
+fn flatten_pool_fixed_slot_refs(fixed_slots: &[Requirement]) -> Vec<&Requirement> {
+    let mut out = Vec::new();
+    for req in fixed_slots {
+        match req {
+            Requirement::Concentration { requirements, .. } => {
+                out.extend(requirements.iter());
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
+fn flatten_pool_fixed_slots_owned(fixed_slots: &[Requirement]) -> Vec<Requirement> {
+    let mut out = Vec::new();
+    for req in fixed_slots {
+        match req {
+            Requirement::Concentration { requirements, .. } => {
+                out.extend(requirements.iter().cloned());
+            }
+            other => out.push(other.clone()),
+        }
+    }
+    out
+}
+
+pub fn requirements_contain_concentration(requirements: &[Requirement]) -> bool {
+    requirements
+        .iter()
+        .any(requirement_is_or_contains_concentration)
+}
+
+fn requirement_is_or_contains_concentration(req: &Requirement) -> bool {
+    match req {
+        Requirement::Concentration { .. } => true,
+        Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+            .iter()
+            .any(requirement_is_or_contains_concentration),
+        Requirement::AllOf { requirements, .. } => requirements
+            .iter()
+            .any(requirement_is_or_contains_concentration),
+        Requirement::AnyOf { possibilities, .. } | Requirement::CourseGroup { possibilities, .. } => {
+            possibilities
+                .iter()
+                .any(requirement_is_or_contains_concentration)
+        }
+        _ => false,
+    }
 }
 
 /// Greedily assign courses from `taken` to leaf slots inside a composite (best AnyOf branch).
@@ -551,9 +619,18 @@ pub fn course_matches_restriction(
     if !course_id.chars().all(|c| c.is_ascii_digit()) {
         return false;
     }
-    if let Some(excluding_courses) = excluding {
-        if excluding_courses.iter().any(|ex| ex == course) {
-            return false;
+    if let Some(excluding_items) = excluding {
+        for ex in excluding_items {
+            if crate::course::is_valid_course_code(ex) {
+                if ex == course {
+                    return false;
+                }
+            } else if attributes
+                .get(ex)
+                .is_some_and(|courses| courses.contains(&course.to_string()))
+            {
+                return false;
+            }
         }
     }
     if let Some(school_name) = no_school {
@@ -1054,7 +1131,8 @@ impl Requirement {
                 let mut taken_copy = taken.clone();
                 let mut pool_courses: Vec<String> = Vec::new();
 
-                for req in sorted_child_requirements(fixed_slots) {
+                let flat_fixed = flatten_pool_fixed_slots_owned(fixed_slots);
+                for req in sorted_child_requirements(&flat_fixed) {
                     if let Some(mut courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                         taken_copy.retain(|x| !courses.contains(x));
                         pool_courses.append(&mut courses);
@@ -1176,7 +1254,7 @@ impl Requirement {
                 let mut taken_copy = taken.clone();
                 let mut unfulfilled_slots: Vec<Requirement> = Vec::new();
 
-                for req in fixed_slots {
+                for req in flatten_pool_fixed_slot_refs(fixed_slots) {
                     if req.fulfills_requirement(&taken_copy, attributes, cu_map).is_some() {
                         if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
                             taken_copy.retain(|x| !courses.contains(x));
@@ -1811,8 +1889,8 @@ pub fn validate_courses_for_degree(
                 let pool_cat = category.clone().unwrap_or_else(|| "Course Pool".to_string());
                 let mut pool_courses: Vec<String> = Vec::new();
 
-                for (fi, slot_req) in fixed_slots.into_iter().enumerate() {
-                    let child_id = Some(format!("{}:f{}", orig_idx, fi));
+                for (fi, ci, slot_req) in expand_pool_fixed_slots(fixed_slots) {
+                    let child_id = Some(format!("{}:f{}:c{}", orig_idx, fi, ci));
                     let courses = try_fulfill_or_partial_base(
                         &slot_req,
                         &mut taken_mut,
@@ -2204,24 +2282,25 @@ fn embedded_concentration_category(conc_name: &str) -> String {
     format!("Concentration - {conc_name}")
 }
 
-fn requirement_has_category(req: &Requirement, target: &str) -> bool {
-    if req.get_category() == target {
-        return true;
-    }
+fn concentration_slot_category_matches(conc_name: &str, category: &str) -> bool {
+    category == conc_name || category == embedded_concentration_category(conc_name)
+}
+
+fn requirement_includes_concentration_name(req: &Requirement, conc_name: &str) -> bool {
     match req {
+        Requirement::Concentration { category, .. } => category.as_deref() == Some(conc_name),
+        Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+            .iter()
+            .any(|r| requirement_includes_concentration_name(r, conc_name)),
         Requirement::AllOf { requirements, .. } => requirements
             .iter()
-            .any(|r| requirement_has_category(r, target)),
-        Requirement::AnyOf { possibilities, .. } => possibilities
-            .iter()
-            .any(|r| requirement_has_category(r, target)),
-        Requirement::CourseGroup { possibilities, .. } => possibilities
-            .iter()
-            .any(|r| requirement_has_category(r, target)),
-        Requirement::Concentration { requirements, .. } => requirements
-            .iter()
-            .any(|r| requirement_has_category(r, target)),
-        _ => false,
+            .any(|r| requirement_includes_concentration_name(r, conc_name)),
+        Requirement::AnyOf { possibilities, .. } | Requirement::CourseGroup { possibilities, .. } => {
+            possibilities
+                .iter()
+                .any(|r| requirement_includes_concentration_name(r, conc_name))
+        }
+        _ => concentration_slot_category_matches(conc_name, &req.get_category()),
     }
 }
 
@@ -2229,22 +2308,20 @@ fn requirements_include_embedded_concentration(
     requirements: &[Requirement],
     conc_name: &str,
 ) -> bool {
-    let target = embedded_concentration_category(conc_name);
     requirements
         .iter()
-        .any(|r| requirement_has_category(r, &target))
+        .any(|r| requirement_includes_concentration_name(r, conc_name))
 }
 
 fn collect_embedded_concentration_slots<'a>(
     validation: &'a DegreeValidationResult,
     conc_name: &str,
 ) -> Vec<&'a MappedRequirement> {
-    let category = embedded_concentration_category(conc_name);
     let mut slots: Vec<_> = validation
         .fulfilled
         .iter()
         .chain(validation.unfulfilled.iter())
-        .filter(|m| m.requirement.get_category() == category)
+        .filter(|m| concentration_slot_category_matches(conc_name, &m.requirement.get_category()))
         .collect();
     slots.sort_by(|a, b| a.instance_id.cmp(&b.instance_id));
     slots
@@ -2336,7 +2413,7 @@ pub fn extract_concentration_info(
     let attributes = attributes_data::create_attributes();
 
     // Check if this major has a core concentration (Requirement::Concentration in requirements)
-    let has_core = requirements.iter().any(|r| matches!(r, Requirement::Concentration { .. }))
+    let has_core = requirements_contain_concentration(requirements)
         || requirements
             .iter()
             .any(|r| r.get_category() == "Concentration");
@@ -2592,9 +2669,7 @@ pub fn degree_concentration_context_from_major(
     concentrations: &Option<BTreeMap<String, Vec<Requirement>>>,
     selected: &[String],
 ) -> DegreeConcentrationContext {
-    let has_core = requirements
-        .iter()
-        .any(|r| matches!(r, Requirement::Concentration { .. }))
+    let has_core = requirements_contain_concentration(requirements)
         || requirements
             .iter()
             .any(|r| r.get_category() == "Concentration");
@@ -3022,6 +3097,31 @@ mod tests {
             expanded_validation.unfulfilled.len(),
             explicit_validation.unfulfilled.len()
         );
+    }
+
+    #[test]
+    fn restriction_excluding_attribute_blocks_matching_courses() {
+        let attributes = attributes_data::create_attributes();
+        // AFRC 0030 is tagged AIRE and AUFS; AUFS exclusion should win.
+        assert!(!course_matches_restriction(
+            "AFRC 0030",
+            &None,
+            &None,
+            &Some(vec!["AIRE".to_string()]),
+            &Some(vec!["AUFS".to_string()]),
+            &None,
+            &attributes,
+        ));
+        // BEPP 2010 is AIRE but not AUFS.
+        assert!(course_matches_restriction(
+            "BEPP 2010",
+            &None,
+            &None,
+            &Some(vec!["AIRE".to_string()]),
+            &Some(vec!["AUFS".to_string()]),
+            &None,
+            &attributes,
+        ));
     }
 
     #[test]

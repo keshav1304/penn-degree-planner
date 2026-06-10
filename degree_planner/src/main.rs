@@ -639,8 +639,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
             // Check if this major uses core concentrations
             let has_core = degree.major == "MEAM"
-                || major_data.requirements.iter()
-                    .any(|r| matches!(r, Requirement::Concentration { .. }));
+                || requirement::requirements_contain_concentration(&major_data.requirements);
 
             // Extract category order from requirement definition (includes nested CAS/DC children)
             let mut category_order: Vec<String> = Vec::new();

@@ -293,6 +293,470 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
         concentrations: config.concentrations,
     }
 }
+
+// ── CAS degree catalog (2025-26) ─────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy)]
+pub struct CasMajorCatalogEntry {
+    pub api_code: &'static str,
+    pub display_name: &'static str,
+    pub concentrations: &'static [&'static str],
+}
+
+pub const CAS_DEGREE_CATALOG: &[CasMajorCatalogEntry] = &[
+    CasMajorCatalogEntry {
+        api_code: "AFRC",
+        display_name: "Africana Studies",
+        concentrations: &[
+            "African American Studies",
+            "African Diaspora Studies",
+            "African Studies",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ANCH",
+        display_name: "Ancient History",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ANTH",
+        display_name: "Anthropology",
+        concentrations: &[
+            "Archaeology",
+            "Biological Anthropology",
+            "Cultural and Linguistic Anthropology",
+            "Environmental Anthropology",
+            "General Anthropology",
+            "Medical Anthropology & Global Health",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ARCH",
+        display_name: "Architecture",
+        concentrations: &["Design", "Intensive Design"],
+    },
+    CasMajorCatalogEntry {
+        api_code: "BIOC",
+        display_name: "Biochemistry",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "BIOL",
+        display_name: "Biology",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "BIOP",
+        display_name: "Biophysics",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "CHEM",
+        display_name: "Chemistry",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "CIMS",
+        display_name: "Cinema and Media Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "CLST",
+        display_name: "Classical Studies",
+        concentrations: &[
+            "Classical Civilizations",
+            "Classical Languages and Literature",
+            "Mediterranean Archaeology",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "COGS",
+        display_name: "Cognitive Science",
+        concentrations: &[
+            "Cognitive Neuroscience",
+            "Computation and Cognition",
+            "Individualized",
+            "Language & Mind",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "COMM",
+        display_name: "Communication",
+        concentrations: &[
+            "Advocacy & Activism",
+            "Audiences & Persuasion",
+            "Communication & Public Service",
+            "Culture & Society",
+            "Data & Network Science",
+            "General Communication",
+            "Politics & Policy",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "COML",
+        display_name: "Comparative Literature",
+        concentrations: &["(Trans)national Literatures", "Globalization", "Theory"],
+    },
+    CasMajorCatalogEntry {
+        api_code: "CRIM",
+        display_name: "Criminology",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "DSGN",
+        display_name: "Design",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "EESC",
+        display_name: "Earth and Environmental Science",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "EALC",
+        display_name: "East Asian Languages and Civilizations",
+        concentrations: &[
+            "Dual Language",
+            "East Asian Area Studies",
+            "General East Asian Languages and Civilizations",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ECON",
+        display_name: "Economics",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ENGL",
+        display_name: "English",
+        concentrations: &[
+            "18th/19th Centuries",
+            "20th/21st Centuries",
+            "Africana Literatures & Culture",
+            "Cinema & Media Studies",
+            "Creative Writing",
+            "Drama",
+            "Gender/Sexuality",
+            "General English",
+            "Literary Theory & Cultural Studies",
+            "Literature, Journalism and Print Culture",
+            "Medieval/Renaissance",
+            "Poetry and Poetics",
+            "The Novel",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ENVS",
+        display_name: "Environmental Studies",
+        concentrations: &[
+            "Environmental History and Regional Studies",
+            "Environmental Policy and Application",
+            "General Environmental Studies",
+            "Global Environmental Systems",
+            "Sustainability and Environmental Management",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "FNAR",
+        display_name: "Fine Arts",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "FIGS",
+        display_name: "Francophone, Italian and Germanic Studies",
+        concentrations: &[
+            "Dual Language",
+            "French and Francophone Studies",
+            "Germanic Studies",
+            "Italian Studies",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "GSWS",
+        display_name: "Gender, Sexuality, & Women's Studies",
+        concentrations: &[
+            "Feminist Studies",
+            "General",
+            "Global Gender and Sexuality Studies",
+            "Health and Disability Studies",
+            "LGBTQ Studies",
+            "Self Designed",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "HSOC",
+        display_name: "Health and Societies",
+        concentrations: &[
+            "Bioethics and Society",
+            "Disease and Culture",
+            "Global Health",
+            "Health Care Markets & Finance",
+            "Health Policy & Law",
+            "Public Health",
+            "Race, Gender and Health",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "HISP",
+        display_name: "Hispanic Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "ARTH",
+        display_name: "History of Art",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "HIST",
+        display_name: "History",
+        concentrations: &[
+            "American History",
+            "Diplomatic History",
+            "Economic History",
+            "European History",
+            "Gender History",
+            "General History",
+            "Intellectual History",
+            "Jewish History",
+            "Political History",
+            "World History",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "INDM",
+        display_name: "Individualized Major",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "INTR",
+        display_name: "International Relations",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "INST",
+        display_name: "International Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "JWST",
+        display_name: "Jewish Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "LALS",
+        display_name: "Latin American & Latinx Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "LAWS",
+        display_name: "Law and Society",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "LING",
+        display_name: "Linguistics",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "LGIC",
+        display_name: "Logic, Information, & Computation",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "MECON",
+        display_name: "Mathematical Economics",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "MATH",
+        display_name: "Mathematics",
+        concentrations: &["Biological Mathematics", "General Mathematics"],
+    },
+    CasMajorCatalogEntry {
+        api_code: "MELC",
+        display_name: "Middle Eastern Languages & Cultures",
+        concentrations: &[
+            "Ancient Middle East",
+            "Arabic & Hebrew Studies",
+            "Arabic & Islamic Studies",
+            "Cultures and Societies of the Middle East and North Africa",
+            "Hebrew & Judaica Studies",
+            "Persian Languages & Literature",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "MMES",
+        display_name: "Modern Middle Eastern Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "MUSC",
+        display_name: "Music",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "NEUR",
+        display_name: "Neuroscience",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "NUTR",
+        display_name: "Nutrition Science",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "PHIL",
+        display_name: "Philosophy",
+        concentrations: &[
+            "General Philosophy",
+            "Humanistic Philosophy",
+            "Philosophy and Science",
+            "Political and Moral Philosophy",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "PPE",
+        display_name: "Philosophy, Politics and Economics",
+        concentrations: &[
+            "Choice and Behaviour",
+            "Distributive Justice",
+            "Globalization",
+            "Public Policy and Governance",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "PHYS",
+        display_name: "Physics",
+        concentrations: &[
+            "Astrophysics",
+            "Biological Science",
+            "Business & Technology",
+            "Chemical Principles",
+            "Computer Techniques",
+            "Physical Theory and Experimental Technique",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "PSCI",
+        display_name: "Political Science",
+        concentrations: &[
+            "American Politics",
+            "Comparative Politics",
+            "General Political Science",
+            "Individualized",
+            "International Relations",
+            "Political Economy",
+            "Political Theory",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "PSYC",
+        display_name: "Psychology",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "RELS",
+        display_name: "Religious Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "REES",
+        display_name: "Russian and East European Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "STSC",
+        display_name: "Science, Technology and Society",
+        concentrations: &[
+            "Biotechnology & Biomedicine",
+            "Energy and Environment",
+            "Global Science and Technology",
+            "Information and Organizations",
+            "Science/Nature/Culture",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "SOCI",
+        display_name: "Sociology",
+        concentrations: &[
+            "Applied Research and Data Analysis",
+            "Cities, Markets, and the Global Economy",
+            "Culture and Diversity",
+            "Education and Society",
+            "Family, Gender and Society",
+            "Medical Sociology",
+            "Structures of Opportunity and Inequality",
+        ],
+    },
+    CasMajorCatalogEntry {
+        api_code: "SAST",
+        display_name: "South Asia Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "THAR",
+        display_name: "Theatre Arts",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "URBS",
+        display_name: "Urban Studies",
+        concentrations: &[],
+    },
+    CasMajorCatalogEntry {
+        api_code: "VIST",
+        display_name: "Visual Studies",
+        concentrations: &[
+            "Architecture Practice and Technology",
+            "Art and Culture of Seeing",
+            "Art, Practice and Technology",
+            "Philosophy and Science of Seeing",
+        ],
+    },
+    // Not listed on the catalog majors page; Penn allows CIS as a 2nd major in CAS.
+    CasMajorCatalogEntry {
+        api_code: "CIS",
+        display_name: "Computer Science (2nd major only)",
+        concentrations: &[],
+    },
+];
+
+pub fn cas_catalog_entry(api_code: &str) -> Option<&'static CasMajorCatalogEntry> {
+    CAS_DEGREE_CATALOG
+        .iter()
+        .find(|entry| entry.api_code == api_code)
+}
+
+pub fn cas_concentration_names(api_code: &str) -> Vec<String> {
+    cas_catalog_entry(api_code)
+        .map(|entry| entry.concentrations.iter().map(|s| (*s).to_string()).collect())
+        .unwrap_or_default()
+}
+
+fn placeholder_concentration_map(names: &[&str]) -> BTreeMap<String, Vec<Requirement>> {
+    names
+        .iter()
+        .map(|name| (name.to_string(), Vec::new()))
+        .collect()
+}
+
+/// Gen-ed-only placeholder until major requirements are authored.
+pub fn create_cas_placeholder_major(entry: &CasMajorCatalogEntry) -> Major {
+    let concentrations = if entry.concentrations.is_empty() {
+        None
+    } else {
+        Some(placeholder_concentration_map(entry.concentrations))
+    };
+    create_cas_major(CasMajorConfig {
+        short_name: entry.api_code.to_string(),
+        name: entry.display_name.to_string(),
+        major_requirements: vec![],
+        auto_completed_sectors: vec![],
+        concentrations,
+        schedule_hints: HashMap::new(),
+    })
+}
+
 // ── Major-specific requirement blocks ────────────────────────────────────────
 // Add `create_XX_major()` functions below. Each should define only major courses,
 // then call `create_cas_major` with the appropriate auto-completed sector(s).
@@ -731,6 +1195,240 @@ fn cis_major_requirements() -> Vec<Requirement> {
             ],
         },
     ]
+}
+
+const PPE_ADVANCED_SEMINARS: &[&str] = &[
+    "PPE 4000",
+    "PPE 4500",
+    "PPE 4600",
+    "PPE 4601",
+    "PPE 4650",
+    "PPE 4700",
+    "PPE 4701",
+    "PPE 4800",
+    "PPE 4802",
+    "PPE 4803",
+    "PPE 4804",
+    "PPE 4900",
+    "PPE 4903",
+    "PPE 4950",
+];
+
+const PPE_GLOBALIZATION_INTERNATIONAL_ATTRS: &[&str] = &[
+    "AIRE", "AIRN", "APSI", "AAFS", "AHAF", "AHCE", "AHES", "AHEA", "AHLA", "AEAE", "ARER",
+    "AREE", "AREJ",
+];
+
+fn ppe_major_requirements() -> Vec<Requirement> {
+    vec![
+        Requirement::SingleCourse {
+            category: Some("Common Foundations".to_string()),
+            possibilities: vec!["PHIL 1433".to_string()],
+        },
+        Requirement::Restriction {
+            category: Some("Common Foundations".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["APPF".to_string()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        Requirement::Restriction {
+            category: Some("Common Foundations".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["APPT".to_string()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        Requirement::Restriction {
+            category: Some("Common Foundations".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["APPP".to_string()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        Requirement::SingleCourse {
+            category: Some("Common Foundations".to_string()),
+            possibilities: vec!["ECON 0100".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Common Foundations".to_string()),
+            possibilities: vec!["ECON 0200".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Common Foundations".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PSYC 1210".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PSYC 1230".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PSYC 1440".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PSYC 2737".to_string()],
+                },
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Common Core".to_string()),
+            possibilities: vec!["PPE 3001".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Common Core".to_string()),
+            possibilities: vec!["PPE 3002".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Common Core".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PPE 3003".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PPE 3004".to_string()],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("Advanced Interdisciplinary Seminar in PPE".to_string()),
+            possibilities: PPE_ADVANCED_SEMINARS
+                .iter()
+                .map(|code| Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec![(*code).to_string()],
+                })
+                .collect(),
+        },
+    ]
+}
+
+fn ppe_concentration_requirement(concentration_name: &str) -> Requirement {
+    let requirements = ppe_concentrations()
+        .get(concentration_name)
+        .unwrap_or_else(|| panic!("unknown PPE concentration: {concentration_name}"))
+        .clone();
+    let number = requirements.iter().map(requirement_slot_cu).sum();
+    Requirement::Concentration {
+        category: Some(concentration_name.to_string()),
+        number,
+        requirements,
+    }
+}
+
+fn ppe_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    BTreeMap::from([
+        (
+            "Choice and Behaviour".to_string(),
+            vec![Requirement::Restriction {
+                category: Some("Choice and Behaviour".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["APPC".to_string()]),
+                excluding: None,
+                number: 5,
+                no_school: None,
+            }],
+        ),
+        (
+            "Distributive Justice".to_string(),
+            vec![Requirement::Restriction {
+                category: Some("Distributive Justice".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["APPJ".to_string()]),
+                excluding: None,
+                number: 5,
+                no_school: None,
+            }],
+        ),
+        (
+            "Globalization".to_string(),
+            vec![
+                Requirement::Restriction {
+                    category: Some("Globalization".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["APPG".to_string()]),
+                    excluding: None,
+                    number: 4,
+                    no_school: None,
+                },
+                Requirement::Restriction {
+                    category: Some("Globalization".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(
+                        PPE_GLOBALIZATION_INTERNATIONAL_ATTRS
+                            .iter()
+                            .map(|a| (*a).to_string())
+                            .collect(),
+                    ),
+                    excluding: Some(vec!["AUFS".to_string()]),
+                    number: 1,
+                    no_school: None,
+                },
+            ],
+        ),
+        (
+            "Public Policy and Governance".to_string(),
+            vec![Requirement::Restriction {
+                category: Some("Public Policy and Governance".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["APPU".to_string()]),
+                excluding: None,
+                number: 5,
+                no_school: None,
+            }],
+        ),
+    ])
+}
+
+pub fn ppe_concentration_names() -> Vec<String> {
+    cas_concentration_names("PPE")
+}
+
+pub fn create_ppe_major(concentration_name: String) -> Major {
+    let schedule_hints = HashMap::from([
+        ("PHIL 1433".to_string(), Y2F.to_pair()),
+        ("ECON 0100".to_string(), Y1F.to_pair()),
+        ("ECON 0200".to_string(), Y1S.to_pair()),
+        ("PPE 3001".to_string(), Y3F.to_pair()),
+        ("PPE 3002".to_string(), Y3S.to_pair()),
+        ("PPE 3003".to_string(), Y3S.to_pair()),
+        ("PPE 3004".to_string(), Y3S.to_pair()),
+    ]);
+    let mut major_requirements = ppe_major_requirements();
+    major_requirements.push(ppe_concentration_requirement(&concentration_name));
+    create_cas_major(CasMajorConfig {
+        short_name: "PPE".to_string(),
+        name: "Philosophy, Politics, and Economics".to_string(),
+        major_requirements,
+        auto_completed_sectors: vec![],
+        concentrations: Some(ppe_concentrations()),
+        schedule_hints,
+    })
 }
 
 pub fn create_cis_cas_major() -> Major {
