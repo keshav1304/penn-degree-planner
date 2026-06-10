@@ -259,6 +259,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                     .unwrap_or_else(|| "Choice and Behaviour".to_string());
                 Some(college_data::create_ppe_major(conc))
             }
+            "NEUR" => Some(college_data::create_neur_major()),
             other => college_data::cas_catalog_entry(other)
                 .map(college_data::create_cas_placeholder_major),
         },
@@ -312,6 +313,42 @@ mod tests {
         let major = resolve_major("CAS", "BIOL", &[]).expect("BIOL placeholder");
         assert_eq!(major.short_name, "BIOL");
         assert!(major.concentrations.is_none());
+    }
+
+    #[test]
+    fn resolves_neur() {
+        let major = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        assert_eq!(major.short_name, "NEUR");
+        let pool = major
+            .requirements
+            .iter()
+            .find_map(|r| match r {
+                Requirement::CoursePool { .. } => Some(r),
+                _ => None,
+            })
+            .expect("gen ed pool");
+        let Requirement::CoursePool { fixed_slots, .. } = pool else {
+            panic!("expected pool");
+        };
+        assert!(
+            fixed_slots
+                .iter()
+                .any(|r| r.get_category() == "Introduction to Brain & Behavior"),
+            "expected NRSC 1110 slot"
+        );
+        let abbe_slots = fixed_slots
+            .iter()
+            .filter(|r| {
+                matches!(
+                    r,
+                    Requirement::Restriction {
+                        attr: Some(attrs),
+                        ..
+                    } if attrs == &vec!["ABBE".to_string()]
+                )
+            })
+            .count();
+        assert_eq!(abbe_slots, 3);
     }
 
     #[test]

@@ -382,6 +382,25 @@ fn wh_bb_slot_labels(default_labels: &[&str], concentrations: &[String]) -> Vec<
     labels
 }
 
+/// M&T needs two business breadths. MGMT 2370 counts as breadth I when MGMT is not a
+/// concentration; with two non-MGMT concentrations, a concentration course covers breadth II
+/// as well — no standalone breadth slots remain.
+fn mt_business_breadth_labels(concentrations: &[String]) -> Vec<String> {
+    let mgmt_is_conc = concentrations.iter().any(|c| c == "MGMT");
+    let double_conc = concentrations.len() >= 2;
+
+    if double_conc && !mgmt_is_conc {
+        return vec![];
+    }
+
+    let default_labels: Vec<&str> = if mgmt_is_conc {
+        vec!["Business Breadth - I", "Business Breadth - II"]
+    } else {
+        vec!["Business Breadth"]
+    };
+    wh_bb_slot_labels(&default_labels, concentrations)
+}
+
 fn business_breadth_requirements(
     concentrations: &[String],
     pool: &[&str],
@@ -582,13 +601,7 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
     let mgmt_is_conc = concs.iter().any(|c| c == "MGMT");
 
-    // MGMT 2370 (M&T Soph) counts as Business Breadth - I for non-MGMT concentrations.
-    let extra_bb_default: Vec<&str> = if mgmt_is_conc {
-        vec!["Business Breadth - I", "Business Breadth - II"]
-    } else {
-        vec!["Business Breadth - II"]
-    };
-    let extra_bb_labels = wh_bb_slot_labels(&extra_bb_default, &concs);
+    let extra_bb_labels = mt_business_breadth_labels(&concs);
     let extra_bb = business_breadth_requirements(&concs, &bb_pool, &extra_bb_labels, true);
 
     let conc_reqs = if mgmt_is_conc {
@@ -664,12 +677,7 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
     let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
     let mgmt_is_conc = concs.iter().any(|c| c == "MGMT");
 
-    let extra_bb_default: Vec<&str> = if mgmt_is_conc {
-        vec!["Business Breadth - I", "Business Breadth - II"]
-    } else {
-        vec!["Business Breadth - II"]
-    };
-    let extra_bb_labels = wh_bb_slot_labels(&extra_bb_default, &concs);
+    let extra_bb_labels = mt_business_breadth_labels(&concs);
     let extra_bb = business_breadth_requirements(&concs, &bb_pool, &extra_bb_labels, true);
 
     let conc_reqs = if mgmt_is_conc {
@@ -863,6 +871,45 @@ mod tests {
                 .any(|e| e.consumption_group == "wh:wufl" && e.fulfilled),
             "WUFL may double-count with mt_las"
         );
+    }
+
+    #[test]
+    fn mt_double_conc_non_mgmt_has_no_business_breadth() {
+        for major in [
+            create_wh_nofl_mt_major(vec!["FNCE".to_string(), "STAT".to_string()]),
+            create_wh_fl_mt_major(vec!["FNCE".to_string(), "STAT".to_string()]),
+        ] {
+            let bb_count = major
+                .requirements
+                .iter()
+                .filter(|r| {
+                    r.get_category()
+                        .to_lowercase()
+                        .contains("business breadth")
+                })
+                .count();
+            assert_eq!(
+                bb_count, 0,
+                "{}: MGMT 2370 + conc overlap cover both breadths",
+                major.name
+            );
+        }
+    }
+
+    #[test]
+    fn mt_double_conc_mgmt_has_one_business_breadth() {
+        let major = create_wh_nofl_mt_major(vec!["MGMT".to_string(), "FNCE".to_string()]);
+        let bb: Vec<_> = major
+            .requirements
+            .iter()
+            .filter(|r| {
+                r.get_category()
+                    .to_lowercase()
+                    .contains("business breadth")
+            })
+            .collect();
+        assert_eq!(bb.len(), 1);
+        assert!(bb[0].get_category().contains("Business Breadth - I"));
     }
 
     #[test]

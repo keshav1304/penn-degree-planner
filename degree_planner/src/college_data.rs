@@ -22,7 +22,7 @@ pub const SECTOR_PHYSICAL_WORLD: &str = "AUPW";
 pub const SECTOR_NAT_SCI: &str = "AUNM";
 
 /// Total degree credit units (writing included).
-pub const CAS_DEGREE_CU: i32 = 32;
+pub const CAS_DEGREE_CU: i32 = 36;
 
 const FOUNDATIONAL_APPROACHES: &[(&str, &str)] = &[
     ("Cross-Cultural Analysis", FA_CROSS_CULTURAL),
@@ -1445,6 +1445,203 @@ pub fn create_cis_cas_major() -> Major {
         short_name: "CIS".to_string(),
         name: "Computer Science (2nd major only)".to_string(),
         major_requirements: cis_major_requirements(),
+        auto_completed_sectors: vec![],
+        concentrations: None,
+        schedule_hints,
+    })
+}
+
+const NEUR_INTRO_BIO_ELECTIVES: &[&str] = &[
+    "BIOL 2810",
+    "BIOL 2010",
+    "BIOL 2311",
+    "BIOL 3310",
+    "BIOL 2210",
+    "BIOL 2410",
+    "BIOL 2610",
+];
+
+fn neur_major_requirements() -> Vec<Requirement> {
+    let intro_bio_electives: Vec<String> = NEUR_INTRO_BIO_ELECTIVES
+        .iter()
+        .map(|code| code.to_string())
+        .collect();
+
+    vec![
+        Requirement::AnyOf {
+            category: Some("Introductory Chemistry".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1011".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1012".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1151".to_string()],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("Introductory Chemistry".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1021".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1022".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1161".to_string()],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("Introductory Biology".to_string()),
+            possibilities: vec![
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 1101".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 1102".to_string()],
+                        },
+                    ],
+                },
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 1121".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 1123".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 1124".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: intro_bio_electives,
+                        },
+                    ],
+                },
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Introduction to Brain & Behavior".to_string()),
+            possibilities: vec!["NRSC 1110".to_string()],
+        },
+        Requirement::Restriction {
+            category: Some("Neural Systems and Behavior".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["ABBS".to_string()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        Requirement::Restriction {
+            category: Some("Cellular Neuroscience".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["ABBU".to_string()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        Requirement::AnyOf {
+            category: Some("Neurobiology".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["NRSC 2110".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["BIOL 2110".to_string()],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("Statistics".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["BIOL 2510".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["STAT 1010".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["STAT 1110".to_string()],
+                },
+            ],
+        },
+        Requirement::Restriction {
+            category: Some("Neuroscience Electives".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["ABBE".to_string()]),
+            excluding: None,
+            number: 3,
+            no_school: None,
+        },
+        Requirement::Restriction {
+            category: Some("Neuroscience Electives".to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["ABBE".to_string(), "ABBM".to_string()]),
+            excluding: None,
+            number: 5,
+            no_school: None,
+        },
+    ]
+}
+
+pub fn create_neur_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("CHEM 1011".to_string(), Y1F.to_pair()),
+        ("CHEM 1012".to_string(), Y1F.to_pair()),
+        ("CHEM 1151".to_string(), Y1F.to_pair()),
+        ("CHEM 1021".to_string(), Y1S.to_pair()),
+        ("CHEM 1022".to_string(), Y1S.to_pair()),
+        ("CHEM 1161".to_string(), Y1S.to_pair()),
+        ("BIOL 1101".to_string(), Y1F.to_pair()),
+        ("BIOL 1102".to_string(), Y1S.to_pair()),
+        ("BIOL 1121".to_string(), Y1F.to_pair()),
+        ("BIOL 1123".to_string(), Y1S.to_pair()),
+        ("BIOL 1124".to_string(), Y2F.to_pair()),
+        ("NRSC 1110".to_string(), Y2F.to_pair()),
+        ("NRSC 2110".to_string(), Y3F.to_pair()),
+        ("BIOL 2110".to_string(), Y3F.to_pair()),
+        ("BIOL 2510".to_string(), Y2S.to_pair()),
+        ("STAT 1010".to_string(), Y2S.to_pair()),
+        ("STAT 1110".to_string(), Y2S.to_pair()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "NEUR".to_string(),
+        name: "Neuroscience".to_string(),
+        major_requirements: neur_major_requirements(),
         auto_completed_sectors: vec![],
         concentrations: None,
         schedule_hints,
