@@ -99,6 +99,10 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                     display_name: "Materials Science and Engineering, MSE".to_string(),
                     api_code: "MS_MSE".to_string(),
                 },
+                MajorCatalogEntry {
+                    display_name: "Computer & Information Technology, MCIT".to_string(),
+                    api_code: "MCIT".to_string(),
+                },
             ],
         },
         SchoolCatalogEntry {
@@ -229,6 +233,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "MS_MEAM" => Some(seas_grad_data::create_ms_meam_major()),
                 "MS_CIS" => Some(seas_grad_data::create_ms_cis_major()),
                 "MS_MSE" => Some(seas_grad_data::create_ms_mse_major()),
+                "MCIT" => Some(seas_grad_data::create_mcit_major()),
                 _ => None,
             }
         },
@@ -286,7 +291,7 @@ fn normalize_major(major: Major) -> Major {
 mod tests {
     use super::resolve_major;
     use crate::Requirement;
-    use crate::college_data;
+    use crate::college_data::{self, CAS_DEGREE_CU};
 
     #[test]
     fn resolves_ms_robo() {
@@ -372,7 +377,11 @@ mod tests {
         else {
             panic!("expected pool");
         };
-        assert_eq!(*flexible_slots, 15, "11 core + 5 concentration = 16 major CU");
+        assert_eq!(
+            *flexible_slots,
+            CAS_DEGREE_CU - 1 - 16,
+            "11 core + 5 concentration = 16 major CU"
+        );
         let conc_block = fixed_slots
             .iter()
             .find_map(|r| match r {

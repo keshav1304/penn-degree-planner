@@ -24,8 +24,105 @@ fn placeholder_ms_major(short_name: &str, display_name: &str) -> Major {
 }
 
 pub fn create_ms_ee_major() -> Major {
-    // TODO: populate MS Electrical Engineering requirements
-    placeholder_ms_major("MS_EE", "Electrical Engineering, MSE")
+    Major {
+        short_name: "MS_EE".to_string(),
+        name: "Electrical Engineering, MSE".to_string(),
+        requirements: vec![
+            ms_ee_core_courses(),
+            Requirement::Restriction {
+                category: Some("Electrical Engineering Electives".to_string()),
+                department: Some(vec!["ESE".to_string()]),
+                cu: None,
+                level: Some(5000),
+                attr: None,
+                excluding: None,
+                number: 2,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("SEAS Elective".to_string()),
+                department: Some(vec![
+                    "ESE".to_string(),
+                    "CIS".to_string(),
+                    "CIT".to_string(),
+                    "IPD".to_string(),
+                    "MEAM".to_string(),
+                    "MSE".to_string(),
+                    "EAS".to_string(),
+                    "ENM".to_string(),
+                ]),
+                cu: None,
+                level: Some(5000),
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Open Electives".to_string()),
+                department: None,
+                cu: None,
+                level: Some(5000),
+                attr: None,
+                excluding: None,
+                number: 2,
+                no_school: None,
+            },
+        ],
+        schedule_hints: HashMap::new(),
+        concentrations: None,
+    }
+}
+
+const MS_EE_CORE_COURSES: &[&str] = &[
+    "ESE 5090",
+    "ESE 5100",
+    "ESE 5130",
+    "ESE 5210",
+    "ESE 5230",
+    "ESE 5250",
+    "ESE 5290",
+    "ESE 5360",
+    "ESE 5150",
+    "ESE 5160",
+    "ESE 5180",
+    "ESE 5190",
+    "ESE 5320",
+    "ESE 5390",
+    "ESE 5700",
+    "ESE 5720",
+    "ESE 5730",
+    "ESE 5750",
+    "ESE 5780",
+    "ESE 5800",
+    "ESE 6680",
+    "ESE 5000",
+    "ESE 5030",
+    "ESE 5050",
+    "ESE 5060",
+    "ESE 5070",
+    "ESE 5140",
+    "ESE 5280",
+    "ESE 5300",
+    "ESE 5310",
+    "ESE 5380",
+    "ESE 5420",
+    "ESE 5460",
+    "ESE 6500",
+];
+
+fn ms_ee_core_courses() -> Requirement {
+    Requirement::CourseGroup {
+        category: Some("Electrical Engineering Core".to_string()),
+        number: 5,
+        possibilities: MS_EE_CORE_COURSES
+            .iter()
+            .map(|code| Requirement::SingleCourse {
+                category: None,
+                possibilities: vec![(*code).to_string()],
+            })
+            .collect(),
+    }
 }
 
 fn ms_robo_ai_area() -> Requirement {
@@ -209,10 +306,163 @@ pub fn create_ms_mse_major() -> Major {
     placeholder_ms_major("MS_MSE", "Materials Science and Engineering, MSE")
 }
 
+const MCIT_REQUIRED_COURSES: &[&str] = &[
+    "CIT 5910",
+    "CIT 5920",
+    "CIT 5930",
+    "CIT 5940",
+    "CIT 5950",
+    "CIT 5960",
+];
+
+fn mcit_schedule_hints() -> HashMap<String, (i32, String)> {
+    let mut hints = schedule_hints_from_array(&[Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S]);
+    for (course, sem) in [
+        ("CIT 5910", Y1F),
+        ("CIT 5920", Y1F),
+        ("CIT 5930", Y1F),
+        ("CIT 5940", Y1S),
+        ("CIT 5950", Y1S),
+        ("CIT 5960", Y1S),
+    ] {
+        hints.insert(course.to_string(), sem.to_pair());
+    }
+    hints
+}
+
+pub fn create_mcit_major() -> Major {
+    Major {
+        short_name: "MCIT".to_string(),
+        name: "Computer & Information Technology, MCIT".to_string(),
+        requirements: vec![
+            Requirement::SingleCourse {
+                category: Some("Required Courses".to_string()),
+                possibilities: vec![MCIT_REQUIRED_COURSES[0].to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Required Courses".to_string()),
+                possibilities: vec![MCIT_REQUIRED_COURSES[1].to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Required Courses".to_string()),
+                possibilities: vec![MCIT_REQUIRED_COURSES[2].to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Required Courses".to_string()),
+                possibilities: vec![MCIT_REQUIRED_COURSES[3].to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Required Courses".to_string()),
+                possibilities: vec![MCIT_REQUIRED_COURSES[4].to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Required Courses".to_string()),
+                possibilities: vec![MCIT_REQUIRED_COURSES[5].to_string()],
+            },
+            Requirement::Restriction {
+                category: Some("Electives".to_string()),
+                department: Some(vec!["CIS".to_string()]),
+                cu: None,
+                level: Some(5000),
+                attr: None,
+                excluding: None,
+                number: 3,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Free Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ],
+        schedule_hints: mcit_schedule_hints(),
+        concentrations: None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::requirement::validate_courses_for_degree;
+
+    #[test]
+    fn ms_ee_major_has_six_requirement_slots_after_expansion() {
+        let major = crate::major::resolve_major("SEAS_MS", "MS_EE", &[]).expect("MS EE");
+        assert_eq!(major.short_name, "MS_EE");
+        assert_eq!(major.name, "Electrical Engineering, MSE");
+        // 1 core CourseGroup + 2 EE electives + 1 SEAS + 2 open
+        assert_eq!(major.requirements.len(), 6);
+    }
+
+    #[test]
+    fn ms_ee_core_course_not_stolen_by_elective() {
+        let major = create_ms_ee_major();
+        let taken = vec!["ESE 5100".to_string()];
+        let cu_map = HashMap::from([("ESE 5100".to_string(), 1.0)]);
+
+        let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let elective_match = validation.fulfilled.iter().any(|m| {
+            matches!(m.requirement, Requirement::Restriction { .. })
+                && m.requirement.get_category() == "Electrical Engineering Electives"
+                && m.course_ids.contains(&"ESE 5100".to_string())
+        });
+        assert!(
+            !elective_match,
+            "ESE 5100 should fill a core slot, not an EE elective"
+        );
+
+        let core_match = validation
+            .fulfilled
+            .iter()
+            .chain(validation.unfulfilled.iter())
+            .any(|m| {
+                matches!(m.requirement, Requirement::CourseGroup { .. })
+                    && m.course_ids.contains(&"ESE 5100".to_string())
+            });
+        assert!(core_match, "ESE 5100 should match the EE core group");
+    }
+
+    #[test]
+    fn ms_mcit_major_has_ten_requirement_slots_after_expansion() {
+        let major = crate::major::resolve_major("SEAS_MS", "MCIT", &[]).expect("MCIT");
+        assert_eq!(major.short_name, "MCIT");
+        assert_eq!(major.name, "Computer & Information Technology, MCIT");
+        // 6 required + 3 CIS electives + 1 free elective
+        assert_eq!(major.requirements.len(), 10);
+    }
+
+    #[test]
+    fn ms_mcit_required_course_not_stolen_by_elective() {
+        let major = create_mcit_major();
+        let taken = vec!["CIT 5910".to_string()];
+        let cu_map = HashMap::from([("CIT 5910".to_string(), 1.0)]);
+
+        let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let elective_match = validation.fulfilled.iter().any(|m| {
+            matches!(m.requirement, Requirement::Restriction { .. })
+                && m.requirement.get_category() == "Electives"
+                && m.course_ids.contains(&"CIT 5910".to_string())
+        });
+        assert!(
+            !elective_match,
+            "CIT 5910 should fill a required slot, not an elective"
+        );
+
+        let required_match = validation
+            .fulfilled
+            .iter()
+            .chain(validation.unfulfilled.iter())
+            .any(|m| {
+                matches!(m.requirement, Requirement::SingleCourse { .. })
+                    && m.course_ids.contains(&"CIT 5910".to_string())
+            });
+        assert!(required_match, "CIT 5910 should match a required course slot");
+    }
 
     #[test]
     fn ms_cis_major_has_ten_requirement_slots_after_expansion() {

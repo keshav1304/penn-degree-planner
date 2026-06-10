@@ -396,7 +396,7 @@ fn mt_business_breadth_labels(concentrations: &[String]) -> Vec<String> {
     let default_labels: Vec<&str> = if mgmt_is_conc {
         vec!["Business Breadth - I", "Business Breadth - II"]
     } else {
-        vec!["Business Breadth"]
+        vec!["Business Breadth - II"]
     };
     wh_bb_slot_labels(&default_labels, concentrations)
 }
