@@ -905,7 +905,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                     }
                     let tie_ord = semester_order(year, semester);
                     if load < best_load
-                        || (load == best_load && tie_ord > best_tie_ord)
+                        || (load == best_load && tie_ord < best_tie_ord)
                     {
                         best_load = load;
                         best_tie_ord = tie_ord;
@@ -974,7 +974,8 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
                         schedule: &mut Vec<SemesterPlan>,
                         allow_summer: bool,
                         skip_summer_for: &HashSet<String>,
-                        only_items: Option<&HashSet<String>>|
+                        only_items: Option<&HashSet<String>>,
+                        year_range: Option<(i32, i32)>|
      -> bool {
         if remaining.is_empty() {
             return false;
@@ -992,16 +993,16 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
             let mut best_plan_idx: Option<usize> = None;
             let mut best_item_idx: Option<usize> = None;
             let mut best_load = f64::MAX;
-            let mut best_tie_ord = i32::MIN;
+            let mut best_tie_ord = i32::MAX;
 
             for (plan_idx, plan) in schedule.iter().enumerate() {
                 if plan.semester == "Summer" && !allow_summer {
                     continue;
                 }
-                if plan.semester != "Summer"
-                    && only_items.is_some_and(|set| plan.year > UNDERGRAD_SCHEDULE_WINDOW)
-                {
-                    continue;
+                if let Some((min_y, max_y)) = year_range {
+                    if plan.year < min_y || plan.year > max_y {
+                        continue;
+                    }
                 }
 
                 let max_cu = get_max_cu(plan.year, &plan.semester);
@@ -1022,7 +1023,7 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
 
                 let tie_ord = semester_order(plan.year, &plan.semester);
                 if plan.total_cu < best_load
-                    || (plan.total_cu == best_load && tie_ord > best_tie_ord)
+                    || (plan.total_cu == best_load && tie_ord < best_tie_ord)
                 {
                     best_load = plan.total_cu;
                     best_tie_ord = tie_ord;
@@ -1042,25 +1043,73 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
         placed_any
     };
 
+    // UG overflow: fill earlier open semesters before any MS placement.
     if has_undergrad && remaining_items.iter().any(|item| ug_schedule_items.contains(item)) {
-        distribute(
-            &mut remaining_items,
-            &mut schedule,
-            allow_summer,
-            &ms_grad_schedule_items,
-            Some(&ug_schedule_items),
-        );
+        loop {
+            if !remaining_items
+                .iter()
+                .any(|item| ug_schedule_items.contains(item))
+            {
+                break;
+            }
+            let placed = distribute(
+                &mut remaining_items,
+                &mut schedule,
+                allow_summer,
+                &ms_grad_schedule_items,
+                Some(&ug_schedule_items),
+                Some((1, UNDERGRAD_SCHEDULE_WINDOW)),
+            );
+            if !placed {
+                break;
+            }
+        }
+    }
+
+    // MS courses only after UG: years 3–4, then year 2, then year 5+.
+    if has_undergrad {
+        for (min_y, max_y) in [(3, 4), (2, 2)] {
+            loop {
+                if !remaining_items
+                    .iter()
+                    .any(|item| ms_schedule_items.contains(item))
+                {
+                    break;
+                }
+                let placed = distribute(
+                    &mut remaining_items,
+                    &mut schedule,
+                    allow_summer,
+                    &ms_grad_schedule_items,
+                    Some(&ms_schedule_items),
+                    Some((min_y, max_y)),
+                );
+                if !placed {
+                    break;
+                }
+            }
+        }
     }
 
     loop {
         if remaining_items.is_empty() {
             break;
         }
+        let only_items = if has_undergrad
+            && remaining_items
+                .iter()
+                .any(|item| ms_schedule_items.contains(item))
+        {
+            Some(&ms_schedule_items)
+        } else {
+            None
+        };
         let placed = distribute(
             &mut remaining_items,
             &mut schedule,
             allow_summer,
             &ms_grad_schedule_items,
+            only_items,
             None,
         );
         if remaining_items.is_empty() {

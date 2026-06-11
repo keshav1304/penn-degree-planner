@@ -116,9 +116,9 @@ pub fn ms_default_semester_target(course_id: &str) -> (i32, String) {
 
 /// Placement order for MS graduate items when co-scheduled with an undergrad degree.
 ///
-/// 1. Preferred window: `target` through `undergrad_window_end` (grad courses after UG picks).
-/// 2. Backfill: any remaining capacity in years 1..=`undergrad_window_end`.
-/// 3. Extension: years beyond the undergrad window when years 1–4 are full.
+/// 1. Preferred window: `target` through `undergrad_window_end` (typically years 3–4).
+/// 2. Backfill: open spots in year 2 only.
+/// 3. Extension: years beyond the undergrad window (e.g. a 5th year) when still needed.
 pub fn ms_grad_placement_candidates(
     target: (i32, &str),
     undergrad_window_end: i32,
@@ -137,8 +137,8 @@ pub fn ms_grad_placement_candidates(
     for (year, semester) in later_semesters(target, undergrad_window_end.max(target.0)) {
         push(year, &semester);
     }
-    for (year, semester) in later_semesters((1, "Fall"), undergrad_window_end) {
-        push(year, &semester);
+    for semester in ["Fall", "Spring"] {
+        push(2, semester);
     }
     if max_year > undergrad_window_end {
         for (year, semester) in later_semesters((undergrad_window_end + 1, "Fall"), max_year) {
@@ -198,9 +198,10 @@ mod tests {
         assert_eq!(orders[0], semester_order(3, "Fall"));
         assert_eq!(orders[1], semester_order(3, "Spring"));
         assert_eq!(orders[2], semester_order(4, "Fall"));
-        assert!(orders.contains(&semester_order(1, "Fall")));
+        assert!(orders.contains(&semester_order(2, "Fall")));
+        assert!(!orders.contains(&semester_order(1, "Fall")));
         assert!(orders.contains(&semester_order(5, "Fall")));
-        assert!(orders.iter().position(|&o| o == semester_order(1, "Fall")).unwrap()
+        assert!(orders.iter().position(|&o| o == semester_order(2, "Fall")).unwrap()
             > orders.iter().position(|&o| o == semester_order(4, "Spring")).unwrap());
     }
 
