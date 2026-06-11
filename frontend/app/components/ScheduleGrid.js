@@ -7,15 +7,9 @@ import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId 
 import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
+import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 
 const YEAR_NAMES = {};
-
-const DEGREE_COLORS = [
-    "#a51c30",  // Penn red
-    "#059669",  // teal
-    "#d97706",  // amber
-    "#7c3aed",  // purple
-];
 
 export default function ScheduleGrid({
     scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
@@ -128,14 +122,12 @@ export default function ScheduleGrid({
     const isFrozen = (courseId) => frozenCourses.some(f => f.courseId === courseId);
     const isAssigned = (courseId) => assignedCourses?.some(a => a.courseId === courseId);
 
-    // Build degree label → color index map
-    const degreeColorMap = {};
+    const degreeColorMap = buildDegreeColorMap(scheduleData);
     const degreeDisplayLabels = {};
     const degreeOrder = buildDegreeOrder(scheduleData);
     if (scheduleData?.degree_results) {
-        scheduleData.degree_results.forEach((result, i) => {
+        scheduleData.degree_results.forEach((result) => {
             const key = `${result.school}-${result.major}`;
-            degreeColorMap[key] = DEGREE_COLORS[i % DEGREE_COLORS.length];
             degreeDisplayLabels[key] = formatDegreeApiLabel(
                 result.school,
                 result.major,
@@ -461,7 +453,7 @@ export default function ScheduleGrid({
                         const fulfilledCount = ci.requirements_fulfilled || 0;
                         const totalCount = ci.requirements_total || 0;
                         const allFulfilled = fulfilledCount === totalCount && totalCount > 0;
-                        const color = degreeColorMap[ci.degreeLabel] || DEGREE_COLORS[i % DEGREE_COLORS.length];
+                        const color = degreeColorMap[ci.degreeLabel] || getDegreeColorForIndex(i);
                         return (
                             <div
                                 key={i}

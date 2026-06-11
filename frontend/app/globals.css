@@ -1040,6 +1040,7 @@ select {
   padding: 6px 8px;
   margin: 0;
   border: none;
+  border-top: 3px solid color-mix(in srgb, var(--degree-tab-color) 28%, transparent);
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   background: transparent;
@@ -1050,14 +1051,16 @@ select {
 }
 
 .req-degree-tab:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: color-mix(in srgb, var(--degree-tab-color) 6%, transparent);
+  border-top-color: color-mix(in srgb, var(--degree-tab-color) 50%, transparent);
   color: var(--text-primary);
 }
 
 .req-degree-tab.active {
-  background: var(--accent-teal-dim);
-  border-bottom-color: var(--accent-teal);
-  color: var(--accent-teal);
+  background: color-mix(in srgb, var(--degree-tab-color) 10%, transparent);
+  border-top-color: var(--degree-tab-color);
+  border-bottom-color: var(--degree-tab-color);
+  color: var(--degree-tab-color);
 }
 
 .req-degree-tab-major {
@@ -1083,8 +1086,8 @@ select {
 }
 
 .req-degree-tab.active .req-degree-tab-school {
-  color: var(--accent-teal);
-  opacity: 0.85;
+  color: var(--degree-tab-color);
+  opacity: 0.8;
 }
 
 /* ── Error banner ── */

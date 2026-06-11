@@ -28,6 +28,7 @@ import {
     filterCoursesForDegree,
 } from "@/lib/crossDegree";
 import { formatDegreeDisplay } from "@/lib/degreeDisplay";
+import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 
 export default function RequirementsPanel({
@@ -73,6 +74,7 @@ export default function RequirementsPanel({
     }
 
     const results = scheduleData.degree_results;
+    const degreeColorMap = buildDegreeColorMap(scheduleData);
     const tabIndex = navTarget?.degreeIndex != null
         ? Math.min(navTarget.degreeIndex, results.length - 1)
         : Math.min(activeTab, results.length - 1);
@@ -199,6 +201,8 @@ export default function RequirementsPanel({
                             degreeCatalog,
                         );
                         const isActive = tabIndex === i;
+                        const degreeKey = `${result.school}-${result.major}`;
+                        const degreeColor = degreeColorMap[degreeKey] || getDegreeColorForIndex(i);
                         return (
                             <button
                                 key={i}
@@ -206,6 +210,7 @@ export default function RequirementsPanel({
                                 role="tab"
                                 aria-selected={isActive}
                                 className={`req-degree-tab ${isActive ? "active" : ""}`}
+                                style={{ "--degree-tab-color": degreeColor }}
                                 onClick={() => setActiveTab(i)}
                                 title={schoolLine ? `${major} (${schoolLine})` : major}
                             >
