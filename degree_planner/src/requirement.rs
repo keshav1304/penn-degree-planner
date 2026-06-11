@@ -687,14 +687,21 @@ pub fn is_requirement_slot_id(s: &str) -> bool {
     s.starts_with("req:")
 }
 
-/// Pool coverage constraints use instance ids like `"1:c0"` (not slot ids `1:f0` / `1:p0`).
+/// Pool coverage constraints use instance ids like `"1:c0"` (not fixed slots `1:f0:c0` / `1:p0`).
 pub fn is_pool_constraint_instance_id(instance_id: Option<&str>) -> bool {
     instance_id.is_some_and(|id| {
-        id.split(':').any(|seg| {
+        let segments: Vec<&str> = id.split(':').collect();
+        let has_fixed_or_flex = segments.iter().any(|seg| {
             seg.len() > 1
-                && seg.starts_with('c')
+                && (seg.starts_with('f') || seg.starts_with('p'))
                 && seg[1..].chars().all(|c| c.is_ascii_digit())
-        })
+        });
+        !has_fixed_or_flex
+            && segments.iter().any(|seg| {
+                seg.len() > 1
+                    && seg.starts_with('c')
+                    && seg[1..].chars().all(|c| c.is_ascii_digit())
+            })
     })
 }
 
@@ -3955,6 +3962,16 @@ mod tests {
         assert!(order.iter().any(|c| c == "General Education"));
         assert!(order.iter().any(|c| c == "Introductory Economics"));
         assert!(!order.iter().any(|c| c.starts_with("Sectors of Knowledge —")));
+    }
+
+    #[test]
+    fn pool_constraint_instance_id_distinguishes_fixed_slots() {
+        assert!(is_pool_constraint_instance_id(Some("1:c0")));
+        assert!(is_pool_constraint_instance_id(Some("1:c12")));
+        assert!(!is_pool_constraint_instance_id(Some("1:f0:c0")));
+        assert!(!is_pool_constraint_instance_id(Some("1:f4:c0")));
+        assert!(!is_pool_constraint_instance_id(Some("1:p0")));
+        assert!(!is_pool_constraint_instance_id(Some("0")));
     }
 
     #[test]

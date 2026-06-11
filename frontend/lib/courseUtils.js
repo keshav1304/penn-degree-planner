@@ -20,10 +20,12 @@ export function isPoolFlexibleSlotInstanceId(instanceId) {
   return instanceId.split(":").some((seg) => /^p\d+$/.test(seg));
 }
 
-/** Pool coverage constraints (`1:c0`) — not schedulable CU. */
+/** Pool coverage constraints (`1:c0`) — not fixed pool slots (`1:f0:c0`) or flex slots (`1:p0`). */
 export function isPoolConstraintInstanceId(instanceId) {
   if (!instanceId || typeof instanceId !== "string") return false;
-  return instanceId.split(":").some((seg) => /^c\d+$/.test(seg));
+  const segments = instanceId.split(":");
+  if (segments.some((seg) => /^[fp]\d+$/.test(seg))) return false;
+  return segments.some((seg) => /^c\d+$/.test(seg));
 }
 
 /** Schedule slots scoped to a pool coverage constraint. */
