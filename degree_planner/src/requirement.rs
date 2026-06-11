@@ -1502,6 +1502,11 @@ fn expanded_pool_constraint_units(constraints: &[PoolConstraint]) -> Vec<(Requir
     units
 }
 
+/// Expanded pool constraint units for overlap planning (one entry per coverage slot).
+pub fn pool_constraint_units(constraints: &[PoolConstraint]) -> Vec<(Requirement, String)> {
+    expanded_pool_constraint_units(constraints)
+}
+
 /// Attribute-specific pool units are matched before broad catch-alls (e.g. non-Wharton).
 fn pool_constraint_unit_priority(req: &Requirement) -> u8 {
     match req {

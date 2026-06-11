@@ -1458,6 +1458,29 @@ select {
   word-break: break-word;
 }
 
+.req-overlap-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 4px;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent-teal);
+  background: var(--accent-teal-dim);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  cursor: help;
+  user-select: none;
+}
+
+.req-overlap-hint:hover {
+  background: rgba(5, 150, 105, 0.18);
+}
+
 .req-item-colon {
   font-size: var(--sidebar-font-body);
   font-weight: 600;
