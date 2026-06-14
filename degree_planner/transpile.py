@@ -79,7 +79,7 @@ def transpile(input_path: Path, output_path: Path):
     
     with output_path.open("w", encoding="utf-8") as out:
         out.write("// @generated - do not edit\n")
-        out.write("use super::Course;\n\n")
+        out.write("use crate::Course;\n\n")
 
         # Generate sub-functions for each chunk
         chunk_names = []
@@ -105,5 +105,5 @@ def transpile(input_path: Path, output_path: Path):
 if __name__ == "__main__":
     # Usage: python transpile.py [input.csv] [output.rs]
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("all_courses.csv")
-    dst = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("src/courses_data.rs")
+    dst = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("src/penn_data/courses_data.rs")
     transpile(src, dst)

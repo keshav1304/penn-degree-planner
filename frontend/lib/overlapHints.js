@@ -29,13 +29,13 @@ export function overlapPeersForSlot(overlapPlan, degreeIndex, slotKey) {
     return peers;
 }
 
-export function overlapAssignmentForSlot(overlapPlan, degreeIndex, slotKey) {
-    if (!overlapPlan?.assignments?.length || slotKey == null) return null;
-    for (const a of overlapPlan.assignments) {
-        const matches = a.slots?.some(
+export function overlapPairForSlot(overlapPlan, degreeIndex, slotKey) {
+    if (!overlapPlan?.pairs?.length || slotKey == null) return null;
+    for (const pair of overlapPlan.pairs) {
+        const matches = pair.slots?.some(
             (s) => s.degree_index === degreeIndex && s.slot_key === slotKey,
         );
-        if (matches) return a;
+        if (matches) return pair;
     }
     return null;
 }
@@ -46,11 +46,11 @@ export function overlapHintTooltip(overlapPlan, degreeIndex, slotKey) {
 
     const lines = [];
     const explanation = overlapExplanationForSlot(overlapPlan, degreeIndex, slotKey);
-    const assignment = overlapAssignmentForSlot(overlapPlan, degreeIndex, slotKey);
+    const pair = overlapPairForSlot(overlapPlan, degreeIndex, slotKey);
 
-    if (assignment) {
-        lines.push("Planned overlap:");
-        lines.push(assignment.explanation);
+    if (pair?.explanation) {
+        lines.push("Overlapping requirements:");
+        lines.push(pair.explanation);
         lines.push("");
     } else if (explanation) {
         lines.push(explanation);

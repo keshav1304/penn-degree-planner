@@ -1,5 +1,5 @@
 // @generated - do not edit
-use super::Course;
+use crate::Course;
 
 fn load_chunk_0(v: &mut Vec<Course>) {
     v.push(Course {

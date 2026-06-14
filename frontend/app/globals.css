@@ -738,6 +738,41 @@ select {
   background: rgba(5, 150, 105, 0.04);
 }
 
+.schedule-course.schedule-requirement-overlap {
+  border-color: rgba(5, 150, 105, 0.45);
+  background: rgba(5, 150, 105, 0.06);
+}
+
+.schedule-overlap-labels {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-overlap-label-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.schedule-overlap-major {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.schedule-overlap-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--accent-teal);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .schedule-course.schedule-requirement {
   border-style: dashed;
   border-color: rgba(0, 0, 0, 0.22);

@@ -1,10 +1,53 @@
 const YEAR_LABELS = ["Freshman", "Sophomore", "Junior", "Senior", "Fifth Year", "Sixth Year"];
 
 export const DEFAULT_SEMESTER_CU_LIMIT = 5.5;
+export const DUAL_UG_SEMESTER_CU_LIMIT = 6.5;
 export const DEFAULT_SUMMER_CU_LIMIT = 2.0;
 
-export function defaultSemesterCuLimit(semester) {
-    return semester === "Summer" ? DEFAULT_SUMMER_CU_LIMIT : DEFAULT_SEMESTER_CU_LIMIT;
+export function isGraduateSchool(schoolCode) {
+    return schoolCode === "SEAS_MS";
+}
+
+/** Two or more undergrad degrees with no MS programs. */
+export function isDualUndergradOnly(degrees) {
+    return (
+        degrees?.length >= 2
+        && degrees.every((d) => !isGraduateSchool(d.schoolCode))
+    );
+}
+
+/** Every selected degree is in the College (CAS). */
+export function isAllCasCollege(degrees) {
+    return degrees?.length > 0 && degrees.every((d) => d.schoolCode === "CAS");
+}
+
+/**
+ * Default max CU for a semester (before user overrides).
+ *
+ * - Year 1 Fall: always 5.5
+ * - Dual undergrad (not MS), not all-CAS: 6.5 for other fall/spring terms
+ * - Dual CAS college majors: 5.5 everywhere
+ * - Single degree or any other case: 5.5
+ */
+export function defaultSemesterCuLimit(semester, year = null, degrees = []) {
+    if (semester === "Summer") {
+        return DEFAULT_SUMMER_CU_LIMIT;
+    }
+    if (year === 1 && semester === "Fall") {
+        return DEFAULT_SEMESTER_CU_LIMIT;
+    }
+    if (isDualUndergradOnly(degrees) && !isAllCasCollege(degrees)) {
+        return DUAL_UG_SEMESTER_CU_LIMIT;
+    }
+    return DEFAULT_SEMESTER_CU_LIMIT;
+}
+
+export function undergradScheduleYears(degrees) {
+    const schools = (degrees || []).map((d) => d.schoolCode);
+    if (schools.length < 2) return 4;
+    if (schools.every((s) => s === "CAS")) return 4;
+    if (isDualUndergradOnly(degrees)) return 5;
+    return 4;
 }
 
 export function buildSemesterOptions(maxYear = 4, allowSummer = true) {

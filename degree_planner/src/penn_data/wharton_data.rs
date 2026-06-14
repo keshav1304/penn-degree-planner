@@ -737,8 +737,8 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
 mod tests {
     use super::{create_wh_fl_mt_major, create_wh_nofl_mt_major, Requirement};
     use crate::major::resolve_major;
-    use crate::attributes_data;
-    use crate::courses_data;
+    use crate::penn_data::attributes_data;
+    use crate::penn_data::courses_data;
     use crate::requirement::{evaluate_pool_constraints, extract_concentration_info, validate_courses_for_degree};
     use std::collections::HashMap;
 

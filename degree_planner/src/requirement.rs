@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Serialize;
 
-use crate::attributes_data;
+use crate::penn_data::attributes_data;
 use crate::course;
 use crate::cross_degree::{
     self, CrossDegreeState, CrossDegreeSummary, detect_violations, is_graduate_degree,
@@ -3398,7 +3398,7 @@ mod tests {
 
     #[test]
     fn validate_nested_single_course_reserved_before_restriction() {
-        use crate::seas_grad_data;
+        use crate::penn_data::seas_grad_data;
 
         let major = seas_grad_data::create_ms_robo_major();
         let taken = vec!["CIS 5190".to_string()];
@@ -3428,7 +3428,7 @@ mod tests {
 
     #[test]
     fn course_group_fulfills_three_of_four_foundational_areas() {
-        use crate::seas_grad_data;
+        use crate::penn_data::seas_grad_data;
 
         let major = seas_grad_data::create_ms_robo_major();
         let taken = vec![
@@ -3831,7 +3831,7 @@ mod tests {
 
     #[test]
     fn validate_emits_pool_coverage_for_cas_econ() {
-        use crate::college_data::{self};
+        use crate::penn_data::college_data::{self};
 
         let major = college_data::create_econ_major();
         let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
@@ -3847,7 +3847,7 @@ mod tests {
 
     #[test]
     fn wh_fl_pool_blocks_wufl_wucn_same_course() {
-        use crate::wharton_data;
+        use crate::penn_data::wharton_data;
 
         let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
         let pool_req = major
@@ -3882,7 +3882,7 @@ mod tests {
 
     #[test]
     fn wh_fl_pool_allows_wucn_wuhm_overlap() {
-        use crate::wharton_data;
+        use crate::penn_data::wharton_data;
 
         let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
         let pool_req = major
@@ -3921,7 +3921,7 @@ mod tests {
 
     #[test]
     fn wh_fl_pool_blocks_wuhm_wuss_same_course() {
-        use crate::wharton_data;
+        use crate::penn_data::wharton_data;
 
         let major = wharton_data::create_wh_fl_major(vec!["FNCE".to_string()]);
         let pool_req = major
@@ -3956,7 +3956,7 @@ mod tests {
 
     #[test]
     fn collect_category_order_flattens_cas_pool_children() {
-        use crate::college_data;
+        use crate::penn_data::college_data;
 
         let major = college_data::create_econ_major();
         let mut order = Vec::new();
@@ -3981,7 +3981,7 @@ mod tests {
 
     #[test]
     fn suggest_skips_pool_constraint_slots() {
-        use crate::college_data;
+        use crate::penn_data::college_data;
 
         let major = college_data::create_econ_major();
         let cu_map = HashMap::new();

@@ -1,20 +1,12 @@
 use std::vec;
 
-pub mod catalog_index;
 pub mod course;
-pub mod course_matcher;
 pub mod cross_degree;
 pub mod major;
 pub mod overlap_planner;
 pub mod requirement;
 pub mod schedule_template;
-
-pub mod attributes_data;
-pub mod seas_data;
-pub mod seas_grad_data;
-pub mod wharton_data;
-pub mod college_data;
-pub mod courses_data;
+pub mod penn_data;
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -23,10 +15,9 @@ use requirement::Requirement;
 use requirement::MappedRequirement;
 use requirement::PoolCoverageInfo;
 use requirement::ConcentrationInfo;
-use college_data::CasGenEdInfo;
-use catalog_index::CatalogIndex;
+use penn_data::college_data::CasGenEdInfo;
 use cross_degree::{is_graduate_degree, CrossDegreeSummary};
-use overlap_planner::OverlapPlan;
+use overlap_planner::{OverlapPlan, OverlapScheduleGroup};
 use major::Major;
 use schedule_template::{
     later_semesters, ms_default_semester_target, ms_default_semester_target_for_requirement,
@@ -42,7 +33,43 @@ use serde::{Serialize, Deserialize};
 use tower_http::cors::{Any, CorsLayer};
 
 const DEFAULT_SEMESTER_CU_LIMIT: f64 = 5.5;
+const DUAL_UG_SEMESTER_CU_LIMIT: f64 = 6.5;
 const DEFAULT_SUMMER_CU_LIMIT: f64 = 2.0;
+
+fn dual_undergrad_only(schools: &[String]) -> bool {
+    schools.len() >= 2 && schools.iter().all(|s| !is_graduate_degree(s))
+}
+
+fn all_cas_college(schools: &[String]) -> bool {
+    !schools.is_empty() && schools.iter().all(|s| s == "CAS")
+}
+
+/// Default max CU for a semester before user overrides.
+fn default_semester_cu_limit(schools: &[String], year: i32, semester: &str) -> f64 {
+    if semester == "Summer" {
+        return DEFAULT_SUMMER_CU_LIMIT;
+    }
+    if year == 1 && semester == "Fall" {
+        return DEFAULT_SEMESTER_CU_LIMIT;
+    }
+    if dual_undergrad_only(schools) && !all_cas_college(schools) {
+        return DUAL_UG_SEMESTER_CU_LIMIT;
+    }
+    DEFAULT_SEMESTER_CU_LIMIT
+}
+
+fn undergrad_schedule_years(schools: &[String]) -> i32 {
+    if schools.len() < 2 {
+        return 4;
+    }
+    if all_cas_college(schools) {
+        return 4;
+    }
+    if dual_undergrad_only(schools) {
+        return 5;
+    }
+    4
+}
 
 #[tokio::main]
 async fn main() {
@@ -124,7 +151,7 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
     let response: RootPostOutput;
 
     if let Some(major_req_unwrapped) = major_req {
-        let all_courses = courses_data::all_courses();
+        let all_courses = penn_data::courses_data::all_courses();
         let cu_map: HashMap<String, f64> = all_courses.iter()
             .map(|c| (c.course_code.clone(), c.cu))
             .collect();
@@ -225,7 +252,7 @@ async fn all_concentrations_get() -> Json<BTreeMap<String, Vec<String>>> {
 async fn all_courses_get() -> Json<Vec<Course>> {
     println!("GET /all_courses request made");
 
-    let all_courses = courses_data::all_courses();
+    let all_courses = penn_data::courses_data::all_courses();
 
     return Json(all_courses);
 }
@@ -355,6 +382,8 @@ struct ScheduleOutput {
     slot_labels: HashMap<String, String>,
     cross_degree_summary: Option<CrossDegreeSummary>,
     overlap_plan: Option<OverlapPlan>,
+    /// Paired requirement blocks (one CU) shown together on the schedule grid.
+    overlap_schedule_groups: Vec<OverlapScheduleGroup>,
     error: Option<String>,
 }
 
@@ -364,8 +393,12 @@ async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<Sche
     Json(generate_schedule(payload))
 }
 
-fn schedule_target_for_degree_count(year: i32, semester: &str, degree_count: usize) -> (i32, String) {
-    if degree_count <= 1 {
+fn schedule_target_for_dual_degrees(
+    year: i32,
+    semester: &str,
+    schools: &[String],
+) -> (i32, String) {
+    if !dual_undergrad_only(schools) || all_cas_college(schools) {
         return (year, semester.to_string());
     }
     let adjusted_year = match year {
@@ -412,7 +445,7 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let mut ms_grad_schedule_items: HashSet<String> = HashSet::new();
 
     // Build a CU lookup map from all courses
-    let all_courses = courses_data::all_courses();
+    let all_courses = penn_data::courses_data::all_courses();
     let cu_map: HashMap<String, f64> = all_courses.iter()
         .map(|c| (c.course_code.clone(), c.cu))
         .collect();
@@ -516,7 +549,6 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         cross_state.ug_concentration_courses = ug_conc_claims;
     }
 
-    let catalog_index = CatalogIndex::build();
     let major_refs: Vec<&Major> = resolved_degrees
         .iter()
         .map(|r| &r.major_data)
@@ -527,118 +559,19 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &cu_map,
         );
     }
-    let mut overlap_assignments: Vec<overlap_planner::OverlapAssignment> = Vec::new();
-    let mut overlap_plan = None;
-
-    if per_degree_validation.len() > 1 {
-        for _ in 0..24 {
-            let taken_set: HashSet<String> = courses_for_validation.iter().cloned().collect();
-            let plan = overlap_planner::compute_overlap_plan(
-                &per_degree_validation,
-                &major_refs,
-                &degree_schools,
-                &degree_majors,
-                &taken_set,
-                &cross_state,
-                &cu_map,
-                &catalog_index,
-            );
-
-            let mut new_assignments = Vec::new();
-            for assignment in &plan.assignments {
-                if courses_for_validation.contains(&assignment.course) {
-                    continue;
-                }
-                new_assignments.push(assignment.clone());
-                courses_for_validation.push(assignment.course.clone());
-            }
-
-            if new_assignments.is_empty() {
-                overlap_plan = Some(plan);
-                break;
-            }
-
-            overlap_assignments.extend(new_assignments);
-
-            per_degree_validation.clear();
-            for resolved in &resolved_degrees {
-                let mut validation = requirement::validate_courses_for_degree(
-                    resolved.major_data.requirements.clone(),
-                    &courses_for_validation,
-                    &cu_map,
-                );
-                for mapped in &mut validation.fulfilled {
-                    mapped.course_ids =
-                        requirement::filter_valid_course_ids(mapped.course_ids.clone());
-                }
-                validation.fulfilled.retain(|m| !m.course_ids.is_empty());
-                validation
-                    .fulfilled
-                    .sort_by_key(|r| r.requirement.get_category());
-                per_degree_validation.push(validation);
-            }
-
-            requirement::resolve_cross_degree_conflicts(
-                &mut per_degree_validation,
-                &degree_schools,
-                &degree_majors,
-                &cu_map,
-                Some(&conc_contexts),
-                Some(&courses_for_validation),
-            );
-
-            let ug_conc_claims = requirement::build_ug_concentration_claims(
-                &conc_contexts,
-                &degree_schools,
-                &per_degree_validation,
-                &courses_for_validation,
-                &cu_map,
-            );
-
-            cross_state = cross_degree::CrossDegreeState::new(
-                degree_schools.clone(),
-                degree_majors.clone(),
-            );
-            let mut fulfilled_allocations =
-                requirement::build_allocations_from_fulfilled(&per_degree_validation);
-            requirement::merge_concentration_claims_into(
-                &mut fulfilled_allocations,
-                &ug_conc_claims,
-            );
-            cross_state.rebuild_from_allocations(&fulfilled_allocations, &cu_map);
-            cross_state.ug_concentration_courses = ug_conc_claims;
-
-            for assignment in &overlap_assignments {
-                for slot in &assignment.slots {
-                    cross_state.register_claim(&assignment.course, slot.degree_index, &cu_map);
-                }
-            }
-
-            for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
-                per_degree_validation[degree_idx].refresh_pool_coverage_info(
-                    &resolved.major_data.requirements,
-                    &cu_map,
-                );
-            }
-        }
-
-        if overlap_plan.is_none() {
-            let taken_set: HashSet<String> = courses_for_validation.iter().cloned().collect();
-            overlap_plan = Some(overlap_planner::compute_overlap_plan(
-                &per_degree_validation,
-                &major_refs,
-                &degree_schools,
-                &degree_majors,
-                &taken_set,
-                &cross_state,
-                &cu_map,
-                &catalog_index,
-            ));
-        }
-        if let Some(ref mut plan) = overlap_plan {
-            plan.assignments = overlap_assignments.clone();
-        }
-    }
+    let mut overlap_plan = if per_degree_validation.len() > 1 {
+        Some(overlap_planner::compute_overlap_plan(
+            &per_degree_validation,
+            &major_refs,
+            &degree_schools,
+            &degree_majors,
+            &courses_for_validation.iter().cloned().collect(),
+            &cross_state,
+            &cu_map,
+        ))
+    } else {
+        None
+    };
 
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
         let degree = &resolved.input;
@@ -685,10 +618,10 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                             item_targets
                                 .entry(course_id.clone())
                                 .or_insert_with(|| {
-                                    schedule_target_for_degree_count(
+                                    schedule_target_for_dual_degrees(
                                         target.0,
                                         &target.1,
-                                        payload.degrees.len(),
+                                        &degree_schools,
                                     )
                                 });
                         }
@@ -767,10 +700,10 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 if course::is_valid_course_code(key) {
                     item_targets.insert(
                         key.clone(),
-                        schedule_target_for_degree_count(
+                        schedule_target_for_dual_degrees(
                             target.0,
                             &target.1,
-                            payload.degrees.len(),
+                            &degree_schools,
                         ),
                     );
                 }
@@ -812,9 +745,9 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     .iter()
                     .find(|p| p.category == "General Education")
                     .map(|pool| {
-                        college_data::build_cas_gen_ed_info(
+                        penn_data::college_data::build_cas_gen_ed_info(
                             pool,
-                            &college_data::cas_auto_completed_sectors_for(&major_data.short_name),
+                            &penn_data::college_data::cas_auto_completed_sectors_for(&major_data.short_name),
                         )
                     })
             } else {
@@ -838,6 +771,107 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             });
     }
 
+    let mut schedulable_slot_lookup: HashMap<(usize, String), String> = HashMap::new();
+    for (degree_idx, result) in degree_results.iter().enumerate() {
+        for mapped in &result.suggested_for_unfulfilled {
+            let instance = mapped.instance_id.clone().unwrap_or_default();
+            for cid in &mapped.course_ids {
+                if requirement::is_schedulable_requirement_slot_id(cid) {
+                    schedulable_slot_lookup.insert((degree_idx, instance.clone()), cid.clone());
+                    if let Some(rest) = cid.strip_prefix("req:") {
+                        let scope = rest.split(":R:").next().unwrap_or(rest);
+                        schedulable_slot_lookup.insert((degree_idx, scope.to_string()), cid.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    let mut overlap_schedule_groups: Vec<OverlapScheduleGroup> = Vec::new();
+    let mut suppressed_overlap_slots: HashSet<String> = HashSet::new();
+
+    if let Some(ref plan) = overlap_plan {
+        for pair in &plan.pairs {
+            let mut members: Vec<overlap_planner::OverlapScheduleGroupMember> = Vec::new();
+            let mut resolved_schedulable: Vec<String> = Vec::new();
+
+            for slot_ref in &pair.slots {
+                let schedule_id = schedulable_slot_lookup
+                    .get(&(slot_ref.degree_index, slot_ref.slot_key.clone()))
+                    .cloned()
+                    .or_else(|| {
+                        all_requirement_slots.iter().find_map(|id| {
+                            if !requirement::is_schedulable_requirement_slot_id(id) {
+                                return None;
+                            }
+                            let rest = id.strip_prefix("req:")?;
+                            if rest == slot_ref.slot_key
+                                || rest.starts_with(&format!("{}:", slot_ref.slot_key))
+                            {
+                                Some(id.clone())
+                            } else {
+                                None
+                            }
+                        })
+                    });
+
+                if let Some(schedule_slot_id) = schedule_id {
+                    resolved_schedulable.push(schedule_slot_id.clone());
+                    members.push(overlap_planner::OverlapScheduleGroupMember {
+                        schedule_slot_id,
+                        label: slot_ref.label.clone(),
+                        degree_index: slot_ref.degree_index,
+                        school: slot_ref.school.clone(),
+                        major: slot_ref.major.clone(),
+                    });
+                } else {
+                    members.push(overlap_planner::OverlapScheduleGroupMember {
+                        schedule_slot_id: overlap_planner::hint_key(
+                            slot_ref.degree_index,
+                            &slot_ref.slot_key,
+                        ),
+                        label: slot_ref.label.clone(),
+                        degree_index: slot_ref.degree_index,
+                        school: slot_ref.school.clone(),
+                        major: slot_ref.major.clone(),
+                    });
+                }
+            }
+
+            if members.len() != 2 {
+                continue;
+            }
+
+            let group_id = overlap_planner::overlap_group_schedule_id(&pair.slots);
+            if resolved_schedulable.len() == 2 {
+                for id in &resolved_schedulable {
+                    suppressed_overlap_slots.insert(id.clone());
+                }
+            }
+
+            let combined_label = members
+                .iter()
+                .map(|m| format!("{} ({})", m.label, m.major))
+                .collect::<Vec<_>>()
+                .join(" + ");
+            slot_labels.insert(group_id.clone(), combined_label);
+
+            overlap_schedule_groups.push(OverlapScheduleGroup {
+                group_id,
+                members,
+                explanation: pair.explanation.clone(),
+            });
+        }
+    }
+
+    all_requirement_slots.retain(|s| !suppressed_overlap_slots.contains(s));
+    for group in &overlap_schedule_groups {
+        if !all_requirement_slots.contains(&group.group_id) {
+            all_requirement_slots.push(group.group_id.clone());
+            ug_schedule_items.insert(group.group_id.clone());
+        }
+    }
+
     let get_cu = |course_id: &str| -> f64 {
         if requirement::is_requirement_slot_id(course_id) {
             return 1.0;
@@ -847,7 +881,9 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let place_in_semester = |plan: &mut SemesterPlan, item_id: &str| {
         if requirement::is_requirement_slot_id(item_id) {
-            if !requirement::is_schedulable_requirement_slot_id(item_id) {
+            if !requirement::is_schedulable_requirement_slot_id(item_id)
+                && !overlap_planner::is_overlap_schedule_group_id(item_id)
+            {
                 return;
             }
             if !plan.requirement_slots.contains(&item_id.to_string()) {
@@ -869,12 +905,7 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         if let Some(&limit) = cu_limits.get(&key) {
             return limit;
         }
-        // Defaults — dual-degree students often use summers more heavily.
-        match semester {
-            "Summer" if payload.degrees.len() > 1 => 2.5,
-            "Summer" => DEFAULT_SUMMER_CU_LIMIT,
-            _ => DEFAULT_SEMESTER_CU_LIMIT,
-        }
+        default_semester_cu_limit(&degree_schools, year, semester)
     };
 
     // Helper: ensure schedule has semesters for a given year
@@ -913,18 +944,9 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }
     };
 
-    let initial_years = if payload.degrees.len() > 1 { 5 } else { 4 };
+    let initial_years = undergrad_schedule_years(&degree_schools);
     for yr in 1..=initial_years {
         ensure_year(&mut schedule, yr, allow_summer);
-    }
-
-    if let Some(ref plan) = overlap_plan {
-        for assignment in &plan.assignments {
-            if !all_suggested_courses.contains(&assignment.course) {
-                all_suggested_courses.push(assignment.course.clone());
-                ug_schedule_items.insert(assignment.course.clone());
-            }
-        }
     }
 
     // Place frozen items first (courses and requirement slots)
@@ -1031,7 +1053,7 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             false
         };
 
-    let undergrad_schedule_window = if payload.degrees.len() > 1 { 5 } else { 4 };
+    let undergrad_schedule_window = undergrad_schedule_years(&degree_schools);
 
     let place_with_template =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, target: &(i32, String)| -> bool {
@@ -1421,6 +1443,7 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         slot_labels,
         cross_degree_summary,
         overlap_plan,
+        overlap_schedule_groups,
         error: None,
     }
 }
@@ -1428,6 +1451,34 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 #[cfg(test)]
 mod schedule_integration_tests {
     use super::*;
+
+    #[test]
+    fn year_one_fall_cu_limit_is_five_point_five() {
+        let seas_wh = vec!["SEAS".to_string(), "WH".to_string()];
+        assert_eq!(default_semester_cu_limit(&seas_wh, 1, "Fall"), 5.5);
+        assert_eq!(default_semester_cu_limit(&seas_wh, 1, "Spring"), 6.5);
+    }
+
+    #[test]
+    fn dual_ug_non_cas_gets_six_point_five() {
+        let schools = vec!["CAS".to_string(), "WH".to_string()];
+        assert_eq!(default_semester_cu_limit(&schools, 2, "Fall"), 6.5);
+        assert_eq!(default_semester_cu_limit(&schools, 4, "Spring"), 6.5);
+    }
+
+    #[test]
+    fn dual_cas_stays_five_point_five_four_years() {
+        let schools = vec!["CAS".to_string(), "CAS".to_string()];
+        assert_eq!(default_semester_cu_limit(&schools, 2, "Fall"), 5.5);
+        assert_eq!(undergrad_schedule_years(&schools), 4);
+    }
+
+    #[test]
+    fn single_degree_five_point_five() {
+        let schools = vec!["SEAS".to_string()];
+        assert_eq!(default_semester_cu_limit(&schools, 3, "Spring"), 5.5);
+        assert_eq!(undergrad_schedule_years(&schools), 4);
+    }
 
     fn dual_degree_input(
         school1: &str,
@@ -1483,14 +1534,15 @@ mod schedule_integration_tests {
             max_year <= 5,
             "{label}: expected finish by year 5, schedule extends to year {max_year}"
         );
-        let assignments = output
+        let pairs = output
             .overlap_plan
             .as_ref()
-            .map(|p| p.assignments.len())
+            .map(|p| p.pairs.len())
             .unwrap_or(0);
         assert!(
-            assignments > 0,
-            "{label}: expected overlap assignments to reduce course load"
+            !output.overlap_schedule_groups.is_empty()
+                || pairs > 0,
+            "{label}: expected overlap pairs or schedule groups"
         );
     }
 

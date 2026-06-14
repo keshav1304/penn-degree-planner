@@ -36,9 +36,17 @@ export function isPoolConstraintSlotId(id) {
   return scope.split(":").some((seg) => /^c\d+$/.test(seg));
 }
 
-/** Requirement slots that represent real schedule CU (pool fixed/flexible slots). */
+/** Combined cross-degree requirement block on the schedule (one CU, two requirements). */
+export function isOverlapScheduleGroupId(id) {
+  return typeof id === "string" && id.startsWith("req:overlap:");
+}
+
+/** Requirement slots that represent real schedule CU (pool fixed/flexible / overlap groups). */
 export function isSchedulableRequirementSlotId(id) {
-  return isRequirementSlotId(id) && !isPoolConstraintSlotId(id);
+  return (
+    isOverlapScheduleGroupId(id)
+    || (isRequirementSlotId(id) && !isPoolConstraintSlotId(id))
+  );
 }
 
 /** Item that may appear on the schedule grid (course or requirement slot). */

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
-import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId } from "@/lib/courseUtils";
+import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId, isOverlapScheduleGroupId } from "@/lib/courseUtils";
 import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
@@ -88,6 +88,32 @@ export default function ScheduleGrid({
         return [...new Set([...pinnedHere, ...apiCourses])].filter(isValidCourseCode);
     };
 
+    const overlapScheduleGroups = scheduleData?.overlap_schedule_groups ?? [];
+    const overlapGroupById = Object.fromEntries(
+        overlapScheduleGroups.map((g) => [g.group_id, g]),
+    );
+    const overlapMemberSlotIds = new Set(
+        overlapScheduleGroups.flatMap((g) =>
+            g.members.map((m) => m.schedule_slot_id).filter(isRequirementSlotId),
+        ),
+    );
+
+    const getDisplayOverlapGroups = (year, semester) => {
+        const plan = getSemesterPlan(year, semester);
+        const apiGroups = (plan?.requirement_slots || []).filter(
+            (id) => isOverlapScheduleGroupId(id) && !pinnedIds.has(id),
+        );
+        const pinnedHere = frozenCourses
+            .filter(
+                (f) =>
+                    f.year === year
+                    && f.semester === semester
+                    && isOverlapScheduleGroupId(f.courseId),
+            )
+            .map((f) => f.courseId);
+        return [...new Set([...pinnedHere, ...apiGroups])];
+    };
+
     // Requirement slots still open (unfulfilled) — hide once a frozen/taken course satisfies them
     const openRequirementSlotIds = new Set();
     scheduleData?.degree_results?.forEach((result) => {
@@ -114,7 +140,10 @@ export default function ScheduleGrid({
                 )
                 .map((f) => f.courseId),
         ];
-        return [...new Set([...pinnedHere, ...apiSlots])].filter(isSchedulableRequirementSlotId);
+        return [...new Set([...pinnedHere, ...apiSlots])]
+            .filter(isSchedulableRequirementSlotId)
+            .filter((id) => !isOverlapScheduleGroupId(id))
+            .filter((id) => !overlapMemberSlotIds.has(id));
     };
 
     const getSlotLabel = (slotId) => requirementSlotLabels[slotId] || "Open requirement";
@@ -207,6 +236,71 @@ export default function ScheduleGrid({
                     </span>
                 ))}
             </span>
+        );
+    };
+
+    const renderOverlapGroupCard = (groupId, year, sem, idx) => {
+        const group = overlapGroupById[groupId];
+        const frozen = isFrozen(groupId);
+        let className = "schedule-course schedule-requirement schedule-requirement-overlap";
+        if (frozen) className += " frozen";
+
+        const handleClick = () => {
+            onToggleFreeze(groupId, year, sem);
+        };
+
+        const memberLabels = group?.members?.length
+            ? group.members
+            : [{ label: getSlotLabel(groupId), major: "" }];
+
+        return (
+            <DraggableCourse
+                key={`${groupId}-${idx}`}
+                id={`schedule-${year}-${sem}-${groupId}-${idx}`}
+                data={{ courseId: groupId, source: "schedule", fromYear: year, fromSemester: sem }}
+            >
+                <div className={className} style={{ position: "relative" }}>
+                    <div className="degree-bar-container">
+                        {memberLabels.map((m, i) => {
+                            const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
+                            return (
+                                <div
+                                    key={`${groupId}-bar-${i}`}
+                                    className="degree-bar-stripe"
+                                    style={{ background: degKey ? (degreeColorMap[degKey] || "#888") : "#888" }}
+                                    title={degKey || m.label}
+                                />
+                            );
+                        })}
+                    </div>
+                    <div
+                        className="schedule-course-content"
+                        onClick={handleClick}
+                        title={
+                            group?.explanation
+                                ? `${group.explanation}\n\n${frozen ? "Click to unfreeze" : "Click to freeze"}`
+                                : frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"
+                        }
+                    >
+                        <div className="schedule-overlap-labels">
+                            {memberLabels.map((m, i) => (
+                                <div key={i} className="schedule-overlap-label-row">
+                                    <span className="schedule-requirement-label">
+                                        {m.label.split(/\n↳/)[0].trim()}
+                                    </span>
+                                    {m.major && (
+                                        <span className="schedule-overlap-major">{m.major}</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <span className="course-card-actions">
+                            <span className="schedule-overlap-badge">Overlap</span>
+                            <span className="course-cu-label">1.0 CU</span>
+                        </span>
+                    </div>
+                </div>
+            </DraggableCourse>
         );
     };
 
@@ -382,8 +476,9 @@ export default function ScheduleGrid({
                     {semesters.map(sem => {
                         const plan = getSemesterPlan(year, sem);
                         const courses = sortSemesterCourses(getDisplayCourses(year, sem));
+                        const overlapGroups = getDisplayOverlapGroups(year, sem);
                         const requirementSlots = getDisplayRequirementSlots(year, sem);
-                        const itemCount = courses.length + requirementSlots.length;
+                        const itemCount = courses.length + overlapGroups.length + requirementSlots.length;
                         const droppableId = `slot-${year}-${sem}`;
 
                         return (
@@ -395,6 +490,7 @@ export default function ScheduleGrid({
                                     )}
                                 </div>
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
+                                {overlapGroups.map((groupId, idx) => renderOverlapGroupCard(groupId, year, sem, idx))}
                                 {requirementSlots.map((slotId, idx) => renderRequirementSlotCard(slotId, year, sem, idx))}
                                 {itemCount === 0 && (
                                     <div className="drop-hint">Drop courses here</div>
@@ -403,8 +499,10 @@ export default function ScheduleGrid({
                                     const semKey = `${year}-${sem}`;
                                     const actualCu =
                                         courses.reduce((s, c) => s + getCu(c), 0)
+                                        + overlapGroups.length * 1.0
                                         + requirementSlots.length * 1.0;
-                                    const limitValue = semesterCuLimits?.[semKey] ?? defaultSemesterCuLimit(sem);
+                                    const limitValue = semesterCuLimits?.[semKey]
+                                        ?? defaultSemesterCuLimit(sem, year, degrees);
                                     return (
                                         <div className="semester-cu-total">
                                             <span>{actualCu.toFixed(1)} /</span>

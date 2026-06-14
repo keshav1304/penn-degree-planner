@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, HashMap};
 use serde::Serialize;
 
 use crate::Requirement;
-use crate::college_data;
-use crate::seas_data;
-use crate::seas_grad_data;
-use crate::wharton_data;
+use crate::penn_data::college_data;
+use crate::penn_data::seas_data;
+use crate::penn_data::seas_grad_data;
+use crate::penn_data::wharton_data;
 
 #[derive(Debug)]
 pub struct Major {
@@ -291,7 +291,7 @@ fn normalize_major(major: Major) -> Major {
 mod tests {
     use super::resolve_major;
     use crate::Requirement;
-    use crate::college_data::{self, CAS_DEGREE_CU};
+    use crate::penn_data::college_data::{self, CAS_DEGREE_CU};
 
     #[test]
     fn resolves_ms_robo() {
