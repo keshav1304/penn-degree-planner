@@ -26,11 +26,20 @@ import {
 import {
     filterAttributeFulfillmentForDegree,
     filterCoursesForDegree,
+    courseCountsForDegree,
 } from "@/lib/crossDegree";
-import { formatDegreeDisplay } from "@/lib/degreeDisplay";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
 import { overlapHintTooltip } from "@/lib/overlapHints";
+import {
+    buildCasSuperSections,
+    buildRequirementTabs,
+    casGenEdProgress,
+    getCategory,
+    normalizeCategory,
+    poolGroupStats,
+    resolveActiveTabIndex,
+} from "@/lib/casRequirementsLayout";
 
 export default function RequirementsPanel({
     scheduleData,
@@ -48,19 +57,26 @@ export default function RequirementsPanel({
     const [flashRowId, setFlashRowId] = useState(null);
 
     useEffect(() => {
-        if (!navTarget) return;
+        if (!navTarget || !scheduleData?.degree_results) return;
+        const tabs = buildRequirementTabs(scheduleData.degree_results, degrees, degreeCatalog);
+        const resolvedTab = resolveActiveTabIndex(tabs, activeTab, navTarget);
         const { degreeIndex, instanceId, category } = navTarget;
         const rowId = reqRowDomId(degreeIndex ?? 0, instanceId);
         const timer = window.setTimeout(() => {
             document.getElementById(rowId)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
             setFlashRowId(rowId);
             window.setTimeout(() => setFlashRowId(null), 2200);
-            if (degreeIndex != null) setActiveTab(degreeIndex);
-            if (category) setCollapsedGroups((prev) => ({ ...prev, [category]: false }));
+            setActiveTab(resolvedTab);
+            if (category || degreeIndex != null) {
+                setCollapsedGroups((prev) => ({
+                    ...prev,
+                    ...casCollapseKeysForNav(navTarget, scheduleData.degree_results),
+                }));
+            }
             onNavTargetConsumed?.();
         }, 80);
         return () => window.clearTimeout(timer);
-    }, [navTarget, onNavTargetConsumed]);
+    }, [navTarget, onNavTargetConsumed, scheduleData, degrees, degreeCatalog, activeTab]);
 
     if (!degrees || degrees.length === 0) {
         return (
@@ -76,115 +92,159 @@ export default function RequirementsPanel({
 
     const results = scheduleData.degree_results;
     const degreeColorMap = buildDegreeColorMap(scheduleData);
-    const tabIndex = navTarget?.degreeIndex != null
-        ? Math.min(navTarget.degreeIndex, results.length - 1)
-        : Math.min(activeTab, results.length - 1);
-    const current = results[tabIndex];
-    if (!current) return null;
-
-    const degreeLabel = `${current.school}-${current.major}`;
-
-    const mapRequirementForDegree = (mapped, { fulfilledDefault, partialDefault }) => {
-        const fulfilledCourses = filterCoursesForDegree(
-            mapped.course_ids || [],
-            degreeLabel,
-            courseDegreesMap,
-        );
-        const attributeFulfillment = filterAttributeFulfillmentForDegree(
-            attributeFulfillmentMap(mapped),
-            degreeLabel,
-            courseDegreesMap,
-        );
-        const hasAllocatedFulfillment =
-            fulfilledCourses.length > 0
-            || (attributeFulfillment
-                && [...attributeFulfillment.values()].some((ids) => ids.length > 0));
-        return {
-            category: normalizeCategory(getCategory(mapped.requirement)),
-            fulfilled: fulfilledDefault && hasAllocatedFulfillment,
-            partial: partialDefault && hasAllocatedFulfillment,
-            committedAnyofBranch: mapped.committed_anyof_branch ?? null,
-            fulfilledCourses,
-            requirement: mapped.requirement,
-            instanceId: getRequirementInstanceId(mapped),
-            attributeFulfillment,
-        };
-    };
-
-    const allReqs = [];
-    const pushIfSchedulable = (mapped, opts) => {
-        if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
-        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
-        allReqs.push(mapRequirementForDegree(mapped, opts));
-    };
-    (current.fulfilled_requirements || []).forEach((mapped) => {
-        pushIfSchedulable(mapped, { fulfilledDefault: true, partialDefault: false });
-    });
-    (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
-        const req = mapped?.requirement ?? mapped;
-        if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
-        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
-        const item = mapRequirementForDegree(
-            { ...mapped, requirement: req },
-            { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
-        );
-        allReqs.push({
-            ...item,
-            instanceId: item.instanceId ?? `u-${rowIdx}`,
-        });
-    });
-
-    const pools = current.pool_coverage_info || [];
-
-    const categoryForItem = (item) => {
-        const cat = normalizeCategory(item.category);
-        for (const pool of pools) {
-            const poolCat = normalizeCategory(pool.category);
-            if (cat === poolCat || cat === `${poolCat} - Pool course`) {
-                return poolCat;
-            }
-        }
-        return cat;
-    };
-
-    const categoryMap = {};
-    allReqs.forEach((item) => {
-        const cat = categoryForItem(item);
-        if (!categoryMap[cat]) categoryMap[cat] = [];
-        categoryMap[cat].push(item);
-    });
-    pools.forEach((pool) => {
-        const cat = normalizeCategory(pool.category);
-        if (!categoryMap[cat]) categoryMap[cat] = [];
-    });
-
-    const categoryOrder = (current.category_order || []).map(normalizeCategory);
-    const orderedCategories = [...categoryOrder];
-    Object.keys(categoryMap).forEach((c) => { if (!orderedCategories.includes(c)) orderedCategories.push(c); });
-    if (current.school === "CAS") {
-        const genEdIdx = orderedCategories.indexOf("General Education");
-        if (genEdIdx !== -1) {
-            orderedCategories.splice(genEdIdx, 1);
-            orderedCategories.push("General Education");
-        }
-    }
+    const tabs = buildRequirementTabs(results, degrees, degreeCatalog);
+    const tabIndex = resolveActiveTabIndex(tabs, activeTab, navTarget);
+    const activeTabDef = tabs[tabIndex];
+    if (!activeTabDef) return null;
 
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
-    const crossDegreeChipTitle = (courseId) => {
-        return crossDegreeViolationsByCourse[courseId] || undefined;
-    };
-
+    const crossDegreeChipTitle = (courseId) => crossDegreeViolationsByCourse[courseId] || undefined;
     const overlapPlan = scheduleData?.overlap_plan ?? null;
 
-    const scheduleCtx = {
-        assignedIds,
-        frozenIds,
-        crossDegreeViolationsByCourse,
-        crossDegreeChipTitle,
-        overlapPlan,
-        degreeIndex: tabIndex,
-    };
+    const isCasLayout = activeTabDef.type === "cas-combined" || activeTabDef.type === "cas-single";
+
+    let current;
+    let degreeLabel;
+    let allReqs;
+    let pools;
+    let categoryMap;
+    let orderedCategories;
+    let scheduleCtx;
+    let errors = [];
+
+    if (isCasLayout) {
+        const casIndices = activeTabDef.type === "cas-combined"
+            ? activeTabDef.indices
+            : [activeTabDef.index];
+        const superSections = buildCasSuperSections({
+            casIndices,
+            results,
+            degrees,
+            degreeCatalog,
+            courseDegreesMap,
+            combined: activeTabDef.type === "cas-combined",
+        });
+        allReqs = superSections.flatMap((sec) => {
+            if (sec.kind === "writing") return sec.items || [];
+            if (sec.kind === "major") {
+                return (sec.orderedCategories || []).flatMap(
+                    (cat) => sec.categoryMap[cat] || [],
+                );
+            }
+            return [];
+        });
+        current = results[casIndices[0]];
+        degreeLabel = `${current.school}-${current.major}`;
+        pools = [];
+        categoryMap = {};
+        orderedCategories = [];
+        errors = casIndices.map((i) => results[i]?.error).filter(Boolean);
+        scheduleCtx = {
+            assignedIds,
+            frozenIds,
+            crossDegreeViolationsByCourse,
+            crossDegreeChipTitle,
+            overlapPlan,
+            degreeIndex: casIndices[0],
+            superSections,
+            isCasCombined: activeTabDef.type === "cas-combined",
+            casIndices,
+        };
+    } else {
+        current = results[activeTabDef.index];
+        degreeLabel = `${current.school}-${current.major}`;
+
+        const mapRequirementForDegree = (mapped, { fulfilledDefault, partialDefault }) => {
+            const fulfilledCourses = filterCoursesForDegree(
+                mapped.course_ids || [],
+                degreeLabel,
+                courseDegreesMap,
+            );
+            const attributeFulfillment = filterAttributeFulfillmentForDegree(
+                attributeFulfillmentMap(mapped),
+                degreeLabel,
+                courseDegreesMap,
+            );
+            const hasAllocatedFulfillment =
+                fulfilledCourses.length > 0
+                || (attributeFulfillment
+                    && [...attributeFulfillment.values()].some((ids) => ids.length > 0));
+            return {
+                category: normalizeCategory(getCategory(mapped.requirement)),
+                fulfilled: fulfilledDefault && hasAllocatedFulfillment,
+                partial: partialDefault && hasAllocatedFulfillment,
+                committedAnyofBranch: mapped.committed_anyof_branch ?? null,
+                fulfilledCourses,
+                requirement: mapped.requirement,
+                instanceId: getRequirementInstanceId(mapped),
+                attributeFulfillment,
+            };
+        };
+
+        allReqs = [];
+        const pushIfSchedulable = (mapped, opts) => {
+            if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
+            if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
+            allReqs.push(mapRequirementForDegree(mapped, opts));
+        };
+        (current.fulfilled_requirements || []).forEach((mapped) => {
+            pushIfSchedulable(mapped, { fulfilledDefault: true, partialDefault: false });
+        });
+        (current.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
+            const req = mapped?.requirement ?? mapped;
+            if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
+            if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
+            const item = mapRequirementForDegree(
+                { ...mapped, requirement: req },
+                { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
+            );
+            allReqs.push({
+                ...item,
+                instanceId: item.instanceId ?? `u-${rowIdx}`,
+            });
+        });
+
+        pools = current.pool_coverage_info || [];
+
+        const categoryForItem = (item) => {
+            const cat = normalizeCategory(item.category);
+            for (const pool of pools) {
+                const poolCat = normalizeCategory(pool.category);
+                if (cat === poolCat || cat === `${poolCat} - Pool course`) {
+                    return poolCat;
+                }
+            }
+            return cat;
+        };
+
+        categoryMap = {};
+        allReqs.forEach((item) => {
+            const cat = categoryForItem(item);
+            if (!categoryMap[cat]) categoryMap[cat] = [];
+            categoryMap[cat].push(item);
+        });
+        pools.forEach((pool) => {
+            const cat = normalizeCategory(pool.category);
+            if (!categoryMap[cat]) categoryMap[cat] = [];
+        });
+
+        const categoryOrder = (current.category_order || []).map(normalizeCategory);
+        orderedCategories = [...categoryOrder];
+        Object.keys(categoryMap).forEach((c) => {
+            if (!orderedCategories.includes(c)) orderedCategories.push(c);
+        });
+
+        scheduleCtx = {
+            assignedIds,
+            frozenIds,
+            crossDegreeViolationsByCourse,
+            crossDegreeChipTitle,
+            overlapPlan,
+            degreeIndex: activeTabDef.index,
+        };
+        if (current.error) errors.push(current.error);
+    }
 
     const totalCount = allReqs.length;
     const fulfilledCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled").length;
@@ -197,31 +257,30 @@ export default function RequirementsPanel({
 
     return (
         <div className="req-panel">
-            {results.length > 1 && (
+            {tabs.length > 1 && (
                 <div className="req-degree-tabs" role="tablist" aria-label="Degree requirements">
-                    {results.map((result, i) => {
-                        const { major, schoolLine } = formatDegreeDisplay(
-                            degrees[i],
-                            result,
-                            degreeCatalog,
-                        );
+                    {tabs.map((tab, i) => {
                         const isActive = tabIndex === i;
-                        const degreeKey = `${result.school}-${result.major}`;
-                        const degreeColor = degreeColorMap[degreeKey] || getDegreeColorForIndex(i);
+                        const degreeKey = tab.type === "cas-combined"
+                            ? "CAS-combined"
+                            : `${results[tab.index].school}-${results[tab.index].major}`;
+                        const degreeColor = tab.type === "cas-combined"
+                            ? getDegreeColorForIndex(tab.indices[0])
+                            : (degreeColorMap[degreeKey] || getDegreeColorForIndex(tab.index));
                         return (
                             <button
-                                key={i}
+                                key={tab.id}
                                 type="button"
                                 role="tab"
                                 aria-selected={isActive}
                                 className={`req-degree-tab ${isActive ? "active" : ""}`}
                                 style={{ "--degree-tab-color": degreeColor }}
                                 onClick={() => setActiveTab(i)}
-                                title={schoolLine ? `${major} (${schoolLine})` : major}
+                                title={tab.schoolLine ? `${tab.label} (${tab.schoolLine})` : tab.label}
                             >
-                                <span className="req-degree-tab-major">{major}</span>
-                                {schoolLine && (
-                                    <span className="req-degree-tab-school">{schoolLine}</span>
+                                <span className="req-degree-tab-major">{tab.label}</span>
+                                {tab.schoolLine && (
+                                    <span className="req-degree-tab-school">{tab.schoolLine}</span>
                                 )}
                             </button>
                         );
@@ -229,9 +288,11 @@ export default function RequirementsPanel({
                 </div>
             )}
 
-            {current.error && <div className="req-error-banner">⚠️ {current.error}</div>}
+            {errors.map((err) => (
+                <div key={err} className="req-error-banner">⚠️ {err}</div>
+            ))}
 
-            {!current.error && totalCount > 0 && (
+            {!errors.length && totalCount > 0 && (
                 <div className="req-summary">
                     <div className="req-summary-stats">
                         <span className="req-stat req-stat-fulfilled">
@@ -266,140 +327,347 @@ export default function RequirementsPanel({
             )}
 
             <div className="req-groups">
-                {orderedCategories.map((cat) => {
-                    const items = categoryMap[cat] || [];
-                    const pool = pools.find((p) => normalizeCategory(p.category) === cat);
-                    if (!items.length && !pool) return null;
+                {isCasLayout ? (
+                    renderCasSuperSections({
+                        scheduleCtx,
+                        collapsedGroups,
+                        setCollapsedGroups,
+                        navTarget,
+                        flashRowId,
+                        degreeLabel,
+                        courseDegreesMap,
+                        results,
+                        frozenIds,
+                    })
+                ) : (
+                    orderedCategories.map((cat) => {
+                        const items = categoryMap[cat] || [];
+                        const pool = pools.find((p) => normalizeCategory(p.category) === cat);
+                        if (!items.length && !pool) return null;
 
-                    const casGenEd = current.school === "CAS"
-                        && pool
-                        && normalizeCategory(pool.category) === "General Education"
-                        && current.cas_gen_ed
-                        ? current.cas_gen_ed
-                        : null;
-                    const casProgress = casGenEd ? casGenEdProgress(casGenEd) : null;
-                    const { major: majorDisplayName } = formatDegreeDisplay(
-                        degrees[tabIndex],
-                        current,
-                        degreeCatalog,
-                    );
-
-                    const poolStats = pool ? poolGroupStats(pool) : null;
-                    const done = items.filter((r) => r.fulfilled).length;
-                    const groupDone = poolStats
-                        ? casProgress
-                            ? casProgress.done === casProgress.total
-                                && poolStats.slotsFilled >= poolStats.slotsTotal
-                            : poolStats.slotsFilled >= poolStats.slotsTotal
+                        const poolStats = pool ? poolGroupStats(pool) : null;
+                        const done = items.filter((r) => r.fulfilled).length;
+                        const groupDone = poolStats
+                            ? poolStats.slotsFilled >= poolStats.slotsTotal
                                 && poolStats.covDone >= poolStats.covTotal
-                        : done === items.length;
-                    const isCollapsed = (() => {
-                        if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
-                            return false;
-                        }
-                        return collapsedGroups[cat] ?? true;
-                    })();
-                    const groupClass = groupDone ? "req-group req-group-done" : "req-group";
-                    const pillLabel = poolStats
-                        ? `${poolStats.slotsFilled}/${poolStats.slotsTotal}`
-                        : `${done}/${items.length}`;
-                    const poolSlotsDone = poolStats
-                        ? poolStats.slotsFilled >= poolStats.slotsTotal
-                        : false;
+                            : done === items.length;
+                        const isCollapsed = (() => {
+                            if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
+                                return false;
+                            }
+                            return collapsedGroups[cat] ?? true;
+                        })();
+                        const groupClass = groupDone ? "req-group req-group-done" : "req-group";
+                        const pillLabel = poolStats
+                            ? `${poolStats.slotsFilled}/${poolStats.slotsTotal}`
+                            : `${done}/${items.length}`;
 
-                    return (
-                        <div key={cat} className={groupClass}>
-                            <div
-                                className="req-group-header"
-                                onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
-                            >
-                                <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
-                                    {groupDone ? "✓" : "·"}
-                                </span>
-                                <span className="req-group-name" title={cat}>{cat}</span>
-                                {!casGenEd && (
-                                    <span className={`req-group-pill ${pool ? (poolSlotsDone ? "pill-done" : "pill-pending") : (groupDone ? "pill-done" : "pill-pending")}`}>
+                        return (
+                            <div key={cat} className={groupClass}>
+                                <div
+                                    className="req-group-header"
+                                    onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
+                                >
+                                    <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
+                                        {groupDone ? "✓" : "·"}
+                                    </span>
+                                    <span className="req-group-name" title={cat}>{cat}</span>
+                                    <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
                                         {pillLabel}
                                     </span>
-                                )}
-                                <span
-                                    className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
-                                    aria-hidden
-                                >
-                                    ▶
-                                </span>
-                            </div>
-                            {!isCollapsed && (
-                                <div className="req-group-body">
-                                    {!pool && items.map((item, rowIdx) => {
-                                        if (isExpandableCourseGroup(item.requirement)) {
-                                            return renderCourseGroup(
-                                                item,
-                                                item.instanceId ?? String(rowIdx),
-                                                scheduleCtx,
-                                                rowIdx === 0,
-                                                tabIndex,
-                                                flashRowId
-                                            );
-                                        }
-                                        if (isExpandableAnyOf(item.requirement)) {
-                                            return renderAnyOfGroup(
-                                                item,
-                                                item.instanceId ?? String(rowIdx),
-                                                scheduleCtx,
-                                                rowIdx === 0,
-                                                tabIndex,
-                                                flashRowId
-                                            );
-                                        }
-                                        return renderItem(
+                                    <span
+                                        className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
+                                        aria-hidden
+                                    >
+                                        ▶
+                                    </span>
+                                </div>
+                                {!isCollapsed && (
+                                    <div className="req-group-body">
+                                        {items.map((item, rowIdx) => renderRequirementItem(
                                             item,
                                             item.instanceId ?? String(rowIdx),
                                             scheduleCtx,
                                             rowIdx === 0,
-                                            tabIndex,
-                                            flashRowId
-                                        );
-                                    })}
-                                    {casGenEd ? (
-                                        renderCasGenEdPool(
-                                            casGenEd,
-                                            majorDisplayName,
-                                            scheduleCtx,
-                                            degreeLabel,
-                                            courseDegreesMap,
-                                            tabIndex,
-                                        )
-                                    ) : pool && (pool.constraints || []).length > 0 && (
-                                        <>
-                                            <div className="req-pool-divider req-item-first">
-                                                {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
-                                                {" "}to fulfill{" "}
-                                                {poolStats.covTotal} requirement{poolStats.covTotal === 1 ? "" : "s"}
-                                                {poolStats.covTotal > poolStats.slotsTotal
-                                                    ? " (double-counting permitted)"
-                                                    : ""}
-                                            </div>
-                                            {(pool.constraints || []).map((constraint, j) =>
-                                                renderPoolConstraintItem(
-                                                    constraint,
-                                                    `pool-${pool.pool_index ?? cat}-${j}`,
-                                                    false,
-                                                    scheduleCtx,
-                                                    `${pool.pool_index}:c${j}`,
-                                                ),
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-                {totalCount === 0 && !current.error && (
+                                            scheduleCtx.degreeIndex,
+                                            flashRowId,
+                                        ))}
+                                        {pool && (pool.constraints || []).length > 0 && (
+                                            <>
+                                                <div className="req-pool-divider req-item-first">
+                                                    {poolStats.slotsTotal} course{poolStats.slotsTotal === 1 ? "" : "s"}
+                                                    {" "}to fulfill{" "}
+                                                    {poolStats.covTotal} requirement{poolStats.covTotal === 1 ? "" : "s"}
+                                                </div>
+                                                {(pool.constraints || []).map((constraint, j) =>
+                                                    renderPoolConstraintItem(
+                                                        constraint,
+                                                        `pool-${pool.pool_index ?? cat}-${j}`,
+                                                        false,
+                                                        scheduleCtx,
+                                                        `${pool.pool_index}:c${j}`,
+                                                    ),
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                )}
+                {totalCount === 0 && !errors.length && (
                     <div className="req-empty-state"><div className="req-empty-text">No requirement data available</div></div>
                 )}
             </div>
+        </div>
+    );
+}
+
+function casCollapseKeysForNav(navTarget, results) {
+    const keys = {};
+    const { degreeIndex, category } = navTarget;
+    if (category) keys[normalizeCategory(category)] = false;
+    if (degreeIndex == null) return keys;
+    const result = results[degreeIndex];
+    if (result?.school !== "CAS") return keys;
+    const cat = normalizeCategory(category);
+    if (cat === "Writing Seminar") keys["cas-writing"] = false;
+    else if (
+        cat.startsWith("Foundational Approaches")
+        || cat.startsWith("Sectors of Knowledge")
+        || cat === "General Education"
+    ) {
+        keys["cas-gened"] = false;
+    } else if (cat) {
+        keys[`cas-major-${degreeIndex}`] = false;
+    }
+    return keys;
+}
+
+function renderRequirementItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
+    if (isExpandableCourseGroup(item.requirement)) {
+        return renderCourseGroup(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId);
+    }
+    if (isExpandableAnyOf(item.requirement)) {
+        return renderAnyOfGroup(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId);
+    }
+    return renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId);
+}
+
+function renderCasSuperSections({
+    scheduleCtx,
+    collapsedGroups,
+    setCollapsedGroups,
+    navTarget,
+    flashRowId,
+    degreeLabel,
+    courseDegreesMap,
+    results,
+    frozenIds,
+}) {
+    const { superSections, isCasCombined, casIndices } = scheduleCtx;
+
+    return superSections.map((section) => {
+        const isCollapsed = collapsedGroups[section.id] ?? true;
+        const toggle = () => setCollapsedGroups((p) => ({
+            ...p,
+            [section.id]: !(p[section.id] ?? true),
+        }));
+
+        if (section.kind === "writing") {
+            const items = section.items || [];
+            const groupDone = items.length > 0
+                && items.every((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled");
+            return (
+                <div key={section.id} className={`req-super-group ${groupDone ? "req-super-group-done" : ""}`}>
+                    {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, `${items.filter((r) => r.fulfilled).length}/${items.length}`)}
+                    {!isCollapsed && (
+                        <div className="req-super-group-body">
+                            {items.map((item, rowIdx) => renderRequirementItem(
+                                item,
+                                item.instanceId ?? String(rowIdx),
+                                { ...scheduleCtx, degreeIndex: section.degreeIndex },
+                                rowIdx === 0,
+                                section.degreeIndex,
+                                flashRowId,
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        if (section.kind === "genEd") {
+            const casGenEd = section.casGenEd;
+            const pool = section.pool;
+            const casProgress = casGenEd ? casGenEdProgress(casGenEd) : null;
+            const poolStats = pool ? poolGroupStats(pool) : null;
+            const groupDone = casProgress
+                ? casProgress.done === casProgress.total
+                    && (!poolStats || poolStats.covDone >= poolStats.covTotal)
+                : poolStats
+                    ? poolStats.covDone >= poolStats.covTotal
+                    : false;
+            const pillLabel = casProgress
+                ? `${casProgress.done}/${casProgress.total}`
+                : poolStats
+                    ? `${poolStats.covDone}/${poolStats.covTotal}`
+                    : null;
+
+            const genEdDegreeLabel = isCasCombined
+                ? casIndices.map((i) => `${results[i].school}-${results[i].major}`).join(", ")
+                : degreeLabel;
+
+            return (
+                <div key={section.id} className={`req-super-group ${groupDone ? "req-super-group-done" : ""}`}>
+                    {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, pillLabel)}
+                    {!isCollapsed && (
+                        <div className="req-super-group-body">
+                            {isCasCombined && (
+                                <div className="req-cas-shared-note">
+                                    Shared across College majors — one Writing Seminar and General Education set for all CAS degrees.
+                                </div>
+                            )}
+                            {casGenEd ? (
+                                renderCasGenEdPool(
+                                    casGenEd,
+                                    null,
+                                    scheduleCtx,
+                                    genEdDegreeLabel,
+                                    courseDegreesMap,
+                                    section.degreeIndex,
+                                    isCasCombined,
+                                    casIndices,
+                                    results,
+                                )
+                            ) : pool && (pool.constraints || []).length > 0 && (
+                                <>
+                                    {poolStats && (
+                                        <div className="req-pool-divider req-item-first">
+                                            {poolStats.covTotal} gen-ed requirement{poolStats.covTotal === 1 ? "" : "s"}
+                                            {poolStats.covTotal > poolStats.slotsTotal
+                                                ? " (double-counting permitted)"
+                                                : ""}
+                                        </div>
+                                    )}
+                                    {(pool.constraints || []).map((constraint, j) =>
+                                        renderPoolConstraintItem(
+                                            constraint,
+                                            `pool-${pool.pool_index}-c-${j}`,
+                                            j === 0,
+                                            scheduleCtx,
+                                            `${pool.pool_index}:c${j}`,
+                                        ),
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        if (section.kind === "major") {
+            const { categoryMap, orderedCategories, degreeIndex } = section;
+            const majorItems = orderedCategories.flatMap((cat) => categoryMap[cat] || []);
+            const majorDone = majorItems.length > 0
+                && majorItems.every((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled");
+            const majorPartial = majorItems.some((r) => itemTone(r, frozenIds) === "partial");
+            const majorFulfilled = majorItems.filter((r) => r.fulfilled).length;
+
+            return (
+                <div
+                    key={section.id}
+                    className={`req-super-group ${majorDone ? "req-super-group-done" : ""}`}
+                >
+                    {renderSuperGroupHeader(
+                        section.title,
+                        majorDone && !majorPartial,
+                        isCollapsed,
+                        toggle,
+                        `${majorFulfilled}/${majorItems.length}`,
+                    )}
+                    {!isCollapsed && (
+                        <div className="req-super-group-body">
+                            {orderedCategories.map((cat) => {
+                                const items = categoryMap[cat] || [];
+                                if (!items.length) return null;
+                                const done = items.filter((r) => r.fulfilled).length;
+                                const groupDone = done === items.length;
+                                const innerCollapsed = (() => {
+                                    if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
+                                        return false;
+                                    }
+                                    return collapsedGroups[cat] ?? true;
+                                })();
+
+                                return (
+                                    <div key={cat} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
+                                        <div
+                                            className="req-group-header"
+                                            onClick={() => setCollapsedGroups((p) => ({
+                                                ...p,
+                                                [cat]: !(p[cat] ?? true),
+                                            }))}
+                                        >
+                                            <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
+                                                {groupDone ? "✓" : "·"}
+                                            </span>
+                                            <span className="req-group-name" title={cat}>{cat}</span>
+                                            <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
+                                                {done}/{items.length}
+                                            </span>
+                                            <span
+                                                className={`req-group-chevron${innerCollapsed ? "" : " req-group-chevron-open"}`}
+                                                aria-hidden
+                                            >
+                                                ▶
+                                            </span>
+                                        </div>
+                                        {!innerCollapsed && (
+                                            <div className="req-group-body">
+                                                {items.map((item, rowIdx) => renderRequirementItem(
+                                                    item,
+                                                    item.instanceId ?? String(rowIdx),
+                                                    { ...scheduleCtx, degreeIndex },
+                                                    rowIdx === 0,
+                                                    degreeIndex,
+                                                    flashRowId,
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        return null;
+    });
+}
+
+function renderSuperGroupHeader(title, done, isCollapsed, onToggle, pillLabel) {
+    return (
+        <div className="req-super-group-header" onClick={onToggle}>
+            <span className={`req-super-group-badge ${done ? "badge-done" : "badge-pending"}`}>
+                {done ? "✓" : "·"}
+            </span>
+            <span className="req-super-group-name">{title}</span>
+            {pillLabel && (
+                <span className={`req-group-pill ${done ? "pill-done" : "pill-pending"}`}>
+                    {pillLabel}
+                </span>
+            )}
+            <span
+                className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
+                aria-hidden
+            >
+                ▶
+            </span>
         </div>
     );
 }
@@ -834,25 +1102,6 @@ function renderItem(item, idx, scheduleCtx, isFirst, degreeIndex, flashRowId) {
     );
 }
 
-function poolGroupStats(pool) {
-    const slotsFilled = (pool.fixed_slots_filled || 0) + (pool.flexible_slots_filled || 0);
-    const slotsTotal = (pool.fixed_slots_total || 0) + (pool.flexible_slots_total || 0);
-    const covDone = (pool.constraints || []).filter((c) => c.fulfilled).length;
-    const covTotal = (pool.constraints || []).length;
-    return { slotsFilled, slotsTotal, covDone, covTotal };
-}
-
-function casGenEdProgress(casGenEd) {
-    const rows = [
-        ...(casGenEd.foundational_approaches || []),
-        ...(casGenEd.sectors || []),
-    ];
-    return {
-        done: rows.filter((r) => r.fulfilled).length,
-        total: rows.length,
-    };
-}
-
 function renderCasGenEdPool(
     casGenEd,
     majorDisplayName,
@@ -860,7 +1109,25 @@ function renderCasGenEdPool(
     degreeLabel,
     courseDegreesMap,
     degreeIndex,
+    isCasCombined = false,
+    casIndices = [],
+    results = [],
 ) {
+    const filterCourses = (courseIds) => {
+        if (isCasCombined) {
+            return (courseIds || []).filter((id) =>
+                casIndices.some((idx) =>
+                    courseCountsForDegree(
+                        id,
+                        `${results[idx].school}-${results[idx].major}`,
+                        courseDegreesMap,
+                    ),
+                ),
+            );
+        }
+        return filterCoursesForDegree(courseIds, degreeLabel, courseDegreesMap);
+    };
+
     return (
         <div className="req-cas-gened">
             <div className="req-cas-gened-section">
@@ -870,8 +1137,7 @@ function renderCasGenEdPool(
                         row,
                         null,
                         scheduleCtx,
-                        degreeLabel,
-                        courseDegreesMap,
+                        filterCourses,
                         degreeIndex,
                     ),
                 )}
@@ -883,8 +1149,7 @@ function renderCasGenEdPool(
                         row,
                         majorDisplayName,
                         scheduleCtx,
-                        degreeLabel,
-                        courseDegreesMap,
+                        filterCourses,
                         degreeIndex,
                     ),
                 )}
@@ -893,13 +1158,9 @@ function renderCasGenEdPool(
     );
 }
 
-function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, degreeLabel, courseDegreesMap, degreeIndex) {
+function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, degreeIndex) {
     const rowTone = row.fulfilled ? "fulfilled" : "open";
-    const courses = filterCoursesForDegree(
-        row.matched_courses || [],
-        degreeLabel,
-        courseDegreesMap,
-    );
+    const courses = filterCourses(row.matched_courses || []);
     const fulfillingSet = new Set(courses);
 
     return (
@@ -996,18 +1257,4 @@ function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx, slot
             </div>
         </div>
     );
-}
-
-function normalizeCategory(cat) {
-    if (!cat || typeof cat !== "string" || !cat.trim()) return "Other";
-    return cat.trim();
-}
-
-function getCategory(req) {
-    if (!req) return "Other";
-    if (req.category) return req.category;
-    for (const v of ["SingleCourse", "CourseGroup", "AnyOf", "AllOf", "Concentration", "Restriction", "CoursePool"]) {
-        if (req[v]?.category) return req[v].category;
-    }
-    return "Other";
 }
