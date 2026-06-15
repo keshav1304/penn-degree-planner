@@ -944,6 +944,10 @@ select {
   letter-spacing: 0.3px;
 }
 
+.semester-cu-total.semester-cu-over {
+  color: var(--accent-red, #e5534b);
+}
+
 .semester-cu-input {
   width: 40px;
   padding: 2px 4px;

@@ -42,6 +42,38 @@ export function defaultSemesterCuLimit(semester, year = null, degrees = []) {
     return DEFAULT_SEMESTER_CU_LIMIT;
 }
 
+/**
+ * Effective CU limit for a semester: user override if set, else degree-composition default.
+ */
+export function resolveSemesterCuLimit(semester, year, degrees = [], userOverrides = {}) {
+    const key = `${year}-${semester}`;
+    if (userOverrides[key] != null) {
+        return userOverrides[key];
+    }
+    return defaultSemesterCuLimit(semester, year, degrees);
+}
+
+/** Full limits map for schedule generation (defaults + overrides for every term). */
+export function buildSemesterCuLimitsMap(degrees, maxYear, allowSummer = true, userOverrides = {}) {
+    const limits = {};
+    const years = Math.max(4, maxYear || 4);
+    const semesters = allowSummer ? ["Fall", "Spring", "Summer"] : ["Fall", "Spring"];
+    for (let y = 1; y <= years; y++) {
+        for (const sem of semesters) {
+            limits[`${y}-${sem}`] = resolveSemesterCuLimit(sem, y, degrees, userOverrides);
+        }
+    }
+    return limits;
+}
+
+/** Stable key for when CU policy should reset (school mix / degree count). */
+export function degreeCuPolicyKey(degrees = []) {
+    return degrees
+        .map((d) => d.schoolCode || "")
+        .sort()
+        .join("|");
+}
+
 export function undergradScheduleYears(degrees) {
     const schools = (degrees || []).map((d) => d.schoolCode);
     if (schools.length < 2) return 4;

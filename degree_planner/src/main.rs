@@ -35,6 +35,7 @@ use tower_http::cors::{Any, CorsLayer};
 const DEFAULT_SEMESTER_CU_LIMIT: f64 = 5.5;
 const DUAL_UG_SEMESTER_CU_LIMIT: f64 = 6.5;
 const DEFAULT_SUMMER_CU_LIMIT: f64 = 2.0;
+const CU_EPS: f64 = 0.001;
 
 fn dual_undergrad_only(schools: &[String]) -> bool {
     schools.len() >= 2 && schools.iter().all(|s| !is_graduate_degree(s))
@@ -990,7 +991,7 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let item_fits_semester =
         |item_id: &str, plan_total_cu: f64, max_cu: f64| -> bool {
             let cu = get_cu(item_id);
-            plan_total_cu + cu <= max_cu || plan_total_cu == 0.0
+            plan_total_cu + cu <= max_cu + CU_EPS
         };
 
     let find_best_fitting = |remaining: &[String],
@@ -1323,34 +1324,29 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             while i < remaining.len() {
                 let item = remaining[i].clone();
                 let mut placed = false;
-                'outer: for year in 1..=undergrad_schedule_window {
+                'place: for year in 1..=undergrad_schedule_window {
                     for semester in &semesters {
                         if try_place_item(schedule, &item, year, *semester) {
                             placed = true;
                             placed_any = true;
-                            break 'outer;
+                            break 'place;
                         }
                     }
                 }
                 if !placed && payload.degrees.len() > 1 {
-                    let mut best_idx: Option<usize> = None;
-                    let mut best_load = f64::MAX;
-                    for (idx, plan) in schedule.iter().enumerate() {
-                        if plan.year > undergrad_schedule_window {
-                            continue;
+                    let max_existing = schedule.iter().map(|p| p.year).max().unwrap_or(undergrad_schedule_window);
+                    for year in (undergrad_schedule_window + 1)..=(max_existing + 1) {
+                        ensure_year(schedule, year, allow_summer);
+                        for semester in &semesters {
+                            if try_place_item(schedule, &item, year, *semester) {
+                                placed = true;
+                                placed_any = true;
+                                break;
+                            }
                         }
-                        if plan.semester == "Summer" && !allow_summer {
-                            continue;
+                        if placed {
+                            break;
                         }
-                        if plan.total_cu < best_load {
-                            best_load = plan.total_cu;
-                            best_idx = Some(idx);
-                        }
-                    }
-                    if let Some(idx) = best_idx {
-                        place_in_semester(&mut schedule[idx], &item);
-                        placed = true;
-                        placed_any = true;
                     }
                 }
                 if placed {
@@ -1436,6 +1432,15 @@ fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     } else {
         None
     };
+
+    for plan in schedule.iter_mut() {
+        plan.total_cu = plan
+            .courses
+            .iter()
+            .map(|c| get_cu(c))
+            .chain(plan.requirement_slots.iter().map(|s| get_cu(s)))
+            .sum();
+    }
 
     ScheduleOutput {
         schedule,
@@ -1530,9 +1535,25 @@ mod schedule_integration_tests {
             );
         }
         let max_year = max_schedule_year(&output.schedule);
+        let schools: Vec<String> = output
+            .degree_results
+            .iter()
+            .map(|r| r.school.clone())
+            .collect();
+        for plan in &output.schedule {
+            let limit = default_semester_cu_limit(&schools, plan.year, &plan.semester);
+            assert!(
+                plan.total_cu <= limit + CU_EPS,
+                "{label}: year {} {} has {:.1} CU (limit {:.1})",
+                plan.year,
+                plan.semester,
+                plan.total_cu,
+                limit
+            );
+        }
         assert!(
-            max_year <= 5,
-            "{label}: expected finish by year 5, schedule extends to year {max_year}"
+            max_year <= 6,
+            "{label}: expected finish by year 6 with strict CU limits, schedule extends to year {max_year}"
         );
         let pairs = output
             .overlap_plan

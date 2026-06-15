@@ -4,7 +4,7 @@ import { useState } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId, isOverlapScheduleGroupId } from "@/lib/courseUtils";
-import { defaultSemesterCuLimit } from "@/lib/semesterOptions";
+import { resolveSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
@@ -497,14 +497,19 @@ export default function ScheduleGrid({
                                 )}
                                 {(() => {
                                     const semKey = `${year}-${sem}`;
+                                    const slotCu = (id) => (
+                                        isOverlapScheduleGroupId(id) || isRequirementSlotId(id)
+                                            ? 1.0
+                                            : getCu(id)
+                                    );
                                     const actualCu =
                                         courses.reduce((s, c) => s + getCu(c), 0)
-                                        + overlapGroups.length * 1.0
-                                        + requirementSlots.length * 1.0;
-                                    const limitValue = semesterCuLimits?.[semKey]
-                                        ?? defaultSemesterCuLimit(sem, year, degrees);
+                                        + overlapGroups.reduce((s, id) => s + slotCu(id), 0)
+                                        + requirementSlots.reduce((s, id) => s + slotCu(id), 0);
+                                    const limitValue = resolveSemesterCuLimit(sem, year, degrees, semesterCuLimits);
+                                    const overLimit = actualCu > limitValue + 0.001;
                                     return (
-                                        <div className="semester-cu-total">
+                                        <div className={`semester-cu-total${overLimit ? " semester-cu-over" : ""}`}>
                                             <span>{actualCu.toFixed(1)} /</span>
                                             <input
                                                 type="number"

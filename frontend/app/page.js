@@ -7,7 +7,7 @@ import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
-import { maxYearFromSchedule } from "@/lib/semesterOptions";
+import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, undergradScheduleYears } from "@/lib/semesterOptions";
 import {
   isValidCourseCode,
   isRequirementSlotId,
@@ -99,9 +99,23 @@ export default function Home() {
   }, []);
 
   const maxScheduleYear = useMemo(
-    () => maxYearFromSchedule(scheduleData?.schedule),
-    [scheduleData?.schedule]
+    () => Math.max(
+      maxYearFromSchedule(scheduleData?.schedule),
+      undergradScheduleYears(degrees),
+    ),
+    [scheduleData?.schedule, degrees],
   );
+
+  const cuPolicyKey = useMemo(() => degreeCuPolicyKey(degrees), [degrees]);
+  const prevCuPolicyKey = useRef(cuPolicyKey);
+
+  // Reset per-semester overrides when school mix changes so defaults track degree composition.
+  useEffect(() => {
+    if (prevCuPolicyKey.current !== cuPolicyKey) {
+      prevCuPolicyKey.current = cuPolicyKey;
+      setSemesterCuLimits({});
+    }
+  }, [cuPolicyKey]);
 
   // Auto-save on changes
   useEffect(() => {
@@ -149,7 +163,12 @@ export default function Home() {
           }),
           frozen: allFrozen,
           allow_summer: allowSummer,
-          semester_cu_limits: Object.keys(semesterCuLimits).length > 0 ? semesterCuLimits : null,
+          semester_cu_limits: buildSemesterCuLimitsMap(
+            degrees,
+            maxScheduleYear,
+            allowSummer,
+            semesterCuLimits,
+          ),
         }),
       });
       const data = await response.json();
@@ -162,7 +181,7 @@ export default function Home() {
     if (requestId === scheduleRequestId.current) {
       setLoading(false);
     }
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, maxScheduleYear]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
