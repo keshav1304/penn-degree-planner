@@ -272,7 +272,15 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
         },
         _ => None,
     };
-    major.map(normalize_major)
+    major.map(|mut m| {
+        if school == "CAS" {
+            college_data::apply_cas_auto_completed_sectors(
+                &mut m,
+                concentrations.first().map(|s| s.as_str()),
+            );
+        }
+        normalize_major(m)
+    })
 }
 
 fn normalize_major(major: Major) -> Major {

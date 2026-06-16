@@ -42,11 +42,106 @@ const SECTORS: &[(&str, &str)] = &[
     ("VII - Natural Sciences Across Disciplines", SECTOR_NAT_SCI),
 ];
 
-/// Sector attribute codes auto-completed when a CAS major is declared.
-pub fn cas_auto_completed_sectors_for(short_name: &str) -> Vec<String> {
+/// Default sector auto-completions by CAS major code.
+/// Sourced from Penn College "Arts and Sciences C.U., Total C.U., & Sector Completed by Major Concentration".
+fn cas_default_auto_completed_sectors(short_name: &str) -> Vec<String> {
     match short_name {
-        "ECON" | "MECON" => vec![SECTOR_SOCIETY.to_string()],
+        "AFRC" => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        "ANCH" => vec![SECTOR_HISTORY.to_string()],
+        "ANTH" => vec![SECTOR_LIVING_WORLD.to_string()],
+        "ARCH" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "ARTH" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "BIOC" => vec![SECTOR_PHYSICAL_WORLD.to_string()],
+        "BIOL" => vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_PHYSICAL_WORLD.to_string()],
+        "BIOP" => vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_PHYSICAL_WORLD.to_string()],
+        "CHEM" => vec![SECTOR_PHYSICAL_WORLD.to_string()],
+        "CIMS" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "CLST" => vec![SECTOR_HISTORY.to_string()],
+        "COGS" => vec![SECTOR_NAT_SCI.to_string()],
+        "COML" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "COMM" => vec![SECTOR_SOCIETY.to_string()],
+        "CRIM" => vec![SECTOR_SOCIETY.to_string()],
+        "DSGN" => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        "EALC" => vec![SECTOR_HISTORY.to_string()],
+        "ECON" => vec![SECTOR_SOCIETY.to_string()],
+        "EESC" => vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_PHYSICAL_WORLD.to_string()],
+        "ENGL" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "ENVS" => vec![SECTOR_PHYSICAL_WORLD.to_string()],
+        "FIGS" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "FNAR" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "GSWS" => vec![SECTOR_SOCIETY.to_string()],
+        "HISP" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "HIST" => vec![SECTOR_HISTORY.to_string()],
+        "HSOC" => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        "INDM" => vec![],
+        "INST" => vec![SECTOR_SOCIETY.to_string(), SECTOR_HUM_SOC_SCI.to_string()],
+        "INTR" => vec![SECTOR_SOCIETY.to_string()],
+        "JWST" => vec![SECTOR_HISTORY.to_string()],
+        "LALS" => vec![SECTOR_HISTORY.to_string()],
+        "LAWS" => vec![SECTOR_SOCIETY.to_string()],
+        "LGIC" => vec![SECTOR_PHYSICAL_WORLD.to_string()],
+        "LING" => vec![SECTOR_NAT_SCI.to_string()],
+        "MATH" => vec![SECTOR_NAT_SCI.to_string()],
+        "MECON" => vec![SECTOR_SOCIETY.to_string()],
+        "MELC" => vec![SECTOR_HISTORY.to_string()],
+        "MMES" => vec![SECTOR_HISTORY.to_string()],
+        "MUSC" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "NEUR" => vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_PHYSICAL_WORLD.to_string()],
+        "NUTR" => vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_PHYSICAL_WORLD.to_string()],
+        "PHIL" => vec![SECTOR_HISTORY.to_string()],
+        "PHYS" => vec![SECTOR_PHYSICAL_WORLD.to_string()],
+        "PPE" => vec![SECTOR_SOCIETY.to_string()],
+        "PSCI" => vec![SECTOR_SOCIETY.to_string()],
+        "PSYC" => vec![SECTOR_LIVING_WORLD.to_string()],
+        "REES" => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        "RELS" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "SAST" => vec![SECTOR_HISTORY.to_string()],
+        "SOCI" => vec![SECTOR_SOCIETY.to_string()],
+        "STSC" => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        "THAR" => vec![SECTOR_ARTS_LETTERS.to_string()],
+        "URBS" => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        "VIST" => vec![SECTOR_NAT_SCI.to_string()],
         _ => vec![],
+    }
+}
+
+fn cas_concentration_sector_override(short_name: &str, concentration: &str) -> Option<Vec<String>> {
+    let sectors = match (short_name, concentration) {
+        ("ANTH", "Medical Anthropology & Global Health") => vec![SECTOR_HUM_SOC_SCI.to_string()],
+        ("MATH", "Biological Mathematics") => {
+            vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_NAT_SCI.to_string()]
+        }
+        ("PHYS", "Biological Science") => {
+            vec![SECTOR_LIVING_WORLD.to_string(), SECTOR_PHYSICAL_WORLD.to_string()]
+        }
+        _ => return None,
+    };
+    Some(sectors)
+}
+
+/// Sector attribute codes auto-completed when a CAS major is declared.
+pub fn cas_auto_completed_sectors_for(
+    short_name: &str,
+    concentration: Option<&str>,
+) -> Vec<String> {
+    if let Some(conc) = concentration {
+        if let Some(sectors) = cas_concentration_sector_override(short_name, conc) {
+            return sectors;
+        }
+    }
+    cas_default_auto_completed_sectors(short_name)
+}
+
+/// Patch gen-ed pool constraints after resolving a concentration-specific sector mapping.
+pub fn apply_cas_auto_completed_sectors(major: &mut Major, concentration: Option<&str>) {
+    let sectors = cas_auto_completed_sectors_for(&major.short_name, concentration);
+    for req in &mut major.requirements {
+        if let Requirement::CoursePool { category, constraints, .. } = req {
+            if category.as_deref() == Some(CAS_GENED_POOL_CATEGORY) {
+                *constraints = cas_pool_constraints(&sectors);
+                return;
+            }
+        }
     }
 }
 
@@ -358,6 +453,11 @@ fn requirement_slot_cu(req: &Requirement) -> i32 {
 pub fn create_cas_major(config: CasMajorConfig) -> Major {
     let major_cu: i32 = config.major_requirements.iter().map(requirement_slot_cu).sum();
     let flexible_slots = (CAS_DEGREE_CU - 1 - major_cu).max(0);
+    let auto_completed_sectors = if config.auto_completed_sectors.is_empty() {
+        cas_default_auto_completed_sectors(&config.short_name)
+    } else {
+        config.auto_completed_sectors
+    };
 
     let requirements = vec![
         cas_writing_requirement(),
@@ -365,7 +465,7 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
             category: Some("General Education".to_string()),
             fixed_slots: config.major_requirements,
             flexible_slots,
-            constraints: cas_pool_constraints(&config.auto_completed_sectors),
+            constraints: cas_pool_constraints(&auto_completed_sectors),
         },
     ];
 

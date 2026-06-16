@@ -331,7 +331,7 @@ mod catalog {
             .into_iter()
             .find(|p| p.category == "General Education")
             .expect("gen ed pool");
-        let info = build_cas_gen_ed_info(&pool, &cas_auto_completed_sectors_for("ECON"));
+        let info = build_cas_gen_ed_info(&pool, &cas_auto_completed_sectors_for("ECON", None));
 
         assert_eq!(info.foundational_approaches.len(), 5);
         assert_eq!(info.sectors.len(), 7);
@@ -342,6 +342,47 @@ mod catalog {
             .expect("society sector");
         assert!(society.fulfilled);
         assert!(society.fulfilled_by_major);
+    }
+
+    #[test]
+    fn neur_gen_ed_marks_living_and_physical_world_completed_by_major() {
+        use crate::penn_data::college_data::{
+            build_cas_gen_ed_info, cas_auto_completed_sectors_for, SECTOR_LIVING_WORLD,
+            SECTOR_PHYSICAL_WORLD,
+        };
+
+        let major = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
+        let taken = vec!["WRIT 0100".to_string()];
+        let validation =
+            validate_courses_for_degree(major.requirements, &taken, &cu_map);
+        let pool = validation
+            .pool_coverage_info
+            .into_iter()
+            .find(|p| p.category == "General Education")
+            .expect("gen ed pool");
+        let info = build_cas_gen_ed_info(&pool, &cas_auto_completed_sectors_for("NEUR", None));
+
+        for attr in [SECTOR_LIVING_WORLD, SECTOR_PHYSICAL_WORLD] {
+            let sector = info
+                .sectors
+                .iter()
+                .find(|s| s.attr == attr)
+                .unwrap_or_else(|| panic!("{attr} sector"));
+            assert!(sector.fulfilled);
+            assert!(sector.fulfilled_by_major);
+        }
+    }
+
+    #[test]
+    fn anth_medical_concentration_completes_hum_soc_sci_sector() {
+        use crate::penn_data::college_data::{cas_auto_completed_sectors_for, SECTOR_HUM_SOC_SCI};
+
+        let sectors = cas_auto_completed_sectors_for(
+            "ANTH",
+            Some("Medical Anthropology & Global Health"),
+        );
+        assert_eq!(sectors, vec![SECTOR_HUM_SOC_SCI.to_string()]);
     }
 
     #[test]

@@ -186,17 +186,6 @@ body {
   font-size: var(--req-font-body);
 }
 
-.panel-courses .panel-header h2 {
-  font-size: 0.88rem;
-  letter-spacing: 0.6px;
-}
-
-.panel-requirements .panel-header h2 {
-  font-size: var(--req-font-heading);
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  text-transform: none;
-}
 
 .panel-courses {
   width: var(--col-courses-width);
@@ -261,10 +250,6 @@ body {
   padding: var(--panel-header-pad-y) var(--panel-header-pad-x);
 }
 
-.panel-header-compact h2 {
-  font-size: 0.82rem;
-  letter-spacing: 0.5px;
-}
 
 .panel-requirements .panel-body {
   padding: var(--panel-pad-y) var(--panel-pad-x);

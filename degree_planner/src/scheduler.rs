@@ -856,7 +856,10 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     .map(|pool| {
                         college_data::build_cas_gen_ed_info(
                             pool,
-                            &college_data::cas_auto_completed_sectors_for(&major_data.short_name),
+                            &college_data::cas_auto_completed_sectors_for(
+                                &major_data.short_name,
+                                concs.first().map(|s| s.as_str()),
+                            ),
                         )
                     })
             } else {
