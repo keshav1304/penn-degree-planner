@@ -11,6 +11,7 @@ import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, under
 import {
   isValidCourseCode,
   isRequirementSlotId,
+  isOverlapScheduleGroupId,
   isSchedulableRequirementSlotId,
   isSchedulePlacementId,
   filterValidCourseCodes,
@@ -411,40 +412,77 @@ export default function Home() {
   const courseRequirementLinks = useMemo(() => {
     const links = {};
     if (!scheduleData?.degree_results) return links;
-    scheduleData.degree_results.forEach((result, degreeIndex) => {
+
+    const findMappedForSlot = (result, slotId) => {
+      const lists = [
+        result.fulfilled_requirements,
+        result.suggested_for_unfulfilled,
+        result.unfulfilled_requirements,
+      ];
+      for (const list of lists) {
+        const found = list?.find(
+          (m) =>
+            m.course_ids?.includes(slotId)
+            || (m.instance_id && slotId.startsWith(`req:${m.instance_id}:`)),
+        );
+        if (found) return found;
+      }
+      return null;
+    };
+
+    const addLink = (mapped, courseId, degreeIndex) => {
+      const result = scheduleData.degree_results[degreeIndex];
+      if (!result) return;
       const degreeLabel = `${result.school}-${result.major}`;
-      const addLink = (mapped, courseId) => {
-        if (!isValidCourseCode(courseId) && !isRequirementSlotId(courseId)) return;
-        if (isValidCourseCode(courseId)) {
-          if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
-        }
-        const category = requirementCategoryForNav(mapped.requirement);
-        const instanceId = getRequirementInstanceId(mapped);
-        const entry = {
-          degreeIndex,
-          instanceId,
-          category,
-          label: `${degreeLabel}: ${category}`,
-          href: `#${reqRowDomId(degreeIndex, instanceId)}`,
-        };
-        if (!links[courseId]) links[courseId] = [];
-        const key = `${degreeIndex}::${instanceId}`;
-        if (!links[courseId].some((l) => `${l.degreeIndex}::${l.instanceId}` === key)) {
-          links[courseId].push(entry);
-        }
+      if (
+        !isValidCourseCode(courseId)
+        && !isRequirementSlotId(courseId)
+        && !isOverlapScheduleGroupId(courseId)
+      ) {
+        return;
+      }
+      if (isValidCourseCode(courseId)) {
+        if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
+      }
+      const category = requirementCategoryForNav(mapped.requirement);
+      const instanceId = getRequirementInstanceId(mapped);
+      const entry = {
+        degreeIndex,
+        instanceId,
+        category,
+        label: `${degreeLabel}: ${category}`,
+        href: `#${reqRowDomId(degreeIndex, instanceId)}`,
       };
+      if (!links[courseId]) links[courseId] = [];
+      const key = `${degreeIndex}::${instanceId}`;
+      if (!links[courseId].some((l) => `${l.degreeIndex}::${l.instanceId}` === key)) {
+        links[courseId].push(entry);
+      }
+    };
+
+    scheduleData.degree_results.forEach((result, degreeIndex) => {
       result.fulfilled_requirements?.forEach((mapped) => {
-        mapped.course_ids?.forEach((c) => addLink(mapped, c));
+        mapped.course_ids?.forEach((c) => addLink(mapped, c, degreeIndex));
       });
       result.unfulfilled_requirements?.forEach((mapped) => {
         if (mapped.partial && mapped.course_ids?.length) {
-          mapped.course_ids.forEach((c) => addLink(mapped, c));
+          mapped.course_ids.forEach((c) => addLink(mapped, c, degreeIndex));
         }
       });
       result.suggested_for_unfulfilled?.forEach((mapped) => {
-        mapped.course_ids?.forEach((c) => addLink(mapped, c));
+        mapped.course_ids?.forEach((c) => addLink(mapped, c, degreeIndex));
       });
     });
+
+    scheduleData.overlap_schedule_groups?.forEach((group) => {
+      group.members?.forEach((member) => {
+        const result = scheduleData.degree_results[member.degree_index];
+        if (!result) return;
+        const mapped = findMappedForSlot(result, member.schedule_slot_id);
+        if (mapped) addLink(mapped, group.group_id, member.degree_index);
+      });
+    });
+
     return links;
   }, [scheduleData, courseDegreesMap]);
 

@@ -24,6 +24,7 @@ export default function ScheduleGrid({
     semesterCuLimits, onSemesterCuLimitChange,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
+    const [reqNavCycle, setReqNavCycle] = useState({});
 
     // Build CU lookup from allCourses
     const cuMap = {};
@@ -194,30 +195,53 @@ export default function ScheduleGrid({
         );
     };
 
-    const renderInfoLink = (courseId) => {
+    const renderReqNavButton = (courseId) => {
         const links = courseRequirementLinks?.[courseId];
         if (!links?.length) return null;
-        const primary = links[0];
+        const cycleIdx = reqNavCycle[courseId] ?? 0;
+        const link = links[cycleIdx % links.length];
         const title = links.length > 1
-            ? links.map((l) => l.label).join("\n")
-            : primary.label;
+            ? `View in requirements (${(cycleIdx % links.length) + 1}/${links.length}): ${link.label}. Click again for the other degree.`
+            : `View in requirements: ${link.label}`;
         return (
-            <a
-                href={primary.href}
-                className="course-info-link"
-                title={`View in requirements: ${title}`}
+            <button
+                type="button"
+                className="course-req-nav-btn"
+                title={title}
+                aria-label={title}
                 onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     onNavigateToRequirement?.({
-                        degreeIndex: primary.degreeIndex,
-                        instanceId: primary.instanceId,
-                        category: primary.category,
+                        degreeIndex: link.degreeIndex,
+                        instanceId: link.instanceId,
+                        category: link.category,
                     });
+                    if (links.length > 1) {
+                        setReqNavCycle((prev) => ({
+                            ...prev,
+                            [courseId]: (cycleIdx + 1) % links.length,
+                        }));
+                    }
                 }}
             >
-                ℹ️
-            </a>
+                <svg
+                    className="course-req-nav-arrow"
+                    viewBox="0 0 16 16"
+                    width="12"
+                    height="12"
+                    aria-hidden="true"
+                >
+                    <path
+                        d="M6 4l4 4-4 4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                </svg>
+            </button>
         );
     };
 
@@ -307,6 +331,7 @@ export default function ScheduleGrid({
                             })}
                         </div>
                         <span className="course-card-actions">
+                            {renderReqNavButton(groupId)}
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>
@@ -340,7 +365,7 @@ export default function ScheduleGrid({
                     >
                         <span className="schedule-requirement-label">{slotLabel}</span>
                         <span className="course-card-actions">
-                            {renderInfoLink(slotId)}
+                            {renderReqNavButton(slotId)}
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>
@@ -395,7 +420,7 @@ export default function ScheduleGrid({
                         <span>{courseId}</span>
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
-                            {renderInfoLink(courseId)}
+                            {renderReqNavButton(courseId)}
                             <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
                         </span>
                     </div>
@@ -443,7 +468,7 @@ export default function ScheduleGrid({
                                                     <span>{a.courseId}</span>
                                     <span className="course-card-actions">
                                         {renderConcBadges(a.courseId)}
-                                        {renderInfoLink(a.courseId)}
+                                        {renderReqNavButton(a.courseId)}
                                     </span>
                                                 </div>
                                             </div>

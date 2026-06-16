@@ -34,10 +34,12 @@
   --panel-header-pad-x: 14px;
   --panel-header-pad-y: 10px;
 
-  /* Schedule width set first; courses + requirements share leftover space (1fr each) */
+  /* Courses column fixed; schedule + requirements share remaining width */
+  --col-courses-width: 280px;
   --col-courses-min: 240px;
   --col-requirements-min: 260px;
-  --col-schedule: clamp(380px, 50%, 880px);
+  --col-schedule-min: 380px;
+  --col-schedule: clamp(var(--col-schedule-min), 50%, 880px);
   --col-reqs-collapsed: 40px;
 
   /* Shared typography for courses + requirements side columns */
@@ -141,7 +143,7 @@ body {
 .main-layout {
   display: grid;
   grid-template-columns:
-    minmax(var(--col-courses-min), 1fr)
+    var(--col-courses-width)
     var(--col-schedule)
     minmax(var(--col-requirements-min), 1fr);
   gap: var(--section-gap);
@@ -155,8 +157,8 @@ body {
 
 .main-layout.requirements-collapsed {
   grid-template-columns:
-    minmax(var(--col-courses-min), 1fr)
-    var(--col-schedule)
+    var(--col-courses-width)
+    minmax(var(--col-schedule-min), 1fr)
     var(--col-reqs-collapsed);
 }
 
@@ -167,6 +169,12 @@ body {
   font-size: var(--sidebar-font-body);
   font-weight: 600;
   line-height: 1.35;
+}
+
+.panel-courses {
+  width: var(--col-courses-width);
+  max-width: var(--col-courses-width);
+  justify-self: start;
 }
 
 .panel-courses .panel-header h2,
@@ -221,8 +229,12 @@ body {
 .panel-courses,
 .panel-schedule,
 .panel-requirements {
-  width: 100%;
   min-width: 0;
+}
+
+.panel-schedule,
+.panel-requirements {
+  width: 100%;
 }
 
 .panel-header-compact {
@@ -928,6 +940,8 @@ select {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
 .course-cu-label {
@@ -968,30 +982,31 @@ select {
   text-align: center;
 }
 
-.course-info-link {
+.course-req-nav-btn {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  font-size: 0.65rem;
-  padding: 0 2px;
-  opacity: 0.55;
-  transition: opacity var(--transition), color var(--transition);
-  line-height: 1;
-  text-decoration: none;
-  color: inherit;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--border-glass);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
   cursor: pointer;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
 }
 
-.course-info-link:hover {
-  opacity: 1;
+.course-req-nav-btn:hover {
   color: var(--accent-teal);
+  border-color: rgba(5, 150, 105, 0.35);
+  background: rgba(5, 150, 105, 0.06);
 }
 
-.course-info-link-count {
-  font-size: 0.55rem;
-  font-weight: 700;
-  color: var(--accent-teal);
-  line-height: 1;
+.course-req-nav-arrow {
+  display: block;
 }
 
 .req-row-flash {
@@ -1784,6 +1799,7 @@ select {
   .panel-courses,
   .panel-schedule,
   .panel-requirements {
+    width: 100%;
     max-width: none;
     justify-self: stretch;
   }
