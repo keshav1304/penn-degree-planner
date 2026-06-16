@@ -542,7 +542,7 @@ export default function Home() {
                     type="checkbox"
                     checked={allowSummer}
                     onChange={e => setAllowSummer(e.target.checked)}
-                    style={{ accentColor: "var(--accent-blue)" }}
+                    style={{ accentColor: "var(--accent-teal)" }}
                   />
                   ☀️ Summer courses
                 </label>
