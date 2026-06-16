@@ -266,6 +266,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 Some(college_data::create_ppe_major(conc))
             }
             "NEUR" => Some(college_data::create_neur_major()),
+            "ANCH" => Some(college_data::create_anch_major()),
             other => college_data::cas_catalog_entry(other)
                 .map(college_data::create_cas_placeholder_major),
         },

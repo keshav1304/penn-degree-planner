@@ -35,7 +35,7 @@
   --panel-header-pad-y: 10px;
 
   /* Courses column fixed; schedule + requirements share remaining width */
-  --col-courses-min: 290px;
+  --col-courses-min: 300px;
   --col-courses-max: 360px;
   --col-courses-width: clamp(var(--col-courses-min), 19vw, var(--col-courses-max));
   --col-requirements-min: 260px;
@@ -1833,8 +1833,8 @@ select {
 
 @media (max-width: 1400px) {
   :root {
-    --col-courses-min: 232px;
-    --col-courses-max: 280px;
+    --col-courses-min: 300px;
+    --col-courses-max: 360px;
     --col-requirements-min: 240px;
     --col-schedule: clamp(360px, 48%, 820px);
   }

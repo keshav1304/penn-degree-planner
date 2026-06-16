@@ -1538,6 +1538,80 @@ mod dual_degree_properties {
     }
 
     #[test]
+    fn neur_wh_cas_gened_wh_overlap_uses_gen_ed_label_and_caps_flex_slots() {
+        let output = generate_schedule(dual_degree_input("CAS", "NEUR", "WH", "WH_NOFL"));
+        assert!(output.error.is_none(), "pipeline error: {:?}", output.error);
+
+        let cas_gened_overlaps = output
+            .overlap_schedule_groups
+            .iter()
+            .filter(|g| {
+                g.members.iter().any(|m| {
+                    m.school == "CAS"
+                        && output
+                            .slot_labels
+                            .get(&g.group_id)
+                            .is_some_and(|l| l.contains("1 CU from General Education"))
+                })
+            })
+            .count();
+        assert!(
+            cas_gened_overlaps > 0,
+            "expected CAS gen-ed / WH LAS overlap groups"
+        );
+
+        for group in &output.overlap_schedule_groups {
+            for member in &group.members {
+                if member.school != "CAS" {
+                    continue;
+                }
+                if member
+                    .label
+                    .contains("Foundational Approaches")
+                    || member.label.contains("Sectors of Knowledge")
+                {
+                    panic!(
+                        "CAS overlap member should use gen-ed pool label, got: {}",
+                        member.label
+                    );
+                }
+            }
+        }
+
+        let mut gen_ed_flex = 0usize;
+        let mut gen_ed_overlap = 0usize;
+        for plan in &output.schedule {
+            for slot in &plan.requirement_slots {
+                if output
+                    .overlap_schedule_groups
+                    .iter()
+                    .any(|g| &g.group_id == slot)
+                {
+                    if output
+                        .slot_labels
+                        .get(slot)
+                        .is_some_and(|l| l.contains("1 CU from General Education"))
+                    {
+                        gen_ed_overlap += 1;
+                    }
+                } else if output
+                    .slot_labels
+                    .get(slot)
+                    .is_some_and(|l| l == "1 CU from General Education")
+                {
+                    gen_ed_flex += 1;
+                }
+            }
+        }
+        assert!(
+            gen_ed_flex + gen_ed_overlap <= 12,
+            "expected at most 12 gen-ed schedule items (flex + WH overlaps), got flex={} overlap={}",
+            gen_ed_flex,
+            gen_ed_overlap
+        );
+    }
+
+    #[test]
     fn neur_wh_discover_writ_overlap_and_schedule_once() {
         let output = generate_schedule(dual_degree_input("CAS", "NEUR", "WH", "WH_NOFL"));
         assert!(output.error.is_none(), "pipeline error: {:?}", output.error);
@@ -1626,9 +1700,10 @@ mod dual_degree_properties {
                 pool.flexible_slots_total, pool.flexible_slots_filled
             );
         }
-        assert!(
-            gen_ed_slots.len() <= 12,
-            "expected at most 12 gen-ed slots on schedule, got {}: {:?}",
+        assert_eq!(
+            gen_ed_slots.len(),
+            12,
+            "expected 12 shared gen-ed flex slots on schedule, got {}: {:?}",
             gen_ed_slots.len(),
             gen_ed_slots
         );

@@ -144,6 +144,53 @@ pub fn concentration_names() -> Vec<String> {
     create_wh_concentrations().keys().cloned().collect()
 }
 
+fn wh_single_course_options(codes: &[&str]) -> Vec<Requirement> {
+    codes
+        .iter()
+        .map(|code| Requirement::SingleCourse {
+            category: None,
+            possibilities: vec![(*code).to_string()],
+        })
+        .collect()
+}
+
+fn wh_marketing_operations_management_requirements() -> Vec<Requirement> {
+    let category = "Concentration - Marketing & Operations Management";
+    vec![
+        Requirement::SingleCourse {
+            category: Some(category.to_string()),
+            possibilities: vec!["OIDD 2200".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some(category.to_string()),
+            possibilities: wh_single_course_options(&[
+                "OIDD 2360",
+                "OIDD 3140",
+                "OIDD 4110",
+                "OIDD 4150",
+                "OIDD 6590",
+            ]),
+        },
+        Requirement::CourseGroup {
+            category: Some(category.to_string()),
+            number: 2,
+            possibilities: wh_single_course_options(&[
+                "MKTG 2250",
+                "MKTG 2270",
+                "MKTG 2340",
+                "MKTG 2470",
+                "MKTG 2540",
+                "MKTG 2680",
+                "MKTG 2770",
+                "MKTG 2790",
+                "MKTG 2880",
+                "MKTG 4760",
+                "MKTG 4710",
+            ]),
+        },
+    ]
+}
+
 pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
     BTreeMap::from([
         (
@@ -314,6 +361,10 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 },
             ]
         ),
+        (
+            "Marketing & Operations Management".to_string(),
+            wh_marketing_operations_management_requirements(),
+        ),
     ])
 }
 
@@ -347,6 +398,20 @@ fn bb_standard_exclusions(mt: bool) -> Vec<String> {
     ex
 }
 
+fn bb_excluded_departments(concentrations: &[String]) -> Vec<String> {
+    let mut excluded = Vec::new();
+    for concentration in concentrations {
+        match concentration.as_str() {
+            "Marketing & Operations Management" => {
+                excluded.push("OIDD".to_string());
+                excluded.push("MKTG".to_string());
+            }
+            dept => excluded.push(dept.to_string()),
+        }
+    }
+    excluded
+}
+
 fn bb_department_options(
     concentrations: &[String],
     pool: &[&str],
@@ -354,8 +419,8 @@ fn bb_department_options(
 ) -> Vec<Requirement> {
     let mut depts: Vec<String> = pool.iter().map(|s| s.to_string()).collect();
     if concentrations.len() < 2 {
-        for c in concentrations {
-            depts.retain(|d| d != c);
+        for dept in bb_excluded_departments(concentrations) {
+            depts.retain(|d| d != &dept);
         }
     }
     depts

@@ -168,6 +168,89 @@ pub fn is_cas_major_overlap_slot_key(slot_key: &str) -> bool {
     slot_key.starts_with("1:f")
 }
 
+/// Major-specific CU inside a CAS degree's gen-ed pool (`CoursePool::fixed_slots`).
+pub fn cas_major_pool_major_cu(major: &Major) -> i32 {
+    major
+        .requirements
+        .iter()
+        .find_map(|req| {
+            if let Requirement::CoursePool { fixed_slots, .. } = req {
+                Some(fixed_slots.iter().map(requirement_slot_cu).sum::<i32>())
+            } else {
+                None
+            }
+        })
+        .unwrap_or(0)
+}
+
+/// Shared flexible pool slots for a CAS college double major (one writing + one gen-ed pool).
+pub fn cas_double_major_shared_flexible_slots(cas_majors: &[&Major]) -> i32 {
+    let combined_major_cu: i32 = cas_majors.iter().map(|m| cas_major_pool_major_cu(m)).sum();
+    let cu_flex = (CAS_DEGREE_CU - 1 - combined_major_cu).max(0);
+    let gen_ed_rows = (FOUNDATIONAL_APPROACHES.len() + SECTORS.len()) as i32;
+    cu_flex.min(gen_ed_rows)
+}
+
+pub fn cas_pool_flexible_slot_index(scope: &str) -> Option<usize> {
+    let colon_p = scope.find(":p")?;
+    scope[colon_p + 2..].parse().ok()
+}
+
+pub fn is_cas_excess_shared_flexible_slot(scope: &str, cap: i32) -> bool {
+    if !scope.contains(":p") || !is_cas_college_shared_instance_scope(scope) {
+        return false;
+    }
+    cas_pool_flexible_slot_index(scope)
+        .is_some_and(|idx| idx >= cap as usize)
+}
+
+pub fn is_cas_excess_shared_flexible_schedule_slot(slot_id: &str, cap: i32) -> bool {
+    let Some(rest) = slot_id.strip_prefix("req:") else {
+        return false;
+    };
+    let scope = rest.split(":R:").next().unwrap_or(rest);
+    is_cas_excess_shared_flexible_slot(scope, cap)
+}
+
+pub const CAS_GENED_POOL_CATEGORY: &str = "General Education";
+pub fn cas_gened_pool(major: &Major) -> Option<(usize, String)> {
+    for (idx, req) in major.requirements.iter().enumerate() {
+        if let Requirement::CoursePool { category, .. } = req {
+            if category.as_deref() == Some(CAS_GENED_POOL_CATEGORY) {
+                return Some((idx, CAS_GENED_POOL_CATEGORY.to_string()));
+            }
+        }
+    }
+    None
+}
+
+/// Pool coverage constraint (`{pool}:c{n}`), not a fixed/flex placeholder.
+pub fn is_cas_gened_pool_constraint_key(slot_key: &str, pool_idx: usize) -> bool {
+    crate::requirement::is_pool_constraint_instance_id(Some(slot_key))
+        && slot_key.starts_with(&format!("{pool_idx}:"))
+}
+
+/// Flexible gen-ed placeholder (`{pool}:p{n}`).
+pub fn is_cas_gened_pool_flex_key(slot_key: &str, pool_idx: usize) -> bool {
+    slot_key.starts_with(&format!("{pool_idx}:p"))
+}
+
+pub fn cas_gened_overlap_display_label(major: &Major) -> Option<String> {
+    cas_gened_pool(major).map(|(_, cat)| format!("1 CU from {}", cat))
+}
+
+pub fn is_cas_gened_flex_schedule_slot(slot_id: &str, pool_idx: usize) -> bool {
+    let Some(rest) = slot_id.strip_prefix("req:") else {
+        return false;
+    };
+    let scope = rest.split(":R:").next().unwrap_or(rest);
+    is_cas_gened_pool_flex_key(scope, pool_idx)
+}
+
+pub fn cas_gened_requirement_row_count() -> usize {
+    FOUNDATIONAL_APPROACHES.len() + SECTORS.len()
+}
+
 
 /// College-wide gen-ed configuration shared by every CAS major.
 pub struct CasMajorConfig {
@@ -764,6 +847,98 @@ pub fn create_cas_placeholder_major(entry: &CasMajorCatalogEntry) -> Major {
 // ── Major-specific requirement blocks ────────────────────────────────────────
 // Add `create_XX_major()` functions below. Each should define only major courses,
 // then call `create_cas_major` with the appropriate auto-completed sector(s).
+
+const ANCIENT_HISTORY_DEPTS: &[&str] = &["ANCH", "CLST", "GREK", "LATN"];
+
+fn ancient_history_pool_slot(category: Option<String>, level: Option<i32>) -> Requirement {
+    let mut possibilities: Vec<Requirement> = ANCIENT_HISTORY_DEPTS
+        .iter()
+        .map(|dept| Requirement::Restriction {
+            category: None,
+            department: Some(vec![dept.to_string()]),
+            cu: None,
+            level,
+            attr: None,
+            excluding: None,
+            number: 1,
+            no_school: None,
+        })
+        .collect();
+    possibilities.push(Requirement::Restriction {
+        category: None,
+        department: None,
+        cu: None,
+        level,
+        attr: Some(vec!["AANP".to_string()]),
+        excluding: None,
+        number: 1,
+        no_school: None,
+    });
+    Requirement::AnyOf {
+        category,
+        possibilities,
+    }
+}
+
+fn ancient_history_pool_slots(
+    category: &str,
+    count: usize,
+    level: Option<i32>,
+) -> Vec<Requirement> {
+    (0..count)
+        .map(|_| ancient_history_pool_slot(Some(category.to_string()), level))
+        .collect()
+}
+
+fn anch_major_requirements() -> Vec<Requirement> {
+    let core_courses = [
+        "ANCH 0100",
+        "ANCH 0101",
+        "ANCH 0102",
+        "ANCH 1100",
+        "CLST 1300",
+        "CLST 1500",
+    ];
+    let mut requirements = vec![Requirement::CourseGroup {
+        category: Some("Core Classes".to_string()),
+        number: 2,
+        possibilities: core_courses
+            .iter()
+            .map(|code| Requirement::SingleCourse {
+                category: None,
+                possibilities: vec![(*code).to_string()],
+            })
+            .collect(),
+    }];
+    requirements.extend(ancient_history_pool_slots("Graeco-Roman World", 2, None));
+    requirements.extend(ancient_history_pool_slots(
+        "Graeco-Roman World",
+        2,
+        Some(3000),
+    ));
+    requirements.extend(ancient_history_pool_slots(
+        "Advanced Topics and Area Groupings",
+        4,
+        None,
+    ));
+    requirements.extend(ancient_history_pool_slots(
+        "Advanced Topics and Area Groupings",
+        2,
+        Some(3000),
+    ));
+    requirements
+}
+
+pub fn create_anch_major() -> Major {
+    create_cas_major(CasMajorConfig {
+        short_name: "ANCH".to_string(),
+        name: "Ancient History".to_string(),
+        major_requirements: anch_major_requirements(),
+        auto_completed_sectors: vec![],
+        concentrations: None,
+        schedule_hints: HashMap::new(),
+    })
+}
 
 fn econ_major_requirements() -> Vec<Requirement> {
     vec![

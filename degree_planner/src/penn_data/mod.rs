@@ -1,3 +1,5 @@
+pub use crate::Course;
+
 pub mod attributes_data;
 pub mod college_data;
 pub mod courses_data;

@@ -19,7 +19,7 @@ import {
   filterFrozenPlacements,
 } from "@/lib/courseUtils";
 import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
-import { reqRowDomId } from "@/lib/requirementNav";
+import { reqRowDomId, findMappedForInstance, findMappedForSlot, parseOverlapGroupSlots, overlapSlotsEqual } from "@/lib/requirementNav";
 import {
   buildCourseDegreesMapFromAllocations,
   courseCountsForDegree,
@@ -413,22 +413,9 @@ export default function Home() {
     const links = {};
     if (!scheduleData?.degree_results) return links;
 
-    const findMappedForSlot = (result, slotId) => {
-      const lists = [
-        result.fulfilled_requirements,
-        result.suggested_for_unfulfilled,
-        result.unfulfilled_requirements,
-      ];
-      for (const list of lists) {
-        const found = list?.find(
-          (m) =>
-            m.course_ids?.includes(slotId)
-            || (m.instance_id && slotId.startsWith(`req:${m.instance_id}:`)),
-        );
-        if (found) return found;
-      }
-      return null;
-    };
+    const onSchedule = new Set(
+      (scheduleData.schedule || []).flatMap((p) => p.courses || []),
+    );
 
     const addLink = (mapped, courseId, degreeIndex) => {
       const result = scheduleData.degree_results[degreeIndex];
@@ -474,7 +461,17 @@ export default function Home() {
       });
     });
 
+    // Overlap schedule blocks (dashed dual-requirement cards).
     scheduleData.overlap_schedule_groups?.forEach((group) => {
+      const parsed = parseOverlapGroupSlots(group.group_id);
+      if (parsed.length) {
+        parsed.forEach(({ degreeIndex, slotKey }) => {
+          const result = scheduleData.degree_results[degreeIndex];
+          const mapped = findMappedForInstance(result, slotKey);
+          if (mapped) addLink(mapped, group.group_id, degreeIndex);
+        });
+        return;
+      }
       group.members?.forEach((member) => {
         const result = scheduleData.degree_results[member.degree_index];
         if (!result) return;
@@ -482,6 +479,31 @@ export default function Home() {
         if (mapped) addLink(mapped, group.group_id, member.degree_index);
       });
     });
+
+    // Shared named courses scheduled once for an overlap pair (dual degree stripes).
+    const plan = scheduleData.overlap_plan;
+    if (plan?.pairs?.length) {
+      plan.pairs.forEach((pair) => {
+        const opp = plan.opportunities?.find((o) => overlapSlotsEqual(o.slots, pair.slots));
+        if (!opp?.suggested_courses?.length) return;
+
+        const sharedCourses = opp.suggested_courses.filter((id) => {
+          if (!isValidCourseCode(id)) return false;
+          if (onSchedule.has(id)) return true;
+          return (courseDegreesMap[id]?.length ?? 0) >= 2;
+        });
+        if (!sharedCourses.length) return;
+
+        pair.slots.forEach((slotRef) => {
+          const result = scheduleData.degree_results[slotRef.degree_index];
+          const mapped = findMappedForInstance(result, slotRef.slot_key);
+          if (!mapped) return;
+          sharedCourses.forEach((courseId) => {
+            addLink(mapped, courseId, slotRef.degree_index);
+          });
+        });
+      });
+    }
 
     return links;
   }, [scheduleData, courseDegreesMap]);
