@@ -1565,6 +1565,76 @@ mod dual_degree_properties {
     }
 
     #[test]
+    fn cas_econ_cis_gen_ed_slots_scheduled_once() {
+        let output = generate_schedule(dual_degree_input("CAS", "ECON", "CAS", "CIS"));
+        let mut sched_slots = Vec::new();
+        for p in &output.schedule {
+            sched_slots.extend(p.requirement_slots.iter().cloned());
+        }
+        let gen_ed_slots: Vec<_> = sched_slots
+            .iter()
+            .filter(|s| {
+                output
+                    .slot_labels
+                    .get(s.as_str())
+                    .is_some_and(|l| l.contains("General Education"))
+            })
+            .collect();
+        let open_from_api: Vec<_> = output
+            .degree_results
+            .iter()
+            .flat_map(|r| r.suggested_for_unfulfilled.iter())
+            .flat_map(|m| m.course_ids.iter())
+            .filter(|id| is_schedulable_requirement_slot_id(id))
+            .filter(|id| {
+                output
+                    .slot_labels
+                    .get(id.as_str())
+                    .is_some_and(|l| l.contains("General Education"))
+            })
+            .collect();
+        eprintln!(
+            "gen_ed schedule slots={} api open={}",
+            gen_ed_slots.len(),
+            open_from_api.len()
+        );
+        for r in &output.degree_results {
+            let n = r
+                .suggested_for_unfulfilled
+                .iter()
+                .filter(|m| {
+                    m.course_ids.iter().any(|id| {
+                        output
+                            .slot_labels
+                            .get(id)
+                            .is_some_and(|l| l.contains("General Education"))
+                    })
+                })
+                .count();
+            eprintln!(
+                "{} {} suggested gen-ed mapped rows={}",
+                r.school, r.major, n
+            );
+        }
+        if let Some(pool) = output.degree_results[0]
+            .pool_coverage_info
+            .iter()
+            .find(|p| p.category == "General Education")
+        {
+            eprintln!(
+                "primary pool flex total={} filled={}",
+                pool.flexible_slots_total, pool.flexible_slots_filled
+            );
+        }
+        assert!(
+            gen_ed_slots.len() <= 12,
+            "expected at most 12 gen-ed slots on schedule, got {}: {:?}",
+            gen_ed_slots.len(),
+            gen_ed_slots
+        );
+    }
+
+    #[test]
     fn cas_cas_dual_writ_appears_once_without_college_overlap_optimizer() {
         let output = generate_schedule(dual_degree_input("CAS", "NEUR", "CAS", "ECON"));
         assert_eq!(writ_cu_units_on_schedule(&output), 1.0);

@@ -840,7 +840,7 @@ fn econ_major_requirements() -> Vec<Requirement> {
             no_school: None,
         },
         Requirement::Restriction {
-            category: Some("Economics Electives".to_string()),
+            category: Some("ECON Electives".to_string()),
             department: Some(vec!["ECON".to_string()]),
             cu: None,
             level: Some(4000),

@@ -35,9 +35,9 @@
   --panel-header-pad-y: 10px;
 
   /* Courses column fixed; schedule + requirements share remaining width */
-  --col-courses-min: 248px;
-  --col-courses-max: 300px;
-  --col-courses-width: clamp(var(--col-courses-min), 16vw, var(--col-courses-max));
+  --col-courses-min: 290px;
+  --col-courses-max: 360px;
+  --col-courses-width: clamp(var(--col-courses-min), 19vw, var(--col-courses-max));
   --col-requirements-min: 260px;
   --col-schedule-min: 380px;
   --col-schedule: clamp(var(--col-schedule-min), 50%, 880px);
@@ -50,12 +50,12 @@
   --sidebar-font-meta: 0.72rem;
   --sidebar-font-small: 0.7rem;
 
-  /* Requirements panel — compact uniform scale (independent of courses sidebar) */
-  --req-font-body: 0.68rem;
-  --req-font-heading: 0.72rem;
-  --req-font-meta: 0.62rem;
-  --req-font-small: 0.6rem;
-  --req-font-tiny: 0.55rem;
+  /* Requirements panel typography */
+  --req-font-body: 0.78rem;
+  --req-font-heading: 0.84rem;
+  --req-font-meta: 0.72rem;
+  --req-font-small: 0.7rem;
+  --req-font-tiny: 0.65rem;
 }
 
 * {
@@ -1353,6 +1353,41 @@ select {
 
 .req-super-group-body .req-group {
   margin: 0 6px 4px;
+}
+
+/* ── CAS major heading (static title, not collapsible) ── */
+.req-major-section {
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.req-major-section-done .req-major-title {
+  color: var(--success);
+}
+
+.req-major-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 2px 6px;
+  margin-top: 2px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.req-major-title-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--req-font-heading);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.req-major-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0 4px;
 }
 
 .req-cas-shared-note {

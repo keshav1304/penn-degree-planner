@@ -568,69 +568,65 @@ function renderCasSuperSections({
             return (
                 <div
                     key={section.id}
-                    className={`req-super-group ${majorDone ? "req-super-group-done" : ""}`}
+                    className={`req-major-section ${majorDone ? "req-major-section-done" : ""}`}
                 >
-                    {renderSuperGroupHeader(
+                    {renderMajorSectionTitle(
                         section.title,
                         majorDone && !majorPartial,
-                        isCollapsed,
-                        toggle,
                         `${majorFulfilled}/${majorItems.length}`,
                     )}
-                    {!isCollapsed && (
-                        <div className="req-super-group-body">
-                            {orderedCategories.map((cat) => {
-                                const items = categoryMap[cat] || [];
-                                if (!items.length) return null;
-                                const done = items.filter((r) => r.fulfilled).length;
-                                const groupDone = done === items.length;
-                                const innerCollapsed = (() => {
-                                    if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
-                                        return false;
-                                    }
-                                    return collapsedGroups[cat] ?? true;
-                                })();
+                    <div className="req-major-body">
+                        {orderedCategories.map((cat) => {
+                            const items = categoryMap[cat] || [];
+                            if (!items.length) return null;
+                            const done = items.filter((r) => r.fulfilled).length;
+                            const groupDone = done === items.length;
+                            const innerCollapsed = (() => {
+                                if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
+                                    return false;
+                                }
+                                return collapsedGroups[cat] ?? true;
+                            })();
 
-                                return (
-                                    <div key={cat} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
-                                        <div
-                                            className="req-group-header"
-                                            onClick={() => setCollapsedGroups((p) => ({
-                                                ...p,
-                                                [cat]: !(p[cat] ?? true),
-                                            }))}
+                            return (
+                                <div key={cat} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
+                                    <div
+                                        className="req-group-header"
+                                        onClick={() => setCollapsedGroups((p) => ({
+                                            ...p,
+                                            [cat]: !(p[cat] ?? true),
+                                        }))}
+                                    >
+                                        <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
+                                            {groupDone ? "✓" : "·"}
+                                        </span>
+                                        <span className="req-group-name" title={cat}>{cat}</span>
+                                        <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
+                                            {done}/{items.length}
+                                        </span>
+                                        <span
+                                            className={`req-group-chevron${innerCollapsed ? "" : " req-group-chevron-open"}`}
+                                            aria-hidden
                                         >
-                                            <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
-                                                {groupDone ? "✓" : "·"}
-                                            </span>
-                                            <span className="req-group-name" title={cat}>{cat}</span>
-                                            <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
-                                                {done}/{items.length}
-                                            </span>
-                                            <span
-                                                className={`req-group-chevron${innerCollapsed ? "" : " req-group-chevron-open"}`}
-                                                aria-hidden
-                                            >
-                                                ▶
-                                            </span>
-                                        </div>
-                                        {!innerCollapsed && (
-                                            <div className="req-group-body">
-                                                {items.map((item, rowIdx) => renderRequirementItem(
-                                                    item,
-                                                    item.instanceId ?? String(rowIdx),
-                                                    { ...scheduleCtx, degreeIndex },
-                                                    rowIdx === 0,
-                                                    degreeIndex,
-                                                    flashRowId,
-                                                ))}
-                                            </div>
-                                        )}
+                                            ▶
+                                        </span>
                                     </div>
-                                );
-                            })}
-                        </div>
-                    )}
+                                    {!innerCollapsed && (
+                                        <div className="req-group-body">
+                                            {items.map((item, rowIdx) => renderRequirementItem(
+                                                item,
+                                                item.instanceId ?? String(rowIdx),
+                                                { ...scheduleCtx, degreeIndex },
+                                                rowIdx === 0,
+                                                degreeIndex,
+                                                flashRowId,
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             );
         }
@@ -657,6 +653,19 @@ function renderSuperGroupHeader(title, done, isCollapsed, onToggle, pillLabel) {
             >
                 ▶
             </span>
+        </div>
+    );
+}
+
+function renderMajorSectionTitle(title, done, pillLabel) {
+    return (
+        <div className="req-major-title">
+            <span className="req-major-title-text">{title}</span>
+            {pillLabel && (
+                <span className={`req-group-pill ${done ? "pill-done" : "pill-pending"}`}>
+                    {pillLabel}
+                </span>
+            )}
         </div>
     );
 }
