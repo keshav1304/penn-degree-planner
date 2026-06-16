@@ -440,12 +440,39 @@ export function getRequirementLabel(req) {
   }
 }
 
+/** Must stay in sync with Rust `scoped_slot_id` + `schedulable_placeholder_id`. */
+function slotIdMatchesScopedFingerprint(slotId, fingerprint) {
+  if (!slotId || !fingerprint) return false;
+  if (slotId === `req:${fingerprint}`) return true;
+  const marker = `:${fingerprint}`;
+  return slotId.startsWith("req:") && slotId.endsWith(marker) && slotId.length > 4 + marker.length;
+}
+
+function buildSingleCourseSlotId(data, scope) {
+  const fp = `S:${(data.possibilities || []).map((p) => slotScopeSlug(p)).join("/")}`;
+  return scope ? `req:${scope}:${fp}` : `req:${fp}`;
+}
+
+function buildAnyOfCategorySlotId(category, scope) {
+  const fp = `A:${slotScopeSlug(category)}`;
+  return scope ? `req:${scope}:${fp}` : `req:${fp}`;
+}
+
 /** Find nested requirement that owns a schedule slot id. */
 function matchesSlotId(req, slotId) {
   if (!req || !slotId) return false;
   const { type, data } = parseRequirement(req);
   if (slotId.startsWith("req:BB:") && type === "AnyOf") {
     return isBusinessBreadthCategory(data.category) && businessBreadthSlotId(data.category) === slotId;
+  }
+  if (type === "SingleCourse") {
+    return slotIdMatchesScopedFingerprint(
+      slotId,
+      `S:${(data.possibilities || []).map((p) => slotScopeSlug(p)).join("/")}`,
+    );
+  }
+  if (type === "AnyOf" && data.category && !isBusinessBreadthCategory(data.category)) {
+    return slotIdMatchesScopedFingerprint(slotId, `A:${slotScopeSlug(data.category)}`);
   }
   if (type === "Restriction") {
     const rest = slotId.startsWith("req:") ? slotId.slice(4) : "";
@@ -545,11 +572,23 @@ export function businessBreadthLabelForSlot(req, slotId) {
 
 /** Label for one side of a dual-degree overlap schedule block. */
 export function formatOverlapMemberLabel(slotLabel, memberLabel) {
-  const text = (slotLabel || memberLabel || "Open requirement").split(/\n↳/)[0].trim();
-  if (text.startsWith("One of:") && memberLabel) {
-    const cat = memberLabel.split(/\n↳/)[0].trim();
-    if (cat) return `1 CU from ${cat}`;
+  const memberText = (memberLabel || "").split(/\n↳/)[0].trim();
+  const resolved =
+    slotLabel && slotLabel !== "Open requirement" ? slotLabel : memberText;
+  let text = (resolved || "Open requirement").split(/\n↳/)[0].trim();
+
+  if (/^\d+(\.\d+)? CU/.test(text)) {
+    return text;
   }
+
+  const looksLikeCourse = /^[A-Z]{2,6}\s+\d{4}$/.test(text);
+  if (
+    memberText
+    && (looksLikeCourse || text === "One of the following options" || text.startsWith("One of:") || text === memberText)
+  ) {
+    return `1 CU from ${memberText}`;
+  }
+
   return text;
 }
 
@@ -561,7 +600,7 @@ export function getSlotLabel(req, slotId, apiLabels = {}) {
   const bbLabel = businessBreadthLabelForSlot(req, slotId);
   if (bbLabel) return bbLabel;
   const matched = findRequirementForSlotId(req, slotId);
-  if (matched) return getRequirementLabel(matched);
+  if (matched) return createRequirementDescription(matched);
   if (typeof apiLabels[slotId] === "string") return apiLabels[slotId];
   return "Open requirement";
 }

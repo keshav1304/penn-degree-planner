@@ -261,6 +261,19 @@ export default function ScheduleGrid({
                 data={{ courseId: groupId, source: "schedule", fromYear: year, fromSemester: sem }}
             >
                 <div className={className} style={{ position: "relative" }}>
+                    <div className="degree-bar-container">
+                        {members.map((m, i) => {
+                            const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
+                            return (
+                                <div
+                                    key={`${groupId}-bar-${i}`}
+                                    className="degree-bar-stripe"
+                                    style={{ background: degKey ? (degreeColorMap[degKey] || "#888") : "#888" }}
+                                    title={degKey || m.label}
+                                />
+                            );
+                        })}
+                    </div>
                     <div
                         className="schedule-course-content"
                         onClick={handleClick}
@@ -279,15 +292,17 @@ export default function ScheduleGrid({
                                     : "";
                                 const text = formatOverlapMemberLabel(slotText, m.label);
                                 return (
-                                    <span key={i} className="schedule-overlap-segment">
-                                        {i > 0 && <span className="schedule-overlap-slash"> / </span>}
+                                    <div key={i} className="schedule-overlap-line">
                                         <span
                                             className="schedule-overlap-req-label"
                                             style={{ borderBottomColor: color }}
                                         >
                                             {text}
                                         </span>
-                                    </span>
+                                        {i < members.length - 1 && (
+                                            <span className="schedule-overlap-slash"> /</span>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </div>

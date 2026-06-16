@@ -746,6 +746,9 @@ select {
 .schedule-overlap-inline {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.45;
@@ -753,6 +756,10 @@ select {
   overflow-wrap: break-word;
   word-break: break-word;
   padding-right: 4px;
+}
+
+.schedule-overlap-line {
+  display: block;
 }
 
 .schedule-overlap-segment {

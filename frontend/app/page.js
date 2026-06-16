@@ -378,8 +378,10 @@ export default function Home() {
         const slotId = member.schedule_slot_id;
         if (!slotId || labels[slotId]) return;
         const result = scheduleData.degree_results?.[member.degree_index];
-        const mapped = result?.suggested_for_unfulfilled?.find((m) =>
-          m.course_ids?.includes(slotId),
+        const mapped = result?.suggested_for_unfulfilled?.find(
+          (m) =>
+            m.course_ids?.includes(slotId)
+            || (m.instance_id && slotId.startsWith(`req:${m.instance_id}:`)),
         );
         if (mapped?.requirement) {
           labels[slotId] = getSlotLabel(mapped.requirement, slotId, apiLabels);
