@@ -717,24 +717,38 @@ mod overlap {
             .collect();
         assert!(
             group_explanations.iter().any(|e| {
-                e.contains("Fundamentals")
-                    && (e.contains("Math and Natural Science")
-                        || e.contains("Professional Electives"))
-            }),
-            "schedule should group ESE 3010 / stats fundamentals overlap; groups: {:?}",
-            group_explanations
-        );
-        assert!(
-            group_explanations.iter().any(|e| {
                 (e.contains("Humanities") || e.contains("Social Science"))
                     && e.contains("General Electives")
             }),
             "schedule should group humanities/social science overlap; groups: {:?}",
             group_explanations
         );
+
+        let scheduled_courses: Vec<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|sem| sem.courses.iter().map(String::as_str))
+            .collect();
         assert!(
-            group_explanations.iter().any(|e| e.contains("MGMT") || e.contains("M&T Soph")),
-            "schedule should group MGMT 2370 overlap; groups: {:?}",
+            scheduled_courses.contains(&"MATH 1400"),
+            "MATH 1400 should appear as a shared course card; courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            scheduled_courses.contains(&"ESE 3010"),
+            "ESE 3010 should appear as a shared course card; courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            !group_explanations.iter().any(|e| e.contains("MATH 1400")),
+            "MATH 1400 should not be a dashed overlap block; groups: {:?}",
+            group_explanations
+        );
+        assert!(
+            !group_explanations.iter().any(|e| {
+                e.contains("Fundamentals") && e.contains("Math and Natural Science")
+            }),
+            "ESE 3010 fundamentals overlap should be a course card, not dashed block; groups: {:?}",
             group_explanations
         );
     }

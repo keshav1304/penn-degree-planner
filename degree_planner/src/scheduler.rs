@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::course;
 use crate::cross_degree::{self, is_graduate_degree, CrossDegreeSummary};
 use crate::major::{self, Major, resolve_major};
-use crate::overlap_planner::{self, OverlapPlan, OverlapScheduleGroup};
+use crate::overlap_planner::{
+    self, OverlapOpportunity, OverlapPair, OverlapPlan, OverlapScheduleGroup, OverlapSlotRef,
+};
 use crate::penn_data::{self, college_data, courses_data};
 use crate::penn_data::college_data::CasGenEdInfo;
 use crate::requirement::{
@@ -20,6 +22,46 @@ pub const DEFAULT_SEMESTER_CU_LIMIT: f64 = 5.5;
 pub const DUAL_UG_SEMESTER_CU_LIMIT: f64 = 6.5;
 pub const DEFAULT_SUMMER_CU_LIMIT: f64 = 2.0;
 pub const CU_EPS: f64 = 0.001;
+
+fn overlap_slots_equal(a: &[OverlapSlotRef], b: &[OverlapSlotRef]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut keys: Vec<_> = a
+        .iter()
+        .map(|s| (s.degree_index, s.slot_key.as_str()))
+        .collect();
+    let mut other: Vec<_> = b
+        .iter()
+        .map(|s| (s.degree_index, s.slot_key.as_str()))
+        .collect();
+    keys.sort_unstable();
+    other.sort_unstable();
+    keys == other
+}
+
+/// Shared named course on both sides of a pair → schedule as a course card, not a dashed overlap block.
+fn overlap_pair_fixed_course(
+    pair: &OverlapPair,
+    opportunities: &[OverlapOpportunity],
+    per_degree: &[requirement::DegreeValidationResult],
+) -> Option<String> {
+    let opp = opportunities
+        .iter()
+        .find(|o| overlap_slots_equal(&o.slots, &pair.slots))?;
+    let course = opp.suggested_courses.first()?;
+    if !course::is_valid_course_code(course) {
+        return None;
+    }
+    for slot_ref in &pair.slots {
+        let validation = per_degree.get(slot_ref.degree_index)?;
+        let mapped = validation.mapped_for_instance(&slot_ref.slot_key)?;
+        if !requirement::requirement_explicitly_lists_course(&mapped.requirement, course) {
+            return None;
+        }
+    }
+    Some(course.clone())
+}
 
 pub fn dual_undergrad_only(schools: &[String]) -> bool {
     schools.len() >= 2 && schools.iter().all(|s| !is_graduate_degree(s))
@@ -324,6 +366,24 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         })
         .unwrap_or_default();
 
+    let fixed_course_overlap_slots: HashSet<(usize, String)> = overlap_plan
+        .as_ref()
+        .map(|plan| {
+            plan.pairs
+                .iter()
+                .filter(|pair| {
+                    overlap_pair_fixed_course(pair, &plan.opportunities, &per_degree_validation)
+                        .is_some()
+                })
+                .flat_map(|pair| {
+                    pair.slots
+                        .iter()
+                        .map(|s| (s.degree_index, s.slot_key.clone()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
         let degree = &resolved.input;
         let major_data = &resolved.major_data;
@@ -352,6 +412,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 continue;
             };
             if !overlap_pair_slots.contains(&(degree_idx, instance_id.clone())) {
+                continue;
+            }
+            if fixed_course_overlap_slots.contains(&(degree_idx, instance_id.clone())) {
                 continue;
             }
             if let Some(slot_id) = mapped
@@ -601,6 +664,10 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     if let Some(ref plan) = overlap_plan {
         for pair in &plan.pairs {
+            if overlap_pair_fixed_course(pair, &plan.opportunities, &per_degree_validation).is_some()
+            {
+                continue;
+            }
             let mut members: Vec<overlap_planner::OverlapScheduleGroupMember> = Vec::new();
             let mut resolved_schedulable: Vec<String> = Vec::new();
 

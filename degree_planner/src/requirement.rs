@@ -1895,6 +1895,30 @@ impl DegreeValidationResult {
             cu_map,
         );
     }
+
+    pub fn mapped_for_instance(&self, instance_id: &str) -> Option<&MappedRequirement> {
+        self.unfulfilled
+            .iter()
+            .find(|m| m.instance_id.as_deref() == Some(instance_id))
+            .or_else(|| {
+                self.fulfilled
+                    .iter()
+                    .find(|m| m.partial && m.instance_id.as_deref() == Some(instance_id))
+            })
+    }
+}
+
+/// True when `course` is a named option on a SingleCourse (possibly under AnyOf), not via attributes.
+pub fn requirement_explicitly_lists_course(req: &Requirement, course: &str) -> bool {
+    match req {
+        Requirement::SingleCourse { possibilities, .. } => {
+            possibilities.iter().any(|p| p == course)
+        }
+        Requirement::AnyOf { possibilities, .. } => possibilities
+            .iter()
+            .any(|child| requirement_explicitly_lists_course(child, course)),
+        _ => false,
+    }
 }
 
 /// finding whether taken fulfills degree and to what extent
