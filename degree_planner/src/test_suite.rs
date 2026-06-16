@@ -624,14 +624,16 @@ mod overlap {
             "EE + WH_FL_MT should produce at least one overlap pair"
         );
 
-        let fundamentals_pair = plan.pairs.iter().any(|p| {
-            p.explanation.contains("Fundamentals")
-                && p.explanation.contains("Math and Natural Science")
+        let fundamentals_overlap = plan.opportunities.iter().any(|o| {
+            o.suggested_courses
+                .iter()
+                .any(|c| *c == "ESE 3010" || *c == "STAT 4300")
+                && o.explanation.contains("Fundamentals")
         });
         assert!(
-            fundamentals_pair,
-            "expected a fundamentals ↔ math/science overlap pair; pairs: {:?}",
-            plan.pairs
+            fundamentals_overlap,
+            "expected a fundamentals stats overlap opportunity; opportunities: {:?}",
+            plan.opportunities
         );
     }
 
@@ -656,6 +658,85 @@ mod overlap {
         let id = overlap_group_schedule_id(&slots);
         assert!(id.starts_with("req:overlap:"));
         assert!(is_overlap_schedule_group_id(&id));
+    }
+
+    #[test]
+    fn ee_robotics_wh_nofl_mt_surfaces_key_overlaps_on_schedule() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec!["Robotics".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        let suggested: Vec<&String> = plan
+            .opportunities
+            .iter()
+            .flat_map(|o| o.suggested_courses.iter())
+            .collect();
+        assert!(
+            suggested.iter().any(|c| *c == "ESE 3010"),
+            "expected ESE 3010 overlap opportunity; got {:?}",
+            plan.opportunities
+        );
+        assert!(
+            suggested.iter().any(|c| *c == "MGMT 2370"),
+            "expected MGMT 2370 overlap opportunity; got {:?}",
+            plan.opportunities
+        );
+        assert!(
+            plan.opportunities.iter().any(|o| {
+                o.explanation.contains("Humanities")
+                    || o.explanation.contains("Social Science")
+            }),
+            "expected humanities/social science overlap; got {:?}",
+            plan.opportunities
+        );
+
+        let group_explanations: Vec<&str> = output
+            .overlap_schedule_groups
+            .iter()
+            .map(|g| g.explanation.as_str())
+            .collect();
+        assert!(
+            group_explanations.iter().any(|e| {
+                e.contains("Fundamentals")
+                    && (e.contains("Math and Natural Science")
+                        || e.contains("Professional Electives"))
+            }),
+            "schedule should group ESE 3010 / stats fundamentals overlap; groups: {:?}",
+            group_explanations
+        );
+        assert!(
+            group_explanations.iter().any(|e| {
+                (e.contains("Humanities") || e.contains("Social Science"))
+                    && e.contains("General Electives")
+            }),
+            "schedule should group humanities/social science overlap; groups: {:?}",
+            group_explanations
+        );
+        assert!(
+            group_explanations.iter().any(|e| e.contains("MGMT") || e.contains("M&T Soph")),
+            "schedule should group MGMT 2370 overlap; groups: {:?}",
+            group_explanations
+        );
     }
 }
 

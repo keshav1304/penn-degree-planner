@@ -446,22 +446,32 @@ fn consumption_group_for_requirement(req: &Requirement) -> Option<String> {
     if cat.contains("WUHM") || cat.contains("WUSS") || cat.contains("WUNM") {
         return Some("wh:ssh".to_string());
     }
+    if let Requirement::Restriction { attr, .. } = req {
+        if let Some(attrs) = attr {
+            if attrs
+                .iter()
+                .any(|a| a == "WUHM" || a == "WUSS" || a == "WUNM")
+            {
+                return Some("wh:ssh".to_string());
+            }
+            if attrs.iter().any(|a| a == "WUCN" || a == "WUCU") {
+                return Some("wh:cross_cultural".to_string());
+            }
+        }
+    }
     None
 }
 
 /// Pool constraints (`:c`), flex pool slots (`:p`), and finite SingleCourse lists participate
 /// in cross-degree overlap. Mega-opportunities are avoided by pairing exactly one slot per
 /// degree (max double-count).
-fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
-    if slot.slot_key.contains(":c") || slot.slot_key.contains(":p") {
-        return true;
-    }
-    if slot.slot_key == "0" || slot.slot_key.starts_with("1:f") {
-        return false;
-    }
-    match &slot.matcher {
+fn matcher_cross_degree_overlap_eligible(matcher: &CourseMatcher, in_anyof: bool) -> bool {
+    match matcher {
         CourseMatcher::OneOf(possibilities) => {
-            !possibilities.is_empty() && possibilities.len() <= MAX_EXPLICIT_ONEOF_OVERLAP
+            if possibilities.is_empty() || possibilities.len() > MAX_EXPLICIT_ONEOF_OVERLAP {
+                return false;
+            }
+            !in_anyof || possibilities.len() > 1
         }
         CourseMatcher::Restriction {
             department,
@@ -474,9 +484,27 @@ fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
             }
             attr.as_ref().is_some_and(|a| !a.is_empty()) || no_school.is_some()
         }
-        CourseMatcher::Unrestricted => slot.slot_key.contains(":p"),
-        CourseMatcher::AnyOf(_) | CourseMatcher::AllOf(_) => false,
+        CourseMatcher::Unrestricted => false,
+        CourseMatcher::AnyOf(children) => children
+            .iter()
+            .any(|child| matcher_cross_degree_overlap_eligible(child, true)),
+        CourseMatcher::AllOf(children) => children
+            .iter()
+            .any(|child| matcher_cross_degree_overlap_eligible(child, true)),
     }
+}
+
+fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
+    if slot.slot_key.contains(":c") || slot.slot_key.contains(":p") {
+        return true;
+    }
+    if slot.slot_key == "0" || slot.slot_key.starts_with("1:f") {
+        return false;
+    }
+    if matches!(&slot.matcher, CourseMatcher::Unrestricted) {
+        return slot.slot_key.contains(":p");
+    }
+    matcher_cross_degree_overlap_eligible(&slot.matcher, false)
 }
 
 fn opportunity_is_valid_pair(slots: &[OverlapSlotRef]) -> bool {

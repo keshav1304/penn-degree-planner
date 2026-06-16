@@ -8,6 +8,7 @@ import { resolveSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
+import { formatOverlapMemberLabel } from "@/lib/requirementText";
 
 const YEAR_NAMES = {};
 
@@ -249,9 +250,9 @@ export default function ScheduleGrid({
             onToggleFreeze(groupId, year, sem);
         };
 
-        const memberLabels = group?.members?.length
+        const members = group?.members?.length
             ? group.members
-            : [{ label: getSlotLabel(groupId), major: "" }];
+            : [{ schedule_slot_id: groupId, label: getSlotLabel(groupId), school: "", major: "", degree_index: 0 }];
 
         return (
             <DraggableCourse
@@ -260,19 +261,6 @@ export default function ScheduleGrid({
                 data={{ courseId: groupId, source: "schedule", fromYear: year, fromSemester: sem }}
             >
                 <div className={className} style={{ position: "relative" }}>
-                    <div className="degree-bar-container">
-                        {memberLabels.map((m, i) => {
-                            const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
-                            return (
-                                <div
-                                    key={`${groupId}-bar-${i}`}
-                                    className="degree-bar-stripe"
-                                    style={{ background: degKey ? (degreeColorMap[degKey] || "#888") : "#888" }}
-                                    title={degKey || m.label}
-                                />
-                            );
-                        })}
-                    </div>
                     <div
                         className="schedule-course-content"
                         onClick={handleClick}
@@ -282,20 +270,28 @@ export default function ScheduleGrid({
                                 : frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"
                         }
                     >
-                        <div className="schedule-overlap-labels">
-                            {memberLabels.map((m, i) => (
-                                <div key={i} className="schedule-overlap-label-row">
-                                    <span className="schedule-requirement-label">
-                                        {m.label.split(/\n↳/)[0].trim()}
+                        <div className="schedule-overlap-inline">
+                            {members.map((m, i) => {
+                                const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
+                                const color = degKey ? (degreeColorMap[degKey] || "#888") : "#888";
+                                const slotText = m.schedule_slot_id
+                                    ? getSlotLabel(m.schedule_slot_id)
+                                    : "";
+                                const text = formatOverlapMemberLabel(slotText, m.label);
+                                return (
+                                    <span key={i} className="schedule-overlap-segment">
+                                        {i > 0 && <span className="schedule-overlap-slash"> / </span>}
+                                        <span
+                                            className="schedule-overlap-req-label"
+                                            style={{ borderBottomColor: color }}
+                                        >
+                                            {text}
+                                        </span>
                                     </span>
-                                    {m.major && (
-                                        <span className="schedule-overlap-major">{m.major}</span>
-                                    )}
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                         <span className="course-card-actions">
-                            <span className="schedule-overlap-badge">Overlap</span>
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>

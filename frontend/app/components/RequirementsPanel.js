@@ -30,7 +30,6 @@ import {
 } from "@/lib/crossDegree";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
-import { overlapHintTooltip } from "@/lib/overlapHints";
 import {
     buildCasSuperSections,
     buildRequirementTabs,
@@ -100,7 +99,6 @@ export default function RequirementsPanel({
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
     const crossDegreeChipTitle = (courseId) => crossDegreeViolationsByCourse[courseId] || undefined;
-    const overlapPlan = scheduleData?.overlap_plan ?? null;
 
     const isCasLayout = activeTabDef.type === "cas-combined" || activeTabDef.type === "cas-single";
 
@@ -145,7 +143,6 @@ export default function RequirementsPanel({
             frozenIds,
             crossDegreeViolationsByCourse,
             crossDegreeChipTitle,
-            overlapPlan,
             degreeIndex: casIndices[0],
             superSections,
             isCasCombined: activeTabDef.type === "cas-combined",
@@ -240,7 +237,6 @@ export default function RequirementsPanel({
             frozenIds,
             crossDegreeViolationsByCourse,
             crossDegreeChipTitle,
-            overlapPlan,
             degreeIndex: activeTabDef.index,
         };
         if (current.error) errors.push(current.error);
@@ -405,7 +401,6 @@ export default function RequirementsPanel({
                                                         `pool-${pool.pool_index ?? cat}-${j}`,
                                                         false,
                                                         scheduleCtx,
-                                                        `${pool.pool_index}:c${j}`,
                                                     ),
                                                 )}
                                             </>
@@ -557,7 +552,6 @@ function renderCasSuperSections({
                                             `pool-${pool.pool_index}-c-${j}`,
                                             j === 0,
                                             scheduleCtx,
-                                            `${pool.pool_index}:c${j}`,
                                         ),
                                     )}
                                 </>
@@ -762,20 +756,6 @@ function buildRowContent(item) {
     return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
 }
 
-function renderOverlapHint(degreeIndex, slotKey, overlapPlan) {
-    const title = overlapHintTooltip(overlapPlan, degreeIndex, slotKey);
-    if (!title) return null;
-    return (
-        <span
-            className="req-overlap-hint"
-            title={title}
-            aria-label="Cross-degree overlap suggestions"
-        >
-            ?
-        </span>
-    );
-}
-
 function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => undefined) {
     const { stem, badges, fulfillingSet } = buildRowContent(item);
     const fullDesc = createRequirementDescription(item.requirement);
@@ -807,15 +787,10 @@ function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => u
         );
     };
 
-    const overlapHint = !item.fulfilled
-        ? renderOverlapHint(scheduleCtx.degreeIndex, item.instanceId, scheduleCtx.overlapPlan)
-        : null;
-
     if (stem && badges.length > 0) {
         return (
             <div className="req-item-line">
                 <span className="req-stem-text">{stem}</span>
-                {overlapHint}
                 <span className="req-item-colon">:</span>
                 <span className="req-chips">{badges.map((b, i) => renderBadge(b, i))}</span>
             </div>
@@ -825,7 +800,6 @@ function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => u
     return (
         <div className="req-item-line">
             <span className="req-stem-text">{fullDesc}</span>
-            {overlapHint}
         </div>
     );
 }
@@ -1176,11 +1150,6 @@ function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, de
                     <span className="req-cas-gened-label">
                         {row.name}
                         <span className="req-cas-gened-attr"> [{row.attr}]</span>
-                        {!row.fulfilled && renderOverlapHint(
-                            degreeIndex,
-                            `gened:${row.attr}`,
-                            scheduleCtx.overlapPlan,
-                        )}
                     </span>
                     {row.fulfilled_by_major && majorDisplayName && (
                         <span className="req-cas-gened-note">
@@ -1213,12 +1182,9 @@ function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, de
     );
 }
 
-function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx, slotKey) {
+function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx) {
     const rowTone = constraint.fulfilled ? "fulfilled" : "open";
     const fulfillingSet = new Set(constraint.matched_courses || []);
-    const overlapHint = !constraint.fulfilled
-        ? renderOverlapHint(scheduleCtx.degreeIndex, slotKey, scheduleCtx.overlapPlan)
-        : null;
     return (
         <div
             key={rowKey}
@@ -1232,7 +1198,6 @@ function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx, slot
                     <span className="req-stem-text">
                         {constraint.description || constraint.label}
                     </span>
-                    {overlapHint}
                     {constraint.matched_courses?.length > 0 && (
                         <>
                             <span className="req-item-colon">:</span>

@@ -743,34 +743,35 @@ select {
   background: rgba(5, 150, 105, 0.06);
 }
 
-.schedule-overlap-labels {
+.schedule-overlap-inline {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.schedule-overlap-label-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.schedule-overlap-major {
-  font-size: 0.62rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  line-height: 1.45;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  padding-right: 4px;
 }
 
-.schedule-overlap-badge {
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--accent-teal);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.schedule-overlap-segment {
+  display: inline;
+}
+
+.schedule-overlap-req-label {
+  border-bottom: 2px solid;
+  padding-bottom: 1px;
+}
+
+.schedule-overlap-slash {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.schedule-course.schedule-requirement-overlap .schedule-course-content {
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .schedule-course.schedule-requirement {
@@ -1561,29 +1562,6 @@ select {
   font-weight: 600;
   color: var(--text-primary);
   word-break: break-word;
-}
-
-.req-overlap-hint {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 1.1rem;
-  height: 1.1rem;
-  margin-left: 4px;
-  border-radius: 50%;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--accent-teal);
-  background: var(--accent-teal-dim);
-  border: 1px solid rgba(5, 150, 105, 0.25);
-  cursor: help;
-  user-select: none;
-}
-
-.req-overlap-hint:hover {
-  background: rgba(5, 150, 105, 0.18);
 }
 
 .req-item-colon {

@@ -310,6 +310,20 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         None
     };
 
+    let overlap_pair_slots: HashSet<(usize, String)> = overlap_plan
+        .as_ref()
+        .map(|plan| {
+            plan.pairs
+                .iter()
+                .flat_map(|pair| {
+                    pair.slots
+                        .iter()
+                        .map(|s| (s.degree_index, s.slot_key.clone()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
         let degree = &resolved.input;
         let major_data = &resolved.major_data;
@@ -325,13 +339,28 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let unfulfilled = validation.unfulfilled.clone();
         let pool_coverage = validation.pool_coverage_info.clone();
 
-        let suggested = requirement::suggest_courses_for_requirements(
+        let mut suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
             &courses_for_validation,
             &cu_map,
             Some(&cross_state),
             Some(degree_idx),
         );
+
+        for mapped in &mut suggested {
+            let Some(instance_id) = mapped.instance_id.clone() else {
+                continue;
+            };
+            if !overlap_pair_slots.contains(&(degree_idx, instance_id.clone())) {
+                continue;
+            }
+            if let Some(slot_id) = mapped
+                .requirement
+                .schedulable_placeholder_id(Some(&instance_id))
+            {
+                mapped.course_ids = vec![slot_id];
+            }
+        }
 
         for mapped in &suggested {
             for course_id in &mapped.course_ids {
@@ -518,10 +547,53 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     if let Some(rest) = cid.strip_prefix("req:") {
                         let scope = rest.split(":R:").next().unwrap_or(rest);
                         schedulable_slot_lookup.insert((degree_idx, scope.to_string()), cid.clone());
+                        if let Some(base) = scope.split(':').next() {
+                            schedulable_slot_lookup
+                                .insert((degree_idx, base.to_string()), cid.clone());
+                        }
                     }
                 }
             }
         }
+    }
+
+    fn resolve_overlap_schedule_slot_id(
+        degree_idx: usize,
+        slot_key: &str,
+        per_degree_validation: &[requirement::DegreeValidationResult],
+        schedulable_slot_lookup: &HashMap<(usize, String), String>,
+        all_requirement_slots: &[String],
+    ) -> Option<String> {
+        if let Some(id) = schedulable_slot_lookup.get(&(degree_idx, slot_key.to_string())) {
+            return Some(id.clone());
+        }
+        if let Some(id) = all_requirement_slots.iter().find_map(|id| {
+            if !requirement::is_schedulable_requirement_slot_id(id) {
+                return None;
+            }
+            let rest = id.strip_prefix("req:")?;
+            if rest == slot_key || rest.starts_with(&format!("{slot_key}:")) {
+                Some(id.clone())
+            } else {
+                None
+            }
+        }) {
+            return Some(id);
+        }
+        let validation = &per_degree_validation[degree_idx];
+        let mapped = validation
+            .unfulfilled
+            .iter()
+            .find(|m| m.instance_id.as_deref() == Some(slot_key))
+            .or_else(|| {
+                validation
+                    .fulfilled
+                    .iter()
+                    .find(|m| m.partial && m.instance_id.as_deref() == Some(slot_key))
+            })?;
+        mapped
+            .requirement
+            .schedulable_placeholder_id(Some(slot_key))
     }
 
     let mut overlap_schedule_groups: Vec<OverlapScheduleGroup> = Vec::new();
@@ -533,24 +605,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             let mut resolved_schedulable: Vec<String> = Vec::new();
 
             for slot_ref in &pair.slots {
-                let schedule_id = schedulable_slot_lookup
-                    .get(&(slot_ref.degree_index, slot_ref.slot_key.clone()))
-                    .cloned()
-                    .or_else(|| {
-                        all_requirement_slots.iter().find_map(|id| {
-                            if !requirement::is_schedulable_requirement_slot_id(id) {
-                                return None;
-                            }
-                            let rest = id.strip_prefix("req:")?;
-                            if rest == slot_ref.slot_key
-                                || rest.starts_with(&format!("{}:", slot_ref.slot_key))
-                            {
-                                Some(id.clone())
-                            } else {
-                                None
-                            }
-                        })
-                    });
+                let schedule_id = resolve_overlap_schedule_slot_id(
+                    slot_ref.degree_index,
+                    &slot_ref.slot_key,
+                    &per_degree_validation,
+                    &schedulable_slot_lookup,
+                    &all_requirement_slots,
+                );
 
                 if let Some(schedule_slot_id) = schedule_id {
                     resolved_schedulable.push(schedule_slot_id.clone());

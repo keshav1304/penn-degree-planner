@@ -1003,6 +1003,35 @@ impl Requirement {
         }
     }
 
+    /// Schedule placeholder for open requirements that would otherwise suggest a concrete course.
+    pub fn schedulable_placeholder_id(&self, scope: Option<&str>) -> Option<String> {
+        match self {
+            Requirement::Restriction { .. } => self.requirement_slot_id(scope),
+            Requirement::SingleCourse { possibilities, .. } => {
+                let fp = format!(
+                    "S:{}",
+                    possibilities
+                        .iter()
+                        .map(|p| slot_scope_slug(p))
+                        .collect::<Vec<_>>()
+                        .join("/")
+                );
+                Some(scoped_slot_id(scope, &fp))
+            }
+            Requirement::AnyOf { category, .. } => {
+                if Self::is_business_breadth_category(category.as_ref()) {
+                    return category
+                        .as_deref()
+                        .map(|c| business_breadth_slot_id(c));
+                }
+                let cat = category.as_deref().filter(|c| !c.is_empty())?;
+                let fp = format!("A:{}", slot_scope_slug(cat));
+                Some(scoped_slot_id(scope, &fp))
+            }
+            _ => None,
+        }
+    }
+
     pub fn get_category(&self) -> String {
         match self {
             Requirement::SingleCourse { category, ..}

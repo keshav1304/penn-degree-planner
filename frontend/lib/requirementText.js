@@ -543,6 +543,16 @@ export function businessBreadthLabelForSlot(req, slotId) {
   return null;
 }
 
+/** Label for one side of a dual-degree overlap schedule block. */
+export function formatOverlapMemberLabel(slotLabel, memberLabel) {
+  const text = (slotLabel || memberLabel || "Open requirement").split(/\n↳/)[0].trim();
+  if (text.startsWith("One of:") && memberLabel) {
+    const cat = memberLabel.split(/\n↳/)[0].trim();
+    if (cat) return `1 CU from ${cat}`;
+  }
+  return text;
+}
+
 /** Label for a schedule requirement slot card. */
 export function getSlotLabel(req, slotId, apiLabels = {}) {
   if (apiLabels[slotId] && typeof apiLabels[slotId] === "string" && !apiLabels[slotId].includes("[object Object]")) {
