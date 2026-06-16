@@ -35,9 +35,9 @@
   --panel-header-pad-y: 10px;
 
   /* Courses column fixed; schedule + requirements share remaining width */
-  --col-courses-min: 240px;
-  --col-courses-max: 264px;
-  --col-courses-width: clamp(var(--col-courses-min), 14vw, var(--col-courses-max));
+  --col-courses-min: 248px;
+  --col-courses-max: 300px;
+  --col-courses-width: clamp(var(--col-courses-min), 16vw, var(--col-courses-max));
   --col-requirements-min: 260px;
   --col-schedule-min: 380px;
   --col-schedule: clamp(var(--col-schedule-min), 50%, 880px);
@@ -193,7 +193,9 @@ body {
 
 .panel-requirements .panel-header h2 {
   font-size: var(--req-font-heading);
-  letter-spacing: 0.6px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: none;
 }
 
 .panel-courses {
@@ -1005,17 +1007,22 @@ select {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  width: 18px;
+  height: 18px;
   padding: 0;
   margin: 0;
-  border: none;
-  background: transparent;
+  border: 1px solid var(--border-glass);
+  border-radius: 4px;
+  background: var(--bg-secondary);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color var(--transition);
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
 }
 
 .course-req-nav-btn:hover {
   color: var(--accent-teal);
+  border-color: rgba(5, 150, 105, 0.35);
+  background: rgba(5, 150, 105, 0.06);
 }
 
 .course-req-nav-arrow {
@@ -1784,15 +1791,15 @@ select {
 
 @media (min-width: 1401px) {
   :root {
-    --col-courses-max: 256px;
-    --col-courses-width: clamp(var(--col-courses-min), 13vw, var(--col-courses-max));
+    --col-courses-max: 300px;
+    --col-courses-width: clamp(var(--col-courses-min), 15vw, var(--col-courses-max));
   }
 }
 
 @media (max-width: 1400px) {
   :root {
-    --col-courses-min: 220px;
-    --col-courses-max: 248px;
+    --col-courses-min: 232px;
+    --col-courses-max: 280px;
     --col-requirements-min: 240px;
     --col-schedule: clamp(360px, 48%, 820px);
   }
