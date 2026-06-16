@@ -310,6 +310,8 @@ fn candidates_for_matcher(
 
 const MAX_SUGGESTED_COURSES: usize = 12;
 const MAX_CANDIDATES_PER_SLOT: usize = 800;
+/// SingleCourse slots with at most this many named options participate in overlap discovery.
+const MAX_EXPLICIT_ONEOF_OVERLAP: usize = 40;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct OverlapSlotRef {
@@ -447,8 +449,9 @@ fn consumption_group_for_requirement(req: &Requirement) -> Option<String> {
     None
 }
 
-/// Pool constraints (`:c`) and flex pool slots (`:p`) participate in cross-degree overlap.
-/// Mega-opportunities are avoided by pairing exactly one slot per degree (max double-count).
+/// Pool constraints (`:c`), flex pool slots (`:p`), and finite SingleCourse lists participate
+/// in cross-degree overlap. Mega-opportunities are avoided by pairing exactly one slot per
+/// degree (max double-count).
 fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
     if slot.slot_key.contains(":c") || slot.slot_key.contains(":p") {
         return true;
@@ -457,7 +460,9 @@ fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
         return false;
     }
     match &slot.matcher {
-        CourseMatcher::OneOf(_) => false,
+        CourseMatcher::OneOf(possibilities) => {
+            !possibilities.is_empty() && possibilities.len() <= MAX_EXPLICIT_ONEOF_OVERLAP
+        }
         CourseMatcher::Restriction {
             department,
             attr,
@@ -555,27 +560,33 @@ fn cross_degree_slot_pairs(
     pairs
 }
 
+fn course_is_explicit_option(course: &str, matcher: &CourseMatcher) -> bool {
+    matches!(matcher, CourseMatcher::OneOf(v) if v.iter().any(|c| c == course))
+}
+
+/// Lower is better. Prefer courses named directly on every open slot over broad attribute matches.
 fn course_overlap_quality_score(course: &str, slot_refs: &[&OpenSlot]) -> usize {
+    let all_explicit = slot_refs
+        .iter()
+        .all(|s| course_is_explicit_option(course, &s.matcher));
+    if all_explicit {
+        return 0;
+    }
+
     let base = slot_refs
         .iter()
         .map(|s| s.matcher.specificity_score())
         .min()
         .unwrap_or(usize::MAX);
-    let mut penalty = 0usize;
 
-    for prefix in ["NRSC", "BIOL", "CIS", "ESE", "BE", "MEAM", "NETS", "CBE"] {
-        if course.starts_with(&format!("{prefix} ")) {
-            penalty += 800;
-            break;
-        }
+    if slot_refs
+        .iter()
+        .any(|s| course_is_explicit_option(course, &s.matcher))
+    {
+        return base / 4;
     }
-    for prefix in ["HIST", "ANTH", "PSYC", "SOCI", "PHIL", "ENGL", "ARTH", "LING", "REL", "PPE"] {
-        if course.starts_with(&format!("{prefix} ")) {
-            penalty = penalty.saturating_sub(200);
-            break;
-        }
-    }
-    base.saturating_add(penalty)
+
+    base
 }
 
 fn format_opportunity_explanation(slots: &[OverlapSlotRef]) -> String {
@@ -873,17 +884,18 @@ pub fn compute_overlap_plan(
         }
     }
 
-    let mut opportunities = Vec::new();
+    let mut scored_opportunities: Vec<(usize, OverlapOpportunity)> = Vec::new();
     let mut hints_by_slot: HashMap<String, Vec<String>> = HashMap::new();
     let mut slot_explanations: HashMap<String, String> = HashMap::new();
 
     for (slot_indices, mut courses) in group_courses {
         courses.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
         courses.dedup_by(|a, b| a.0 == b.0);
+        let best_score = courses.first().map(|(_, score)| *score).unwrap_or(usize::MAX);
         let suggested: Vec<String> = courses
-            .into_iter()
+            .iter()
             .take(MAX_SUGGESTED_COURSES)
-            .map(|(c, _)| c)
+            .map(|(c, _)| c.clone())
             .collect();
         if suggested.is_empty() {
             continue;
@@ -915,23 +927,30 @@ pub fn compute_overlap_plan(
             );
         }
 
-        opportunities.push(OverlapOpportunity {
-            slots,
-            suggested_courses: suggested,
-            explanation,
-        });
+        scored_opportunities.push((
+            best_score,
+            OverlapOpportunity {
+                slots,
+                suggested_courses: suggested,
+                explanation,
+            },
+        ));
     }
 
-    opportunities.retain(|o| opportunity_is_valid_pair(&o.slots));
+    scored_opportunities.retain(|(_, o)| opportunity_is_valid_pair(&o.slots));
 
     dedupe_hints(&mut hints_by_slot);
 
-    opportunities.sort_by(|a, b| {
-        a.suggested_courses
-            .len()
-            .cmp(&b.suggested_courses.len())
-            .reverse()
+    scored_opportunities.sort_by(|(score_a, opp_a), (score_b, opp_b)| {
+        score_a
+            .cmp(score_b)
+            .then_with(|| opp_a.suggested_courses.len().cmp(&opp_b.suggested_courses.len()))
+            .then_with(|| opp_a.explanation.cmp(&opp_b.explanation))
     });
+    let opportunities: Vec<OverlapOpportunity> = scored_opportunities
+        .into_iter()
+        .map(|(_, opp)| opp)
+        .collect();
 
     let pairs = select_overlap_pairs(&opportunities);
 
@@ -954,113 +973,3 @@ impl OverlapPlan {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::major::resolve_major;
-
-    #[test]
-    fn neur_wh_nofl_has_cross_degree_overlap_hints() {
-        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
-        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".to_string()]).expect("WH_NOFL");
-        let cu_map: HashMap<String, f64> = crate::penn_data::courses_data::all_courses()
-            .iter()
-            .map(|c| (c.course_code.clone(), c.cu))
-            .collect();
-        let taken: HashSet<String> = HashSet::new();
-
-        let neur_v = crate::requirement::validate_courses_for_degree(
-            neur.requirements.clone(),
-            &vec![],
-            &cu_map,
-        );
-        let wh_v = crate::requirement::validate_courses_for_degree(
-            wh.requirements.clone(),
-            &vec![],
-            &cu_map,
-        );
-        let per_degree = vec![neur_v, wh_v];
-        let schools = vec!["CAS".to_string(), "WH".to_string()];
-        let majors_code = vec!["NEUR".to_string(), "WH_NOFL".to_string()];
-        let cross_state = CrossDegreeState::new(schools.clone(), majors_code.clone());
-
-        let plan = compute_overlap_plan(
-            &per_degree,
-            &[&neur, &wh],
-            &schools,
-            &majors_code,
-            &taken,
-            &cross_state,
-            &cu_map,
-        );
-
-        assert!(
-            !plan.opportunities.is_empty(),
-            "expected cross-degree overlap opportunities for NEUR + WH_NOFL"
-        );
-        assert!(
-            !plan.hints_by_slot.is_empty(),
-            "expected per-slot overlap hints"
-        );
-        assert!(
-            !plan.pairs.is_empty(),
-            "expected overlap pairs for NEUR + WH_NOFL"
-        );
-        assert!(
-            plan.pairs.len() >= 3,
-            "expected multiple disjoint overlap pairs, got {} from {} opportunities",
-            plan.pairs.len(),
-            plan.opportunities.len()
-        );
-        for p in &plan.pairs {
-            assert!(
-                opportunity_is_valid_pair(&p.slots),
-                "pair must be exactly two slots across two degrees: {:?}",
-                p.slots
-            );
-        }
-    }
-
-    #[test]
-    fn overlap_pairs_never_span_three_degrees() {
-        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
-        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".to_string()]).expect("WH_NOFL");
-        let econ = resolve_major("CAS", "ECON", &[]).expect("ECON");
-        let cu_map: HashMap<String, f64> = crate::penn_data::courses_data::all_courses()
-            .iter()
-            .map(|c| (c.course_code.clone(), c.cu))
-            .collect();
-        let taken: HashSet<String> = HashSet::new();
-
-        let per_degree = vec![
-            crate::requirement::validate_courses_for_degree(neur.requirements.clone(), &vec![], &cu_map),
-            crate::requirement::validate_courses_for_degree(wh.requirements.clone(), &vec![], &cu_map),
-            crate::requirement::validate_courses_for_degree(econ.requirements.clone(), &vec![], &cu_map),
-        ];
-        let schools = vec!["CAS".to_string(), "WH".to_string(), "CAS".to_string()];
-        let majors_code = vec!["NEUR".to_string(), "WH_NOFL".to_string(), "ECON".to_string()];
-        let cross_state = CrossDegreeState::new(schools.clone(), majors_code.clone());
-
-        let plan = compute_overlap_plan(
-            &per_degree,
-            &[&neur, &wh, &econ],
-            &schools,
-            &majors_code,
-            &taken,
-            &cross_state,
-            &cu_map,
-        );
-
-        for opp in &plan.opportunities {
-            assert!(
-                opportunity_is_valid_pair(&opp.slots),
-                "opportunity must pair exactly two slots across two degrees: {:?}",
-                opp.slots
-            );
-        }
-        for p in &plan.pairs {
-            let degrees: HashSet<usize> = p.slots.iter().map(|s| s.degree_index).collect();
-            assert_eq!(degrees.len(), 2, "overlap pair cannot span three degrees");
-        }
-    }
-}

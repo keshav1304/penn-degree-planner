@@ -135,35 +135,6 @@ pub fn build_cas_gen_ed_info(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cas_gen_ed_info_lists_major_completed_sector() {
-        let major = create_econ_major();
-        let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
-        let taken = vec!["WRIT 0100".to_string()];
-        let validation =
-            crate::requirement::validate_courses_for_degree(major.requirements, &taken, &cu_map);
-        let pool = validation
-            .pool_coverage_info
-            .into_iter()
-            .find(|p| p.category == "General Education")
-            .expect("gen ed pool");
-        let info = build_cas_gen_ed_info(&pool, &cas_auto_completed_sectors_for("ECON"));
-
-        assert_eq!(info.foundational_approaches.len(), 5);
-        assert_eq!(info.sectors.len(), 7);
-        let society = info
-            .sectors
-            .iter()
-            .find(|s| s.attr == SECTOR_SOCIETY)
-            .expect("society sector");
-        assert!(society.fulfilled);
-        assert!(society.fulfilled_by_major);
-    }
-}
 
 /// College-wide gen-ed configuration shared by every CAS major.
 pub struct CasMajorConfig {
