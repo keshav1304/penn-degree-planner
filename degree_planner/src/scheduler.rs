@@ -41,6 +41,8 @@ fn overlap_slots_equal(a: &[OverlapSlotRef], b: &[OverlapSlotRef]) -> bool {
 }
 
 /// Shared named course on both sides of a pair → schedule as a course card, not a dashed overlap block.
+/// At least one degree must name the course explicitly (typically SingleCourse); the other may
+/// accept it via an explicit option list or a matching restriction pool.
 fn overlap_pair_fixed_course(
     pair: &OverlapPair,
     opportunities: &[OverlapOpportunity],
@@ -53,12 +55,19 @@ fn overlap_pair_fixed_course(
     if !course::is_valid_course_code(course) {
         return None;
     }
+    let mut names_course_explicitly = false;
     for slot_ref in &pair.slots {
         let validation = per_degree.get(slot_ref.degree_index)?;
         let mapped = validation.mapped_for_instance(&slot_ref.slot_key)?;
-        if !requirement::requirement_explicitly_lists_course(&mapped.requirement, course) {
+        if requirement::requirement_explicitly_lists_course(&mapped.requirement, course) {
+            names_course_explicitly = true;
+        }
+        if !requirement::requirement_accepts_shared_course(&mapped.requirement, course) {
             return None;
         }
+    }
+    if !names_course_explicitly {
+        return None;
     }
     Some(course.clone())
 }
@@ -598,6 +607,43 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 cas_gen_ed,
                 error: None,
             });
+    }
+
+    if let Some(ref plan) = overlap_plan {
+        for pair in &plan.pairs {
+            let Some(course) =
+                overlap_pair_fixed_course(pair, &plan.opportunities, &per_degree_validation)
+            else {
+                continue;
+            };
+            if !all_suggested_courses.contains(&course) {
+                all_suggested_courses.push(course.clone());
+            }
+            ug_schedule_items.insert(course.clone());
+            for slot_ref in &pair.slots {
+                let degree_idx = slot_ref.degree_index;
+                if cross_state
+                    .can_claim(&course, degree_idx, &cu_map)
+                    .is_ok()
+                {
+                    cross_state.register_claim(&course, degree_idx, &cu_map);
+                }
+                let major_data = &resolved_degrees[degree_idx].major_data;
+                if let Some(target) =
+                    resolve_semester_hint(&slot_ref.slot_key, &major_data.schedule_hints)
+                {
+                    item_targets
+                        .entry(course.clone())
+                        .or_insert_with(|| {
+                            schedule_target_for_dual_degrees(
+                                target.0,
+                                &target.1,
+                                &degree_schools,
+                            )
+                        });
+                }
+            }
+        }
     }
 
     let mut schedulable_slot_lookup: HashMap<(usize, String), String> = HashMap::new();

@@ -1,6 +1,6 @@
 export const DEGREE_COLORS = [
     "#a51c30", // Penn red
-    "#059669", // teal
+    "#2563eb", // blue
     "#d97706", // amber
     "#7c3aed", // purple
 ];

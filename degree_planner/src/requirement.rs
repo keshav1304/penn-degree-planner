@@ -167,6 +167,15 @@ fn requirement_fill_order_key(req: &Requirement) -> (u32, u32, usize) {
     if Requirement::is_business_breadth_category((!cat.is_empty()).then_some(&cat)) {
         return (3, 0, req.specificity_score());
     }
+    if let Requirement::Restriction { department, .. } = req {
+        if department
+            .as_ref()
+            .is_some_and(|d| d.iter().any(|dept| dept == "WRIT"))
+        {
+            // CAS writing is siloed — satisfy before pools can absorb WRIT courses.
+            return (0, 0, req.specificity_score());
+        }
+    }
     match req {
         Requirement::SingleCourse { .. } => (0, 0, req.specificity_score()),
         Requirement::Restriction { number, cu, .. } => {
@@ -1917,6 +1926,43 @@ pub fn requirement_explicitly_lists_course(req: &Requirement, course: &str) -> b
         Requirement::AnyOf { possibilities, .. } => possibilities
             .iter()
             .any(|child| requirement_explicitly_lists_course(child, course)),
+        _ => false,
+    }
+}
+
+/// Whether a shared course can count toward this requirement in a cross-degree overlap.
+/// Accepts explicit lists plus attribute/department restrictions that include the course.
+pub fn requirement_accepts_shared_course(req: &Requirement, course: &str) -> bool {
+    if requirement_explicitly_lists_course(req, course) {
+        return true;
+    }
+    let attributes = attributes_data::create_attributes();
+    match req {
+        Requirement::Restriction {
+            department,
+            level,
+            attr,
+            excluding,
+            no_school,
+            ..
+        } => course_matches_restriction(
+            course,
+            department,
+            level,
+            attr,
+            excluding,
+            no_school,
+            &attributes,
+        ),
+        Requirement::AnyOf { possibilities, .. } => possibilities
+            .iter()
+            .any(|child| requirement_accepts_shared_course(child, course)),
+        Requirement::AllOf { requirements, .. } => requirements
+            .iter()
+            .any(|child| requirement_accepts_shared_course(child, course)),
+        Requirement::CourseGroup { possibilities, .. } => possibilities
+            .iter()
+            .any(|child| requirement_accepts_shared_course(child, course)),
         _ => false,
     }
 }

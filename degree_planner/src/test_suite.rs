@@ -26,6 +26,8 @@ use crate::requirement::{
     self, course_matches_restriction, evaluate_pool_constraints, expand_restriction_slots,
     extract_concentration_info, is_pool_constraint_slot_id, is_requirement_slot_id,
     is_schedulable_requirement_slot_id, validate_courses_for_degree,
+    resolve_cross_degree_conflicts, requirement_accepts_shared_course,
+    requirement_explicitly_lists_course,
     Requirement,
 };
 use crate::schedule_template::{
@@ -105,6 +107,168 @@ fn dual_degree_input(
         allow_summer: Some(true),
         semester_cu_limits: None,
     }
+}
+
+/// True when this requirement subtree includes a 1-CU WRIT department restriction.
+fn requirement_tree_has_writ_department(req: &Requirement) -> bool {
+    match req {
+        Requirement::Restriction {
+            department,
+            number,
+            cu,
+            ..
+        } => {
+            department.as_ref().is_some_and(|d| d.iter().any(|x| x == "WRIT"))
+                && *number == 1
+                && cu.is_none()
+        }
+        Requirement::AllOf { requirements, .. }
+        | Requirement::Concentration { requirements, .. } => requirements
+            .iter()
+            .any(requirement_tree_has_writ_department),
+        Requirement::AnyOf { possibilities, .. } => possibilities
+            .iter()
+            .any(requirement_tree_has_writ_department),
+        Requirement::CourseGroup { possibilities, .. } => possibilities
+            .iter()
+            .any(requirement_tree_has_writ_department),
+        Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+            .iter()
+            .any(requirement_tree_has_writ_department),
+        _ => false,
+    }
+}
+
+fn major_has_writ_requirement(major: &major::Major) -> bool {
+    major
+        .requirements
+        .iter()
+        .any(requirement_tree_has_writ_department)
+}
+
+fn degree_input_has_writ(degree: &DegreeInput) -> bool {
+    let mut concs: Vec<String> = if !degree.concentrations.is_empty() {
+        major::normalize_degree_concentrations(&degree.school, &degree.concentrations)
+    } else {
+        degree.concentration.clone().into_iter().collect()
+    };
+    if concs.is_empty() && degree.school == "WH" {
+        concs.push("FNCE".to_string());
+    }
+    resolve_major(&degree.school, &degree.major, &concs)
+        .is_some_and(|m| major_has_writ_requirement(&m))
+}
+
+fn is_writ_slot_label(label: &str) -> bool {
+    let lower = label.to_lowercase();
+    lower.contains("writ")
+        || lower.contains("writing sem")
+        || lower.contains("writing seminar")
+}
+
+/// Count how many 1-CU WRIT units appear on the generated schedule grid.
+fn writ_cu_units_on_schedule(output: &scheduler::ScheduleOutput) -> f64 {
+    let cu_map = catalog_cu_map();
+    let mut units = 0.0;
+
+    for plan in &output.schedule {
+        for course in &plan.courses {
+            if course.starts_with("WRIT ") {
+                units += cu_map.get(course).copied().unwrap_or(1.0);
+            }
+        }
+    }
+
+    let mut counted_overlap_groups: HashSet<String> = HashSet::new();
+    for plan in &output.schedule {
+        for slot in &plan.requirement_slots {
+            if !is_overlap_schedule_group_id(slot) {
+                continue;
+            }
+            let is_writ = output
+                .overlap_schedule_groups
+                .iter()
+                .find(|g| g.group_id == *slot)
+                .is_some_and(|group| {
+                    group.members.iter().any(|m| is_writ_slot_label(&m.label))
+                        || group
+                            .members
+                            .iter()
+                            .any(|m| {
+                                output
+                                    .slot_labels
+                                    .get(&m.schedule_slot_id)
+                                    .is_some_and(|l| is_writ_slot_label(l))
+                            })
+                        || is_writ_slot_label(&group.explanation)
+                });
+            if is_writ {
+                counted_overlap_groups.insert(slot.clone());
+                units += 1.0;
+            }
+        }
+    }
+
+    for plan in &output.schedule {
+        for slot in &plan.requirement_slots {
+            if is_overlap_schedule_group_id(slot) || counted_overlap_groups.contains(slot) {
+                continue;
+            }
+            let label = output.slot_labels.get(slot).map(String::as_str).unwrap_or("");
+            if is_writ_slot_label(label) {
+                units += 1.0;
+            }
+        }
+    }
+
+    units
+}
+
+fn overlap_plan_has_writ_opportunity(plan: &overlap_planner::OverlapPlan) -> bool {
+    plan.opportunities.iter().any(|opp| {
+        opp.slots.iter().any(|s| is_writ_slot_label(&s.label))
+            || is_writ_slot_label(&opp.explanation)
+            || opp
+                .suggested_courses
+                .iter()
+                .any(|c| c.starts_with("WRIT "))
+    })
+}
+
+fn schedule_input(label: &str, school1: &str, major1: &str, school2: &str, major2: &str) -> (String, ScheduleInput) {
+    (label.to_string(), dual_degree_input(school1, major1, school2, major2))
+}
+
+fn implemented_dual_undergrad_pairs() -> Vec<(String, ScheduleInput)> {
+    let cas_majors = ["NEUR", "ECON", "CIS"];
+    let seas_majors = [("SEAS", "CIS"), ("SEAS", "EE"), ("SEAS", "MSE"), ("SEAS", "AI"), ("SEAS", "CMPE")];
+    let wh_majors = ["WH_NOFL", "WH_FL", "WH_NOFL_MT", "WH_FL_MT"];
+    let mut pairs = Vec::new();
+
+    for cas in cas_majors {
+        for wh in &wh_majors {
+            pairs.push(schedule_input(
+                &format!("{cas}+{wh}"),
+                "CAS",
+                cas,
+                "WH",
+                wh,
+            ));
+        }
+    }
+    for (school, seas) in seas_majors {
+        for wh in &wh_majors {
+            pairs.push(schedule_input(
+                &format!("{seas}+{wh}"),
+                school,
+                seas,
+                "WH",
+                wh,
+            ));
+        }
+    }
+    pairs.push(schedule_input("NEUR+ECON", "CAS", "NEUR", "CAS", "ECON"));
+    pairs
 }
 
 fn assert_schedule_respects_cu_limits(output: &scheduler::ScheduleOutput, label: &str) {
@@ -751,6 +915,333 @@ mod overlap {
             "ESE 3010 fundamentals overlap should be a course card, not dashed block; groups: {:?}",
             group_explanations
         );
+        assert!(
+            scheduled_courses.contains(&"MGMT 2370"),
+            "MGMT 2370 should appear as a shared course card (WH SingleCourse + EE option); courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            !group_explanations.iter().any(|e| e.contains("MGMT 2370")),
+            "MGMT 2370 should not be a dashed overlap block; groups: {:?}",
+            group_explanations
+        );
+        assert!(
+            scheduled_courses.contains(&"BEPP 2500"),
+            "BEPP 2500 should appear as a shared course card (WH Fundamentals + EE/CIS pool); courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            scheduled_courses.contains(&"FNCE 1010"),
+            "FNCE 1010 should appear as a shared course card (WH Fundamentals + EE/CIS pool); courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            !group_explanations.iter().any(|e| e.contains("BEPP 2500")),
+            "BEPP 2500 should not be a dashed overlap block; groups: {:?}",
+            group_explanations
+        );
+        assert!(
+            !group_explanations.iter().any(|e| e.contains("FNCE 1010")),
+            "FNCE 1010 should not be a dashed overlap block; groups: {:?}",
+            group_explanations
+        );
+    }
+
+    fn assert_shared_course_on_schedule(
+        output: &scheduler::ScheduleOutput,
+        course: &str,
+        label: &str,
+    ) {
+        let scheduled_courses: Vec<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|sem| sem.courses.iter().map(String::as_str))
+            .collect();
+        let group_explanations: Vec<&str> = output
+            .overlap_schedule_groups
+            .iter()
+            .map(|g| g.explanation.as_str())
+            .collect();
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        let in_overlap_plan = plan
+            .opportunities
+            .iter()
+            .flat_map(|o| o.suggested_courses.iter())
+            .any(|c| c == course);
+        assert!(
+            in_overlap_plan,
+            "{label}: expected {course} overlap opportunity; got {:?}",
+            plan.opportunities
+        );
+        assert!(
+            scheduled_courses.contains(&course),
+            "{label}: {course} should appear as a shared course card; courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            !group_explanations.iter().any(|e| e.contains(course)),
+            "{label}: {course} should not be a dashed overlap block; groups: {:?}",
+            group_explanations
+        );
+    }
+
+    #[test]
+    fn cis_wh_nofl_schedules_bepp2500_and_fnce1010_as_shared_course_cards() {
+        let output = generate_schedule(dual_degree_input("SEAS", "CIS", "WH", "WH_NOFL"));
+        assert_shared_course_on_schedule(&output, "BEPP 2500", "CIS+WH_NOFL");
+        assert_shared_course_on_schedule(&output, "FNCE 1010", "CIS+WH_NOFL");
+    }
+
+    #[test]
+    fn ee_wh_nofl_mt_schedules_bepp2500_and_fnce1010_as_shared_course_cards() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert_shared_course_on_schedule(&output, "BEPP 2500", "EE+WH_NOFL_MT");
+        assert_shared_course_on_schedule(&output, "FNCE 1010", "EE+WH_NOFL_MT");
+    }
+
+    #[test]
+    fn taken_bepp2500_and_fnce1010_fulfill_wh_fundamentals_and_engineering_pools() {
+        let cu_map = catalog_cu_map();
+        let taken = vec!["BEPP 2500".to_string(), "FNCE 1010".to_string()];
+        let cis = resolve_major("SEAS", "CIS", &[]).expect("CIS");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH_NOFL");
+        let mut per_degree = vec![
+            validate_courses_for_degree(cis.requirements.clone(), &taken, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &taken, &cu_map),
+        ];
+        resolve_cross_degree_conflicts(
+            &mut per_degree,
+            &["SEAS".into(), "WH".into()],
+            &["CIS".into(), "WH_NOFL".into()],
+            &cu_map,
+            None,
+            Some(&taken),
+        );
+        for course in ["BEPP 2500", "FNCE 1010"] {
+            assert!(
+                per_degree[1]
+                    .fulfilled
+                    .iter()
+                    .any(|m| requirement_explicitly_lists_course(&m.requirement, course)),
+                "WH fundamentals should be fulfilled by taken {course}"
+            );
+            assert!(
+                per_degree[0]
+                    .fulfilled
+                    .iter()
+                    .any(|m| requirement_accepts_shared_course(&m.requirement, course)),
+                "CIS should accept taken {course} toward a technical elective pool"
+            );
+        }
+    }
+
+    #[test]
+    fn taken_mgmt2370_fulfills_wh_single_course_and_ee_professional_elective() {
+        let cu_map = catalog_cu_map();
+        let taken = vec!["MGMT 2370".to_string()];
+        let ee = resolve_major("SEAS", "EE", &[]).expect("EE");
+        let wh = resolve_major("WH", "WH_NOFL_MT", &["FNCE".into()]).expect("WH_NOFL_MT");
+        let mut per_degree = vec![
+            validate_courses_for_degree(ee.requirements.clone(), &taken, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &taken, &cu_map),
+        ];
+        resolve_cross_degree_conflicts(
+            &mut per_degree,
+            &["SEAS".into(), "WH".into()],
+            &["EE".into(), "WH_NOFL_MT".into()],
+            &cu_map,
+            None,
+            Some(&taken),
+        );
+        assert!(
+            per_degree[0]
+                .fulfilled
+                .iter()
+                .any(|m| {
+                    requirement_explicitly_lists_course(&m.requirement, "MGMT 2370")
+                        || requirement_accepts_shared_course(&m.requirement, "MGMT 2370")
+                }),
+            "EE should accept taken MGMT 2370 toward professional electives"
+        );
+        assert!(
+            per_degree[1]
+                .fulfilled
+                .iter()
+                .any(|m| requirement_explicitly_lists_course(&m.requirement, "MGMT 2370")),
+            "WH M&T soph SingleCourse should be fulfilled by taken MGMT 2370"
+        );
+    }
+
+    #[test]
+    fn requirement_accepts_shared_course_for_explicit_or_pool() {
+        let wh_single = Requirement::SingleCourse {
+            category: Some("M&T Soph Course".into()),
+            possibilities: vec!["MGMT 2370".into()],
+        };
+        let ee_anyof = Requirement::AnyOf {
+            category: Some("Professional Electives".into()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec![
+                        "ESE 4000".into(),
+                        "MGMT 2370".into(),
+                        "OIDD 2360".into(),
+                    ],
+                },
+                Requirement::Restriction {
+                    category: None,
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["EUNG".into()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+            ],
+        };
+        let ee_restriction_only = Requirement::Restriction {
+            category: Some("Professional Electives".into()),
+            department: None,
+            cu: None,
+            level: None,
+            attr: Some(vec!["EUNG".into(), "EUMA".into(), "EUNS".into()]),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        };
+
+        assert!(requirement_explicitly_lists_course(&wh_single, "MGMT 2370"));
+        assert!(requirement_accepts_shared_course(&wh_single, "MGMT 2370"));
+        assert!(requirement_accepts_shared_course(&ee_anyof, "MGMT 2370"));
+        assert!(!requirement_explicitly_lists_course(&ee_restriction_only, "MGMT 2370"));
+        assert!(requirement_accepts_shared_course(&ee_restriction_only, "ESE 4000"));
+        assert!(!requirement_accepts_shared_course(&ee_restriction_only, "NOT A COURSE"));
+    }
+
+    #[test]
+    fn cis_wh_overlap_plan_includes_bepp2500_and_fnce1010() {
+        let cis = resolve_major("SEAS", "CIS", &[]).expect("CIS");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH");
+        let cu_map = catalog_cu_map();
+        let empty: Vec<String> = vec![];
+        let per_degree = vec![
+            validate_courses_for_degree(cis.requirements.clone(), &empty, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &empty, &cu_map),
+        ];
+        let schools = vec!["SEAS".into(), "WH".into()];
+        let majors = vec!["CIS".into(), "WH_NOFL".into()];
+        let cross = CrossDegreeState::new(schools.clone(), majors.clone());
+        let plan = compute_overlap_plan(
+            &per_degree,
+            &[&cis, &wh],
+            &schools,
+            &majors,
+            &HashSet::new(),
+            &cross,
+            &cu_map,
+        );
+        for course in ["BEPP 2500", "FNCE 1010"] {
+            assert!(
+                plan.opportunities
+                    .iter()
+                    .flat_map(|o| o.suggested_courses.iter())
+                    .any(|c| c == course),
+                "CIS+WH should surface {course} overlap; opportunities: {:?}",
+                plan.opportunities
+            );
+        }
+    }
+
+    #[test]
+    fn ee_wh_overlap_plan_includes_bepp2500_and_fnce1010() {
+        let ee = resolve_major("SEAS", "EE", &[]).expect("EE");
+        let wh = resolve_major("WH", "WH_NOFL_MT", &["FNCE".into()]).expect("WH_NOFL_MT");
+        let cu_map = catalog_cu_map();
+        let empty: Vec<String> = vec![];
+        let per_degree = vec![
+            validate_courses_for_degree(ee.requirements.clone(), &empty, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &empty, &cu_map),
+        ];
+        let schools = vec!["SEAS".into(), "WH".into()];
+        let majors = vec!["EE".into(), "WH_NOFL_MT".into()];
+        let cross = CrossDegreeState::new(schools.clone(), majors.clone());
+        let plan = compute_overlap_plan(
+            &per_degree,
+            &[&ee, &wh],
+            &schools,
+            &majors,
+            &HashSet::new(),
+            &cross,
+            &cu_map,
+        );
+        for course in ["BEPP 2500", "FNCE 1010"] {
+            assert!(
+                plan.opportunities
+                    .iter()
+                    .flat_map(|o| o.suggested_courses.iter())
+                    .any(|c| c == course),
+                "EE+WH should surface {course} overlap; opportunities: {:?}",
+                plan.opportunities
+            );
+        }
+    }
+
+    #[test]
+    fn cas_wh_overlap_plan_pairs_writ_requirements() {
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH");
+        let cu_map = catalog_cu_map();
+        let empty: Vec<String> = vec![];
+        let per_degree = vec![
+            validate_courses_for_degree(neur.requirements.clone(), &empty, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &empty, &cu_map),
+        ];
+        let schools = vec!["CAS".into(), "WH".into()];
+        let majors = vec!["NEUR".into(), "WH_NOFL".into()];
+        let cross = CrossDegreeState::new(schools.clone(), majors.clone());
+        let plan = compute_overlap_plan(
+            &per_degree,
+            &[&neur, &wh],
+            &schools,
+            &majors,
+            &HashSet::new(),
+            &cross,
+            &cu_map,
+        );
+        assert!(
+            overlap_plan_has_writ_opportunity(&plan),
+            "CAS + WH should pair WRIT department requirements; opportunities: {:?}",
+            plan.opportunities
+        );
+        assert!(
+            plan.pairs.iter().any(|pair| {
+                pair.slots.iter().any(|s| is_writ_slot_label(&s.label))
+                    && pair.slots.iter().map(|s| s.degree_index).collect::<HashSet<_>>().len() == 2
+            }),
+            "expected a cross-degree WRIT pair; pairs: {:?}",
+            plan.pairs
+        );
     }
 }
 
@@ -878,6 +1369,225 @@ mod scheduling {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// 7b. Dual-degree properties — shared requirements (e.g. WRIT) appear once
+// ═══════════════════════════════════════════════════════════════════════════════
+
+mod dual_degree_properties {
+    use super::*;
+
+    #[test]
+    fn cas_and_wh_majors_both_include_writ_requirement() {
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH_NOFL");
+        assert!(major_has_writ_requirement(&neur), "CAS majors include WRIT");
+        assert!(major_has_writ_requirement(&wh), "Wharton majors include WRIT");
+    }
+
+    #[test]
+    fn seas_undergrad_majors_do_not_model_writ_yet() {
+        let cis = resolve_major("SEAS", "CIS", &[]).expect("CIS");
+        assert!(
+            !major_has_writ_requirement(&cis),
+            "SEAS data has no explicit WRIT slot yet — test documents current catalog"
+        );
+    }
+
+    #[test]
+    fn neur_wh_discover_writ_overlap_and_schedule_once() {
+        let output = generate_schedule(dual_degree_input("CAS", "NEUR", "WH", "WH_NOFL"));
+        assert!(output.error.is_none(), "pipeline error: {:?}", output.error);
+
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(
+            overlap_plan_has_writ_opportunity(plan),
+            "NEUR + WH should surface WRIT overlap; opportunities: {:?}",
+            plan.opportunities
+        );
+
+        let writ_units = writ_cu_units_on_schedule(&output);
+        assert_eq!(
+            writ_units, 1.0,
+            "shared WRIT should occupy exactly 1 CU on the schedule; got {writ_units}"
+        );
+    }
+
+    #[test]
+    fn econ_wh_writ_overlap_appears_once() {
+        let output = generate_schedule(dual_degree_input("CAS", "ECON", "WH", "WH_FL"));
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(overlap_plan_has_writ_opportunity(plan));
+        assert_eq!(writ_cu_units_on_schedule(&output), 1.0);
+    }
+
+    #[test]
+    fn cas_cas_dual_writ_appears_once() {
+        let output = generate_schedule(dual_degree_input("CAS", "NEUR", "CAS", "ECON"));
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(overlap_plan_has_writ_opportunity(plan));
+        assert_eq!(writ_cu_units_on_schedule(&output), 1.0);
+    }
+
+    #[test]
+    fn cas_writing_fulfilled_by_taken_writ_course() {
+        let cu_map = catalog_cu_map();
+        let taken = vec!["WRIT 0100".to_string()];
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let validation = validate_courses_for_degree(neur.requirements.clone(), &taken, &cu_map);
+        assert!(
+            validation
+                .fulfilled
+                .iter()
+                .any(|m| requirement_tree_has_writ_department(&m.requirement)),
+            "CAS writing should be fulfilled before gen-ed pool absorbs WRIT courses"
+        );
+    }
+
+    #[test]
+    fn taken_writ_fulfills_both_degrees_before_scheduling() {
+        let cu_map = catalog_cu_map();
+        let taken = vec!["WRIT 0100".to_string()];
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH");
+        let mut per_degree = vec![
+            validate_courses_for_degree(neur.requirements.clone(), &taken, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &taken, &cu_map),
+        ];
+        let schools = vec!["CAS".into(), "WH".into()];
+        let majors = vec!["NEUR".into(), "WH_NOFL".into()];
+        resolve_cross_degree_conflicts(
+            &mut per_degree,
+            &schools,
+            &majors,
+            &cu_map,
+            None,
+            Some(&taken),
+        );
+        for (idx, validation) in per_degree.iter().enumerate() {
+            let fulfilled = validation
+                .fulfilled
+                .iter()
+                .any(|m| requirement_tree_has_writ_department(&m.requirement));
+            let unfulfilled = validation
+                .unfulfilled
+                .iter()
+                .any(|m| requirement_tree_has_writ_department(&m.requirement));
+            assert!(fulfilled, "degree {idx} should fulfill WRIT when taken");
+            assert!(!unfulfilled, "degree {idx} should not leave WRIT open when taken");
+        }
+    }
+
+    #[test]
+    fn taken_writ_course_suppresses_duplicate_writ_slots() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec!["WRIT 0100".into()],
+            degrees: vec![
+                DegreeInput {
+                    major: "NEUR".into(),
+                    school: "CAS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL".into(),
+                    school: "WH".into(),
+                    concentrations: vec![],
+                    concentration: Some("FNCE".into()),
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        let writ_units = writ_cu_units_on_schedule(&output);
+        let open_writ_slots: Vec<_> = output
+            .schedule
+            .iter()
+            .flat_map(|p| p.requirement_slots.iter())
+            .filter(|s| {
+                output
+                    .slot_labels
+                    .get(s.as_str())
+                    .is_some_and(|l| is_writ_slot_label(l))
+                    || output.overlap_schedule_groups.iter().any(|g| {
+                        g.group_id == **s
+                            && (is_writ_slot_label(&g.explanation)
+                                || g.members.iter().any(|m| is_writ_slot_label(&m.label)))
+                    })
+            })
+            .collect();
+        assert!(
+            open_writ_slots.is_empty(),
+            "fulfilled WRIT should not leave open WRIT placeholders; got slots {:?}, writ_units={writ_units}",
+            open_writ_slots
+        );
+    }
+
+    #[test]
+    fn all_implemented_dual_pairs_generate_valid_schedules() {
+        for (label, input) in implemented_dual_undergrad_pairs() {
+            let output = generate_schedule(input);
+            assert!(
+                output.error.is_none(),
+                "{label}: pipeline error: {:?}",
+                output.error
+            );
+            assert_eq!(output.degree_results.len(), 2, "{label}");
+            assert_schedule_respects_cu_limits(&output, &label);
+        }
+    }
+
+    #[test]
+    fn dual_pairs_with_writ_on_both_degrees_schedule_writ_once() {
+        for (label, input) in implemented_dual_undergrad_pairs() {
+            let both_have_writ = input.degrees.iter().all(|d| degree_input_has_writ(d));
+            if !both_have_writ {
+                continue;
+            }
+            let output = generate_schedule(input);
+            assert!(
+                output.error.is_none(),
+                "{label}: pipeline error: {:?}",
+                output.error
+            );
+            let writ_units = writ_cu_units_on_schedule(&output);
+            assert_eq!(
+                writ_units, 1.0,
+                "{label}: expected exactly one WRIT CU on schedule, got {writ_units}"
+            );
+            if let Some(plan) = &output.overlap_plan {
+                assert!(
+                    overlap_plan_has_writ_opportunity(plan),
+                    "{label}: expected WRIT overlap opportunity"
+                );
+            }
+        }
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(12))]
+
+        #[test]
+        fn wh_variant_with_cas_major_schedules_single_writ(
+            cas_major in prop_oneof!["NEUR", "ECON", "CIS"],
+            wh_major in prop_oneof!["WH_NOFL", "WH_FL", "WH_NOFL_MT", "WH_FL_MT"],
+        ) {
+            let output = generate_schedule(dual_degree_input("CAS", &cas_major, "WH", &wh_major));
+            prop_assume!(output.error.is_none());
+            let writ_units = writ_cu_units_on_schedule(&output);
+            prop_assert!(
+                (writ_units - 1.0).abs() < CU_EPS,
+                "expected 1 WRIT CU for {cas_major}+{wh_major}, got {writ_units}"
+            );
+            let plan = output.overlap_plan.as_ref().expect("overlap plan");
+            prop_assert!(
+                overlap_plan_has_writ_opportunity(plan),
+                "expected WRIT overlap for {cas_major}+{wh_major}"
+            );
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 8. Semester templates — placement hints follow academic ordering
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -983,12 +1693,9 @@ mod property_invariants {
 
     #[test]
     fn generated_dual_schedules_always_respect_cu_limits() {
-        for (label, input) in [
-            ("NEUR+WH", dual_degree_input("CAS", "NEUR", "WH", "WH_NOFL")),
-            ("CIS+WH", dual_degree_input("SEAS", "CIS", "WH", "WH_NOFL")),
-        ] {
+        for (label, input) in implemented_dual_undergrad_pairs() {
             let output = generate_schedule(input);
-            assert_schedule_respects_cu_limits(&output, label);
+            assert_schedule_respects_cu_limits(&output, &label);
         }
     }
 }

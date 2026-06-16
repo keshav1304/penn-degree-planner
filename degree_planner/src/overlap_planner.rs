@@ -430,6 +430,14 @@ fn push_open_from_mapped(slots: &mut Vec<OpenSlot>, degree_index: usize, mapped:
 }
 
 fn consumption_group_for_requirement(req: &Requirement) -> Option<String> {
+    if let Requirement::Restriction { department, .. } = req {
+        if department
+            .as_ref()
+            .is_some_and(|d| d.iter().any(|dept| dept == "WRIT"))
+        {
+            return Some("university:writ".to_string());
+        }
+    }
     let cat = req.get_category();
     if cat.starts_with("Foundational Approaches") {
         return Some("cas:fa".to_string());
@@ -462,6 +470,16 @@ fn consumption_group_for_requirement(req: &Requirement) -> Option<String> {
     None
 }
 
+fn is_writ_department_restriction(matcher: &CourseMatcher) -> bool {
+    matches!(
+        matcher,
+        CourseMatcher::Restriction { department, .. }
+            if department
+                .as_ref()
+                .is_some_and(|d| d.iter().any(|dept| dept == "WRIT"))
+    )
+}
+
 /// Pool constraints (`:c`), flex pool slots (`:p`), and finite SingleCourse lists participate
 /// in cross-degree overlap. Mega-opportunities are avoided by pairing exactly one slot per
 /// degree (max double-count).
@@ -479,6 +497,12 @@ fn matcher_cross_degree_overlap_eligible(matcher: &CourseMatcher, in_anyof: bool
             no_school,
             ..
         } => {
+            if department
+                .as_ref()
+                .is_some_and(|d| d.iter().any(|dept| dept == "WRIT"))
+            {
+                return true;
+            }
             if department.as_ref().is_some_and(|d| !d.is_empty()) {
                 return false;
             }
@@ -496,6 +520,9 @@ fn matcher_cross_degree_overlap_eligible(matcher: &CourseMatcher, in_anyof: bool
 
 fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
     if slot.slot_key.contains(":c") || slot.slot_key.contains(":p") {
+        return true;
+    }
+    if is_writ_department_restriction(&slot.matcher) {
         return true;
     }
     if slot.slot_key == "0" || slot.slot_key.starts_with("1:f") {
@@ -792,6 +819,45 @@ fn select_overlap_pairs(opportunities: &[OverlapOpportunity]) -> Vec<OverlapPair
     pairs
 }
 
+fn explicit_oneof_courses(slots: &[OpenSlot], eligible: &HashSet<usize>) -> Vec<String> {
+    let mut courses = HashSet::new();
+    for idx in eligible {
+        if let CourseMatcher::OneOf(list) = &slots[*idx].matcher {
+            for c in list {
+                if course::is_valid_course_code(c) {
+                    courses.insert(c.clone());
+                }
+            }
+        }
+    }
+    let mut out: Vec<String> = courses.into_iter().collect();
+    out.sort();
+    out
+}
+
+fn index_explicit_courses_to_slots(
+    course_to_slots: &mut HashMap<String, Vec<usize>>,
+    open_slots: &[OpenSlot],
+    eligible_indices: &HashSet<usize>,
+    taken: &HashSet<String>,
+    attributes: &HashMap<String, Vec<String>>,
+) {
+    for course in explicit_oneof_courses(open_slots, eligible_indices) {
+        if taken.contains(&course) {
+            continue;
+        }
+        for &slot_idx in eligible_indices {
+            let slot = &open_slots[slot_idx];
+            if course_satisfies_matcher(&slot.matcher, &course, attributes) {
+                let entry = course_to_slots.entry(course.clone()).or_default();
+                if !entry.contains(&slot_idx) {
+                    entry.push(slot_idx);
+                }
+            }
+        }
+    }
+}
+
 /// Inverted-index overlap discovery: O(sum of candidate set sizes), not O(slots²).
 pub fn compute_overlap_plan(
     per_degree: &[DegreeValidationResult],
@@ -859,6 +925,14 @@ pub fn compute_overlap_plan(
             }
         }
     }
+
+    index_explicit_courses_to_slots(
+        &mut course_to_slots,
+        &open_slots,
+        &eligible_indices,
+        taken,
+        &attributes,
+    );
 
     for slot_idx in &eligible_indices {
         if slot_candidates[*slot_idx].is_some() {
