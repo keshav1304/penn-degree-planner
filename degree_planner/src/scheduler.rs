@@ -51,25 +51,28 @@ fn overlap_pair_fixed_course(
     let opp = opportunities
         .iter()
         .find(|o| overlap_slots_equal(&o.slots, &pair.slots))?;
-    let course = opp.suggested_courses.first()?;
-    if !course::is_valid_course_code(course) {
-        return None;
-    }
-    let mut names_course_explicitly = false;
-    for slot_ref in &pair.slots {
-        let validation = per_degree.get(slot_ref.degree_index)?;
-        let mapped = validation.mapped_for_instance(&slot_ref.slot_key)?;
-        if requirement::requirement_explicitly_lists_course(&mapped.requirement, course) {
-            names_course_explicitly = true;
+    for course in &opp.suggested_courses {
+        if !course::is_valid_course_code(course) {
+            continue;
         }
-        if !requirement::requirement_accepts_shared_course(&mapped.requirement, course) {
-            return None;
+        let mut names_course_explicitly = false;
+        let mut all_accept = true;
+        for slot_ref in &pair.slots {
+            let validation = per_degree.get(slot_ref.degree_index)?;
+            let mapped = validation.mapped_for_instance(&slot_ref.slot_key)?;
+            if requirement::requirement_explicitly_lists_course(&mapped.requirement, course) {
+                names_course_explicitly = true;
+            }
+            if !requirement::requirement_accepts_shared_course(&mapped.requirement, course) {
+                all_accept = false;
+                break;
+            }
+        }
+        if names_course_explicitly && all_accept {
+            return Some(course.clone());
         }
     }
-    if !names_course_explicitly {
-        return None;
-    }
-    Some(course.clone())
+    None
 }
 
 pub fn dual_undergrad_only(schools: &[String]) -> bool {
@@ -424,6 +427,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 continue;
             }
             if fixed_course_overlap_slots.contains(&(degree_idx, instance_id.clone())) {
+                mapped.course_ids.clear();
                 continue;
             }
             if let Some(slot_id) = mapped

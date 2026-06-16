@@ -947,6 +947,98 @@ mod overlap {
         );
     }
 
+    #[test]
+    fn ee_wh_schedules_one_shared_stats_fundamental_not_both() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        let scheduled: Vec<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|sem| sem.courses.iter().map(String::as_str))
+            .collect();
+        let has_ese = scheduled.contains(&"ESE 3010");
+        let has_stat = scheduled.contains(&"STAT 4300");
+        assert!(
+            has_ese || has_stat,
+            "EE+WH should schedule ESE 3010 or STAT 4300 as shared fundamentals; got {:?}",
+            scheduled
+        );
+        assert!(
+            !(has_ese && has_stat),
+            "ESE 3010 and STAT 4300 should not both appear when one satisfies EE Math + WH Fundamentals; got {:?}",
+            scheduled
+        );
+    }
+
+    #[test]
+    fn ee_wh_mgmt2370_fills_professional_electives_not_ese4000() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec!["Robotics".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        let scheduled: Vec<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|sem| sem.courses.iter().map(String::as_str))
+            .collect();
+        assert!(
+            scheduled.contains(&"MGMT 2370"),
+            "MGMT 2370 should be the shared course for EE Professional Electives + WH M&T Soph; got {:?}",
+            scheduled
+        );
+        assert!(
+            !scheduled.contains(&"ESE 4000"),
+            "ESE 4000 should not appear separately when MGMT 2370 satisfies the same EE Professional Electives slot; got {:?}",
+            scheduled
+        );
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(
+            plan.pairs.iter().any(|p| {
+                p.explanation.contains("Professional Electives") && p.explanation.contains("M&T Soph")
+            }),
+            "overlap pair should link EE Professional Electives to WH M&T Soph; pairs: {:?}",
+            plan.pairs
+        );
+    }
+
     fn assert_shared_course_on_schedule(
         output: &scheduler::ScheduleOutput,
         course: &str,
@@ -1699,3 +1791,4 @@ mod property_invariants {
         }
     }
 }
+
