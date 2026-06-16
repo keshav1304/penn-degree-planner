@@ -29,7 +29,7 @@ import {
     courseCountsForDegree,
 } from "@/lib/crossDegree";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
-import { reqRowDomId, attributeFulfillmentMap } from "@/lib/requirementNav";
+import { reqRowDomId, attributeFulfillmentMap, poolConstraintInstanceId } from "@/lib/requirementNav";
 import {
     buildCasSuperSections,
     buildRequirementTabs,
@@ -401,6 +401,10 @@ export default function RequirementsPanel({
                                                         `pool-${pool.pool_index ?? cat}-${j}`,
                                                         false,
                                                         scheduleCtx,
+                                                        scheduleCtx.degreeIndex,
+                                                        pool.pool_index,
+                                                        j,
+                                                        flashRowId,
                                                     ),
                                                 )}
                                             </>
@@ -547,6 +551,10 @@ function renderCasSuperSections({
                                             `pool-${pool.pool_index}-c-${j}`,
                                             j === 0,
                                             scheduleCtx,
+                                            section.degreeIndex,
+                                            pool.pool_index,
+                                            j,
+                                            flashRowId,
                                         ),
                                     )}
                                 </>
@@ -1186,13 +1194,25 @@ function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, de
     );
 }
 
-function renderPoolConstraintItem(constraint, rowKey, isFirst, scheduleCtx) {
+function renderPoolConstraintItem(
+    constraint,
+    rowKey,
+    isFirst,
+    scheduleCtx,
+    degreeIndex,
+    poolIndex,
+    constraintIndex,
+    flashRowId,
+) {
+    const instanceId = poolConstraintInstanceId(poolIndex, constraintIndex);
+    const rowDomId = reqRowDomId(degreeIndex, instanceId);
     const rowTone = constraint.fulfilled ? "fulfilled" : "open";
     const fulfillingSet = new Set(constraint.matched_courses || []);
     return (
         <div
+            id={rowDomId}
             key={rowKey}
-            className={`req-item req-item--${rowTone} ${isFirst ? "req-item-first" : ""}`}
+            className={`req-item req-item--${rowTone} ${isFirst ? "req-item-first" : ""} ${flashRowId === rowDomId ? "req-row-flash" : ""}`}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
                 {constraint.fulfilled ? "✓" : "○"}

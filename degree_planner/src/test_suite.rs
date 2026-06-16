@@ -1422,6 +1422,145 @@ mod overlap {
             plan.pairs
         );
     }
+
+    #[test]
+    fn neur_wh_unrestricted_elective_overlap_pairs() {
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH");
+        let cu_map = catalog_cu_map();
+        let empty: Vec<String> = vec![];
+        let per_degree = vec![
+            validate_courses_for_degree(neur.requirements.clone(), &empty, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &empty, &cu_map),
+        ];
+        let schools = vec!["CAS".into(), "WH".into()];
+        let majors = vec!["NEUR".into(), "WH_NOFL".into()];
+        let cross = CrossDegreeState::new(schools.clone(), majors.clone());
+        let plan = compute_overlap_plan(
+            &per_degree,
+            &[&neur, &wh],
+            &schools,
+            &majors,
+            &HashSet::new(),
+            &cross,
+            &cu_map,
+        );
+        assert!(
+            plan.pairs.iter().any(|pair| {
+                pair.slots.iter().any(|s| s.label == "Unrestricted Electives")
+                    && pair
+                        .slots
+                        .iter()
+                        .map(|s| s.degree_index)
+                        .collect::<HashSet<_>>()
+                        .len()
+                        == 2
+            }),
+            "WH Unrestricted Electives should pair cross-degree; pairs: {:?}",
+            plan.pairs.iter().map(|p| p.slots.iter().map(|s| &s.label).collect::<Vec<_>>()).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn neur_wh_cas_gened_wh_las_pool_overlap_pairs() {
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let wh = resolve_major("WH", "WH_NOFL", &["FNCE".into()]).expect("WH");
+        let cu_map = catalog_cu_map();
+        let empty: Vec<String> = vec![];
+        let per_degree = vec![
+            validate_courses_for_degree(neur.requirements.clone(), &empty, &cu_map),
+            validate_courses_for_degree(wh.requirements.clone(), &empty, &cu_map),
+        ];
+        let schools = vec!["CAS".into(), "WH".into()];
+        let majors = vec!["NEUR".into(), "WH_NOFL".into()];
+        let cross = CrossDegreeState::new(schools.clone(), majors.clone());
+        let plan = compute_overlap_plan(
+            &per_degree,
+            &[&neur, &wh],
+            &schools,
+            &majors,
+            &HashSet::new(),
+            &cross,
+            &cu_map,
+        );
+
+        fn cas_gened_side(label: &str) -> bool {
+            label.contains("General Education")
+                || label.starts_with("Foundational Approaches")
+                || label.starts_with("Sectors of Knowledge")
+        }
+
+        fn wh_las_side(label: &str) -> bool {
+            label.contains("Liberal Arts and Sciences")
+                || label.contains("Humanities (WUHM)")
+                || label.contains("Natural Science & Math")
+                || label.contains("Social Science (WUSS)")
+        }
+
+        let overlaps_las = |labels: &[&str]| {
+            labels.iter().any(|l| cas_gened_side(l)) && labels.iter().any(|l| wh_las_side(l))
+        };
+
+        assert!(
+            plan.opportunities
+                .iter()
+                .any(|opp| overlaps_las(&opp.slots.iter().map(|s| s.label.as_str()).collect::<Vec<_>>()))
+                || plan.pairs.iter().any(|pair| {
+                    overlaps_las(&pair.slots.iter().map(|s| s.label.as_str()).collect::<Vec<_>>())
+                }),
+            "CAS gen-ed should overlap WH LAS pool or SSH constraints; pairs: {:?}",
+            plan.pairs.iter().map(|p| p.slots.iter().map(|s| &s.label).collect::<Vec<_>>()).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn neur_wh_unrestricted_elective_overlap_on_schedule() {
+        let output = generate_schedule(dual_degree_input("CAS", "NEUR", "WH", "WH_NOFL"));
+        assert!(output.error.is_none(), "{:?}", output.error);
+        assert!(
+            output.overlap_schedule_groups.iter().any(|g| {
+                g.members
+                    .iter()
+                    .any(|m| m.label == "Unrestricted Electives")
+            }),
+            "expected WH Unrestricted Electives overlap group on schedule; groups: {:?}",
+            output
+                .overlap_schedule_groups
+                .iter()
+                .map(|g| g.members.iter().map(|m| &m.label).collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn neur_wh_chem_1011_overlaps_neur_major_with_wh_wunm() {
+        let output = generate_schedule(dual_degree_input("CAS", "NEUR", "WH", "WH_NOFL"));
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let summary = output
+            .cross_degree_summary
+            .as_ref()
+            .expect("cross degree summary");
+        let allocs = summary
+            .course_allocations
+            .get("CHEM 1011")
+            .expect("CHEM 1011 should appear on schedule");
+        assert_eq!(allocs.len(), 2);
+        assert_eq!(allocs[0].major, "NEUR");
+        assert_eq!(allocs[1].major, "WH_NOFL");
+
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(
+            plan.pairs.iter().any(|pair| {
+                pair.slots.iter().any(|s| s.label == "Introductory Chemistry")
+                    && pair
+                        .slots
+                        .iter()
+                        .any(|s| s.label.contains("Natural Science & Math"))
+            }),
+            "CHEM 1011 should overlap NEUR intro chem with WH WUNM; pairs: {:?}",
+            plan.pairs.iter().map(|p| p.slots.iter().map(|s| &s.label).collect::<Vec<_>>()).collect::<Vec<_>>()
+        );
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

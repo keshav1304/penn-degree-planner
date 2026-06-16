@@ -87,7 +87,7 @@ fn wh_fl_las_pool() -> Requirement {
 /// WH_NOFL SSH: CC may double-count into SSH and non-Wharton; SSH tags are mutually exclusive.
 fn wh_ssh_las_pool() -> Requirement {
     Requirement::CoursePool {
-        category: Some("Liberal Arts and Sciences - SSH".to_string()),
+        category: Some("Liberal Arts and Sciences".to_string()),
         fixed_slots: vec![],
         flexible_slots: 6,
         constraints: vec![
@@ -344,15 +344,15 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "BUAN".to_string(), 
             vec![
                 Requirement::Restriction { 
-                    category: Some("Concentration - BUAN - WUBD".to_string()), department: None, 
+                    category: Some("Concentration - BUAN".to_string()), department: None, 
                     cu: None, level: None, attr: Some(vec!["WUBD".to_string()]), excluding: None, number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - BUAN - WUBC".to_string()), department: None, 
+                    category: Some("Concentration - BUAN".to_string()), department: None, 
                     cu: None, level: None, attr: Some(vec!["WUBC".to_string()]), excluding: None, number: 1, no_school: None 
                 },
                 Requirement::Restriction { 
-                    category: Some("Concentration - BUAN - WUBO".to_string()), department: None, 
+                    category: Some("Concentration - BUAN".to_string()), department: None, 
                     cu: None, level: None, attr: Some(vec!["WUBO".to_string()]), excluding: None, number: 1, no_school: None 
                 },
                 Requirement::Restriction { 

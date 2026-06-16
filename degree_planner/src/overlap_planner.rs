@@ -507,7 +507,8 @@ fn matcher_cross_degree_overlap_eligible(matcher: &CourseMatcher, in_anyof: bool
             if department.as_ref().is_some_and(|d| !d.is_empty()) {
                 return false;
             }
-            attr.as_ref().is_some_and(|a| !a.is_empty()) || no_school.is_some()
+            // Attribute, no_school, or fully unconstrained (e.g. WH Unrestricted Electives).
+            true
         }
         CourseMatcher::Unrestricted => false,
         CourseMatcher::AnyOf(children) => children

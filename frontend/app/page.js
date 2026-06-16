@@ -19,7 +19,7 @@ import {
   filterFrozenPlacements,
 } from "@/lib/courseUtils";
 import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
-import { reqRowDomId, findMappedForInstance, findMappedForSlot, parseOverlapGroupSlots, overlapSlotsEqual } from "@/lib/requirementNav";
+import { reqRowDomId, parseOverlapGroupSlots, overlapSlotsEqual, resolveOverlapSlotNav, poolConstraintInstanceId, requirementSlotScope } from "@/lib/requirementNav";
 import {
   buildCourseDegreesMapFromAllocations,
   courseCountsForDegree,
@@ -447,6 +447,37 @@ export default function Home() {
       }
     };
 
+    const addSlotNavLink = (targetId, degreeIndex, nav) => {
+      if (!nav) return;
+      const result = scheduleData.degree_results[degreeIndex];
+      if (!result) return;
+      const degreeLabel = `${result.school}-${result.major}`;
+      if (
+        !isValidCourseCode(targetId)
+        && !isRequirementSlotId(targetId)
+        && !isOverlapScheduleGroupId(targetId)
+      ) {
+        return;
+      }
+      if (isValidCourseCode(targetId)) {
+        if (!courseCountsForDegree(targetId, degreeLabel, courseDegreesMap)) return;
+      }
+      const category = normalizeCategory(nav.category);
+      const rowLabel = nav.rowLabel || category;
+      const entry = {
+        degreeIndex,
+        instanceId: nav.instanceId,
+        category,
+        label: `${degreeLabel}: ${rowLabel}`,
+        href: `#${reqRowDomId(degreeIndex, nav.instanceId)}`,
+      };
+      if (!links[targetId]) links[targetId] = [];
+      const key = `${degreeIndex}::${nav.instanceId}`;
+      if (!links[targetId].some((l) => `${l.degreeIndex}::${l.instanceId}` === key)) {
+        links[targetId].push(entry);
+      }
+    };
+
     scheduleData.degree_results.forEach((result, degreeIndex) => {
       result.fulfilled_requirements?.forEach((mapped) => {
         mapped.course_ids?.forEach((c) => addLink(mapped, c, degreeIndex));
@@ -459,6 +490,19 @@ export default function Home() {
       result.suggested_for_unfulfilled?.forEach((mapped) => {
         mapped.course_ids?.forEach((c) => addLink(mapped, c, degreeIndex));
       });
+
+      (result.pool_coverage_info || []).forEach((pool) => {
+        (pool.constraints || []).forEach((constraint, ci) => {
+          const nav = {
+            instanceId: poolConstraintInstanceId(pool.pool_index, ci),
+            category: pool.category,
+            rowLabel: constraint.label || constraint.description,
+          };
+          (constraint.matched_courses || []).forEach((courseId) => {
+            addSlotNavLink(courseId, degreeIndex, nav);
+          });
+        });
+      });
     });
 
     // Overlap schedule blocks (dashed dual-requirement cards).
@@ -467,16 +511,21 @@ export default function Home() {
       if (parsed.length) {
         parsed.forEach(({ degreeIndex, slotKey }) => {
           const result = scheduleData.degree_results[degreeIndex];
-          const mapped = findMappedForInstance(result, slotKey);
-          if (mapped) addLink(mapped, group.group_id, degreeIndex);
+          const nav = resolveOverlapSlotNav(result, slotKey, null);
+          if (nav) addSlotNavLink(group.group_id, degreeIndex, nav);
         });
         return;
       }
       group.members?.forEach((member) => {
         const result = scheduleData.degree_results[member.degree_index];
         if (!result) return;
-        const mapped = findMappedForSlot(result, member.schedule_slot_id);
-        if (mapped) addLink(mapped, group.group_id, member.degree_index);
+        const slotKey = requirementSlotScope(member.schedule_slot_id);
+        const nav = resolveOverlapSlotNav(
+          result,
+          slotKey,
+          member.schedule_slot_id,
+        );
+        if (nav) addSlotNavLink(group.group_id, member.degree_index, nav);
       });
     });
 
@@ -496,10 +545,10 @@ export default function Home() {
 
         pair.slots.forEach((slotRef) => {
           const result = scheduleData.degree_results[slotRef.degree_index];
-          const mapped = findMappedForInstance(result, slotRef.slot_key);
-          if (!mapped) return;
+          const nav = resolveOverlapSlotNav(result, slotRef.slot_key, null);
+          if (!nav) return;
           sharedCourses.forEach((courseId) => {
-            addLink(mapped, courseId, slotRef.degree_index);
+            addSlotNavLink(courseId, slotRef.degree_index, nav);
           });
         });
       });

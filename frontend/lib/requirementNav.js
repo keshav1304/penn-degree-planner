@@ -1,4 +1,8 @@
-import { isOverlapScheduleGroupId, isRequirementSlotId } from "@/lib/courseUtils";
+import {
+  isOverlapScheduleGroupId,
+  isPoolConstraintInstanceId,
+  isRequirementSlotId,
+} from "@/lib/courseUtils";
 
 /** DOM id for a requirement row (degree tab + instance id). */
 export function reqRowDomId(degreeIndex, instanceId) {
@@ -63,6 +67,95 @@ export function findMappedForSlot(result, slotId) {
     if (found) return found;
   }
   if (scope) return findMappedForInstance(result, scope);
+  return null;
+}
+
+/** Stable instance id for a pool coverage constraint row (`21:c1`). */
+export function poolConstraintInstanceId(poolIndex, constraintIndex) {
+  return `${poolIndex}:c${constraintIndex}`;
+}
+
+/** Parse `{pool_index}:c{constraint_index}` overlap slot keys. */
+export function parsePoolConstraintSlotKey(slotKey) {
+  if (!slotKey || typeof slotKey !== "string") return null;
+  const match = slotKey.match(/^(\d+):c(\d+)$/);
+  if (!match) return null;
+  return {
+    poolIndex: Number.parseInt(match[1], 10),
+    constraintIndex: Number.parseInt(match[2], 10),
+  };
+}
+
+/** Nav target for a pool coverage constraint (WH LAS WUNM, CAS gen-ed pool tags, etc.). */
+export function findPoolConstraintNav(result, slotKey) {
+  const parsed = parsePoolConstraintSlotKey(slotKey);
+  if (!parsed || !result?.pool_coverage_info) return null;
+  const pool = result.pool_coverage_info.find(
+    (p) => p.pool_index === parsed.poolIndex,
+  );
+  const constraint = pool?.constraints?.[parsed.constraintIndex];
+  if (!pool || !constraint) return null;
+  return {
+    instanceId: poolConstraintInstanceId(parsed.poolIndex, parsed.constraintIndex),
+    category: pool.category || "Other",
+    rowLabel: constraint.description || constraint.label || pool.category,
+  };
+}
+
+function categoryFromRequirement(req) {
+  if (!req) return "Other";
+  if (req.category) return req.category;
+  for (const variant of [
+    "SingleCourse",
+    "CourseGroup",
+    "AnyOf",
+    "AllOf",
+    "Concentration",
+    "Restriction",
+    "CoursePool",
+  ]) {
+    if (req[variant]?.category) return req[variant].category;
+  }
+  return "Other";
+}
+
+/**
+ * Resolve schedule/requirements navigation for an overlap slot.
+ * Pool constraints (`21:c1`) live in `pool_coverage_info`, not mapped requirement lists.
+ */
+export function resolveOverlapSlotNav(result, slotKey, scheduleSlotId) {
+  const keys = [slotKey, scheduleSlotId ? requirementSlotScope(scheduleSlotId) : null]
+    .filter(Boolean);
+  for (const key of keys) {
+    if (!isPoolConstraintInstanceId(key)) continue;
+    const poolNav = findPoolConstraintNav(result, key);
+    if (poolNav) return poolNav;
+  }
+
+  for (const key of keys) {
+    const mapped = findMappedForInstance(result, key);
+    if (mapped) {
+      return {
+        instanceId: mapped.instance_id ?? key,
+        category: categoryFromRequirement(mapped.requirement),
+        rowLabel: categoryFromRequirement(mapped.requirement),
+        mapped,
+      };
+    }
+  }
+
+  if (scheduleSlotId) {
+    const mapped = findMappedForSlot(result, scheduleSlotId);
+    if (mapped) {
+      return {
+        instanceId: mapped.instance_id ?? requirementSlotScope(scheduleSlotId),
+        category: categoryFromRequirement(mapped.requirement),
+        rowLabel: categoryFromRequirement(mapped.requirement),
+        mapped,
+      };
+    }
+  }
+
   return null;
 }
 
