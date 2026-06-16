@@ -1,5 +1,28 @@
 import { isRequirementSlotId, isValidCourseCode } from "@/lib/courseUtils";
 
+/** Instance scope for college-wide CAS requirements (writing / gen-ed pool). */
+export function isCasCollegeSharedInstanceScope(scope) {
+    if (!scope || typeof scope !== "string") return false;
+    if (scope === "0" || scope === "1") return true;
+    if (scope.startsWith("1:")) {
+        return !scope.slice(2).startsWith("f");
+    }
+    return false;
+}
+
+/** Schedule slot id for a college-wide CAS requirement (writing / gen-ed). */
+export function isCasCollegeSharedScheduleSlot(slotId) {
+    if (!isRequirementSlotId(slotId)) return false;
+    const scope = slotId.slice(4).split(":R:")[0];
+    return isCasCollegeSharedInstanceScope(scope);
+}
+
+export function casDegreeLabelsFromResults(degreeResults = []) {
+    return degreeResults
+        .filter((r) => r?.school === "CAS")
+        .map((r) => `${r.school}-${r.major}`);
+}
+
 /** True when a course or slot counts toward this degree label in the schedule grid. */
 export function courseCountsForDegree(courseId, degreeLabel, courseDegreesMap) {
     if (isRequirementSlotId(courseId)) return true;
@@ -101,12 +124,18 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
     }
 
     // Requirement slots are placeholders, not in cross_degree allocations.
+    const casDegreeLabels = casDegreeLabelsFromResults(degreeResults);
+    const isDualCasCollege = casDegreeLabels.length >= 2;
     degreeResults.forEach((result) => {
         const degreeLabel = `${result.school}-${result.major}`;
         const addSlots = (mapped) => {
             mapped.course_ids?.forEach((id) => {
                 if (!isRequirementSlotId(id)) return;
-                addCourseToDegreeMap(degMap, id, degreeLabel);
+                if (isDualCasCollege && isCasCollegeSharedScheduleSlot(id)) {
+                    casDegreeLabels.forEach((label) => addCourseToDegreeMap(degMap, id, label));
+                } else {
+                    addCourseToDegreeMap(degMap, id, degreeLabel);
+                }
             });
         };
         result.fulfilled_requirements?.forEach(addSlots);

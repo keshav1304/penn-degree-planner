@@ -35,19 +35,27 @@
   --panel-header-pad-y: 10px;
 
   /* Courses column fixed; schedule + requirements share remaining width */
-  --col-courses-width: 280px;
   --col-courses-min: 240px;
+  --col-courses-max: 264px;
+  --col-courses-width: clamp(var(--col-courses-min), 14vw, var(--col-courses-max));
   --col-requirements-min: 260px;
   --col-schedule-min: 380px;
   --col-schedule: clamp(var(--col-schedule-min), 50%, 880px);
   --col-reqs-collapsed: 40px;
 
-  /* Shared typography for courses + requirements side columns */
+  /* Shared typography for courses side column */
   --sidebar-font-emphasis: 0.82rem;
   --sidebar-font-body: 0.8rem;
   --sidebar-font-secondary: 0.75rem;
   --sidebar-font-meta: 0.72rem;
   --sidebar-font-small: 0.7rem;
+
+  /* Requirements panel — compact uniform scale (independent of courses sidebar) */
+  --req-font-body: 0.68rem;
+  --req-font-heading: 0.72rem;
+  --req-font-meta: 0.62rem;
+  --req-font-small: 0.6rem;
+  --req-font-tiny: 0.55rem;
 }
 
 * {
@@ -166,9 +174,26 @@ body {
 .panel-requirements {
   min-height: 0;
   min-width: 0;
-  font-size: var(--sidebar-font-body);
   font-weight: 600;
   line-height: 1.35;
+}
+
+.panel-courses {
+  font-size: var(--sidebar-font-body);
+}
+
+.panel-requirements {
+  font-size: var(--req-font-body);
+}
+
+.panel-courses .panel-header h2 {
+  font-size: 0.88rem;
+  letter-spacing: 0.6px;
+}
+
+.panel-requirements .panel-header h2 {
+  font-size: var(--req-font-heading);
+  letter-spacing: 0.6px;
 }
 
 .panel-courses {
@@ -177,14 +202,7 @@ body {
   justify-self: start;
 }
 
-.panel-courses .panel-header h2,
-.panel-requirements .panel-header h2 {
-  font-size: 0.88rem;
-  letter-spacing: 0.6px;
-}
-
-.panel-courses .input,
-.panel-requirements .input {
+.panel-courses .input {
   font-size: var(--sidebar-font-body);
 }
 
@@ -923,7 +941,7 @@ select {
   border-radius: 6px;
   background: rgba(5, 150, 105, 0.08);
   border: 1px solid rgba(5, 150, 105, 0.15);
-  font-size: 0.72rem;
+  font-size: var(--req-font-heading);
   color: var(--text-secondary);
 }
 
@@ -939,7 +957,7 @@ select {
 .course-card-actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   flex-shrink: 0;
   margin-left: 6px;
 }
@@ -987,22 +1005,17 @@ select {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
   padding: 0;
   margin: 0;
-  border: 1px solid var(--border-glass);
-  border-radius: 4px;
-  background: var(--bg-secondary);
+  border: none;
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  transition: color var(--transition);
 }
 
 .course-req-nav-btn:hover {
   color: var(--accent-teal);
-  border-color: rgba(5, 150, 105, 0.35);
-  background: rgba(5, 150, 105, 0.06);
 }
 
 .course-req-nav-arrow {
@@ -1127,7 +1140,7 @@ select {
 
 .req-degree-tab-major {
   width: 100%;
-  font-size: var(--sidebar-font-emphasis);
+  font-size: var(--req-font-body);
   font-weight: 700;
   line-height: 1.25;
   overflow: hidden;
@@ -1138,7 +1151,7 @@ select {
 
 .req-degree-tab-school {
   width: 100%;
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-small);
   font-weight: 600;
   color: var(--text-muted);
   overflow: hidden;
@@ -1158,7 +1171,7 @@ select {
   background: var(--danger-dim);
   border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: var(--radius-sm);
-  font-size: var(--sidebar-font-secondary);
+  font-size: var(--req-font-heading);
   color: var(--danger);
   flex-shrink: 0;
 }
@@ -1186,7 +1199,7 @@ select {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-body);
   font-weight: 600;
 }
 
@@ -1219,7 +1232,7 @@ select {
 
 .req-stat-pct {
   margin-left: auto;
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-body);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -1316,13 +1329,13 @@ select {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  font-size: 0.65rem;
+  font-size: var(--req-font-small);
   font-weight: 700;
 }
 
 .req-super-group-name {
   flex: 1;
-  font-size: calc(var(--sidebar-font-body) + 1px);
+  font-size: var(--req-font-heading);
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1338,7 +1351,7 @@ select {
 .req-cas-shared-note {
   margin: 8px 10px 4px;
   padding: 7px 9px;
-  font-size: 0.72rem;
+  font-size: var(--req-font-heading);
   line-height: 1.4;
   color: var(--text-secondary);
   background: var(--accent-teal-dim);
@@ -1382,7 +1395,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--sidebar-font-small);
+  font-size: var(--req-font-small);
   font-weight: 800;
   flex-shrink: 0;
   line-height: 1;
@@ -1396,7 +1409,7 @@ select {
 .badge-pending {
   background: rgba(0, 0, 0, 0.06);
   color: var(--text-muted);
-  font-size: var(--sidebar-font-emphasis);
+  font-size: var(--req-font-heading);
   font-weight: 900;
   line-height: 0.9;
 }
@@ -1404,7 +1417,7 @@ select {
 .req-group-name {
   flex: 1;
   min-width: 0;
-  font-size: var(--sidebar-font-emphasis);
+  font-size: var(--req-font-heading);
   font-weight: 700;
   color: var(--text-primary);
   overflow: hidden;
@@ -1413,7 +1426,7 @@ select {
 }
 
 .req-group-pill {
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-meta);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 8px;
@@ -1426,7 +1439,7 @@ select {
   justify-content: center;
   width: 12px;
   height: 12px;
-  font-size: var(--sidebar-font-small);
+  font-size: var(--req-font-tiny);
   line-height: 1;
   color: var(--text-muted);
   flex-shrink: 0;
@@ -1457,7 +1470,7 @@ select {
 
 .req-pool-divider {
   padding: 5px 8px;
-  font-size: var(--sidebar-font-body);
+  font-size: var(--req-font-body);
   font-weight: 600;
   color: var(--text-secondary);
   line-height: 1.35;
@@ -1473,7 +1486,7 @@ select {
 
 .req-cas-gened-heading {
   padding: 8px 8px 2px;
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-meta);
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -1486,7 +1499,7 @@ select {
   gap: 6px;
   padding: 6px 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.05);
-  font-size: var(--sidebar-font-body);
+  font-size: var(--req-font-body);
 }
 
 .req-cas-gened-section .req-cas-gened-row:first-of-type {
@@ -1508,7 +1521,7 @@ select {
 }
 
 .req-cas-gened-note {
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-meta);
   color: var(--success);
   font-style: italic;
 }
@@ -1519,7 +1532,7 @@ select {
   gap: 6px;
   padding: 5px 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
-  font-size: var(--sidebar-font-body);
+  font-size: var(--req-font-body);
   transition: background var(--transition);
 }
 
@@ -1542,7 +1555,7 @@ select {
 
 .req-item-icon {
   flex-shrink: 0;
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-meta);
   font-weight: 800;
   margin-top: 1px;
   width: 12px;
@@ -1580,14 +1593,14 @@ select {
 }
 
 .req-stem-text {
-  font-size: var(--sidebar-font-body);
+  font-size: var(--req-font-body);
   font-weight: 600;
   color: var(--text-primary);
   word-break: break-word;
 }
 
 .req-item-colon {
-  font-size: var(--sidebar-font-body);
+  font-size: var(--req-font-body);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1647,7 +1660,7 @@ select {
 }
 
 .req-chip {
-  font-size: var(--sidebar-font-meta);
+  font-size: var(--req-font-meta);
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 3px;
@@ -1686,7 +1699,7 @@ select {
 }
 
 .req-expand-btn {
-  font-size: 0.65rem;
+  font-size: var(--req-font-meta);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 4px;
@@ -1719,7 +1732,7 @@ select {
 }
 
 .req-empty-text {
-  font-size: var(--sidebar-font-secondary);
+  font-size: var(--req-font-heading);
   color: var(--text-muted);
   text-align: center;
 }
@@ -1769,9 +1782,17 @@ select {
   opacity: 0.6;
 }
 
+@media (min-width: 1401px) {
+  :root {
+    --col-courses-max: 256px;
+    --col-courses-width: clamp(var(--col-courses-min), 13vw, var(--col-courses-max));
+  }
+}
+
 @media (max-width: 1400px) {
   :root {
     --col-courses-min: 220px;
+    --col-courses-max: 248px;
     --col-requirements-min: 240px;
     --col-schedule: clamp(360px, 48%, 820px);
   }

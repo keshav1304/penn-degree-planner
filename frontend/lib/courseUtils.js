@@ -28,12 +28,12 @@ export function isPoolConstraintInstanceId(instanceId) {
   return segments.some((seg) => /^c\d+$/.test(seg));
 }
 
-/** Schedule slots scoped to a pool coverage constraint. */
+/** Schedule slots scoped to a pool coverage constraint (not fixed slots like `1:f0:c0`). */
 export function isPoolConstraintSlotId(id) {
   if (!isRequirementSlotId(id)) return false;
   const rest = id.slice(4);
   const scope = rest.split(":R:")[0];
-  return scope.split(":").some((seg) => /^c\d+$/.test(seg));
+  return isPoolConstraintInstanceId(scope);
 }
 
 /** Combined cross-degree requirement block on the schedule (one CU, two requirements). */
