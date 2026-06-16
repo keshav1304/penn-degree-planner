@@ -31,7 +31,8 @@ use crate::requirement::{
     Requirement,
 };
 use crate::schedule_template::{
-    later_semesters, scheduled, semester_order, Y1F, Y1S, Y2F,
+    later_semesters, placement_semesters, scheduled, semester_order, ScheduleHint,
+    ScheduleHintMode, Y1F, Y1S, Y2F, Y2S, Y3F, Y4F,
 };
 use crate::scheduler::{
     self, default_semester_cu_limit, generate_schedule, undergrad_schedule_years, CU_EPS,
@@ -1705,8 +1706,108 @@ mod schedule_templates {
             ),
         ]);
         assert_eq!(reqs.len(), 2);
-        assert_eq!(hints.get("0"), Some(&(1, "Fall".to_string())));
-        assert_eq!(hints.get("1"), Some(&(1, "Spring".to_string())));
+        assert_eq!(
+            hints.get("0").map(|h| (h.year, h.semester.as_str(), h.mode)),
+            Some((1, "Fall", ScheduleHintMode::Flexible))
+        );
+        assert_eq!(
+            hints.get("1").map(|h| (h.year, h.semester.as_str(), h.mode)),
+            Some((1, "Spring", ScheduleHintMode::Flexible))
+        );
+    }
+
+    #[test]
+    fn fixed_hints_only_allow_exact_semester() {
+        let hint = ScheduleHint::fixed(Y4F);
+        let semesters = placement_semesters(&hint, 4);
+        assert_eq!(semesters, vec![(4, "Fall".to_string())]);
+    }
+
+    #[test]
+    fn flexible_hints_allow_backfill_before_target() {
+        let hint = ScheduleHint::flexible(Y3F);
+        let semesters = placement_semesters(&hint, 4);
+        assert!(semesters.iter().any(|(y, s)| *y == 1 && s == "Fall"));
+        assert!(semesters.iter().any(|(y, s)| *y == 3 && s == "Fall"));
+        let first = semesters.first().unwrap();
+        let last_target = semesters
+            .iter()
+            .find(|(y, s)| *y == 3 && s == "Fall")
+            .unwrap();
+        assert!(
+            semester_order(first.0, &first.1) < semester_order(last_target.0, &last_target.1)
+        );
+    }
+
+    fn assert_course_in_semester(
+        output: &scheduler::ScheduleOutput,
+        course: &str,
+        year: i32,
+        semester: &str,
+    ) {
+        let found = output.schedule.iter().any(|plan| {
+            plan.year == year
+                && plan.semester == semester
+                && plan.courses.iter().any(|c| c == course)
+        });
+        assert!(
+            found,
+            "{course} should be scheduled in year {year} {semester}; got {:?}",
+            output
+                .schedule
+                .iter()
+                .map(|p| (p.year, p.semester.as_str(), p.courses.clone()))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn seas_senior_design_courses_are_fixed_y4f_and_y4s() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "CIS".into(),
+                school: "SEAS".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert_course_in_semester(&output, "CIS 4000", 4, "Fall");
+        assert_course_in_semester(&output, "CIS 4010", 4, "Spring");
+    }
+
+    #[test]
+    fn ee_robotics_wh_places_fixed_courses_in_mandatory_semesters() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec!["Robotics".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert_course_in_semester(&output, "MGMT 2370", 2, "Spring");
+        assert_course_in_semester(&output, "ESE 4500", 4, "Fall");
+        assert_course_in_semester(&output, "ESE 4510", 4, "Spring");
     }
 
     #[test]

@@ -14,8 +14,9 @@ use crate::requirement::{
     self, ConcentrationInfo, MappedRequirement, PoolCoverageInfo,
 };
 use crate::schedule_template::{
-    later_semesters, ms_default_semester_target, ms_default_semester_target_for_requirement,
-    ms_grad_placement_candidates, resolve_semester_hint, semester_order,
+    merge_schedule_hint, ms_default_semester_target, ms_default_semester_target_for_requirement,
+    ms_grad_placement_candidates, placement_semesters, resolve_semester_hint,
+    ScheduleHint, ScheduleHintMode, semester_order,
 };
 
 pub const DEFAULT_SEMESTER_CU_LIMIT: f64 = 5.5;
@@ -201,6 +202,38 @@ pub(crate) fn schedule_target_for_dual_degrees(
     (adjusted_year, semester.to_string())
 }
 
+fn adjust_schedule_hint_for_dual_degrees(
+    hint: ScheduleHint,
+    schools: &[String],
+) -> ScheduleHint {
+    if hint.mode == ScheduleHintMode::Fixed {
+        return hint;
+    }
+    let (year, semester) = schedule_target_for_dual_degrees(hint.year, &hint.semester, schools);
+    ScheduleHint {
+        year,
+        semester,
+        mode: hint.mode,
+    }
+}
+
+fn store_item_hint(
+    hints: &mut HashMap<String, ScheduleHint>,
+    item_id: String,
+    hint: ScheduleHint,
+) {
+    let merged = merge_schedule_hint(hints.get(&item_id), hint);
+    hints.insert(item_id, merged);
+}
+
+fn flexible_ms_hint(year: i32, semester: String) -> ScheduleHint {
+    ScheduleHint {
+        year,
+        semester,
+        mode: ScheduleHintMode::Flexible,
+    }
+}
+
 pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let mut taken: Vec<String> = payload
@@ -230,7 +263,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let mut all_suggested_courses: Vec<String> = Vec::new();
     let mut all_requirement_slots: Vec<String> = Vec::new();
     let mut slot_labels: HashMap<String, String> = HashMap::new();
-    let mut item_targets: HashMap<String, (i32, String)> = HashMap::new();
+    let mut item_hints: HashMap<String, ScheduleHint> = HashMap::new();
     let mut ug_schedule_items: HashSet<String> = HashSet::new();
     let mut ms_schedule_items: HashSet<String> = HashSet::new();
     let mut ms_grad_schedule_items: HashSet<String> = HashSet::new();
@@ -453,19 +486,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         // Collect unique suggested courses and requirement slots for the schedule
         for mapped in &suggested {
                 if let Some(instance_id) = mapped.instance_id.as_deref() {
-                    if let Some(target) =
+                    if let Some(hint) =
                         resolve_semester_hint(instance_id, &major_data.schedule_hints)
                     {
+                        let adjusted =
+                            adjust_schedule_hint_for_dual_degrees(hint, &degree_schools);
                         for course_id in &mapped.course_ids {
-                            item_targets
-                                .entry(course_id.clone())
-                                .or_insert_with(|| {
-                                    schedule_target_for_dual_degrees(
-                                        target.0,
-                                        &target.1,
-                                        &degree_schools,
-                                    )
-                                });
+                            store_item_hint(&mut item_hints, course_id.clone(), adjusted.clone());
                         }
                     }
                 }
@@ -478,9 +505,11 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                         } else {
                             continue;
                         };
-                        item_targets
-                            .entry(course_id.clone())
-                            .or_insert_with(|| target.clone());
+                        store_item_hint(
+                            &mut item_hints,
+                            course_id.clone(),
+                            flexible_ms_hint(target.0, target.1),
+                        );
                         ms_schedule_items.insert(course_id.clone());
                         let is_grad = (course::is_valid_course_code(course_id)
                             && course::is_graduate_level(course_id))
@@ -538,15 +567,12 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 }
             }
 
-            for (key, target) in &major_data.schedule_hints {
+            for (key, hint) in &major_data.schedule_hints {
                 if course::is_valid_course_code(key) {
-                    item_targets.insert(
+                    store_item_hint(
+                        &mut item_hints,
                         key.clone(),
-                        schedule_target_for_dual_degrees(
-                            target.0,
-                            &target.1,
-                            &degree_schools,
-                        ),
+                        adjust_schedule_hint_for_dual_degrees(hint.clone(), &degree_schools),
                     );
                 }
             }
@@ -633,18 +659,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     cross_state.register_claim(&course, degree_idx, &cu_map);
                 }
                 let major_data = &resolved_degrees[degree_idx].major_data;
-                if let Some(target) =
+                if let Some(hint) =
                     resolve_semester_hint(&slot_ref.slot_key, &major_data.schedule_hints)
                 {
-                    item_targets
-                        .entry(course.clone())
-                        .or_insert_with(|| {
-                            schedule_target_for_dual_degrees(
-                                target.0,
-                                &target.1,
-                                &degree_schools,
-                            )
-                        });
+                    store_item_hint(
+                        &mut item_hints,
+                        course.clone(),
+                        adjust_schedule_hint_for_dual_degrees(hint, &degree_schools),
+                    );
                 }
             }
         }
@@ -789,22 +811,19 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     }
 
     for group in &overlap_schedule_groups {
-        let mut best_target: Option<(i32, String)> = None;
+        let mut best_target: Option<ScheduleHint> = None;
         for member in &group.members {
-            let candidate = item_targets.get(&member.schedule_slot_id);
+            let candidate = item_hints.get(&member.schedule_slot_id);
             if let Some(target) = candidate {
-                let ord = semester_order(target.0, &target.1);
-                let best_ord = best_target
-                    .as_ref()
-                    .map(|t| semester_order(t.0, &t.1))
-                    .unwrap_or(i32::MAX);
+                let ord = target.ord();
+                let best_ord = best_target.as_ref().map(|t| t.ord()).unwrap_or(i32::MAX);
                 if ord < best_ord {
                     best_target = Some(target.clone());
                 }
             }
         }
         if let Some(target) = best_target {
-            item_targets.insert(group.group_id.clone(), target);
+            item_hints.insert(group.group_id.clone(), target);
         }
     }
 
@@ -906,6 +925,12 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }
     }
 
+    let fixed_schedule_items: HashSet<String> = item_hints
+        .iter()
+        .filter(|(_, h)| h.mode == ScheduleHintMode::Fixed)
+        .map(|(k, _)| k.clone())
+        .collect();
+
     let has_undergrad = payload
         .degrees
         .iter()
@@ -938,6 +963,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let mut best_priority = u8::MAX;
         for (idx, item) in remaining.iter().enumerate() {
             if skip_ids.contains(item) {
+                continue;
+            }
+            if fixed_schedule_items.contains(item) {
                 continue;
             }
             if only_items.is_some_and(|set| !set.contains(item)) {
@@ -989,10 +1017,36 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             false
         };
 
+    let try_place_fixed_item =
+        |schedule: &mut Vec<SemesterPlan>, item_id: &str, year: i32, semester: &str| -> bool {
+            ensure_year(schedule, year, allow_summer);
+            for plan in schedule.iter_mut() {
+                if plan.year == year && plan.semester == semester {
+                    let already = if requirement::is_requirement_slot_id(item_id) {
+                        plan.requirement_slots.contains(&item_id.to_string())
+                    } else {
+                        plan.courses.contains(&item_id.to_string())
+                    };
+                    if already {
+                        return true;
+                    }
+                    place_in_semester(plan, item_id);
+                    return true;
+                }
+            }
+            false
+        };
+
     let undergrad_schedule_window = undergrad_schedule_years(&degree_schools);
 
     let place_with_template =
-        |schedule: &mut Vec<SemesterPlan>, item_id: &str, target: &(i32, String)| -> bool {
+        |schedule: &mut Vec<SemesterPlan>, item_id: &str, hint: &ScheduleHint| -> bool {
+            if hint.mode == ScheduleHintMode::Fixed {
+                if try_place_item(schedule, item_id, hint.year, &hint.semester) {
+                    return true;
+                }
+                return try_place_fixed_item(schedule, item_id, hint.year, &hint.semester);
+            }
             let max_year = if has_undergrad && ms_schedule_items.contains(item_id) {
                 12
             } else {
@@ -1000,12 +1054,12 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             };
             let candidates = if has_undergrad && ms_schedule_items.contains(item_id) {
                 ms_grad_placement_candidates(
-                    (target.0, target.1.as_str()),
+                    (hint.year, hint.semester.as_str()),
                     undergrad_schedule_window,
                     max_year,
                 )
             } else {
-                later_semesters((target.0, target.1.as_str()), max_year)
+                placement_semesters(hint, max_year)
             };
             for (year, semester) in candidates {
                 if try_place_item(schedule, item_id, year, &semester) {
@@ -1049,11 +1103,16 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let sort_schedule_items = |items: &mut [String]| {
         items.sort_by_key(|item| {
-            let template_ord = item_targets
+            let fixed_rank = usize::from(
+                !item_hints
+                    .get(item)
+                    .is_some_and(|h| h.mode == ScheduleHintMode::Fixed),
+            );
+            let template_ord = item_hints
                 .get(item)
-                .map(|(y, s)| semester_order(*y, s))
+                .map(|h| h.ord())
                 .unwrap_or(i32::MAX);
-            (schedule_item_priority(item), template_ord)
+            (fixed_rank, schedule_item_priority(item), template_ord)
         });
     };
 
@@ -1062,8 +1121,8 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             sort_schedule_items(items);
             let mut overflow = Vec::new();
             for item in items.drain(..) {
-                let placed = if let Some(target) = item_targets.get(&item) {
-                    place_with_template(schedule, &item, target)
+                let placed = if let Some(hint) = item_hints.get(&item) {
+                    place_with_template(schedule, &item, hint)
                 } else {
                     try_place_greedy(schedule, &item, greedy_max_year)
                 };
@@ -1245,7 +1304,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     }
 
     let squeeze_undergrad_remaining =
-        |remaining: &mut Vec<String>, schedule: &mut Vec<SemesterPlan>| -> bool {
+        |remaining: &mut Vec<String>,
+         schedule: &mut Vec<SemesterPlan>,
+         hints: &HashMap<String, ScheduleHint>| -> bool {
             if remaining.is_empty() || !has_undergrad {
                 return false;
             }
@@ -1259,16 +1320,40 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             while i < remaining.len() {
                 let item = remaining[i].clone();
                 let mut placed = false;
-                'place: for year in 1..=undergrad_schedule_window {
-                    for semester in &semesters {
-                        if try_place_item(schedule, &item, year, *semester) {
+                if let Some(hint) = hints.get(&item) {
+                    if hint.mode == ScheduleHintMode::Fixed {
+                        if try_place_fixed_item(schedule, &item, hint.year, &hint.semester) {
                             placed = true;
                             placed_any = true;
-                            break 'place;
+                        }
+                    } else {
+                        'place: for year in 1..=undergrad_schedule_window {
+                            for semester in &semesters {
+                                if try_place_item(schedule, &item, year, *semester) {
+                                    placed = true;
+                                    placed_any = true;
+                                    break 'place;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    'place: for year in 1..=undergrad_schedule_window {
+                        for semester in &semesters {
+                            if try_place_item(schedule, &item, year, *semester) {
+                                placed = true;
+                                placed_any = true;
+                                break 'place;
+                            }
                         }
                     }
                 }
-                if !placed && payload.degrees.len() > 1 {
+                if !placed
+                    && payload.degrees.len() > 1
+                    && !hints
+                        .get(&item)
+                        .is_some_and(|h| h.mode == ScheduleHintMode::Fixed)
+                {
                     let max_existing = schedule.iter().map(|p| p.year).max().unwrap_or(undergrad_schedule_window);
                     for year in (undergrad_schedule_window + 1)..=(max_existing + 1) {
                         ensure_year(schedule, year, allow_summer);
@@ -1319,15 +1404,43 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }
         if !placed {
             if payload.degrees.len() > 1 {
-                for item in &remaining_items {
-                    item_targets.remove(item);
+                let flexible_overflow: Vec<String> = remaining_items
+                    .iter()
+                    .filter(|item| {
+                        item_hints
+                            .get(*item)
+                            .is_some_and(|h| h.mode == ScheduleHintMode::Flexible)
+                    })
+                    .cloned()
+                    .collect();
+                for item in flexible_overflow {
+                    item_hints.remove(&item);
                 }
-                if squeeze_undergrad_remaining(&mut remaining_items, &mut schedule) {
+                if squeeze_undergrad_remaining(&mut remaining_items, &mut schedule, &item_hints) {
                     continue;
                 }
             }
             let max_year = schedule.iter().map(|p| p.year).max().unwrap_or(4);
             ensure_year(&mut schedule, max_year + 1, allow_summer);
+        }
+    }
+
+    let mut fixed_remaining: Vec<String> = remaining_items
+        .iter()
+        .filter(|item| {
+            item_hints
+                .get(*item)
+                .is_some_and(|h| h.mode == ScheduleHintMode::Fixed)
+        })
+        .cloned()
+        .collect();
+    for item in fixed_remaining.drain(..) {
+        if let Some(hint) = item_hints.get(&item) {
+            let placed = try_place_item(&mut schedule, &item, hint.year, &hint.semester)
+                || try_place_fixed_item(&mut schedule, &item, hint.year, &hint.semester);
+            if placed {
+                remaining_items.retain(|i| i != &item);
+            }
         }
     }
 

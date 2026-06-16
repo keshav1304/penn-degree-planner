@@ -1,9 +1,39 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
 use crate::schedule_template::{
-    schedule_hints_from_array, scheduled, Semester, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S,
+    schedule_hints_from_array, scheduled, insert_fixed_course_hints, ScheduleHint, Semester,
+    Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S,
 };
+
+/// Mandatory Y4 Fall / Y4 Spring placement for SEAS senior design course codes.
+fn apply_seas_senior_design_fixed_hints(hints: &mut HashMap<String, ScheduleHint>) {
+    insert_fixed_course_hints(
+        hints,
+        &[
+            ("CIS 4000", Y4F),
+            ("CIS 4100", Y4F),
+            ("ESE 4500", Y4F),
+            ("MEAM 4450", Y4F),
+            ("BE 4950", Y4F),
+            ("MSE 4950", Y4F),
+            ("CBE 4000", Y4F),
+            ("CIS 4010", Y4S),
+            ("CIS 4110", Y4S),
+            ("ESE 4510", Y4S),
+            ("MEAM 4460", Y4S),
+            ("BE 4960", Y4S),
+            ("MSE 4960", Y4S),
+            ("CBE 4590", Y4S),
+        ],
+    );
+}
+
+fn seas_schedule_hints(schedule: &[Semester]) -> HashMap<String, ScheduleHint> {
+    let mut hints = schedule_hints_from_array(schedule);
+    apply_seas_senior_design_fixed_hints(&mut hints);
+    hints
+}
 
 /// Concentration names for a SEAS major (empty if the major has none).
 pub fn concentration_names_for(major_code: &str) -> Vec<String> {
@@ -21,7 +51,7 @@ pub fn concentration_names_for(major_code: &str) -> Vec<String> {
 }
 
 pub fn create_ee_major() -> Major {
-    let (requirements, schedule_hints) = scheduled(vec![
+    let (requirements, mut schedule_hints) = scheduled(vec![
             // Engineering
             (Y1F, Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1100".to_string()] }),
             (Y1F, Requirement::AnyOf { 
@@ -157,6 +187,8 @@ pub fn create_ee_major() -> Major {
             (Y3S, Requirement::Restriction { category: Some("General Electives - Humanities/SS/TBS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string(), "EUTB".to_string()]), number: 1, excluding: None, no_school: None }),
             (Y4S, Requirement::Restriction { category: Some("General Electives - Humanities/SS/TBS".to_string()), department: None, cu: None, level: None, attr: Some(vec!["EUHS".to_string(), "EUSS".to_string(), "EUTB".to_string()]), number: 1, excluding: None, no_school: None }),
     ]);
+
+    apply_seas_senior_design_fixed_hints(&mut schedule_hints);
 
     return Major {
         short_name: "EE".to_string(),
@@ -425,7 +457,7 @@ pub fn create_meam_major(concentration_name: String) -> Major {
         short_name: "MEAM".to_string(),
         name: "Mechanical Engineering".to_string(),
         requirements,
-        schedule_hints: schedule_hints_from_array(&MEAM_SCHEDULE),
+        schedule_hints: seas_schedule_hints(&MEAM_SCHEDULE),
         concentrations: Some(meam_concentrations),
     };
 }
@@ -492,7 +524,7 @@ pub fn create_mse_major() -> Major {
 
             Requirement::Restriction { category: Some("Free Elective".to_string()), department: None, cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None }
         ],
-        schedule_hints: schedule_hints_from_array(&MSE_SCHEDULE),
+        schedule_hints: seas_schedule_hints(&MSE_SCHEDULE),
         concentrations: Some(BTreeMap::from([
             (
                 "Biomaterials and Biomimetics".to_string(),
@@ -636,7 +668,7 @@ pub fn create_cis_major() -> Major {
             // Free Elective
             Requirement::Restriction { category: Some("Free Elective".to_string()), department: None, cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None }
         ],
-        schedule_hints: schedule_hints_from_array(&CIS_SCHEDULE),
+        schedule_hints: seas_schedule_hints(&CIS_SCHEDULE),
         concentrations: Some(BTreeMap::from([
             (
                 "Computer Vision".to_string(),
@@ -787,7 +819,7 @@ pub fn create_ai_major() -> Major {
             // Free Elective
             Requirement::Restriction { category: Some("Free Elective".to_string()), department: None, cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None }
         ],
-        schedule_hints: schedule_hints_from_array(&AI_SCHEDULE),
+        schedule_hints: seas_schedule_hints(&AI_SCHEDULE),
         concentrations: Some(BTreeMap::from([
             
             
@@ -910,7 +942,7 @@ pub fn create_cmpe_major() -> Major {
             // Free Elective
             Requirement::Restriction { category: Some("Free Elective".to_string()), department: None, cu: None, level: None, attr: None, number: 1, excluding: None, no_school: None },
         ],
-        schedule_hints: schedule_hints_from_array(&CMPE_SCHEDULE),
+        schedule_hints: seas_schedule_hints(&CMPE_SCHEDULE),
         concentrations: Some(BTreeMap::from([
             (
                 "AI & Robotics".to_string(),

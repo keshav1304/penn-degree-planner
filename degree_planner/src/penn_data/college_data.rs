@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
 use crate::requirement::{PoolConstraint, PoolCoverageInfo};
-use crate::schedule_template::{Y1F, Y1S, Y2F, Y2S, Y3F, Y3S};
+use crate::schedule_template::{ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S};
 use serde::Serialize;
 
 // ── Path@Penn attribute codes ────────────────────────────────────────────────
@@ -146,8 +146,8 @@ pub struct CasMajorConfig {
     /// `AULW` + `AUPW` for biology-style majors). Remaining sectors are required.
     pub auto_completed_sectors: Vec<String>,
     pub concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
-    /// Requirement-index and/or course-code keys → preferred `(year, semester)`.
-    pub schedule_hints: HashMap<String, (i32, String)>,
+    /// Requirement-index and/or course-code keys → scheduling hint.
+    pub schedule_hints: HashMap<String, ScheduleHint>,
 }
 
 /// Writing is siloed: it may not double-count with any other College requirement.
@@ -254,7 +254,7 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
     ];
 
     let mut schedule_hints = config.schedule_hints;
-    schedule_hints.insert("0".to_string(), Y1F.to_pair());
+    schedule_hints.insert("0".to_string(), Y1F.into());
 
     Major {
         short_name: config.short_name,
@@ -855,14 +855,14 @@ fn econ_major_requirements() -> Vec<Requirement> {
 
 pub fn create_econ_major() -> Major {
     let schedule_hints = HashMap::from([
-        ("MATH 1070".to_string(), Y1F.to_pair()),
-        ("MATH 1080".to_string(), Y1S.to_pair()),
-        ("ECON 0100".to_string(), Y1F.to_pair()),
-        ("ECON 0200".to_string(), Y1S.to_pair()),
-        ("ECON 2100".to_string(), Y2F.to_pair()),
-        ("ECON 2200".to_string(), Y2S.to_pair()),
-        ("ECON 2300".to_string(), Y2F.to_pair()),
-        ("ECON 2310".to_string(), Y2S.to_pair()),
+        ("MATH 1070".to_string(), Y1F.into()),
+        ("MATH 1080".to_string(), Y1S.into()),
+        ("ECON 0100".to_string(), Y1F.into()),
+        ("ECON 0200".to_string(), Y1S.into()),
+        ("ECON 2100".to_string(), Y2F.into()),
+        ("ECON 2200".to_string(), Y2S.into()),
+        ("ECON 2300".to_string(), Y2F.into()),
+        ("ECON 2310".to_string(), Y2S.into()),
     ]);
     create_cas_major(CasMajorConfig {
         short_name: "ECON".to_string(),
@@ -1028,27 +1028,27 @@ fn mathecon_major_requirements() -> Vec<Requirement> {
 
 pub fn create_mathecon_major() -> Major {
     let schedule_hints = HashMap::from([
-        ("ECON 0100".to_string(), Y1F.to_pair()),
-        ("ECON 0200".to_string(), Y1S.to_pair()),
-        ("MATH 1080".to_string(), Y1S.to_pair()),
-        ("MATH 1410".to_string(), Y1F.to_pair()),
-        ("MATH 1610".to_string(), Y1F.to_pair()),
-        ("ECON 2100".to_string(), Y2F.to_pair()),
-        ("ECON 2200".to_string(), Y2S.to_pair()),
-        ("ECON 2300".to_string(), Y2F.to_pair()),
-        ("ECON 2310".to_string(), Y2S.to_pair()),
-        ("STAT 4300".to_string(), Y2F.to_pair()),
-        ("STAT 4310".to_string(), Y2S.to_pair()),
-        ("ESE 3010".to_string(), Y2F.to_pair()),
-        ("ESE 4020".to_string(), Y2S.to_pair()),
-        ("MATH 3000".to_string(), Y2F.to_pair()),
-        ("ECON 6100".to_string(), Y3F.to_pair()),
-        ("MATH 3600".to_string(), Y3F.to_pair()),
-        ("MATH 3610".to_string(), Y3S.to_pair()),
-        ("MATH 5080".to_string(), Y3F.to_pair()),
-        ("MATH 5090".to_string(), Y3S.to_pair()),
-        ("MATH 5460".to_string(), Y3S.to_pair()),
-        ("ESE 2310".to_string(), Y3S.to_pair()),
+        ("ECON 0100".to_string(), Y1F.into()),
+        ("ECON 0200".to_string(), Y1S.into()),
+        ("MATH 1080".to_string(), Y1S.into()),
+        ("MATH 1410".to_string(), Y1F.into()),
+        ("MATH 1610".to_string(), Y1F.into()),
+        ("ECON 2100".to_string(), Y2F.into()),
+        ("ECON 2200".to_string(), Y2S.into()),
+        ("ECON 2300".to_string(), Y2F.into()),
+        ("ECON 2310".to_string(), Y2S.into()),
+        ("STAT 4300".to_string(), Y2F.into()),
+        ("STAT 4310".to_string(), Y2S.into()),
+        ("ESE 3010".to_string(), Y2F.into()),
+        ("ESE 4020".to_string(), Y2S.into()),
+        ("MATH 3000".to_string(), Y2F.into()),
+        ("ECON 6100".to_string(), Y3F.into()),
+        ("MATH 3600".to_string(), Y3F.into()),
+        ("MATH 3610".to_string(), Y3S.into()),
+        ("MATH 5080".to_string(), Y3F.into()),
+        ("MATH 5090".to_string(), Y3S.into()),
+        ("MATH 5460".to_string(), Y3S.into()),
+        ("ESE 2310".to_string(), Y3S.into()),
     ]);
     create_cas_major(CasMajorConfig {
         short_name: "MECON".to_string(),
@@ -1382,13 +1382,13 @@ pub fn ppe_concentration_names() -> Vec<String> {
 
 pub fn create_ppe_major(concentration_name: String) -> Major {
     let schedule_hints = HashMap::from([
-        ("PHIL 1433".to_string(), Y2F.to_pair()),
-        ("ECON 0100".to_string(), Y1F.to_pair()),
-        ("ECON 0200".to_string(), Y1S.to_pair()),
-        ("PPE 3001".to_string(), Y3F.to_pair()),
-        ("PPE 3002".to_string(), Y3S.to_pair()),
-        ("PPE 3003".to_string(), Y3S.to_pair()),
-        ("PPE 3004".to_string(), Y3S.to_pair()),
+        ("PHIL 1433".to_string(), Y2F.into()),
+        ("ECON 0100".to_string(), Y1F.into()),
+        ("ECON 0200".to_string(), Y1S.into()),
+        ("PPE 3001".to_string(), Y3F.into()),
+        ("PPE 3002".to_string(), Y3S.into()),
+        ("PPE 3003".to_string(), Y3S.into()),
+        ("PPE 3004".to_string(), Y3S.into()),
     ]);
     let mut major_requirements = ppe_major_requirements();
     major_requirements.push(ppe_concentration_requirement(&concentration_name));
@@ -1404,13 +1404,13 @@ pub fn create_ppe_major(concentration_name: String) -> Major {
 
 pub fn create_cis_cas_major() -> Major {
     let schedule_hints = HashMap::from([
-        ("CIS 1100".to_string(), Y1F.to_pair()),
-        ("CIS 1200".to_string(), Y1S.to_pair()),
-        ("CIS 1600".to_string(), Y1F.to_pair()),
-        ("CIS 1210".to_string(), Y2F.to_pair()),
-        ("CIS 2400".to_string(), Y2S.to_pair()),
-        ("CIS 2620".to_string(), Y3F.to_pair()),
-        ("CIS 3200".to_string(), Y3S.to_pair()),
+        ("CIS 1100".to_string(), Y1F.into()),
+        ("CIS 1200".to_string(), Y1S.into()),
+        ("CIS 1600".to_string(), Y1F.into()),
+        ("CIS 1210".to_string(), Y2F.into()),
+        ("CIS 2400".to_string(), Y2S.into()),
+        ("CIS 2620".to_string(), Y3F.into()),
+        ("CIS 3200".to_string(), Y3S.into()),
     ]);
     create_cas_major(CasMajorConfig {
         short_name: "CIS".to_string(),
@@ -1591,23 +1591,23 @@ fn neur_major_requirements() -> Vec<Requirement> {
 
 pub fn create_neur_major() -> Major {
     let schedule_hints = HashMap::from([
-        ("CHEM 1011".to_string(), Y1F.to_pair()),
-        ("CHEM 1012".to_string(), Y1F.to_pair()),
-        ("CHEM 1151".to_string(), Y1F.to_pair()),
-        ("CHEM 1021".to_string(), Y1S.to_pair()),
-        ("CHEM 1022".to_string(), Y1S.to_pair()),
-        ("CHEM 1161".to_string(), Y1S.to_pair()),
-        ("BIOL 1101".to_string(), Y1F.to_pair()),
-        ("BIOL 1102".to_string(), Y1S.to_pair()),
-        ("BIOL 1121".to_string(), Y1F.to_pair()),
-        ("BIOL 1123".to_string(), Y1S.to_pair()),
-        ("BIOL 1124".to_string(), Y2F.to_pair()),
-        ("NRSC 1110".to_string(), Y2F.to_pair()),
-        ("NRSC 2110".to_string(), Y3F.to_pair()),
-        ("BIOL 2110".to_string(), Y3F.to_pair()),
-        ("BIOL 2510".to_string(), Y2S.to_pair()),
-        ("STAT 1010".to_string(), Y2S.to_pair()),
-        ("STAT 1110".to_string(), Y2S.to_pair()),
+        ("CHEM 1011".to_string(), Y1F.into()),
+        ("CHEM 1012".to_string(), Y1F.into()),
+        ("CHEM 1151".to_string(), Y1F.into()),
+        ("CHEM 1021".to_string(), Y1S.into()),
+        ("CHEM 1022".to_string(), Y1S.into()),
+        ("CHEM 1161".to_string(), Y1S.into()),
+        ("BIOL 1101".to_string(), Y1F.into()),
+        ("BIOL 1102".to_string(), Y1S.into()),
+        ("BIOL 1121".to_string(), Y1F.into()),
+        ("BIOL 1123".to_string(), Y1S.into()),
+        ("BIOL 1124".to_string(), Y2F.into()),
+        ("NRSC 1110".to_string(), Y2F.into()),
+        ("NRSC 2110".to_string(), Y3F.into()),
+        ("BIOL 2110".to_string(), Y3F.into()),
+        ("BIOL 2510".to_string(), Y2S.into()),
+        ("STAT 1010".to_string(), Y2S.into()),
+        ("STAT 1110".to_string(), Y2S.into()),
     ]);
     create_cas_major(CasMajorConfig {
         short_name: "NEUR".to_string(),

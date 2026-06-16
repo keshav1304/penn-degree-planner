@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use serde::Serialize;
 
 use crate::Requirement;
+use crate::schedule_template::ScheduleHint;
 use crate::penn_data::college_data;
 use crate::penn_data::seas_data;
 use crate::penn_data::seas_grad_data;
@@ -14,8 +15,8 @@ pub struct Major {
     pub name: String,
     pub requirements: Vec<Requirement>,
     pub concentrations: Option<BTreeMap<String, Vec<Requirement>>>,
-    /// Maps top-level requirement index (`"0"`, `"1"`, …) → target `(year, semester)`.
-    pub schedule_hints: HashMap<String, (i32, String)>,
+    /// Maps requirement index (`"0"`, `"1"`, …) and/or course code → scheduling hint.
+    pub schedule_hints: HashMap<String, ScheduleHint>,
 }
 
 #[derive(Debug, Clone, Serialize)]

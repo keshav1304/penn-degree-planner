@@ -4,6 +4,49 @@ use crate::Requirement;
 use crate::course;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScheduleHintMode {
+    /// Exact semester — only user frozen placement may override.
+    Fixed,
+    /// Prefer the template semester; may backfill earlier open semesters, then at-or-after target.
+    Flexible,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScheduleHint {
+    pub year: i32,
+    pub semester: String,
+    pub mode: ScheduleHintMode,
+}
+
+impl ScheduleHint {
+    pub fn flexible(sem: Semester) -> Self {
+        Self {
+            year: sem.year,
+            semester: sem.name.to_string(),
+            mode: ScheduleHintMode::Flexible,
+        }
+    }
+
+    pub fn fixed(sem: Semester) -> Self {
+        Self {
+            year: sem.year,
+            semester: sem.name.to_string(),
+            mode: ScheduleHintMode::Fixed,
+        }
+    }
+
+    pub fn ord(&self) -> i32 {
+        semester_order(self.year, &self.semester)
+    }
+}
+
+impl From<Semester> for ScheduleHint {
+    fn from(sem: Semester) -> Self {
+        Self::flexible(sem)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Semester {
     pub year: i32,
     pub name: &'static str,
@@ -24,12 +67,22 @@ impl Semester {
     }
 }
 
-fn insert_hint(hints: &mut HashMap<String, (i32, String)>, index: usize, sem: Semester) {
-    hints.insert(index.to_string(), sem.to_pair());
+fn insert_hint(hints: &mut HashMap<String, ScheduleHint>, index: usize, sem: Semester) {
+    hints.insert(index.to_string(), ScheduleHint::flexible(sem));
+}
+
+/// Mark specific course codes as mandatory semester placements.
+pub fn insert_fixed_course_hints(
+    hints: &mut HashMap<String, ScheduleHint>,
+    courses: &[(&str, Semester)],
+) {
+    for (course, sem) in courses {
+        hints.insert(course.to_string(), ScheduleHint::fixed(*sem));
+    }
 }
 
 /// Build a flat requirement list and schedule hints from `(semester, requirement)` pairs.
-pub fn scheduled(entries: Vec<(Semester, Requirement)>) -> (Vec<Requirement>, HashMap<String, (i32, String)>) {
+pub fn scheduled(entries: Vec<(Semester, Requirement)>) -> (Vec<Requirement>, HashMap<String, ScheduleHint>) {
     let mut requirements = Vec::with_capacity(entries.len());
     let mut schedule_hints = HashMap::new();
     for (sem, req) in entries {
@@ -42,7 +95,7 @@ pub fn scheduled(entries: Vec<(Semester, Requirement)>) -> (Vec<Requirement>, Ha
 /// Append a batch of requirements tagged with the same semester (for dynamic `.chain()` sections).
 pub fn append_semester(
     requirements: &mut Vec<Requirement>,
-    schedule_hints: &mut HashMap<String, (i32, String)>,
+    schedule_hints: &mut HashMap<String, ScheduleHint>,
     sem: Semester,
     batch: Vec<Requirement>,
 ) {
@@ -53,7 +106,7 @@ pub fn append_semester(
 }
 
 /// Optional bulk template: one semester entry per top-level requirement, in list order.
-pub fn schedule_hints_from_array(schedule: &[Semester]) -> HashMap<String, (i32, String)> {
+pub fn schedule_hints_from_array(schedule: &[Semester]) -> HashMap<String, ScheduleHint> {
     let mut hints = HashMap::new();
     for (index, sem) in schedule.iter().enumerate() {
         insert_hint(&mut hints, index, *sem);
@@ -65,14 +118,57 @@ pub fn schedule_hints_from_array(schedule: &[Semester]) -> HashMap<String, (i32,
 /// CoursePool children (`"20:f0"` / `"20:p0"` → `"20"`).
 pub fn resolve_semester_hint(
     id: &str,
-    hints: &HashMap<String, (i32, String)>,
-) -> Option<(i32, String)> {
+    hints: &HashMap<String, ScheduleHint>,
+) -> Option<ScheduleHint> {
     if let Some(h) = hints.get(id) {
         return Some(h.clone());
     }
     id.split(':')
         .next()
         .and_then(|base| hints.get(base).cloned())
+}
+
+/// Semester candidates for placing an item, in try order.
+pub fn placement_semesters(hint: &ScheduleHint, max_year: i32) -> Vec<(i32, String)> {
+    if hint.mode == ScheduleHintMode::Fixed {
+        return vec![(hint.year, hint.semester.clone())];
+    }
+
+    let target_ord = hint.ord();
+    let mut seen = HashSet::new();
+    let mut out = Vec::new();
+
+    let mut push = |year: i32, semester: &str| {
+        let ord = semester_order(year, semester);
+        if seen.insert(ord) {
+            out.push((year, semester.to_string()));
+        }
+    };
+
+    for year in 1..=max_year {
+        for sem in ["Fall", "Spring"] {
+            if semester_order(year, sem) < target_ord {
+                push(year, sem);
+            }
+        }
+    }
+    for (year, semester) in later_semesters((hint.year, hint.semester.as_str()), max_year) {
+        push(year, &semester);
+    }
+    out
+}
+
+/// When two degrees supply hints for the same key, keep the stricter / later binding.
+pub fn merge_schedule_hint(existing: Option<&ScheduleHint>, new: ScheduleHint) -> ScheduleHint {
+    match existing {
+        None => new,
+        Some(old) if new.mode == ScheduleHintMode::Fixed && old.mode == ScheduleHintMode::Flexible => {
+            new
+        }
+        Some(old) if old.mode == ScheduleHintMode::Fixed => old.clone(),
+        Some(old) if new.ord() > old.ord() => new,
+        Some(old) => old.clone(),
+    }
 }
 
 pub fn semester_order(year: i32, semester: &str) -> i32 {
@@ -158,4 +254,3 @@ pub fn ms_default_semester_target_for_requirement(req: &Requirement) -> (i32, St
         _ => (3, "Fall".to_string()),
     }
 }
-

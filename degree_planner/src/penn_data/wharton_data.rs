@@ -4,7 +4,7 @@ use crate::Requirement;
 use crate::Major;
 use crate::requirement::PoolConstraint;
 use crate::schedule_template::{
-    append_semester, scheduled, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S,
+    append_semester, insert_fixed_course_hints, scheduled, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S,
 };
 
 fn wh_attr_constraint(label: &str, attr: &str, count: i32, group: &str) -> PoolConstraint {
@@ -657,6 +657,8 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, conc_reqs);
 
+    insert_fixed_course_hints(&mut schedule_hints, &[("MGMT 2370", Y2S)]);
+
     return Major {
         short_name: "WH_NOFL_MT".to_string(), 
         name: "M&T - Foreign Language Exempt".to_string(), 
@@ -723,6 +725,8 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
             wh_fl_mt_las_pool(),
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, conc_reqs);
+
+    insert_fixed_course_hints(&mut schedule_hints, &[("MGMT 2370", Y2S)]);
 
     Major {
         short_name: "WH".to_string(),

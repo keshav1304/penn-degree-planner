@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::Major;
 use crate::Requirement;
-use crate::schedule_template::{schedule_hints_from_array, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
+use crate::schedule_template::{schedule_hints_from_array, ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
 
 fn placeholder_ms_major(short_name: &str, display_name: &str) -> Major {
     Major {
@@ -239,7 +239,7 @@ fn ms_cis_or_non_cis_elective() -> Requirement {
     }
 }
 
-fn ms_cis_schedule_hints() -> HashMap<String, (i32, String)> {
+fn ms_cis_schedule_hints() -> HashMap<String, ScheduleHint> {
     let mut hints = schedule_hints_from_array(&[
         Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S,
     ]);
@@ -249,7 +249,7 @@ fn ms_cis_schedule_hints() -> HashMap<String, (i32, String)> {
         ("CIS 5200", Y2F),
         ("CIS 5000", Y2S),
     ] {
-        hints.insert(course.to_string(), sem.to_pair());
+        hints.insert(course.to_string(), sem.into());
     }
     hints
 }
@@ -315,7 +315,7 @@ const MCIT_REQUIRED_COURSES: &[&str] = &[
     "CIT 5960",
 ];
 
-fn mcit_schedule_hints() -> HashMap<String, (i32, String)> {
+fn mcit_schedule_hints() -> HashMap<String, ScheduleHint> {
     let mut hints = schedule_hints_from_array(&[Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S]);
     for (course, sem) in [
         ("CIT 5910", Y1F),
@@ -325,7 +325,7 @@ fn mcit_schedule_hints() -> HashMap<String, (i32, String)> {
         ("CIT 5950", Y1S),
         ("CIT 5960", Y1S),
     ] {
-        hints.insert(course.to_string(), sem.to_pair());
+        hints.insert(course.to_string(), sem.into());
     }
     hints
 }
