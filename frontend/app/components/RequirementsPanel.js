@@ -519,11 +519,6 @@ function renderCasSuperSections({
                     {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, pillLabel)}
                     {!isCollapsed && (
                         <div className="req-super-group-body">
-                            {isCasCombined && (
-                                <div className="req-cas-shared-note">
-                                    Shared across College majors — one Writing Seminar and General Education set for all CAS degrees.
-                                </div>
-                            )}
                             {casGenEd ? (
                                 renderCasGenEdPool(
                                     casGenEd,
