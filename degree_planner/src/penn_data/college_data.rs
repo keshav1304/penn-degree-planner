@@ -135,6 +135,39 @@ pub fn build_cas_gen_ed_info(
     }
 }
 
+/// Two or more CAS majors = one College degree with multiple majors (double major).
+pub fn is_cas_college_double_major(degree_schools: &[String]) -> bool {
+    degree_schools.len() >= 2 && degree_schools.iter().all(|s| s == "CAS")
+}
+
+/// Requirement instance scope for college-wide CAS requirements (not major-only).
+pub fn is_cas_college_shared_instance_scope(scope: &str) -> bool {
+    if scope.is_empty() {
+        return false;
+    }
+    if scope == "0" || scope == "1" {
+        return true;
+    }
+    if let Some(rest) = scope.strip_prefix("1:") {
+        return !rest.starts_with('f');
+    }
+    false
+}
+
+/// Schedule slot id for a college-wide CAS requirement (writing / gen-ed pool).
+pub fn is_cas_college_shared_schedule_slot(slot_id: &str) -> bool {
+    let Some(rest) = slot_id.strip_prefix("req:") else {
+        return false;
+    };
+    let scope = rest.split(":R:").next().unwrap_or(rest);
+    is_cas_college_shared_instance_scope(scope)
+}
+
+/// Open-slot key eligible for cross-major overlap when double-majoring in CAS.
+pub fn is_cas_major_overlap_slot_key(slot_key: &str) -> bool {
+    slot_key.starts_with("1:f")
+}
+
 
 /// College-wide gen-ed configuration shared by every CAS major.
 pub struct CasMajorConfig {

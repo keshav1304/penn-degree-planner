@@ -11,6 +11,12 @@ pub fn is_graduate_degree(school: &str) -> bool {
     school == "SEAS_MS"
 }
 
+/// Cross-degree overlap optimizer (shared courses, paired requirement blocks, allocation filtering).
+/// Applies only when every selected degree is undergraduate.
+pub fn cross_degree_optimizer_applicable(degree_schools: &[String]) -> bool {
+    degree_schools.len() >= 2 && degree_schools.iter().all(|s| !is_graduate_degree(s))
+}
+
 fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
     *cu_map.get(course).unwrap_or(&1.0)
 }

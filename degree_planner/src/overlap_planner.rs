@@ -3,8 +3,9 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::course;
-use crate::cross_degree::CrossDegreeState;
+use crate::cross_degree::{cross_degree_optimizer_applicable, CrossDegreeState};
 use crate::major::Major;
+use crate::penn_data::college_data;
 use crate::penn_data::{attributes_data, courses_data};
 use crate::requirement::{
     course_matches_restriction, DegreeValidationResult, MappedRequirement, Requirement,
@@ -518,7 +519,10 @@ fn matcher_cross_degree_overlap_eligible(matcher: &CourseMatcher, in_anyof: bool
     }
 }
 
-fn cross_degree_overlap_eligible(slot: &OpenSlot) -> bool {
+fn cross_degree_overlap_eligible(slot: &OpenSlot, degree_schools: &[String]) -> bool {
+    if college_data::is_cas_college_double_major(degree_schools) {
+        return college_data::is_cas_major_overlap_slot_key(&slot.slot_key);
+    }
     if slot.slot_key.contains(":c") || slot.slot_key.contains(":p") {
         return true;
     }
@@ -868,7 +872,7 @@ pub fn compute_overlap_plan(
     cross_state: &CrossDegreeState,
     cu_map: &HashMap<String, f64>,
 ) -> OverlapPlan {
-    if per_degree.len() < 2 {
+    if !cross_degree_optimizer_applicable(degree_schools) {
         return OverlapPlan::empty();
     }
 
@@ -881,7 +885,7 @@ pub fn compute_overlap_plan(
     let eligible_indices: HashSet<usize> = open_slots
         .iter()
         .enumerate()
-        .filter(|(_, s)| cross_degree_overlap_eligible(s))
+        .filter(|(_, s)| cross_degree_overlap_eligible(s, degree_schools))
         .map(|(i, _)| i)
         .collect();
 

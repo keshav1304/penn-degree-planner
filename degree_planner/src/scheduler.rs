@@ -77,7 +77,7 @@ fn overlap_pair_fixed_course(
 }
 
 pub fn dual_undergrad_only(schools: &[String]) -> bool {
-    schools.len() >= 2 && schools.iter().all(|s| !is_graduate_degree(s))
+    cross_degree::cross_degree_optimizer_applicable(schools)
 }
 
 pub fn all_cas_college(schools: &[String]) -> bool {
@@ -234,6 +234,13 @@ fn flexible_ms_hint(year: i32, semester: String) -> ScheduleHint {
     }
 }
 
+fn cas_college_shared_mapped(mapped: &requirement::MappedRequirement) -> bool {
+    mapped
+        .instance_id
+        .as_deref()
+        .is_some_and(college_data::is_cas_college_shared_instance_scope)
+}
+
 pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let mut taken: Vec<String> = payload
@@ -383,7 +390,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &cu_map,
         );
     }
-    let mut overlap_plan = if per_degree_validation.len() > 1 {
+    let mut overlap_plan = if cross_degree::cross_degree_optimizer_applicable(&degree_schools) {
         Some(overlap_planner::compute_overlap_plan(
             &per_degree_validation,
             &major_refs,
@@ -429,6 +436,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         })
         .unwrap_or_default();
 
+    let cross_degree_optimizer =
+        cross_degree::cross_degree_optimizer_applicable(&degree_schools);
+    let cas_college_double_major = college_data::is_cas_college_double_major(&degree_schools);
+    let primary_cas_degree_index = cas_college_double_major
+        .then(|| degree_schools.iter().position(|s| s == "CAS"))
+        .flatten();
+
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
         let degree = &resolved.input;
         let major_data = &resolved.major_data;
@@ -443,42 +457,57 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let fulfilled = validation.fulfilled.clone();
         let unfulfilled = validation.unfulfilled.clone();
         let pool_coverage = validation.pool_coverage_info.clone();
+        let is_secondary_cas_major = primary_cas_degree_index.is_some_and(|primary| {
+            degree_idx != primary && degree.school == "CAS"
+        });
 
         let mut suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
             &courses_for_validation,
             &cu_map,
-            Some(&cross_state),
-            Some(degree_idx),
+            if cross_degree_optimizer {
+                Some(&cross_state)
+            } else {
+                None
+            },
+            if cross_degree_optimizer {
+                Some(degree_idx)
+            } else {
+                None
+            },
         );
 
-        for mapped in &mut suggested {
-            let Some(instance_id) = mapped.instance_id.clone() else {
-                continue;
-            };
-            if !overlap_pair_slots.contains(&(degree_idx, instance_id.clone())) {
-                continue;
-            }
-            if fixed_course_overlap_slots.contains(&(degree_idx, instance_id.clone())) {
-                mapped.course_ids.clear();
-                continue;
-            }
-            if let Some(slot_id) = mapped
-                .requirement
-                .schedulable_placeholder_id(Some(&instance_id))
-            {
-                mapped.course_ids = vec![slot_id];
+        if cross_degree_optimizer {
+            for mapped in &mut suggested {
+                let Some(instance_id) = mapped.instance_id.clone() else {
+                    continue;
+                };
+                if !overlap_pair_slots.contains(&(degree_idx, instance_id.clone())) {
+                    continue;
+                }
+                if fixed_course_overlap_slots.contains(&(degree_idx, instance_id.clone())) {
+                    mapped.course_ids.clear();
+                    continue;
+                }
+                if let Some(slot_id) = mapped
+                    .requirement
+                    .schedulable_placeholder_id(Some(&instance_id))
+                {
+                    mapped.course_ids = vec![slot_id];
+                }
             }
         }
 
-        for mapped in &suggested {
-            for course_id in &mapped.course_ids {
-                if course::is_valid_course_code(course_id)
-                    && cross_state
-                        .can_claim(course_id, degree_idx, &cu_map)
-                        .is_ok()
-                {
-                    cross_state.register_claim(course_id, degree_idx, &cu_map);
+        if cross_degree_optimizer {
+            for mapped in &suggested {
+                for course_id in &mapped.course_ids {
+                    if course::is_valid_course_code(course_id)
+                        && cross_state
+                            .can_claim(course_id, degree_idx, &cu_map)
+                            .is_ok()
+                    {
+                        cross_state.register_claim(course_id, degree_idx, &cu_map);
+                    }
                 }
             }
         }
@@ -524,14 +553,26 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     }
                 }
                 for course_id in &mapped.course_ids {
-                    if course::is_valid_course_code(course_id)
-                        && !all_suggested_courses.contains(course_id)
-                        && !courses_for_validation.contains(course_id)
-                        && cross_state
+                    if is_secondary_cas_major {
+                        let shared = cas_college_shared_mapped(mapped)
+                            || college_data::is_cas_college_shared_schedule_slot(course_id);
+                        if shared {
+                            continue;
+                        }
+                    }
+                    let allocated_to_degree = if cross_degree_optimizer {
+                        cross_state
                             .claims
                             .get(course_id)
                             .map(|indices| indices.contains(&degree_idx))
                             .unwrap_or(false)
+                    } else {
+                        true
+                    };
+                    if course::is_valid_course_code(course_id)
+                        && !all_suggested_courses.contains(course_id)
+                        && !courses_for_validation.contains(course_id)
+                        && allocated_to_degree
                     {
                         all_suggested_courses.push(course_id.clone());
                     } else if requirement::is_schedulable_requirement_slot_id(course_id)
@@ -622,12 +663,19 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 None
             };
 
+            let mut api_suggested = suggested;
+            let mut api_unfulfilled = unfulfilled;
+            if is_secondary_cas_major {
+                api_suggested.retain(|m| !cas_college_shared_mapped(m));
+                api_unfulfilled.retain(|m| !cas_college_shared_mapped(m));
+            }
+
             degree_results.push(DegreeResult {
                 school: degree.school.clone(),
                 major: degree.major.clone(),
                 fulfilled_requirements: fulfilled,
-                unfulfilled_requirements: unfulfilled,
-                suggested_for_unfulfilled: suggested,
+                unfulfilled_requirements: api_unfulfilled,
+                suggested_for_unfulfilled: api_suggested,
                 unapplicable_courses: unapplicable,
                 pool_coverage_info: pool_coverage,
                 concentration_info: conc_info,
@@ -1278,7 +1326,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }
     }
 
-    if payload.degrees.len() > 1 && has_undergrad && allow_summer {
+    if dual_undergrad_only(&degree_schools) && allow_summer {
         let empty_skip: HashSet<String> = HashSet::new();
         for year in 1..=undergrad_schedule_window {
             loop {
@@ -1349,7 +1397,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     }
                 }
                 if !placed
-                    && payload.degrees.len() > 1
+                    && dual_undergrad_only(&degree_schools)
                     && !hints
                         .get(&item)
                         .is_some_and(|h| h.mode == ScheduleHintMode::Fixed)
@@ -1403,7 +1451,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             break;
         }
         if !placed {
-            if payload.degrees.len() > 1 {
+            if dual_undergrad_only(&degree_schools) {
                 let flexible_overflow: Vec<String> = remaining_items
                     .iter()
                     .filter(|item| {
@@ -1447,27 +1495,29 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let cross_degree_summary = if degree_schools.len() > 1 {
         cross_degree::enforce_claim_rules(&mut cross_state, &cu_map);
 
-        for (degree_idx, result) in degree_results.iter_mut().enumerate() {
-            requirement::filter_mapped_requirements_by_allocation(
-                &mut result.fulfilled_requirements,
-                degree_idx,
-                &cross_state.claims,
-            );
-            requirement::filter_mapped_requirements_by_allocation(
-                &mut result.suggested_for_unfulfilled,
-                degree_idx,
-                &cross_state.claims,
-            );
-            requirement::filter_mapped_requirements_by_allocation(
-                &mut result.unfulfilled_requirements,
-                degree_idx,
-                &cross_state.claims,
-            );
-            requirement::filter_concentration_info_by_claims(
-                &mut result.concentration_info,
-                degree_idx,
-                &cross_state.claims,
-            );
+        if cross_degree_optimizer {
+            for (degree_idx, result) in degree_results.iter_mut().enumerate() {
+                requirement::filter_mapped_requirements_by_allocation(
+                    &mut result.fulfilled_requirements,
+                    degree_idx,
+                    &cross_state.claims,
+                );
+                requirement::filter_mapped_requirements_by_allocation(
+                    &mut result.suggested_for_unfulfilled,
+                    degree_idx,
+                    &cross_state.claims,
+                );
+                requirement::filter_mapped_requirements_by_allocation(
+                    &mut result.unfulfilled_requirements,
+                    degree_idx,
+                    &cross_state.claims,
+                );
+                requirement::filter_concentration_info_by_claims(
+                    &mut result.concentration_info,
+                    degree_idx,
+                    &cross_state.claims,
+                );
+            }
         }
 
         let mut summary = cross_state.to_summary();

@@ -13,7 +13,8 @@ use proptest::prelude::*;
 
 use crate::course;
 use crate::cross_degree::{
-    self, crosses_undergrad_grad, enforce_claim_rules, is_graduate_degree,
+    self, crosses_undergrad_grad, cross_degree_optimizer_applicable, enforce_claim_rules,
+    is_graduate_degree,
     CrossDegreeState, CrossDegreeViolationKind, UNDERGRAD_GRAD_CU_LIMIT,
 };
 use crate::major::{self, resolve_major};
@@ -684,6 +685,50 @@ mod cross_degree_sharing {
         assert!(is_graduate_degree("SEAS_MS"));
         assert!(!is_graduate_degree("SEAS"));
         assert!(!is_graduate_degree("CAS"));
+    }
+
+    #[test]
+    fn overlap_optimizer_skipped_for_undergrad_plus_grad() {
+        use crate::overlap_planner::is_overlap_schedule_group_id;
+        use crate::scheduler::{dual_undergrad_only, generate_schedule, DegreeInput, ScheduleInput};
+
+        let schools = vec!["SEAS".into(), "SEAS_MS".into()];
+        assert!(!dual_undergrad_only(&schools));
+        assert!(!cross_degree_optimizer_applicable(&schools));
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "MS_EE".into(),
+                    school: "SEAS_MS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none());
+        assert!(output.overlap_plan.is_none());
+        assert!(output.overlap_schedule_groups.is_empty());
+        assert!(output.cross_degree_summary.is_some());
+        let has_overlap_blocks = output.schedule.iter().any(|plan| {
+            plan.requirement_slots
+                .iter()
+                .any(|slot| is_overlap_schedule_group_id(slot))
+        });
+        assert!(
+            !has_overlap_blocks,
+            "grad mixes must not produce paired overlap requirement blocks"
+        );
     }
 }
 
@@ -1374,6 +1419,13 @@ mod scheduling {
     }
 
     #[test]
+    fn undergrad_plus_grad_stays_four_years_not_dual_undergrad_optimizer() {
+        let schools = vec!["SEAS".into(), "SEAS_MS".into()];
+        assert_eq!(default_semester_cu_limit(&schools, 2, "Fall"), 5.5);
+        assert_eq!(undergrad_schedule_years(&schools), 4);
+    }
+
+    #[test]
     fn summer_cap_is_two_cu() {
         assert_eq!(default_semester_cu_limit(&vec!["SEAS".into()], 2, "Summer"), 2.0);
     }
@@ -1513,11 +1565,63 @@ mod dual_degree_properties {
     }
 
     #[test]
-    fn cas_cas_dual_writ_appears_once() {
+    fn cas_cas_dual_writ_appears_once_without_college_overlap_optimizer() {
         let output = generate_schedule(dual_degree_input("CAS", "NEUR", "CAS", "ECON"));
-        let plan = output.overlap_plan.as_ref().expect("overlap plan");
-        assert!(overlap_plan_has_writ_opportunity(plan));
         assert_eq!(writ_cu_units_on_schedule(&output), 1.0);
+        if let Some(plan) = &output.overlap_plan {
+            assert!(
+                !overlap_plan_has_writ_opportunity(plan),
+                "CAS double major must not pair Writing Seminar via overlap optimizer"
+            );
+            for opp in &plan.opportunities {
+                for slot in &opp.slots {
+                    assert!(
+                        college_data::is_cas_major_overlap_slot_key(&slot.slot_key),
+                        "CAS double major overlap must be major-only, got slot {:?}",
+                        slot
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cas_cas_overlap_plan_excludes_writing_and_gen_ed() {
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let econ = resolve_major("CAS", "ECON", &[]).expect("ECON");
+        let taken: HashSet<String> = HashSet::new();
+        let schools = vec!["CAS".into(), "CAS".into()];
+        let majors = vec!["NEUR".into(), "ECON".into()];
+        let cu = catalog_cu_map();
+        let per_degree = vec![
+            validate_courses_for_degree(neur.requirements.clone(), &vec![], &cu),
+            validate_courses_for_degree(econ.requirements.clone(), &vec![], &cu),
+        ];
+        let major_refs = vec![&neur, &econ];
+        let state = CrossDegreeState::new(schools.clone(), majors.clone());
+        let plan = compute_overlap_plan(
+            &per_degree,
+            &major_refs,
+            &schools,
+            &majors,
+            &taken,
+            &state,
+            &cu,
+        );
+        assert!(
+            !overlap_plan_has_writ_opportunity(&plan),
+            "CAS double major should not WRIT-overlap; opportunities: {:?}",
+            plan.opportunities
+        );
+        for opp in &plan.opportunities {
+            for slot in &opp.slots {
+                assert!(
+                    slot.slot_key.starts_with("1:f"),
+                    "expected major slot only, got {:?}",
+                    slot
+                );
+            }
+        }
     }
 
     #[test]
@@ -1636,6 +1740,7 @@ mod dual_degree_properties {
             if !both_have_writ {
                 continue;
             }
+            let all_cas = input.degrees.iter().all(|d| d.school == "CAS");
             let output = generate_schedule(input);
             assert!(
                 output.error.is_none(),
@@ -1648,10 +1753,17 @@ mod dual_degree_properties {
                 "{label}: expected exactly one WRIT CU on schedule, got {writ_units}"
             );
             if let Some(plan) = &output.overlap_plan {
-                assert!(
-                    overlap_plan_has_writ_opportunity(plan),
-                    "{label}: expected WRIT overlap opportunity"
-                );
+                if all_cas {
+                    assert!(
+                        !overlap_plan_has_writ_opportunity(plan),
+                        "{label}: CAS double major must not WRIT-overlap"
+                    );
+                } else {
+                    assert!(
+                        overlap_plan_has_writ_opportunity(plan),
+                        "{label}: expected WRIT overlap opportunity"
+                    );
+                }
             }
         }
     }
