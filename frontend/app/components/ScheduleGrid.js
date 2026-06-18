@@ -42,8 +42,8 @@ export default function ScheduleGrid({
 
     if (!scheduleData || !scheduleData.schedule) {
         return (
-            <div className="req-empty-state">
-                <div className="loading-spinner" style={{ width: 24, height: 24 }} />
+            <div className="req-empty-state panel-loading-state">
+                <div className="loading-spinner" />
                 <div className="req-empty-text">Generating schedule…</div>
             </div>
         );

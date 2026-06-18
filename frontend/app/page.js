@@ -625,7 +625,9 @@ export default function Home() {
           <div className="panel panel-courses">
             <div className="panel-header">
               <h2>📚 Courses</h2>
-              {coursesLoading && <div className="loading-spinner" />}
+              <div className="panel-header-actions">
+                {coursesLoading && <div className="loading-spinner" />}
+              </div>
             </div>
             <div className="panel-body">
               <CourseSearch
@@ -645,22 +647,21 @@ export default function Home() {
           <div className="panel panel-schedule">
             <div className="panel-header">
               <h2>📅 Schedule</h2>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <label className="summer-toggle" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "var(--text-secondary)", cursor: "pointer", userSelect: "none" }}>
-                  <input
-                    type="checkbox"
-                    checked={allowSummer}
-                    onChange={e => setAllowSummer(e.target.checked)}
-                    style={{ accentColor: "var(--accent-teal)" }}
-                  />
-                  ☀️ Summer courses
-                </label>
-                {degrees.length > 0 && (
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                    {assignedCourses.length} placed · {frozenCourses.length} frozen
-                  </span>
-                )}
-              </div>
+            </div>
+            <div className="panel-toolbar">
+              <label className="summer-toggle">
+                <input
+                  type="checkbox"
+                  checked={allowSummer}
+                  onChange={e => setAllowSummer(e.target.checked)}
+                />
+                ☀️ Summer courses
+              </label>
+              {degrees.length > 0 && (
+                <span className="panel-toolbar-meta">
+                  {assignedCourses.length} placed · {frozenCourses.length} frozen
+                </span>
+              )}
             </div>
             <div className="panel-body">
               <ScheduleGrid
@@ -694,17 +695,19 @@ export default function Home() {
 
           {requirementsOpen ? (
             <div className="panel panel-requirements">
-              <div className="panel-header panel-header-compact">
+              <div className="panel-header">
                 <h2>✅ Requirements</h2>
-                <button
-                  type="button"
-                  className="btn-icon requirements-collapse-btn"
-                  onClick={() => setRequirementsOpen(false)}
-                  title="Collapse requirements"
-                  aria-label="Collapse requirements panel"
-                >
-                  ›
-                </button>
+                <div className="panel-header-actions">
+                  <button
+                    type="button"
+                    className="btn-icon requirements-collapse-btn"
+                    onClick={() => setRequirementsOpen(false)}
+                    title="Collapse requirements"
+                    aria-label="Collapse requirements panel"
+                  >
+                    ›
+                  </button>
+                </div>
               </div>
               <div className="panel-body panel-body-requirements">
                 <RequirementsPanel

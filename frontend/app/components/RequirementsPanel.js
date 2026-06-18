@@ -86,7 +86,12 @@ export default function RequirementsPanel({
         );
     }
     if (!scheduleData || !scheduleData.degree_results) {
-        return <div className="req-empty-state"><div className="req-empty-text">Loading requirements…</div></div>;
+        return (
+            <div className="req-empty-state panel-loading-state">
+                <div className="loading-spinner" />
+                <div className="req-empty-text">Loading requirements…</div>
+            </div>
+        );
     }
 
     const results = scheduleData.degree_results;
