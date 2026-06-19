@@ -58,13 +58,7 @@ export default function ScheduleGrid({
         ...scheduleData.schedule.map((s) => s.year),
         ...pinnedYears,
     ])].filter((y) => y > 0).sort((a, b) => a - b);
-    const uniqueSemesters = [...new Set(scheduleData.schedule.map(s => s.semester))];
-    // Maintain Fall, Spring, Summer order; hide Summer when disabled
     const semOrder = ["Fall", "Spring", "Summer"];
-    const semesters = semOrder.filter((s) => {
-        if (s === "Summer" && !allowSummer) return false;
-        return uniqueSemesters.includes(s);
-    });
 
     const getSemesterPlan = (year, semester) => {
         return scheduleData.schedule.find(
@@ -147,6 +141,27 @@ export default function ScheduleGrid({
             .filter((id) => !isOverlapScheduleGroupId(id))
             .filter((id) => !overlapMemberSlotIds.has(id));
     };
+
+    const semesterHasContent = (year, semester) => (
+        getDisplayCourses(year, semester).length > 0
+        || getDisplayOverlapGroups(year, semester).length > 0
+        || getDisplayRequirementSlots(year, semester).length > 0
+    );
+
+    // Years 1–4 always show as drop targets; year 5+ only when a term has content
+    const visibleYears = uniqueYears.filter((year) => {
+        if (year <= 4) return true;
+        return semOrder.some((sem) => {
+            if (sem === "Summer" && !allowSummer) return false;
+            return semesterHasContent(year, sem);
+        });
+    });
+
+    const visibleSemesters = semOrder.filter((s) => {
+        if (s === "Summer" && !allowSummer) return false;
+        if (s === "Fall" || s === "Spring") return true;
+        return visibleYears.some((year) => semesterHasContent(year, s));
+    });
 
     const getSlotLabel = (slotId) => requirementSlotLabels[slotId] || "Open requirement";
 
@@ -486,9 +501,9 @@ export default function ScheduleGrid({
             </div>
 
             {/* Column headers */}
-            <div className="year-row" style={{ minHeight: 0, gridTemplateColumns: `48px repeat(${semesters.length}, 1fr)` }}>
+            <div className="year-row" style={{ minHeight: 0, gridTemplateColumns: `48px repeat(${visibleSemesters.length}, 1fr)` }}>
                 <div />
-                {semesters.map(sem => (
+                {visibleSemesters.map(sem => (
                     <div
                         key={sem}
                         style={{
@@ -506,10 +521,10 @@ export default function ScheduleGrid({
                 ))}
             </div>
 
-            {uniqueYears.map(year => (
-                <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `48px repeat(${semesters.length}, 1fr)` }}>
+            {visibleYears.map(year => (
+                <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `48px repeat(${visibleSemesters.length}, 1fr)` }}>
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
-                    {semesters.map(sem => {
+                    {visibleSemesters.map(sem => {
                         const plan = getSemesterPlan(year, sem);
                         const courses = sortSemesterCourses(getDisplayCourses(year, sem));
                         const overlapGroups = getDisplayOverlapGroups(year, sem);
