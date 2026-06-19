@@ -157,11 +157,7 @@ export default function ScheduleGrid({
         });
     });
 
-    const visibleSemesters = semOrder.filter((s) => {
-        if (s === "Summer" && !allowSummer) return false;
-        if (s === "Fall" || s === "Spring") return true;
-        return visibleYears.some((year) => semesterHasContent(year, s));
-    });
+    const visibleSemesters = semOrder.filter((s) => s !== "Summer" || allowSummer);
 
     const getSlotLabel = (slotId) => requirementSlotLabels[slotId] || "Open requirement";
 
