@@ -1362,6 +1362,10 @@ select {
   color: var(--success);
 }
 
+.req-major-section-planned .req-major-title {
+  color: var(--accent-amber);
+}
+
 .req-major-title {
   display: flex;
   align-items: center;
@@ -1410,6 +1414,10 @@ select {
   border-color: rgba(34, 197, 94, 0.25);
 }
 
+.req-group-planned {
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
 /* ── Category header — the fix: distinct background ── */
 .req-group-header {
   display: flex;
@@ -1425,6 +1433,11 @@ select {
 .req-group-done .req-group-header {
   background: rgba(34, 197, 94, 0.06);
   border-bottom-color: rgba(34, 197, 94, 0.15);
+}
+
+.req-group-planned .req-group-header {
+  background: var(--accent-amber-dim);
+  border-bottom-color: rgba(217, 119, 6, 0.15);
 }
 
 .req-group-badge {
@@ -1443,6 +1456,11 @@ select {
 .badge-done {
   background: rgba(34, 197, 94, 0.15);
   color: var(--success);
+}
+
+.badge-planned {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
 }
 
 .badge-pending {
@@ -1493,6 +1511,12 @@ select {
   background: rgba(34, 197, 94, 0.12);
   color: var(--success);
   border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.pill-planned {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  border: 1px solid rgba(217, 119, 6, 0.25);
 }
 
 .pill-pending {

@@ -465,9 +465,9 @@ fn wh_bb_slot_labels(default_labels: &[&str], concentrations: &[String]) -> Vec<
     labels
 }
 
-/// M&T needs two business breadths. MGMT 2370 counts as breadth I when MGMT is not a
-/// concentration; with two non-MGMT concentrations, a concentration course covers breadth II
-/// as well — no standalone breadth slots remain.
+/// M&T needs two business breadths. MGMT 2370 counts as one breadth when MGMT is not a
+/// concentration; with two non-MGMT concentrations, a concentration course covers the
+/// second breadth as well — no standalone breadth slots remain.
 fn mt_business_breadth_labels(concentrations: &[String]) -> Vec<String> {
     let mgmt_is_conc = concentrations.iter().any(|c| c == "MGMT");
     let double_conc = concentrations.len() >= 2;
@@ -477,9 +477,9 @@ fn mt_business_breadth_labels(concentrations: &[String]) -> Vec<String> {
     }
 
     let default_labels: Vec<&str> = if mgmt_is_conc {
-        vec!["Business Breadth - I", "Business Breadth - II"]
+        vec!["Business Breadth", "Business Breadth"]
     } else {
-        vec!["Business Breadth - II"]
+        vec!["Business Breadth"]
     };
     wh_bb_slot_labels(&default_labels, concentrations)
 }
@@ -614,7 +614,7 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
     let wh_concentrations = create_wh_concentrations();
     let bb_pool = ["FNCE", "ACCT", "BEPP", "MGMT", "MKTG", "HCMG", "REAL", "OIDD", "STAT", "LGST"];
     let bb_labels = wh_bb_slot_labels(
-        &["Business Breadth 1", "Business Breadth 2", "Business Breadth 3"],
+        &["Business Breadth", "Business Breadth", "Business Breadth"],
         &concs,
     );
     let bb_reqs = business_breadth_requirements(&concs, &bb_pool, &bb_labels, false);

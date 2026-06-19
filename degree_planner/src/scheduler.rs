@@ -616,7 +616,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &cu_map,
         );
     }
-    let mut overlap_plan = if cross_degree::cross_degree_optimizer_applicable(&degree_schools) {
+    let mut overlap_plan = if cross_degree::overlap_plan_applicable(&degree_schools) {
         Some(overlap_planner::compute_overlap_plan(
             &per_degree_validation,
             &major_refs,
@@ -629,6 +629,8 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     } else {
         None
     };
+
+    let overlap_active = overlap_plan.is_some();
 
     let overlap_pair_slots: HashSet<(usize, String)> = overlap_plan
         .as_ref()
@@ -710,19 +712,19 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &unfulfilled,
             &courses_for_validation,
             &cu_map,
-            if cross_degree_optimizer {
+            if cross_degree_optimizer || overlap_active {
                 Some(&cross_state)
             } else {
                 None
             },
-            if cross_degree_optimizer {
+            if cross_degree_optimizer || overlap_active {
                 Some(degree_idx)
             } else {
                 None
             },
         );
 
-        if cross_degree_optimizer {
+        if cross_degree_optimizer || overlap_active {
             for mapped in &mut suggested {
                 let Some(instance_id) = mapped.instance_id.clone() else {
                     continue;
@@ -743,7 +745,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             }
         }
 
-        if cross_degree_optimizer {
+        if cross_degree_optimizer || overlap_active {
             for mapped in &suggested {
                 for course_id in &mapped.course_ids {
                     if course::is_valid_course_code(course_id)
@@ -807,7 +809,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     ) {
                         continue;
                     }
-                    let allocated_to_degree = if cross_degree_optimizer {
+                    let allocated_to_degree = if cross_degree_optimizer || overlap_active {
                         cross_state
                             .claims
                             .get(course_id)

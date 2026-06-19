@@ -758,9 +758,11 @@ fn slot_scope_slug(s: &str) -> String {
         .collect()
 }
 
-/// Business-breadth AnyOf slots use `req:BB:{category_slug}` (one per BB block).
-pub fn business_breadth_slot_id(category: &str) -> String {
-    format!("req:BB:{}", slot_scope_slug(category))
+const BB_SLOT_FINGERPRINT: &str = "BB:Business_Breadth";
+
+/// Business-breadth AnyOf slots use `req:{scope}:BB:Business_Breadth` when scoped.
+pub fn business_breadth_slot_id(scope: Option<&str>) -> String {
+    scoped_slot_id(scope, BB_SLOT_FINGERPRINT)
 }
 
 fn scoped_slot_id(scope: Option<&str>, fingerprint: &str) -> String {
@@ -863,14 +865,20 @@ impl Requirement {
     }
 
     pub fn matches_slot_id(&self, slot_id: &str) -> bool {
-        if slot_id.starts_with("req:BB:") {
-            if let Requirement::AnyOf { category, .. } = self {
-                return category
-                    .as_ref()
-                    .map(|c| business_breadth_slot_id(c) == slot_id)
-                    .unwrap_or(false);
+        if let Requirement::AnyOf { category, .. } = self {
+            if Self::is_business_breadth_category(category.as_ref()) {
+                if slot_id == business_breadth_slot_id(None) {
+                    return true;
+                }
+                if let Some(rest) = slot_id.strip_prefix("req:") {
+                    if let Some((scope, fp)) = rest.split_once(":BB:") {
+                        if !scope.is_empty() && fp == "Business_Breadth" {
+                            return self.requirement_slot_id(Some(scope)).as_deref() == Some(slot_id);
+                        }
+                    }
+                }
+                return false;
             }
-            return false;
         }
         if let Some(rest) = slot_id.strip_prefix("req:") {
             if let Some((scope, _fp)) = rest.split_once(":R:") {
@@ -927,24 +935,19 @@ impl Requirement {
             .unwrap_or(false)
     }
 
-    fn business_breadth_schedule_label(category: &str) -> String {
-        if category.eq_ignore_ascii_case("Business Breadth") {
-            "1 WH Business Breadth".to_string()
-        } else {
-            format!("1 WH {}", category)
-        }
+    fn business_breadth_schedule_label() -> String {
+        "WH Business Breadth".to_string()
     }
 
     /// Business breadth slots use a short schedule label instead of dept-level restriction text.
     pub fn business_breadth_label_for_slot(&self, slot_id: &str) -> Option<String> {
         match self {
             Requirement::AnyOf { category, .. } => {
-                let cat = category.as_deref()?;
                 if !Self::is_business_breadth_category(category.as_ref()) {
                     return None;
                 }
-                if business_breadth_slot_id(cat) == slot_id {
-                    return Some(Self::business_breadth_schedule_label(cat));
+                if self.matches_slot_id(slot_id) {
+                    return Some(Self::business_breadth_schedule_label());
                 }
                 None
             }
@@ -1029,9 +1032,7 @@ impl Requirement {
             }
             Requirement::AnyOf { category, .. } => {
                 if Self::is_business_breadth_category(category.as_ref()) {
-                    return category
-                        .as_deref()
-                        .map(|c| business_breadth_slot_id(c));
+                    return Some(business_breadth_slot_id(scope));
                 }
                 let cat = category.as_deref().filter(|c| !c.is_empty())?;
                 let fp = format!("A:{}", slot_scope_slug(cat));
@@ -1260,9 +1261,7 @@ impl Requirement {
             },
             Requirement::AnyOf { category, possibilities } => {
                 if Self::is_business_breadth_category(category.as_ref()) {
-                    if let Some(cat) = category.as_deref() {
-                        return Some(vec![business_breadth_slot_id(cat)]);
-                    }
+                    return Some(vec![business_breadth_slot_id(scope)]);
                 }
                 for req in possibilities {
                     match req.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter) {

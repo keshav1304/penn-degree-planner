@@ -17,8 +17,28 @@ pub fn cross_degree_optimizer_applicable(degree_schools: &[String]) -> bool {
     degree_schools.len() >= 2 && degree_schools.iter().all(|s| !is_graduate_degree(s))
 }
 
+/// Overlap discovery whenever two or more degrees are selected (including grad↔undergrad).
+pub fn overlap_plan_applicable(degree_schools: &[String]) -> bool {
+    degree_schools.len() >= 2
+}
+
 fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
     *cu_map.get(course).unwrap_or(&1.0)
+}
+
+fn shared_undergrad_grad_cu(
+    claims: &HashMap<String, HashSet<usize>>,
+    degree_schools: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> f64 {
+    claims
+        .iter()
+        .filter(|(course, indices)| {
+            course::is_valid_course_code(course)
+                && crosses_undergrad_grad(course, indices, degree_schools)
+        })
+        .map(|(course, _)| lookup_course_cu(cu_map, course))
+        .sum()
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -262,7 +282,7 @@ fn violation_message(kind: &CrossDegreeViolationKind, course: &str) -> String {
             format!("{course} cannot overlap across multiple graduate degrees")
         }
         CrossDegreeViolationKind::UndergradGradCuCap => format!(
-            "{course} would exceed the {UNDERGRAD_GRAD_CU_LIMIT} CU undergrad→grad double-count limit"
+            "{course} would exceed the {UNDERGRAD_GRAD_CU_LIMIT} CU total undergrad↔masters double-count limit"
         ),
     }
 }
@@ -273,7 +293,6 @@ pub fn detect_violations(
     cu_map: &HashMap<String, f64>,
 ) -> Vec<CrossDegreeViolation> {
     let mut violations = Vec::new();
-    let mut undergrad_grad_cu = 0.0;
 
     for (course, degree_indices) in allocations {
         if !course::is_valid_course_code(course) {
@@ -304,39 +323,21 @@ pub fn detect_violations(
                 });
             }
         }
-
-        if crosses_undergrad_grad(course, degree_indices, degree_schools) {
-            undergrad_grad_cu += lookup_course_cu(cu_map, course);
-        }
     }
 
+    let undergrad_grad_cu = shared_undergrad_grad_cu(allocations, degree_schools, cu_map);
     if undergrad_grad_cu > UNDERGRAD_GRAD_CU_LIMIT + CU_EPS {
         violations.push(CrossDegreeViolation {
             course_id: String::new(),
             kind: CrossDegreeViolationKind::UndergradGradCuCap,
             message: format!(
-                "Undergraduate→graduate double-count budget exceeded ({undergrad_grad_cu:.1} / {UNDERGRAD_GRAD_CU_LIMIT} CU)"
+                "Undergraduate↔masters double-count budget exceeded ({undergrad_grad_cu:.1} / {UNDERGRAD_GRAD_CU_LIMIT} CU total across all degrees)"
             ),
             degree_indices: vec![],
         });
     }
 
     violations
-}
-
-fn shared_undergrad_grad_cu(
-    claims: &HashMap<String, HashSet<usize>>,
-    degree_schools: &[String],
-    cu_map: &HashMap<String, f64>,
-) -> f64 {
-    claims
-        .iter()
-        .filter(|(course, indices)| {
-            course::is_valid_course_code(course)
-                && crosses_undergrad_grad(course, indices, degree_schools)
-        })
-        .map(|(course, _)| lookup_course_cu(cu_map, course))
-        .sum()
 }
 
 fn choose_two_degree_indices(
@@ -435,11 +436,8 @@ pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String
                             .then_with(|| a.0.cmp(&b.0))
                     });
 
-                    let mut used = shared_undergrad_grad_cu(
-                        &state.claims,
-                        &state.degree_schools,
-                        cu_map,
-                    );
+                    let mut used =
+                        shared_undergrad_grad_cu(&state.claims, &state.degree_schools, cu_map);
                     while used > UNDERGRAD_GRAD_CU_LIMIT + CU_EPS {
                         let Some((course, cu)) = shared.pop() else {
                             break;
@@ -471,4 +469,3 @@ pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String
 
     state.rebuild_from_allocations(&state.claims.clone(), cu_map);
 }
-

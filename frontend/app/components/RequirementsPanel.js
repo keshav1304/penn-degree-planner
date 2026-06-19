@@ -15,6 +15,10 @@ import {
     coursesMatchingChildLeaf,
     createRequirementDescription,
     evaluateCourseGroupChildren,
+    courseGroupIsComplete,
+    itemEffectiveFulfilled,
+    formatCategoryProgress,
+    categoryProgressCounts,
     getAnyOfPossibilities,
     getCourseGroupAreaLabel,
     getRequirementInstanceId,
@@ -248,9 +252,13 @@ export default function RequirementsPanel({
     }
 
     const totalCount = allReqs.length;
-    const fulfilledCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled").length;
-    const plannedCount = allReqs.filter((r) => r.fulfilled && itemTone(r, frozenIds) === "frozen").length;
-    const partialCount = allReqs.filter((r) => itemTone(r, frozenIds) === "partial").length;
+    const fulfilledCount = allReqs.filter(
+        (r) => itemEffectiveFulfilled(r) && itemTone(r, frozenIds) === "fulfilled",
+    ).length;
+    const plannedCount = allReqs.filter((r) => itemTone(r, frozenIds) === "frozen").length;
+    const partialCount = allReqs.filter(
+        (r) => !itemEffectiveFulfilled(r) && itemTone(r, frozenIds) === "partial",
+    ).length;
     const remainingCount = totalCount - fulfilledCount - plannedCount - partialCount;
     const fulfilledPct = totalCount > 0 ? (fulfilledCount / totalCount) * 100 : 0;
     const plannedPct = totalCount > 0 ? (plannedCount / totalCount) * 100 : 0;
@@ -347,21 +355,17 @@ export default function RequirementsPanel({
                         if (!items.length && !pool) return null;
 
                         const poolStats = pool ? poolGroupStats(pool) : null;
-                        const done = items.filter((r) => r.fulfilled).length;
-                        const groupDone = poolStats
-                            ? poolStats.slotsFilled >= poolStats.slotsTotal
-                                && poolStats.covDone >= poolStats.covTotal
-                            : done === items.length;
+                        const groupStatusTone = computeGroupTone(items, pool, frozenIds);
                         const isCollapsed = (() => {
                             if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
                                 return false;
                             }
                             return collapsedGroups[cat] ?? true;
                         })();
-                        const groupClass = groupDone ? "req-group req-group-done" : "req-group";
+                        const groupClass = groupClassForTone(groupStatusTone);
                         const pillLabel = poolStats
                             ? `${poolStats.slotsFilled}/${poolStats.slotsTotal}`
-                            : `${done}/${items.length}`;
+                            : formatCategoryProgress(items);
 
                         return (
                             <div key={cat} className={groupClass}>
@@ -369,11 +373,11 @@ export default function RequirementsPanel({
                                     className="req-group-header"
                                     onClick={() => setCollapsedGroups((p) => ({ ...p, [cat]: !(p[cat] ?? true) }))}
                                 >
-                                    <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
-                                        {groupDone ? "✓" : "·"}
+                                    <span className={`req-group-badge ${badgeClassForGroupTone(groupStatusTone)}`}>
+                                        {groupBadgeIcon(groupStatusTone)}
                                     </span>
                                     <span className="req-group-name" title={cat}>{cat}</span>
-                                    <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
+                                    <span className={`req-group-pill ${pillClassForGroupTone(groupStatusTone)}`}>
                                         {pillLabel}
                                     </span>
                                     <span
@@ -481,11 +485,16 @@ function renderCasSuperSections({
 
         if (section.kind === "writing") {
             const items = section.items || [];
-            const groupDone = items.length > 0
-                && items.every((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled");
+            const groupStatusTone = computeGroupTone(items, null, frozenIds);
             return (
-                <div key={section.id} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
-                    {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, `${items.filter((r) => r.fulfilled).length}/${items.length}`)}
+                <div key={section.id} className={groupClassForTone(groupStatusTone)}>
+                    {renderSuperGroupHeader(
+                        section.title,
+                        groupStatusTone,
+                        isCollapsed,
+                        toggle,
+                        formatCategoryProgress(items),
+                    )}
                     {!isCollapsed && (
                         <div className="req-group-body">
                             {items.map((item, rowIdx) => renderRequirementItem(
@@ -507,12 +516,14 @@ function renderCasSuperSections({
             const pool = section.pool;
             const casProgress = casGenEd ? casGenEdProgress(casGenEd) : null;
             const poolStats = pool ? poolGroupStats(pool) : null;
-            const groupDone = casProgress
-                ? casProgress.done === casProgress.total
-                    && (!poolStats || poolStats.covDone >= poolStats.covTotal)
-                : poolStats
-                    ? poolStats.covDone >= poolStats.covTotal
-                    : false;
+            const genEdItems = casGenEd
+                ? [...(casGenEd.foundational_approaches || []), ...(casGenEd.sectors || [])].map((row) => ({
+                    fulfilled: row.fulfilled,
+                    fulfilledCourses: row.matched_courses || [],
+                    requirement: row.name,
+                }))
+                : [];
+            const groupStatusTone = computeGroupTone(genEdItems, pool, frozenIds);
             const pillLabel = casProgress
                 ? `${casProgress.done}/${casProgress.total}`
                 : poolStats
@@ -524,8 +535,8 @@ function renderCasSuperSections({
                 : degreeLabel;
 
             return (
-                <div key={section.id} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
-                    {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, pillLabel)}
+                <div key={section.id} className={groupClassForTone(groupStatusTone)}>
+                    {renderSuperGroupHeader(section.title, groupStatusTone, isCollapsed, toggle, pillLabel)}
                     {!isCollapsed && (
                         <div className="req-group-body">
                             {casGenEd ? (
@@ -573,27 +584,23 @@ function renderCasSuperSections({
         if (section.kind === "major") {
             const { categoryMap, orderedCategories, degreeIndex } = section;
             const majorItems = orderedCategories.flatMap((cat) => categoryMap[cat] || []);
-            const majorDone = majorItems.length > 0
-                && majorItems.every((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled");
-            const majorPartial = majorItems.some((r) => itemTone(r, frozenIds) === "partial");
-            const majorFulfilled = majorItems.filter((r) => r.fulfilled).length;
+            const majorTone = computeGroupTone(majorItems, null, frozenIds);
 
             return (
                 <div
                     key={section.id}
-                    className={`req-major-section ${majorDone ? "req-major-section-done" : ""}`}
+                    className={`req-major-section ${majorSectionClassForTone(majorTone)}`}
                 >
                     {renderMajorSectionTitle(
                         section.title,
-                        majorDone && !majorPartial,
-                        `${majorFulfilled}/${majorItems.length}`,
+                        majorTone,
+                        formatCategoryProgress(majorItems),
                     )}
                     <div className="req-major-body">
                         {orderedCategories.map((cat) => {
                             const items = categoryMap[cat] || [];
                             if (!items.length) return null;
-                            const done = items.filter((r) => r.fulfilled).length;
-                            const groupDone = done === items.length;
+                            const groupStatusTone = computeGroupTone(items, null, frozenIds);
                             const innerCollapsed = (() => {
                                 if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
                                     return false;
@@ -602,7 +609,7 @@ function renderCasSuperSections({
                             })();
 
                             return (
-                                <div key={cat} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
+                                <div key={cat} className={groupClassForTone(groupStatusTone)}>
                                     <div
                                         className="req-group-header"
                                         onClick={() => setCollapsedGroups((p) => ({
@@ -610,12 +617,12 @@ function renderCasSuperSections({
                                             [cat]: !(p[cat] ?? true),
                                         }))}
                                     >
-                                        <span className={`req-group-badge ${groupDone ? "badge-done" : "badge-pending"}`}>
-                                            {groupDone ? "✓" : "·"}
+                                        <span className={`req-group-badge ${badgeClassForGroupTone(groupStatusTone)}`}>
+                                            {groupBadgeIcon(groupStatusTone)}
                                         </span>
                                         <span className="req-group-name" title={cat}>{cat}</span>
-                                        <span className={`req-group-pill ${groupDone ? "pill-done" : "pill-pending"}`}>
-                                            {done}/{items.length}
+                                        <span className={`req-group-pill ${pillClassForGroupTone(groupStatusTone)}`}>
+                                            {formatCategoryProgress(items)}
                                         </span>
                                         <span
                                             className={`req-group-chevron${innerCollapsed ? "" : " req-group-chevron-open"}`}
@@ -648,15 +655,15 @@ function renderCasSuperSections({
     });
 }
 
-function renderSuperGroupHeader(title, done, isCollapsed, onToggle, pillLabel) {
+function renderSuperGroupHeader(title, tone, isCollapsed, onToggle, pillLabel) {
     return (
         <div className="req-group-header" onClick={onToggle}>
-            <span className={`req-group-badge ${done ? "badge-done" : "badge-pending"}`}>
-                {done ? "✓" : "·"}
+            <span className={`req-group-badge ${badgeClassForGroupTone(tone)}`}>
+                {groupBadgeIcon(tone)}
             </span>
             <span className="req-group-name">{title}</span>
             {pillLabel && (
-                <span className={`req-group-pill ${done ? "pill-done" : "pill-pending"}`}>
+                <span className={`req-group-pill ${pillClassForGroupTone(tone)}`}>
                     {pillLabel}
                 </span>
             )}
@@ -670,12 +677,12 @@ function renderSuperGroupHeader(title, done, isCollapsed, onToggle, pillLabel) {
     );
 }
 
-function renderMajorSectionTitle(title, done, pillLabel) {
+function renderMajorSectionTitle(title, tone, pillLabel) {
     return (
         <div className="req-major-title">
             <span className="req-major-title-text">{title}</span>
             {pillLabel && (
-                <span className={`req-group-pill ${done ? "pill-done" : "pill-pending"}`}>
+                <span className={`req-group-pill ${pillClassForGroupTone(tone)}`}>
                     {pillLabel}
                 </span>
             )}
@@ -695,20 +702,87 @@ function itemHasFrozenCourse(courses, frozenIds) {
     return courses.some((c) => frozenIds.has(c));
 }
 
+function requirementHasFrozenCourse(item, frozenIds) {
+    if (itemHasFrozenCourse(collectFulfillingCourses(item), frozenIds)) return true;
+
+    if (isExpandableCourseGroup(item.requirement)) {
+        return evaluateCourseGroupChildren(item).some(
+            ({ fulfilledCourses, tone }) =>
+                tone !== "open" && itemHasFrozenCourse(fulfilledCourses, frozenIds),
+        );
+    }
+
+    if (isExpandableAnyOf(item.requirement)) {
+        return getAnyOfPossibilities(item.requirement).some((childReq, childIdx) => {
+            const child = makeAnyOfChildItem(item, childReq, childIdx);
+            if (!child.fulfilled && !child.partial) return false;
+            return itemHasFrozenCourse(collectFulfillingCourses(child), frozenIds);
+        });
+    }
+
+    return false;
+}
+
 function itemTone(item, frozenIds) {
+    if (isExpandableCourseGroup(item.requirement)) {
+        if (requirementHasFrozenCourse(item, frozenIds)) return "frozen";
+        if (!courseGroupIsComplete(item)) {
+            const hasProgress = evaluateCourseGroupChildren(item).some((row) => row.tone !== "open");
+            return hasProgress ? "partial" : "open";
+        }
+        return "fulfilled";
+    }
+
     if (item.partial && collectFulfillingCourses(item).length > 0) return "partial";
     if (!item.fulfilled) return "open";
-    if (itemHasFrozenCourse(collectFulfillingCourses(item), frozenIds)) return "frozen";
+    if (requirementHasFrozenCourse(item, frozenIds)) return "frozen";
     return "fulfilled";
 }
 
-function groupTone(items, frozenIds) {
-    const done = items.filter((r) => r.fulfilled).length;
-    const partial = items.some((r) => itemTone(r, frozenIds) === "partial");
-    if (partial) return "incomplete";
-    if (done !== items.length) return "incomplete";
-    if (items.some((item) => itemTone(item, frozenIds) === "frozen")) return "frozen";
+function computeGroupTone(items, pool, frozenIds) {
+    const poolStats = pool ? poolGroupStats(pool) : null;
+    const slotsOk = !poolStats || poolStats.slotsFilled >= poolStats.slotsTotal;
+    const covOk = !poolStats || poolStats.covDone >= poolStats.covTotal;
+
+    if (items.some((item) => requirementHasFrozenCourse(item, frozenIds))) return "frozen";
+    if ((pool?.constraints || []).some(
+        (c) => itemHasFrozenCourse(c.matched_courses || [], frozenIds),
+    )) return "frozen";
+
+    const allComplete = items.length === 0 || items.every((item) => itemEffectiveFulfilled(item));
+    if (!allComplete || !slotsOk || !covOk) return "incomplete";
+    if (items.some((item) => itemTone(item, frozenIds) === "partial")) return "incomplete";
     return "fulfilled";
+}
+
+function groupClassForTone(tone) {
+    if (tone === "fulfilled") return "req-group req-group-done";
+    if (tone === "frozen") return "req-group req-group-planned";
+    return "req-group";
+}
+
+function majorSectionClassForTone(tone) {
+    if (tone === "fulfilled") return "req-major-section-done";
+    if (tone === "frozen") return "req-major-section-planned";
+    return "";
+}
+
+function badgeClassForGroupTone(tone) {
+    if (tone === "fulfilled") return "badge-done";
+    if (tone === "frozen") return "badge-planned";
+    return "badge-pending";
+}
+
+function pillClassForGroupTone(tone) {
+    if (tone === "fulfilled") return "pill-done";
+    if (tone === "frozen") return "pill-planned";
+    return "pill-pending";
+}
+
+function groupBadgeIcon(tone) {
+    if (tone === "fulfilled") return "✓";
+    if (tone === "frozen") return "◐";
+    return "·";
 }
 
 function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet, partialTone }) {
@@ -905,6 +979,7 @@ function choiceGroupHeaderLabel(requirement) {
 }
 
 function requirementStatusIcon(item, tone) {
+    if (tone === "frozen") return "◐";
     if (item.fulfilled) return "✓";
     if (item.partial || tone === "partial") return "◐";
     return "○";
@@ -986,19 +1061,28 @@ function renderCourseGroup(parentItem, idx, scheduleCtx, isFirst, degreeIndex, f
             <div className="req-choice-children">
                 {areaRows.map(({ childReq, childIdx, fulfilledCourses, tone }) => {
                     const childRowId = reqRowDomId(degreeIndex, `${parentItem.instanceId ?? idx}::${childIdx}`);
+                    const childItem = {
+                        fulfilled: tone === "fulfilled",
+                        partial: tone === "partial",
+                        fulfilledCourses,
+                        requirement: childReq,
+                    };
+                    const childTone = tone === "open"
+                        ? "open"
+                        : itemTone(childItem, scheduleCtx.frozenIds);
                     return (
                         <div
                             key={childRowId}
                             id={childRowId}
-                            className={`req-item req-item--${tone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
+                            className={`req-item req-item--${childTone} req-anyof-child ${flashRowId === childRowId ? "req-row-flash" : ""}`}
                         >
-                            <span className={`req-item-icon icon-${tone}`}>
-                                {tone === "fulfilled" ? "✓" : tone === "partial" ? "◐" : "•"}
+                            <span className={`req-item-icon icon-${childTone}`}>
+                                {childTone === "fulfilled" ? "✓" : childTone === "partial" ? "◐" : childTone === "frozen" ? "◐" : "•"}
                             </span>
                             <div className="req-item-body">
                                 {renderCourseGroupAreaLine(
                                     childReq,
-                                    tone,
+                                    childTone,
                                     fulfilledCourses,
                                     scheduleCtx,
                                 )}

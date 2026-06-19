@@ -14,7 +14,7 @@ use proptest::prelude::*;
 use crate::course;
 use crate::cross_degree::{
     self, crosses_undergrad_grad, cross_degree_optimizer_applicable, enforce_claim_rules,
-    is_graduate_degree,
+    is_graduate_degree, overlap_plan_applicable,
     CrossDegreeState, CrossDegreeViolationKind, UNDERGRAD_GRAD_CU_LIMIT,
 };
 use crate::major::{self, resolve_major};
@@ -863,13 +863,14 @@ mod cross_degree_sharing {
     }
 
     #[test]
-    fn overlap_optimizer_skipped_for_undergrad_plus_grad() {
+    fn overlap_plan_applies_to_undergrad_plus_grad() {
         use crate::overlap_planner::is_overlap_schedule_group_id;
         use crate::scheduler::{dual_undergrad_only, generate_schedule, DegreeInput, ScheduleInput};
 
         let schools = vec!["SEAS".into(), "SEAS_MS".into()];
         assert!(!dual_undergrad_only(&schools));
         assert!(!cross_degree_optimizer_applicable(&schools));
+        assert!(overlap_plan_applicable(&schools));
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -892,17 +893,141 @@ mod cross_degree_sharing {
             semester_cu_limits: None,
         });
         assert!(output.error.is_none());
-        assert!(output.overlap_plan.is_none());
-        assert!(output.overlap_schedule_groups.is_empty());
-        assert!(output.cross_degree_summary.is_some());
-        let has_overlap_blocks = output.schedule.iter().any(|plan| {
-            plan.requirement_slots
-                .iter()
-                .any(|slot| is_overlap_schedule_group_id(slot))
-        });
         assert!(
-            !has_overlap_blocks,
-            "grad mixes must not produce paired overlap requirement blocks"
+            output.overlap_plan.is_some(),
+            "EE + MS_EE should still discover grad↔undergrad overlaps"
+        );
+        assert!(output.cross_degree_summary.is_some());
+    }
+
+    #[test]
+    fn undergrad_grad_cap_is_global_across_all_undergrad_degrees() {
+        let schools = vec!["SEAS".into(), "WH".into(), "SEAS_MS".into()];
+        let majors = vec!["EE".into(), "WH_NOFL_MT".into(), "MS_ROBO".into()];
+        let mut state = CrossDegreeState::new(schools.clone(), majors);
+        let cu = sample_cu_map();
+        // EE↔MS and WH↔MS each add 1 CU — total 4 CU exceeds global 3 CU cap
+        for c in ["CIS 5190", "BEPP 2500", "FNCE 1010", "MGMT 2370"] {
+            if c.starts_with("CIS") {
+                state.register_claim(c, 0, &cu);
+                state.register_claim(c, 2, &cu);
+            } else {
+                state.register_claim(c, 1, &cu);
+                state.register_claim(c, 2, &cu);
+            }
+        }
+        enforce_claim_rules(&mut state, &cu);
+        let shared: f64 = state
+            .claims
+            .iter()
+            .filter(|(course, idx)| crosses_undergrad_grad(course, idx, &schools))
+            .map(|(course, _)| cu.get(course.as_str()).copied().unwrap_or(1.0))
+            .sum();
+        assert!(
+            shared <= UNDERGRAD_GRAD_CU_LIMIT + CU_EPS,
+            "total undergrad↔masters CU should be capped at 3, got {shared}"
+        );
+    }
+
+    #[test]
+    fn ee_wh_nofl_mt_with_ms_robo_still_surfaces_undergrad_overlaps() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec!["Robotics".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "MS_ROBO".into(),
+                    school: "SEAS_MS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+
+        assert!(output.error.is_none());
+        assert!(
+            !cross_degree_optimizer_applicable(&["SEAS".into(), "WH".into(), "SEAS_MS".into()]),
+            "grad mix disables full optimizer"
+        );
+        assert!(overlap_plan_applicable(&[
+            "SEAS".into(),
+            "WH".into(),
+            "SEAS_MS".into()
+        ]));
+
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(
+            plan.pairs.iter().any(|pair| {
+                pair.slots.iter().any(|s| s.school == "SEAS_MS")
+                    && pair.slots.iter().any(|s| s.school == "SEAS" || s.school == "WH")
+            }),
+            "expected at least one grad↔undergrad overlap pair; pairs: {:?}",
+            plan.pairs
+        );
+        let suggested: Vec<&String> = plan
+            .opportunities
+            .iter()
+            .flat_map(|o| o.suggested_courses.iter())
+            .collect();
+        assert!(
+            suggested.iter().any(|c| *c == "BEPP 2500"),
+            "expected BEPP 2500 EE+WH overlap; opportunities: {:?}",
+            plan.opportunities
+        );
+        assert!(
+            suggested.iter().any(|c| *c == "ESE 3010"),
+            "expected ESE 3010 EE+WH overlap; opportunities: {:?}",
+            plan.opportunities
+        );
+
+        let scheduled_courses: Vec<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|sem| sem.courses.iter().map(String::as_str))
+            .collect();
+        assert!(
+            scheduled_courses.contains(&"BEPP 2500"),
+            "BEPP 2500 should appear as shared undergrad course; courses: {:?}",
+            scheduled_courses
+        );
+        assert!(
+            scheduled_courses.contains(&"MATH 1400"),
+            "MATH 1400 should appear as shared undergrad course; courses: {:?}",
+            scheduled_courses
+        );
+
+        let group_explanations: Vec<&str> = output
+            .overlap_schedule_groups
+            .iter()
+            .map(|g| g.explanation.as_str())
+            .collect();
+        assert!(
+            group_explanations.iter().any(|e| {
+                e.contains("EE") && e.contains("WH_NOFL_MT") && e.contains("General Electives")
+            }),
+            "EE+WH general elective overlap should appear; groups: {:?}",
+            group_explanations
+        );
+        assert!(
+            !group_explanations.iter().any(|e| e.contains("BEPP 2500")),
+            "BEPP 2500 should be a course card, not dashed overlap block; groups: {:?}",
+            group_explanations
         );
     }
 }
@@ -1102,10 +1227,9 @@ mod overlap {
             .collect();
         assert!(
             group_explanations.iter().any(|e| {
-                (e.contains("Humanities") || e.contains("Social Science"))
-                    && e.contains("General Electives")
+                e.contains("EE") && e.contains("WH_NOFL_MT") && e.contains("General Electives")
             }),
-            "schedule should group humanities/social science overlap; groups: {:?}",
+            "schedule should group EE+WH general elective overlap; groups: {:?}",
             group_explanations
         );
 

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::course;
-use crate::cross_degree::{cross_degree_optimizer_applicable, CrossDegreeState};
+use crate::cross_degree::{overlap_plan_applicable, CrossDegreeState};
 use crate::major::Major;
 use crate::penn_data::college_data;
 use crate::penn_data::{attributes_data, courses_data};
@@ -873,7 +873,7 @@ pub fn compute_overlap_plan(
     cross_state: &CrossDegreeState,
     cu_map: &HashMap<String, f64>,
 ) -> OverlapPlan {
-    if !cross_degree_optimizer_applicable(degree_schools) {
+    if !overlap_plan_applicable(degree_schools) {
         return OverlapPlan::empty();
     }
 

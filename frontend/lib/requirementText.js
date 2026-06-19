@@ -237,14 +237,65 @@ export function evaluateCourseGroupChildren(parent) {
   return children.map((childReq, childIdx) => {
     const fulfilledCourses = coursesMatchingChildLeaf(childReq, parentCourses);
     const hasMatch = fulfilledCourses.length > 0;
+    const creditedArea = credited.has(childIdx);
     let tone = "open";
-    if (parent.fulfilled) {
-      tone = credited.has(childIdx) ? "fulfilled" : "open";
+    if (creditedArea) {
+      tone = "fulfilled";
     } else if (hasMatch) {
       tone = "partial";
     }
-    return { childReq, childIdx, fulfilledCourses, tone };
+    return { childReq, childIdx, fulfilledCourses, tone, credited: creditedArea };
   });
+}
+
+/** Number of areas credited toward a CourseGroup's N-of requirement. */
+export function courseGroupCreditedCount(parent) {
+  return evaluateCourseGroupChildren(parent).filter((row) => row.credited).length;
+}
+
+/** Required number of areas for a CourseGroup (defaults to 1). */
+export function courseGroupNeedCount(parent) {
+  const { type, data } = parseRequirement(parent.requirement);
+  if (type !== "CourseGroup") return 1;
+  return data.number ?? 1;
+}
+
+/** Whether enough areas are credited to satisfy the CourseGroup. */
+export function courseGroupIsComplete(parent) {
+  return courseGroupCreditedCount(parent) >= courseGroupNeedCount(parent);
+}
+
+/** True when a requirement row is satisfied (CourseGroup uses credited areas, not API flag). */
+export function itemEffectiveFulfilled(item) {
+  if (isExpandableCourseGroup(item.requirement)) {
+    return courseGroupIsComplete(item);
+  }
+  return item.fulfilled;
+}
+
+/**
+ * Progress in "slots" for a category list.
+ * CourseGroup rows contribute N credits (e.g. 2/3 areas); other rows count as 1 each.
+ */
+export function categoryProgressCounts(items) {
+  let done = 0;
+  let total = 0;
+  for (const item of items || []) {
+    const { type, data } = parseRequirement(item.requirement);
+    if (type === "CourseGroup" && (data.possibilities?.length ?? 0) > 0) {
+      done += courseGroupCreditedCount(item);
+      total += courseGroupNeedCount(item);
+    } else {
+      total += 1;
+      if (itemEffectiveFulfilled(item)) done += 1;
+    }
+  }
+  return { done, total };
+}
+
+export function formatCategoryProgress(items) {
+  const { done, total } = categoryProgressCounts(items);
+  return `${done}/${total}`;
 }
 
 function courseMeetsRestriction(courseId, data, attrMap) {
@@ -462,8 +513,8 @@ function buildAnyOfCategorySlotId(category, scope) {
 function matchesSlotId(req, slotId) {
   if (!req || !slotId) return false;
   const { type, data } = parseRequirement(req);
-  if (slotId.startsWith("req:BB:") && type === "AnyOf") {
-    return isBusinessBreadthCategory(data.category) && businessBreadthSlotId(data.category) === slotId;
+  if (isBusinessBreadthSlotId(slotId) && type === "AnyOf") {
+    return isBusinessBreadthCategory(data.category);
   }
   if (type === "SingleCourse") {
     return slotIdMatchesScopedFingerprint(
@@ -521,9 +572,15 @@ function slotScopeSlug(s) {
   return String(s).replace(/[^a-zA-Z0-9]/g, "_");
 }
 
+const BB_SLOT_FINGERPRINT = "BB:Business_Breadth";
+
 /** Must stay in sync with Rust `business_breadth_slot_id`. */
-export function businessBreadthSlotId(category) {
-  return `req:BB:${slotScopeSlug(category)}`;
+export function businessBreadthSlotId(scope) {
+  return scope ? `req:${scope}:${BB_SLOT_FINGERPRINT}` : `req:${BB_SLOT_FINGERPRINT}`;
+}
+
+function isBusinessBreadthSlotId(slotId) {
+  return typeof slotId === "string" && slotId.includes(":BB:Business_Breadth");
 }
 
 /** Must stay in sync with Rust `requirement_slot_id(scope)`. */
@@ -541,18 +598,17 @@ function isBusinessBreadthCategory(category) {
   return typeof category === "string" && category.toLowerCase().includes("business breadth");
 }
 
-function businessBreadthScheduleLabel(category) {
-  if (category === "Business Breadth") return "1 WH Business Breadth";
-  return `1 WH ${category}`;
+function businessBreadthScheduleLabel() {
+  return "WH Business Breadth";
 }
 
-/** Business breadth slots use short labels like "1 WH Business Breadth". */
+/** Business breadth slots use short labels like "WH Business Breadth". */
 export function businessBreadthLabelForSlot(req, slotId) {
   if (!req || !slotId) return null;
   const { type, data } = parseRequirement(req);
   if (type === "AnyOf" && isBusinessBreadthCategory(data.category)) {
-    if (businessBreadthSlotId(data.category) === slotId) {
-      return businessBreadthScheduleLabel(data.category);
+    if (isBusinessBreadthSlotId(slotId)) {
+      return businessBreadthScheduleLabel();
     }
   }
   if (type === "AllOf" || type === "Concentration") {
@@ -612,7 +668,7 @@ export function getRequirementInstanceId(mappedOrItem) {
   if (!req) return "unknown";
   const { type, data } = parseRequirement(req);
   if (type === "AnyOf" && isBusinessBreadthCategory(data.category)) {
-    return businessBreadthSlotId(data.category);
+    return businessBreadthSlotId(mappedOrItem?.instance_id);
   }
   return getRequirementLabel(req);
 }
