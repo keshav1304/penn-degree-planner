@@ -81,45 +81,55 @@ function addCourseToDegreeMap(degMap, courseId, degreeLabel) {
     if (!degMap[courseId].includes(degreeLabel)) degMap[courseId].push(degreeLabel);
 }
 
-export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
-    const degMap = {};
-    if (summary?.course_allocations) {
-        const labelForIndex = (degreeIndex) => {
-            const result = degreeResults[degreeIndex];
-            if (!result) return null;
-            return `${result.school}-${result.major}`;
-        };
+function labelForDegreeResult(result) {
+    return `${result.school}-${result.major}`;
+}
 
-        Object.entries(summary.course_allocations).forEach(([courseId, allocs]) => {
-            allocs.forEach((alloc) => {
-                const label =
-                    alloc.school && alloc.major
-                        ? `${alloc.school}-${alloc.major}`
-                        : labelForIndex(alloc.degree_index);
-                if (!label) return;
-                addCourseToDegreeMap(degMap, courseId, label);
+function labelForAllocation(alloc, degreeResults) {
+    if (alloc.school && alloc.major) {
+        return `${alloc.school}-${alloc.major}`;
+    }
+    const result = degreeResults[alloc.degree_index];
+    return result ? labelForDegreeResult(result) : null;
+}
+
+function buildCourseMapFromDegreeResults(degreeResults = []) {
+    const degMap = {};
+    degreeResults.forEach((result) => {
+        const degreeLabel = labelForDegreeResult(result);
+        const addCourses = (mapped) => {
+            mapped.course_ids?.forEach((id) => {
+                if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
+            });
+        };
+        result.fulfilled_requirements?.forEach(addCourses);
+        result.suggested_for_unfulfilled?.forEach(addCourses);
+        result.unfulfilled_requirements?.forEach((mapped) => {
+            if (mapped.partial) addCourses(mapped);
+        });
+        result.concentration_info?.forEach((ci) => {
+            if (ci.is_core) return;
+            (ci.matched_courses || []).flat().forEach((id) => {
+                if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
             });
         });
-    } else {
-        // Single-degree (or pre-allocation): every course in degree_results belongs to that degree.
-        degreeResults.forEach((result) => {
-            const degreeLabel = `${result.school}-${result.major}`;
-            const addCourses = (mapped) => {
-                mapped.course_ids?.forEach((id) => {
-                    if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
-                });
-            };
-            result.fulfilled_requirements?.forEach(addCourses);
-            result.suggested_for_unfulfilled?.forEach(addCourses);
-            result.unfulfilled_requirements?.forEach((mapped) => {
-                if (mapped.partial) addCourses(mapped);
+    });
+    return degMap;
+}
+
+export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
+    const degMap = buildCourseMapFromDegreeResults(degreeResults);
+
+    // Authoritative for shared / resolved courses when the backend tracked allocations.
+    if (summary?.course_allocations) {
+        Object.entries(summary.course_allocations).forEach(([courseId, allocs]) => {
+            if (!isValidCourseCode(courseId)) return;
+            const labels = [];
+            allocs.forEach((alloc) => {
+                const label = labelForAllocation(alloc, degreeResults);
+                if (label && !labels.includes(label)) labels.push(label);
             });
-            result.concentration_info?.forEach((ci) => {
-                if (ci.is_core) return;
-                (ci.matched_courses || []).flat().forEach((id) => {
-                    if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
-                });
-            });
+            if (labels.length) degMap[courseId] = labels;
         });
     }
 
