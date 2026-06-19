@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import appIcon from "./icon.png";
+import appIcon from "./logo.png";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
