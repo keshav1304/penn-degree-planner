@@ -1070,7 +1070,7 @@ select {
 }
 
 .req-row-flash {
-  animation: reqRowFlash 2s ease-out;
+  animation: reqRowFlash 2s ease-out forwards;
 }
 
 @keyframes reqRowFlash {
@@ -1079,7 +1079,7 @@ select {
     box-shadow: inset 0 0 0 2px rgba(5, 150, 105, 0.45);
   }
   100% {
-    background: transparent;
+    background: var(--req-row-rest-bg, transparent);
     box-shadow: none;
   }
 }
@@ -1535,6 +1535,8 @@ select {
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   font-size: var(--req-font-body);
   transition: background var(--transition);
+  --req-row-rest-bg: transparent;
+  background: var(--req-row-rest-bg);
 }
 
 .req-item-first,
@@ -1543,15 +1545,19 @@ select {
 }
 
 .req-item--fulfilled {
-  background: rgba(22, 163, 74, 0.04);
+  --req-row-rest-bg: rgba(22, 163, 74, 0.04);
 }
 
 .req-item--partial {
-  background: rgba(59, 130, 246, 0.06);
+  --req-row-rest-bg: rgba(59, 130, 246, 0.06);
 }
 
 .req-item--frozen {
-  background: var(--accent-amber-dim);
+  --req-row-rest-bg: var(--accent-amber-dim);
+}
+
+.req-item--open {
+  --req-row-rest-bg: transparent;
 }
 
 .req-item-icon {
@@ -1609,6 +1615,7 @@ select {
 .req-anyof-block {
   display: flex;
   flex-direction: column;
+  --req-row-rest-bg: transparent;
 }
 
 .req-choice-header {
