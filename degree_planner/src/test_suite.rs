@@ -1874,6 +1874,68 @@ mod dual_degree_properties {
     }
 
     #[test]
+    fn cas_single_econ_gen_ed_capped_at_twelve_with_unrestricted_electives() {
+        use crate::penn_data::college_data::{
+            cas_gened_pool, cas_major_pool_major_cu, create_econ_major, CAS_DEGREE_CU,
+        };
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let major = create_econ_major();
+        let major_cu = cas_major_pool_major_cu(&major);
+        let (pool_idx, _) = cas_gened_pool(&major).expect("gen-ed pool");
+        let gen_ed_flex = match &major.requirements[pool_idx] {
+            crate::requirement::Requirement::CoursePool { flexible_slots, .. } => *flexible_slots,
+            _ => panic!("expected pool"),
+        };
+        let unrestricted: i32 = major
+            .requirements
+            .iter()
+            .filter(|req| req.get_category() == "Unrestricted Electives")
+            .count() as i32;
+
+        assert!(gen_ed_flex <= 12, "gen-ed flex should cap at 12, got {gen_ed_flex}");
+        assert!(
+            unrestricted > 0,
+            "expected unrestricted electives beyond 12 gen-ed slots"
+        );
+        assert_eq!(
+            1 + major_cu + gen_ed_flex + unrestricted,
+            CAS_DEGREE_CU,
+            "CAS degree should total 36 CU"
+        );
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "ECON".into(),
+                school: "CAS".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let gen_ed_slots: usize = output
+            .schedule
+            .iter()
+            .flat_map(|p| p.requirement_slots.iter())
+            .filter(|s| {
+                output
+                    .slot_labels
+                    .get(s.as_str())
+                    .is_some_and(|l| l == "1 CU from General Education")
+            })
+            .count();
+        assert!(
+            gen_ed_slots <= 12,
+            "single CAS ECON should schedule at most 12 gen-ed slots, got {gen_ed_slots}"
+        );
+    }
+
+    #[test]
     fn seas_ee_cas_econ_gen_ed_slots_capped_at_twelve() {
         let output = generate_schedule(dual_degree_input("SEAS", "EE", "CAS", "ECON"));
         assert!(output.error.is_none(), "{:?}", output.error);

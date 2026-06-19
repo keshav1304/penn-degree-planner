@@ -473,25 +473,44 @@ fn requirement_slot_cu(req: &Requirement) -> i32 {
     }
 }
 
+fn cas_unrestricted_elective() -> Requirement {
+    Requirement::Restriction {
+        category: Some("Unrestricted Electives".to_string()),
+        department: None,
+        cu: None,
+        level: None,
+        attr: None,
+        excluding: None,
+        number: 1,
+        no_school: None,
+    }
+}
+
 /// Assemble a full CAS degree using a shared course pool for major + electives + gen-ed coverage.
 pub fn create_cas_major(config: CasMajorConfig) -> Major {
     let major_cu: i32 = config.major_requirements.iter().map(requirement_slot_cu).sum();
-    let flexible_slots = (CAS_DEGREE_CU - 1 - major_cu).max(0);
+    let gen_ed_cap = cas_gened_requirement_row_count() as i32;
+    let total_remaining = (CAS_DEGREE_CU - 1 - major_cu).max(0);
+    let gen_ed_flex = total_remaining.min(gen_ed_cap);
+    let unrestricted_count = total_remaining - gen_ed_flex;
     let auto_completed_sectors = if config.auto_completed_sectors.is_empty() {
         cas_default_auto_completed_sectors(&config.short_name)
     } else {
         config.auto_completed_sectors
     };
 
-    let requirements = vec![
+    let mut requirements = vec![
         cas_writing_requirement(),
         Requirement::CoursePool {
             category: Some("General Education".to_string()),
             fixed_slots: config.major_requirements,
-            flexible_slots,
+            flexible_slots: gen_ed_flex,
             constraints: cas_pool_constraints(&auto_completed_sectors),
         },
     ];
+    for _ in 0..unrestricted_count {
+        requirements.push(cas_unrestricted_elective());
+    }
 
     let mut schedule_hints = config.schedule_hints;
     schedule_hints.insert("0".to_string(), Y1F.into());
