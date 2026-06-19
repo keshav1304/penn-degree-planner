@@ -881,7 +881,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 Some(&per_degree_validation[degree_idx]),
             );
 
-            // Available concentration names
             let available_concs: Vec<String> = major_data.concentrations.as_ref()
                 .map(|m| m.keys().cloned().collect())
                 .unwrap_or_default();

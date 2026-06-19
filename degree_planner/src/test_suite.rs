@@ -670,6 +670,30 @@ mod pools_and_concentrations {
     }
 
     #[test]
+    fn wh_concentration_names_are_short_codes_and_exclude_oidd() {
+        use crate::penn_data::wharton_data::{
+            concentration_names, create_wh_concentrations, resolve_wh_concentration_key,
+        };
+
+        let catalog = create_wh_concentrations();
+        assert!(!catalog.contains_key("OIDD"));
+        assert!(catalog.contains_key("MAOM"));
+        assert_eq!(catalog.len(), 8);
+
+        let names = concentration_names();
+        assert!(names.contains(&"FNCE".to_string()));
+        assert!(names.contains(&"STAT".to_string()));
+        assert!(names.contains(&"MAOM".to_string()));
+        assert!(!names.iter().any(|n| n == "OIDD"));
+
+        assert_eq!(
+            resolve_wh_concentration_key("Marketing & Operations Management"),
+            Some("MAOM".to_string())
+        );
+        assert_eq!(resolve_wh_concentration_key("OIDD"), None);
+    }
+
+    #[test]
     fn concentration_tracker_reflects_wh_mt_progress() {
         let major = resolve_major("WH", "WH_NOFL_MT", &["FNCE".into()]).expect("WH_NOFL_MT");
         let cu_map = catalog_cu_map();
@@ -691,7 +715,7 @@ mod pools_and_concentrations {
         assert!(!info.is_empty());
         let fnce = info
             .iter()
-            .find(|c| c.name.contains("FNCE") || c.name.contains("Finance"))
+            .find(|c| c.name == "FNCE")
             .expect("FNCE concentration tracker");
         assert!(fnce.requirements_fulfilled > 0);
     }

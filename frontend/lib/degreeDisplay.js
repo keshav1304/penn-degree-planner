@@ -1,5 +1,28 @@
 /** @typedef {{ schoolCode?: string, majorCode?: string, displaySchool?: string, displayMajor?: string, concentration?: string | null, concentrations?: string[] }} DegreeEntry */
 
+const WH_CONCENTRATION_DROPDOWN_LABELS = {
+    ACCT: "Accounting",
+    BEPP: "Business Economics and Public Policy",
+    BUAN: "Business Analytics",
+    FNCE: "Finance",
+    MAOM: "Marketing & Operations Management",
+    MGMT: "Management",
+    MKTG: "Marketing",
+    STAT: "Statistics and Data Science",
+};
+
+/** Wharton concentration picker only: "Finance (FNCE)". */
+export function formatWhConcentrationDropdownLabel(code) {
+    if (!code) return "";
+    const full = WH_CONCENTRATION_DROPDOWN_LABELS[code];
+    return full ? `${full} (${code})` : code;
+}
+
+export function formatConcentrationDropdownLabel(code, schoolCode) {
+    if (schoolCode === "WH") return formatWhConcentrationDropdownLabel(code);
+    return code || "";
+}
+
 export function normalizeConcentrations(list) {
     return [...new Set((list || []).filter((c) => c && c !== "None"))];
 }

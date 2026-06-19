@@ -152,7 +152,31 @@ fn wh_fl_mt_las_pool() -> Requirement {
 }
 
 pub fn concentration_names() -> Vec<String> {
-    create_wh_concentrations().keys().cloned().collect()
+    let mut names: Vec<String> = create_wh_concentrations().keys().cloned().collect();
+    names.sort();
+    names
+}
+
+/// Resolve a catalog key from the key itself or legacy UI labels.
+pub fn resolve_wh_concentration_key(input: &str) -> Option<String> {
+    let catalog = create_wh_concentrations();
+    if catalog.contains_key(input) {
+        return Some(input.to_string());
+    }
+    let legacy = match input {
+        "Marketing & Operations Management" => Some("MAOM"),
+        "Accounting" => Some("ACCT"),
+        "Business Economics and Public Policy" => Some("BEPP"),
+        "Business Analytics" => Some("BUAN"),
+        "Finance" => Some("FNCE"),
+        "Management" => Some("MGMT"),
+        "Marketing" => Some("MKTG"),
+        "Statistics and Data Science" => Some("STAT"),
+        _ => None,
+    };
+    legacy
+        .filter(|k| catalog.contains_key(*k))
+        .map(|k| k.to_string())
 }
 
 fn wh_single_course_options(codes: &[&str]) -> Vec<Requirement> {
@@ -166,7 +190,7 @@ fn wh_single_course_options(codes: &[&str]) -> Vec<Requirement> {
 }
 
 fn wh_marketing_operations_management_requirements() -> Vec<Requirement> {
-    let category = "Concentration - Marketing & Operations Management";
+    let category = "Concentration - MAOM";
     vec![
         Requirement::SingleCourse {
             category: Some(category.to_string()),
@@ -243,27 +267,6 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 Requirement::Restriction { 
                     category: Some("Concentration - STAT".to_string()), department: Some(vec!["STAT".to_string()]), 
                     cu: None, level: None, attr: None, excluding: Some(["STAT 1010", "STAT 1020", "STAT 4300", "STAT 4310"].map(String::from).to_vec()), number: 1, no_school: None 
-                },
-            ]
-        ),
-        (
-            "OIDD".to_string(), 
-            vec![
-                Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
-                    cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
-                },
-                Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
-                    cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
-                },
-                Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
-                    cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
-                },
-                Requirement::Restriction { 
-                    category: Some("Concentration - OIDD".to_string()), department: Some(vec!["OIDD".to_string()]), 
-                    cu: None, level: None, attr: None, excluding: Some(["OIDD 1010"].map(String::from).to_vec()), number: 1, no_school: None 
                 },
             ]
         ),
@@ -373,7 +376,7 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             ]
         ),
         (
-            "Marketing & Operations Management".to_string(),
+            "MAOM".to_string(),
             wh_marketing_operations_management_requirements(),
         ),
     ])
@@ -381,11 +384,13 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
 
 /// Up to two distinct Wharton concentrations; unknown names are dropped.
 pub fn normalize_wh_concentrations(concentrations: &[String]) -> Vec<String> {
-    let catalog = create_wh_concentrations();
     let mut out = Vec::new();
     for c in concentrations {
-        if catalog.contains_key(c) && !out.contains(c) {
-            out.push(c.clone());
+        let Some(key) = resolve_wh_concentration_key(c) else {
+            continue;
+        };
+        if !out.contains(&key) {
+            out.push(key);
             if out.len() >= 2 {
                 break;
             }
@@ -412,8 +417,10 @@ fn bb_standard_exclusions(mt: bool) -> Vec<String> {
 fn bb_excluded_departments(concentrations: &[String]) -> Vec<String> {
     let mut excluded = Vec::new();
     for concentration in concentrations {
-        match concentration.as_str() {
-            "Marketing & Operations Management" => {
+        let key = resolve_wh_concentration_key(concentration)
+            .unwrap_or_else(|| concentration.to_string());
+        match key.as_str() {
+            "MAOM" => {
                 excluded.push("OIDD".to_string());
                 excluded.push("MKTG".to_string());
             }

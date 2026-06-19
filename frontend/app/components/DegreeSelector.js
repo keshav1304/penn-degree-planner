@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { API_BASE } from "@/lib/api";
 import {
     formatDegreeDisplay,
+    formatConcentrationDropdownLabel,
     implementedMajorsForSchool,
     implementedSchools,
     normalizeConcentrations,
@@ -195,7 +196,7 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
                     >
                         {concentrations.map((c) => (
                             <option key={c} value={c}>
-                                {c}
+                                {formatConcentrationDropdownLabel(c, schoolCode)}
                             </option>
                         ))}
                     </select>
@@ -211,7 +212,7 @@ export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
                         <option value="">2nd concentration (optional)…</option>
                         {secondConcOptions.map((c) => (
                             <option key={c} value={c}>
-                                {c}
+                                {formatConcentrationDropdownLabel(c, schoolCode)}
                             </option>
                         ))}
                     </select>
