@@ -808,6 +808,79 @@ mod cross_degree_sharing {
     use super::*;
 
     #[test]
+    fn business_breadth_slot_label_matches_scoped_id() {
+        use crate::penn_data::wharton_data;
+        let major = wharton_data::create_wh_nofl_major(vec!["FNCE".into()]);
+        let validation = validate_courses_for_degree(
+            major.requirements.clone(),
+            &vec![],
+            &catalog_cu_map(),
+        );
+        let bb = validation
+            .unfulfilled
+            .iter()
+            .find(|m| {
+                m.requirement
+                    .get_category()
+                    .to_lowercase()
+                    .contains("business breadth")
+            })
+            .expect("WH should have unfulfilled business breadth");
+        let instance = bb.instance_id.as_deref().expect("instance id");
+        let slot_id = requirement::business_breadth_slot_id(Some(instance));
+        let label = bb.requirement.slot_label_for_id(&slot_id);
+        assert!(
+            bb.requirement.matches_slot_id(&slot_id),
+            "matches_slot_id failed for {slot_id} category={}",
+            bb.requirement.get_category()
+        );
+        assert_ne!(label, "Open requirement", "slot_id={slot_id} instance={instance}");
+        assert!(
+            label.contains("WH Business Breadth"),
+            "got {label} for {slot_id}"
+        );
+    }
+
+    #[test]
+    fn wh_business_breadth_schedule_slots_are_labeled() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "WH_NOFL".into(),
+                school: "WH".into(),
+                concentrations: vec!["FNCE".into()],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let bb_slots: Vec<_> = output
+            .slot_labels
+            .iter()
+            .filter(|(slot, _)| slot.contains("BB:Business_Breadth"))
+            .collect();
+        assert!(
+            !bb_slots.is_empty(),
+            "expected business breadth slots on schedule; slots: {:?}",
+            output.slot_labels
+        );
+        for (slot, label) in bb_slots {
+            assert_ne!(
+                label.as_str(),
+                "Open requirement",
+                "BB slot {slot} should not be open requirement"
+            );
+            assert_eq!(
+                label.as_str(),
+                "1 WH Business Breadth",
+                "BB slot {slot} got unexpected label"
+            );
+        }
+    }
+
+    #[test]
     fn course_cannot_count_toward_three_degrees() {
         let schools = vec!["SEAS".into(), "WH".into(), "SEAS_MS".into()];
         let majors = vec!["CIS".into(), "WH_FL".into(), "MS_ROBO".into()];

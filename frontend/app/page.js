@@ -375,13 +375,19 @@ export default function Home() {
         const slotId = member.schedule_slot_id;
         if (!slotId || labels[slotId]) return;
         const result = scheduleData.degree_results?.[member.degree_index];
+        const hintMatch = slotId.match(/^(\d+):(.+)$/);
         const mapped = result?.suggested_for_unfulfilled?.find(
           (m) =>
             m.course_ids?.includes(slotId)
-            || (m.instance_id && slotId.startsWith(`req:${m.instance_id}:`)),
+            || (m.instance_id && slotId.startsWith(`req:${m.instance_id}:`))
+            || (hintMatch && m.instance_id === hintMatch[2]),
         );
         if (mapped?.requirement) {
-          labels[slotId] = getSlotLabel(mapped.requirement, slotId, apiLabels);
+          const schedulableId =
+            mapped.course_ids?.find((id) => isSchedulableRequirementSlotId(id))
+            ?? mapped.course_ids?.find((id) => isRequirementSlotId(id))
+            ?? slotId;
+          labels[slotId] = getSlotLabel(mapped.requirement, schedulableId, apiLabels);
         }
       });
     });

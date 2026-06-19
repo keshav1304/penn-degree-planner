@@ -599,7 +599,7 @@ function isBusinessBreadthCategory(category) {
 }
 
 function businessBreadthScheduleLabel() {
-  return "WH Business Breadth";
+  return "1 WH Business Breadth";
 }
 
 /** Business breadth slots use short labels like "WH Business Breadth". */
@@ -650,14 +650,15 @@ export function formatOverlapMemberLabel(slotLabel, memberLabel) {
 
 /** Label for a schedule requirement slot card. */
 export function getSlotLabel(req, slotId, apiLabels = {}) {
-  if (apiLabels[slotId] && typeof apiLabels[slotId] === "string" && !apiLabels[slotId].includes("[object Object]")) {
-    return apiLabels[slotId];
-  }
   const bbLabel = businessBreadthLabelForSlot(req, slotId);
   if (bbLabel) return bbLabel;
+  const apiLabel = apiLabels[slotId];
+  if (apiLabel && typeof apiLabel === "string" && !apiLabel.includes("[object Object]") && apiLabel !== "Open requirement") {
+    return apiLabel;
+  }
   const matched = findRequirementForSlotId(req, slotId);
   if (matched) return createRequirementDescription(matched);
-  if (typeof apiLabels[slotId] === "string") return apiLabels[slotId];
+  if (typeof apiLabel === "string") return apiLabel;
   return "Open requirement";
 }
 

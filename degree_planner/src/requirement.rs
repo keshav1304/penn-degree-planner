@@ -873,7 +873,10 @@ impl Requirement {
                 if let Some(rest) = slot_id.strip_prefix("req:") {
                     if let Some((scope, fp)) = rest.split_once(":BB:") {
                         if !scope.is_empty() && fp == "Business_Breadth" {
-                            return self.requirement_slot_id(Some(scope)).as_deref() == Some(slot_id);
+                            return self
+                                .schedulable_placeholder_id(Some(scope))
+                                .as_deref()
+                                == Some(slot_id);
                         }
                     }
                 }
@@ -887,7 +890,7 @@ impl Requirement {
                 }
             }
         }
-        self.requirement_slot_id(None).as_deref() == Some(slot_id)
+        self.schedulable_placeholder_id(None).as_deref() == Some(slot_id)
     }
 
     /// Find the nested requirement that owns a schedule slot id (e.g. inside AnyOf).
@@ -936,7 +939,7 @@ impl Requirement {
     }
 
     fn business_breadth_schedule_label() -> String {
-        "WH Business Breadth".to_string()
+        "1 WH Business Breadth".to_string()
     }
 
     /// Business breadth slots use a short schedule label instead of dept-level restriction text.

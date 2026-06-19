@@ -1318,7 +1318,7 @@ select {
 }
 
 .req-progress-fill-fulfilled {
-  background: linear-gradient(90deg, var(--success), var(--accent-teal));
+  background: var(--success);
 }
 
 .req-progress-fill-fulfilled:first-child {
@@ -1330,7 +1330,7 @@ select {
 }
 
 .req-progress-fill-planned {
-  background: linear-gradient(90deg, var(--accent-amber), #b45309);
+  background: var(--accent-amber);
 }
 
 .req-progress-fill-planned:last-child {

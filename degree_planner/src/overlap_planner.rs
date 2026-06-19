@@ -8,7 +8,8 @@ use crate::major::Major;
 use crate::penn_data::college_data;
 use crate::penn_data::{attributes_data, courses_data};
 use crate::requirement::{
-    course_matches_restriction, DegreeValidationResult, MappedRequirement, Requirement,
+    business_breadth_slot_id, course_matches_restriction, DegreeValidationResult, MappedRequirement,
+    Requirement,
 };
 
 // ── Catalog index (fast restriction candidate lookup) ─────────────────────────
@@ -399,6 +400,10 @@ fn attr_from_requirement(req: &Requirement) -> Option<String> {
 }
 
 fn slot_label(req: &Requirement) -> String {
+    if let Some(label) = req.business_breadth_label_for_slot(&business_breadth_slot_id(None))
+    {
+        return label;
+    }
     let cat = req.get_category();
     if cat.is_empty() {
         req.create_requirement_description()
