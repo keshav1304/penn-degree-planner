@@ -647,21 +647,21 @@ export default function Home() {
           <div className="panel panel-schedule">
             <div className="panel-header">
               <h2>📅 Schedule</h2>
-            </div>
-            <div className="panel-toolbar">
-              <label className="summer-toggle">
-                <input
-                  type="checkbox"
-                  checked={allowSummer}
-                  onChange={e => setAllowSummer(e.target.checked)}
-                />
-                ☀️ Summer courses
-              </label>
-              {degrees.length > 0 && (
-                <span className="panel-toolbar-meta">
-                  {assignedCourses.length} placed · {frozenCourses.length} frozen
-                </span>
-              )}
+              <div className="panel-header-actions">
+                <label className="summer-toggle">
+                  <input
+                    type="checkbox"
+                    checked={allowSummer}
+                    onChange={e => setAllowSummer(e.target.checked)}
+                  />
+                  ☀️ Summer courses
+                </label>
+                {degrees.length > 0 && (
+                  <span className="panel-toolbar-meta">
+                    {assignedCourses.length} placed · {frozenCourses.length} frozen
+                  </span>
+                )}
+              </div>
             </div>
             <div className="panel-body">
               <ScheduleGrid

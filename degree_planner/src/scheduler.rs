@@ -1421,8 +1421,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let try_place_greedy =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, max_year: i32| -> bool {
             let mut best: Option<(i32, String)> = None;
-            let mut best_load = f64::MAX;
-            let mut best_tie_ord = i32::MIN;
+            // Pack into semesters that already have courses before opening new ones.
+            let mut best_load = f64::MIN;
+            let mut best_tie_ord = i32::MAX;
             for year in 1..=max_year {
                 for semester in ["Fall", "Spring"] {
                     let max_cu = get_max_cu(year, semester);
@@ -1435,7 +1436,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                         continue;
                     }
                     let tie_ord = semester_order(year, semester);
-                    if load < best_load
+                    if load > best_load
                         || (load == best_load && tie_ord < best_tie_ord)
                     {
                         best_load = load;
@@ -1528,7 +1529,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
             let mut best_plan_idx: Option<usize> = None;
             let mut best_item_idx: Option<usize> = None;
-            let mut best_load = f64::MAX;
+            let mut best_load = f64::MIN;
             let mut best_tie_ord = i32::MAX;
 
             for (plan_idx, plan) in schedule.iter().enumerate() {
@@ -1558,7 +1559,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 };
 
                 let tie_ord = semester_order(plan.year, &plan.semester);
-                if plan.total_cu < best_load
+                if plan.total_cu > best_load
                     || (plan.total_cu == best_load && tie_ord < best_tie_ord)
                 {
                     best_load = plan.total_cu;

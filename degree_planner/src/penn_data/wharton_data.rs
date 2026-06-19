@@ -1,11 +1,22 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::Requirement;
 use crate::Major;
 use crate::requirement::PoolConstraint;
 use crate::schedule_template::{
-    append_semester, insert_fixed_course_hints, scheduled, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S,
+    append_semester, insert_fixed_course_hints, scheduled, ScheduleHint, Y1F, Y1S, Y2F, Y2S,
+    Y3F, Y3S,
 };
+
+/// WH 1010 is mandatory Y1 Fall for every Wharton template; M&T adds OIDD 2340 (Y1 Fall)
+/// and MGMT 2370 (Y2 Spring).
+fn apply_wh_fixed_hints(hints: &mut HashMap<String, ScheduleHint>, mt: bool) {
+    let mut fixed = vec![("WH 1010", Y1F)];
+    if mt {
+        fixed.extend([("OIDD 2340", Y1F), ("MGMT 2370", Y2S)]);
+    }
+    insert_fixed_course_hints(hints, &fixed);
+}
 
 fn wh_attr_constraint(label: &str, attr: &str, count: i32, group: &str) -> PoolConstraint {
     PoolConstraint {
@@ -575,6 +586,8 @@ pub fn create_wh_fl_major(concentrations: Vec<String>) -> Major {
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, wh_concentration_requirements(&concs));
 
+    apply_wh_fixed_hints(&mut schedule_hints, false);
+
     return Major {
         short_name: "WH".to_string(), 
         name: "Wharton Undergraduate".to_string(), 
@@ -612,7 +625,7 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
             (Y1F, Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None }),
 
             // Leadership Journey
-            (Y1S, Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] }),
+            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] }),
             (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 2010/2011".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
             (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey - MGMT 3010".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
             (Y3S, Requirement::Restriction { category: Some("Undergraduate Capstone".to_string()), department: None, cu: None, level: None, attr: Some(vec!["WUCP".to_string()]), excluding: None, number: 1, no_school: None }),
@@ -645,6 +658,8 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
             Requirement::Restriction { category: Some("Unrestricted Electives".to_string()), department: None, cu: None, level: None, attr: None, excluding: None, number: 1, no_school: None },
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, wh_concentration_requirements(&concs));
+
+    apply_wh_fixed_hints(&mut schedule_hints, false);
 
     return Major {
         short_name: "WH".to_string(), 
@@ -722,7 +737,7 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, conc_reqs);
 
-    insert_fixed_course_hints(&mut schedule_hints, &[("MGMT 2370", Y2S)]);
+    apply_wh_fixed_hints(&mut schedule_hints, true);
 
     return Major {
         short_name: "WH_NOFL_MT".to_string(), 
@@ -791,7 +806,7 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
     ]);
     append_semester(&mut requirements, &mut schedule_hints, Y3F, conc_reqs);
 
-    insert_fixed_course_hints(&mut schedule_hints, &[("MGMT 2370", Y2S)]);
+    apply_wh_fixed_hints(&mut schedule_hints, true);
 
     Major {
         short_name: "WH".to_string(),

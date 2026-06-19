@@ -33,6 +33,7 @@
   --panel-pad-y: 10px;
   --panel-header-pad-x: 14px;
   --panel-header-pad-y: 10px;
+  --panel-header-height: 48px;
 
   /* Courses column fixed; schedule + requirements share remaining width */
   --col-courses-min: 300px;
@@ -310,13 +311,16 @@ body {
 }
 
 .panel-header {
-  padding: var(--panel-header-pad-y) var(--panel-header-pad-x);
+  height: var(--panel-header-height);
+  min-height: var(--panel-header-height);
+  max-height: var(--panel-header-height);
+  padding: 0 var(--panel-header-pad-x);
   border-bottom: 1px solid var(--border-glass);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   flex-shrink: 0;
-  min-height: 48px;
   box-sizing: border-box;
 }
 
@@ -327,13 +331,24 @@ body {
   letter-spacing: 1px;
   color: var(--text-secondary);
   line-height: 1.2;
+  margin: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .panel-header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.panel-header .btn-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 0.95rem;
 }
 
 .panel-toolbar {
@@ -351,16 +366,20 @@ body {
   font-size: var(--sidebar-font-meta);
   color: var(--text-muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .summer-toggle {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: var(--sidebar-font-secondary);
+  font-size: var(--sidebar-font-small);
   color: var(--text-secondary);
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .summer-toggle input {

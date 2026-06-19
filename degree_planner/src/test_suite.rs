@@ -2312,9 +2312,51 @@ mod schedule_templates {
             allow_summer: Some(true),
             semester_cu_limits: None,
         });
+        assert_course_in_semester(&output, "WH 1010", 1, "Fall");
+        assert_course_in_semester(&output, "OIDD 2340", 1, "Fall");
         assert_course_in_semester(&output, "MGMT 2370", 2, "Spring");
         assert_course_in_semester(&output, "ESE 4500", 4, "Fall");
         assert_course_in_semester(&output, "ESE 4510", 4, "Spring");
+    }
+
+    #[test]
+    fn wh_nofl_places_wh1010_in_y1_fall() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "WH_NOFL".into(),
+                school: "WH".into(),
+                concentrations: vec!["FNCE".into()],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert_course_in_semester(&output, "WH 1010", 1, "Fall");
+    }
+
+    #[test]
+    fn wh_fl_mt_fixed_hints_include_wh1010_and_oidd2340() {
+        use crate::major::resolve_major;
+        use crate::schedule_template::ScheduleHintMode;
+
+        let major = resolve_major("WH", "WH_FL_MT", &["FNCE".into()]).expect("WH_FL_MT");
+        for (course, year, semester) in [
+            ("WH 1010", 1, "Fall"),
+            ("OIDD 2340", 1, "Fall"),
+            ("MGMT 2370", 2, "Spring"),
+        ] {
+            let hint = major
+                .schedule_hints
+                .get(course)
+                .unwrap_or_else(|| panic!("missing fixed hint for {course}"));
+            assert_eq!(hint.mode, ScheduleHintMode::Fixed, "{course} should be rigid");
+            assert_eq!(hint.year, year, "{course} year");
+            assert_eq!(hint.semester, semester, "{course} semester");
+        }
     }
 
     #[test]
@@ -2389,6 +2431,50 @@ mod property_invariants {
             let schools = vec!["CAS".into(), "CAS".into()];
             prop_assert_eq!(default_semester_cu_limit(&schools, year, &semester), 5.5);
         }
+    }
+
+    #[test]
+    fn ee_chem_gen_ed_backfills_y4s_before_y5() {
+        let output = generate_schedule(dual_degree_input("SEAS", "EE", "CAS", "CHEM"));
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let gen_ed_in_y5: Vec<_> = output
+            .schedule
+            .iter()
+            .filter(|p| p.year >= 5)
+            .flat_map(|p| {
+                p.requirement_slots
+                    .iter()
+                    .map(|slot| (p.year, p.semester.as_str(), slot.clone()))
+            })
+            .filter(|(_, _, slot)| {
+                output
+                    .slot_labels
+                    .get(slot.as_str())
+                    .is_some_and(|l| l == "1 CU from General Education")
+            })
+            .collect();
+
+        let y4s = output
+            .schedule
+            .iter()
+            .find(|p| p.year == 4 && p.semester == "Spring")
+            .expect("Y4 Spring");
+        let limit = default_semester_cu_limit(
+            &["SEAS".into(), "CAS".into()],
+            4,
+            "Spring",
+        );
+        let y4s_has_spare = y4s.total_cu + 1.0 <= limit + CU_EPS;
+
+        assert!(
+            gen_ed_in_y5.is_empty() || !y4s_has_spare,
+            "gen-ed slots should backfill Y4 Spring before year 5 when space remains \
+             (Y4S={:.1}/{:.1}, Y5 gen-eds={:?})",
+            y4s.total_cu,
+            limit,
+            gen_ed_in_y5
+        );
     }
 
     #[test]
