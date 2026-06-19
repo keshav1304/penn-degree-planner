@@ -72,7 +72,13 @@ export function getScheduleCourseStatus(courseId, { assignedCourses = [], frozen
 }
 
 export function filterValidCourseCodes(codes) {
-  return (codes || []).filter(isValidCourseCode);
+  const seen = new Set();
+  return (codes || []).filter((code) => {
+    if (!isValidCourseCode(code)) return false;
+    if (seen.has(code)) return false;
+    seen.add(code);
+    return true;
+  });
 }
 
 /** Green / assigned placements — courses only. */

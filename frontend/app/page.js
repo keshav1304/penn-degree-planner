@@ -220,9 +220,7 @@ export default function Home() {
 
   const addCourse = (courseCode) => {
     if (!isValidCourseCode(courseCode)) return;
-    if (!takenCourses.includes(courseCode)) {
-      setTakenCourses(prev => [...prev, courseCode]);
-    }
+    setTakenCourses((prev) => (prev.includes(courseCode) ? prev : [...prev, courseCode]));
   };
 
   const removeCourse = (courseCode) => {
@@ -239,8 +237,8 @@ export default function Home() {
       return [...filtered, { courseId, year, semester }];
     });
     // Credits Received counts as taken — keep in My Courses and off the generated schedule
-    if (year === 0 && semester != null && !takenCourses.includes(courseId)) {
-      setTakenCourses(prev => [...prev, courseId]);
+    if (year === 0 && semester != null) {
+      setTakenCourses((prev) => (prev.includes(courseId) ? prev : [...prev, courseId]));
     }
   };
 
@@ -258,10 +256,7 @@ export default function Home() {
   // Orange → Green: mark a frozen course as taken (locked in place)
   const markTaken = (courseId, year, semester) => {
     if (!isValidCourseCode(courseId)) return;
-    // Add to taken courses if not already there
-    if (!takenCourses.includes(courseId)) {
-      setTakenCourses(prev => [...prev, courseId]);
-    }
+    setTakenCourses((prev) => (prev.includes(courseId) ? prev : [...prev, courseId]));
     // Remove from frozen
     setFrozenCourses(prev => prev.filter(f => f.courseId !== courseId));
     // Add to assigned
@@ -329,9 +324,9 @@ export default function Home() {
       }
     } else if (dragData.source === "search") {
       if (!isValidCourseCode(courseId)) return;
-      // Search → Schedule: add to cart AND assign in one action
-      if (!takenCourses.includes(courseId)) {
-        setTakenCourses(prev => [...prev, courseId]);
+      // Search → Schedule: add to cart AND assign. Credits Received is handled in assignCourse.
+      if (targetYear !== 0) {
+        setTakenCourses((prev) => (prev.includes(courseId) ? prev : [...prev, courseId]));
       }
       assignCourse(courseId, targetYear, targetSemester);
     } else if (dragData.source === "schedule") {
