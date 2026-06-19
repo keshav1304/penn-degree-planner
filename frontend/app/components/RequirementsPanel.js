@@ -484,10 +484,10 @@ function renderCasSuperSections({
             const groupDone = items.length > 0
                 && items.every((r) => r.fulfilled && itemTone(r, frozenIds) === "fulfilled");
             return (
-                <div key={section.id} className={`req-super-group ${groupDone ? "req-super-group-done" : ""}`}>
+                <div key={section.id} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
                     {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, `${items.filter((r) => r.fulfilled).length}/${items.length}`)}
                     {!isCollapsed && (
-                        <div className="req-super-group-body">
+                        <div className="req-group-body">
                             {items.map((item, rowIdx) => renderRequirementItem(
                                 item,
                                 item.instanceId ?? String(rowIdx),
@@ -524,10 +524,10 @@ function renderCasSuperSections({
                 : degreeLabel;
 
             return (
-                <div key={section.id} className={`req-super-group ${groupDone ? "req-super-group-done" : ""}`}>
+                <div key={section.id} className={`req-group ${groupDone ? "req-group-done" : ""}`}>
                     {renderSuperGroupHeader(section.title, groupDone, isCollapsed, toggle, pillLabel)}
                     {!isCollapsed && (
-                        <div className="req-super-group-body">
+                        <div className="req-group-body">
                             {casGenEd ? (
                                 renderCasGenEdPool(
                                     casGenEd,
@@ -650,11 +650,11 @@ function renderCasSuperSections({
 
 function renderSuperGroupHeader(title, done, isCollapsed, onToggle, pillLabel) {
     return (
-        <div className="req-super-group-header" onClick={onToggle}>
-            <span className={`req-super-group-badge ${done ? "badge-done" : "badge-pending"}`}>
+        <div className="req-group-header" onClick={onToggle}>
+            <span className={`req-group-badge ${done ? "badge-done" : "badge-pending"}`}>
                 {done ? "✓" : "·"}
             </span>
-            <span className="req-super-group-name">{title}</span>
+            <span className="req-group-name">{title}</span>
             {pillLabel && (
                 <span className={`req-group-pill ${done ? "pill-done" : "pill-pending"}`}>
                     {pillLabel}
@@ -1120,36 +1120,34 @@ function renderCasGenEdPool(
     };
 
     return (
-        <div className="req-cas-gened">
-            <div className="req-cas-gened-section">
-                <div className="req-cas-gened-heading">Foundational Approaches</div>
-                {(casGenEd.foundational_approaches || []).map((row) =>
-                    renderCasGenEdRow(
-                        row,
-                        null,
-                        scheduleCtx,
-                        filterCourses,
-                        degreeIndex,
-                    ),
-                )}
-            </div>
-            <div className="req-cas-gened-section">
-                <div className="req-cas-gened-heading">Sectors of Knowledge</div>
-                {(casGenEd.sectors || []).map((row) =>
-                    renderCasGenEdRow(
-                        row,
-                        majorDisplayName,
-                        scheduleCtx,
-                        filterCourses,
-                        degreeIndex,
-                    ),
-                )}
-            </div>
-        </div>
+        <>
+            <div className="req-pool-divider req-item-first">Foundational Approaches</div>
+            {(casGenEd.foundational_approaches || []).map((row, idx) =>
+                renderCasGenEdRow(
+                    row,
+                    null,
+                    scheduleCtx,
+                    filterCourses,
+                    degreeIndex,
+                    idx === 0,
+                ),
+            )}
+            <div className="req-pool-divider">Sectors of Knowledge</div>
+            {(casGenEd.sectors || []).map((row) =>
+                renderCasGenEdRow(
+                    row,
+                    majorDisplayName,
+                    scheduleCtx,
+                    filterCourses,
+                    degreeIndex,
+                    false,
+                ),
+            )}
+        </>
     );
 }
 
-function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, degreeIndex) {
+function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, degreeIndex, isFirst) {
     const rowTone = row.fulfilled ? "fulfilled" : "open";
     const courses = filterCourses(row.matched_courses || []);
     const fulfillingSet = new Set(courses);
@@ -1157,7 +1155,7 @@ function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, de
     return (
         <div
             key={`${row.attr}-${row.name}`}
-            className={`req-cas-gened-row req-cas-gened-row--${rowTone}`}
+            className={`req-item req-item--${rowTone} ${isFirst ? "req-item-first" : ""}`}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
                 {row.fulfilled ? "✓" : "○"}

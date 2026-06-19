@@ -1754,13 +1754,6 @@ pub fn create_cis_cas_major() -> Major {
     })
 }
 
-fn phys_course(codes: &[&str]) -> Requirement {
-    Requirement::SingleCourse {
-        category: None,
-        possibilities: codes.iter().map(|c| (*c).to_string()).collect(),
-    }
-}
-
 fn phys_core_requirements() -> Vec<Requirement> {
     vec![
         Requirement::SingleCourse {
@@ -1770,13 +1763,19 @@ fn phys_core_requirements() -> Vec<Requirement> {
         Requirement::AnyOf {
             category: Some("Calculus".to_string()),
             possibilities: vec![
-                phys_course(&["MATH 1410"]),
-                phys_course(&["MATH 1610"]),
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["MATH 1410".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["MATH 1610".to_string()],
+                },
             ],
         },
         Requirement::SingleCourse {
             category: Some("Linear Algebra".to_string()),
-            possibilities: vec!["MATH 2200".to_string()],
+            possibilities: vec!["MATH 2200".to_string(), "ESE 2030".to_string()],
         },
         Requirement::SingleCourse {
             category: Some("Differential Equations".to_string()),
@@ -1785,15 +1784,27 @@ fn phys_core_requirements() -> Vec<Requirement> {
         Requirement::AnyOf {
             category: Some("Introductory Physics".to_string()),
             possibilities: vec![
-                phys_course(&["PHYS 0150"]),
-                phys_course(&["PHYS 0170"]),
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PHYS 0150".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PHYS 0170".to_string()],
+                },
             ],
         },
         Requirement::AnyOf {
             category: Some("Introductory Physics".to_string()),
             possibilities: vec![
-                phys_course(&["PHYS 0151"]),
-                phys_course(&["PHYS 0171"]),
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PHYS 0151".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["PHYS 0171".to_string()],
+                },
             ],
         },
         Requirement::SingleCourse {
@@ -1886,8 +1897,14 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 Requirement::AnyOf {
                     category: Some("Laboratory".to_string()),
                     possibilities: vec![
-                        phys_course(&["PHYS 3364"]),
-                        phys_course(&["PHYS 4414"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 3364".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 4414".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
@@ -1903,10 +1920,22 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                             number: 1,
                             no_school: None,
                         },
-                        phys_course(&["ENGR 1050"]),
-                        phys_course(&["PHYS 2260"]),
-                        phys_course(&["PHYS 3358"]),
-                        phys_course(&["PHYS 3359"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["ENGR 1050".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 2260".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 3358".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 3359".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
@@ -2041,8 +2070,14 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 Requirement::AnyOf {
                     category: Some("Modern Physics".to_string()),
                     possibilities: vec![
-                        phys_course(&["PHYS 1240"]),
-                        phys_course(&["PHYS 1250"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 1240".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 1250".to_string()],
+                        },
                     ],
                 },
                 Requirement::SingleCourse {
@@ -2060,15 +2095,27 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 Requirement::AnyOf {
                     category: Some("Biochemistry / Cell Biology".to_string()),
                     possibilities: vec![
-                        phys_course(&["BIOL 2810"]),
-                        phys_course(&["BIOL 2010"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 2810".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["BIOL 2010".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
                     category: Some("Biological Physics".to_string()),
                     possibilities: vec![
-                        phys_course(&["PHYS 2280"]),
-                        phys_course(&["PHYS 5580"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 2280".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["PHYS 5580".to_string()],
+                        },
                     ],
                 },
                 Requirement::SingleCourse {
@@ -2115,17 +2162,35 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                 Requirement::AnyOf {
                     category: Some("Introductory Chemistry I".to_string()),
                     possibilities: vec![
-                        phys_course(&["CHEM 1011"]),
-                        phys_course(&["CHEM 1012"]),
-                        phys_course(&["CHEM 1151"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["CHEM 1011".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["CHEM 1012".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["CHEM 1151".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
                     category: Some("Introductory Chemistry II".to_string()),
                     possibilities: vec![
-                        phys_course(&["CHEM 1021"]),
-                        phys_course(&["CHEM 1022"]),
-                        phys_course(&["CHEM 1161"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["CHEM 1021".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["CHEM 1022".to_string()],
+                        },
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["CHEM 1161".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
@@ -2134,15 +2199,27 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                         Requirement::AllOf {
                             category: None,
                             requirements: vec![
-                                phys_course(&["CHEM 2210"]),
-                                phys_course(&["CHEM 2220"]),
+                                Requirement::SingleCourse {
+                                    category: None,
+                                    possibilities: vec!["CHEM 2210".to_string()],
+                                },
+                                Requirement::SingleCourse {
+                                    category: None,
+                                    possibilities: vec!["CHEM 2220".to_string()],
+                                },
                             ],
                         },
                         Requirement::AllOf {
                             category: None,
                             requirements: vec![
-                                phys_course(&["CHEM 2410"]),
-                                phys_course(&["CHEM 2420"]),
+                                Requirement::SingleCourse {
+                                    category: None,
+                                    possibilities: vec!["CHEM 2410".to_string()],
+                                },
+                                Requirement::SingleCourse {
+                                    category: None,
+                                    possibilities: vec!["CHEM 2420".to_string()],
+                                },
                             ],
                         },
                     ],
@@ -2187,7 +2264,10 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                             number: 1,
                             no_school: None,
                         },
-                        phys_course(&["ENGR 1050"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["ENGR 1050".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
@@ -2203,7 +2283,10 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                             number: 1,
                             no_school: None,
                         },
-                        phys_course(&["ENGR 1050"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["ENGR 1050".to_string()],
+                        },
                     ],
                 },
                 Requirement::AnyOf {
@@ -2219,7 +2302,10 @@ fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
                             number: 1,
                             no_school: None,
                         },
-                        phys_course(&["ENGR 1050"]),
+                        Requirement::SingleCourse {
+                            category: None,
+                            possibilities: vec!["ENGR 1050".to_string()],
+                        },
                     ],
                 },
             ],
@@ -2310,6 +2396,7 @@ pub fn create_phys_major(concentration_name: String) -> Major {
         ("PHYS 0151".to_string(), Y1S.into()),
         ("PHYS 0171".to_string(), Y1S.into()),
         ("MATH 2200".to_string(), Y2F.into()),
+        ("ESE 2030".to_string(), Y2F.into()),
         ("PHYS 1230".to_string(), Y2F.into()),
         ("MATH 2300".to_string(), Y2S.into()),
         ("PHYS 1250".to_string(), Y2S.into()),
@@ -2514,6 +2601,149 @@ fn neur_major_requirements() -> Vec<Requirement> {
             no_school: None,
         },
     ]
+}
+
+fn chem_major_requirements() -> Vec<Requirement> {
+    vec![
+        Requirement::AnyOf {
+            category: Some("General Chemistry".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1011".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1012".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1151".to_string()],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("General Chemistry".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1021".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1022".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1161".to_string()],
+                },
+            ],
+        },
+        Requirement::AllOf {
+            category: Some("General Chemistry Laboratories".to_string()),
+            requirements: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1101".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["CHEM 1102".to_string()],
+                },
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Organic Chemistry with Laboratories".to_string()),
+            possibilities: vec!["CHEM 2411".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Organic Chemistry with Laboratories".to_string()),
+            possibilities: vec!["CHEM 2421".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Calculus".to_string()),
+            possibilities: vec!["MATH 1400".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Calculus".to_string()),
+            possibilities: vec![
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["MATH 1410".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: None,
+                    possibilities: vec!["MATH 1610".to_string()],
+                },
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Physics".to_string()),
+            possibilities: vec!["PHYS 0150".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Physics".to_string()),
+            possibilities: vec!["PHYS 0151".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Physical Chemistry and Laboratories".to_string()),
+            possibilities: vec!["CHEM 2210".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Physical Chemistry and Laboratories".to_string()),
+            possibilities: vec!["CHEM 2220".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Physical Chemistry and Laboratories".to_string()),
+            possibilities: vec!["CHEM 2230".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Biological Chemistry".to_string()),
+            possibilities: vec!["CHEM 2510".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Inorganic Chemistry".to_string()),
+            possibilities: vec!["CHEM 2610".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("One Advanced Laboratory".to_string()),
+            possibilities: vec!["CHEM 2460".to_string()],
+        },
+    ]
+}
+
+pub fn create_chem_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("CHEM 1011".to_string(), Y1F.into()),
+        ("CHEM 1012".to_string(), Y1F.into()),
+        ("CHEM 1151".to_string(), Y1F.into()),
+        ("CHEM 1021".to_string(), Y1S.into()),
+        ("CHEM 1022".to_string(), Y1S.into()),
+        ("CHEM 1161".to_string(), Y1S.into()),
+        ("CHEM 1101".to_string(), Y1F.into()),
+        ("CHEM 1102".to_string(), Y1S.into()),
+        ("MATH 1400".to_string(), Y1F.into()),
+        ("MATH 1410".to_string(), Y1S.into()),
+        ("MATH 1610".to_string(), Y1S.into()),
+        ("PHYS 0150".to_string(), Y2F.into()),
+        ("PHYS 0151".to_string(), Y2S.into()),
+        ("CHEM 2411".to_string(), Y2F.into()),
+        ("CHEM 2421".to_string(), Y2S.into()),
+        ("CHEM 2210".to_string(), Y3F.into()),
+        ("CHEM 2220".to_string(), Y3S.into()),
+        ("CHEM 2230".to_string(), Y4F.into()),
+        ("CHEM 2510".to_string(), Y3F.into()),
+        ("CHEM 2610".to_string(), Y3S.into()),
+        ("CHEM 2460".to_string(), Y4S.into()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "CHEM".to_string(),
+        name: "Chemistry".to_string(),
+        major_requirements: chem_major_requirements(),
+        auto_completed_sectors: vec![],
+        concentrations: None,
+        schedule_hints,
+    })
 }
 
 pub fn create_neur_major() -> Major {

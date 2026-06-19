@@ -265,6 +265,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                     .unwrap_or_else(|| "Choice and Behaviour".to_string());
                 Some(college_data::create_ppe_major(conc))
             }
+            "CHEM" => Some(college_data::create_chem_major()),
             "NEUR" => Some(college_data::create_neur_major()),
             "PHYS" => {
                 let conc = concentrations

@@ -318,6 +318,14 @@ mod catalog {
     }
 
     #[test]
+    fn chem_major_resolves() {
+        let chem = resolve_major("CAS", "CHEM", &[]).expect("CHEM");
+        assert_eq!(chem.short_name, "CHEM");
+        assert_eq!(chem.name, "Chemistry");
+        assert!(chem.concentrations.is_none());
+    }
+
+    #[test]
     fn phys_major_resolves_with_concentrations() {
         use crate::penn_data::college_data::phys_concentration_names;
 
