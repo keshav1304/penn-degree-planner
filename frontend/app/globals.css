@@ -135,12 +135,24 @@ body {
 }
 
 .header h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 1.35rem;
   font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.header h1 span {
   background: linear-gradient(135deg, var(--accent-red-light), var(--accent-amber));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
+}
+
+.header-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
 }
 
 .header-actions {

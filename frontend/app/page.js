@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import appIcon from "./icon.png";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
@@ -595,7 +596,10 @@ export default function Home() {
     >
       <div className="app-container">
         <header className="header">
-          <h1>🎓 Penn Degree Planner</h1>
+          <h1>
+            <img src={appIcon.src} alt="" className="header-icon" width={28} height={28} />
+            <span>Penn Degree Planner</span>
+          </h1>
           <div className="header-actions">
             {loading && <div className="loading-spinner" />}
             <a
