@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     cargo build --profile release-fast --bin degree_planner
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 WORKDIR /app
 COPY --from=builder /app/target/release-fast/degree_planner /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/degree_planner"]

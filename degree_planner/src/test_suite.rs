@@ -318,6 +318,29 @@ mod catalog {
     }
 
     #[test]
+    fn phys_major_resolves_with_concentrations() {
+        use crate::penn_data::college_data::phys_concentration_names;
+
+        assert_eq!(phys_concentration_names().len(), 6);
+        let astro = resolve_major("CAS", "PHYS", &["Astrophysics".into()]).expect("PHYS");
+        assert_eq!(astro.short_name, "PHYS");
+        assert!(astro.concentrations.is_some());
+        let bio = resolve_major("CAS", "PHYS", &["Biological Science".into()]).expect("PHYS bio");
+        assert_eq!(bio.short_name, "PHYS");
+        let chem = resolve_major("CAS", "PHYS", &["Chemical Principles".into()]).expect("PHYS chem");
+        assert_eq!(chem.short_name, "PHYS");
+        let comp = resolve_major("CAS", "PHYS", &["Computer Techniques".into()]).expect("PHYS comp");
+        assert_eq!(comp.short_name, "PHYS");
+        let theory = resolve_major(
+            "CAS",
+            "PHYS",
+            &["Physical Theory and Experimental Technique".into()],
+        )
+        .expect("PHYS theory");
+        assert_eq!(theory.short_name, "PHYS");
+    }
+
+    #[test]
     fn econ_gen_ed_marks_society_sector_completed_by_major() {
         use crate::penn_data::college_data::{build_cas_gen_ed_info, cas_auto_completed_sectors_for, create_econ_major, SECTOR_SOCIETY};
 
@@ -1816,6 +1839,45 @@ mod dual_degree_properties {
         let plan = output.overlap_plan.as_ref().expect("overlap plan");
         assert!(overlap_plan_has_writ_opportunity(plan));
         assert_eq!(writ_cu_units_on_schedule(&output), 1.0);
+    }
+
+    #[test]
+    fn seas_ee_cas_econ_gen_ed_slots_capped_at_twelve() {
+        let output = generate_schedule(dual_degree_input("SEAS", "EE", "CAS", "ECON"));
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let mut sched_slots = Vec::new();
+        for p in &output.schedule {
+            sched_slots.extend(p.requirement_slots.iter().cloned());
+        }
+        let gen_ed_slots: Vec<_> = sched_slots
+            .iter()
+            .filter(|s| {
+                output
+                    .slot_labels
+                    .get(s.as_str())
+                    .is_some_and(|l| l == "1 CU from General Education")
+            })
+            .collect();
+
+        let gen_ed_overlaps = output
+            .overlap_schedule_groups
+            .iter()
+            .filter(|g| {
+                output
+                    .slot_labels
+                    .get(&g.group_id)
+                    .is_some_and(|l| l.contains("General Education"))
+            })
+            .count();
+
+        assert!(
+            gen_ed_slots.len() + gen_ed_overlaps <= 12,
+            "expected at most 12 CAS gen-ed schedule items for SEAS+ECON dual degree, got flex={} overlap={}: flex={:?}",
+            gen_ed_slots.len(),
+            gen_ed_overlaps,
+            gen_ed_slots
+        );
     }
 
     #[test]

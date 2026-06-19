@@ -242,21 +242,21 @@ fn cas_college_shared_mapped(mapped: &requirement::MappedRequirement) -> bool {
 }
 
 fn skip_cas_shared_schedule_item(
+    degree_idx: usize,
     is_secondary_cas_major: bool,
-    is_primary_cas_major: bool,
     mapped: &requirement::MappedRequirement,
     course_id: &str,
-    shared_flex_cap: Option<i32>,
+    cas_gened_flex_cap: Option<(usize, i32)>,
 ) -> bool {
     if is_secondary_cas_major {
         return cas_college_shared_mapped(mapped)
             || college_data::is_cas_college_shared_schedule_slot(course_id);
     }
-    if is_primary_cas_major {
-        if let Some(cap) = shared_flex_cap {
-            if college_data::is_cas_excess_shared_flexible_schedule_slot(course_id, cap) {
-                return true;
-            }
+    if let Some((cap_degree, cap)) = cas_gened_flex_cap {
+        if degree_idx == cap_degree
+            && college_data::is_cas_excess_shared_flexible_schedule_slot(course_id, cap)
+        {
+            return true;
         }
     }
     false
@@ -301,7 +301,42 @@ fn is_cas_gened_constraint_overlap_member(
     college_data::is_cas_gened_pool_constraint_key(scope, pool_idx)
 }
 
-fn suppress_redundant_cas_gened_flex_for_wh_overlaps(
+fn is_cas_gened_overlap_member(
+    member: &overlap_planner::OverlapScheduleGroupMember,
+    school: &str,
+    major_data: &Major,
+) -> bool {
+    if school != "CAS" {
+        return false;
+    }
+    if member.label.contains("General Education")
+        || member.label.starts_with("Foundational Approaches")
+        || member.label.starts_with("Sectors of Knowledge")
+    {
+        return true;
+    }
+    if is_cas_gened_constraint_overlap_member(member, school, major_data) {
+        return true;
+    }
+    let Some((pool_idx, _)) = college_data::cas_gened_pool(major_data) else {
+        return false;
+    };
+    let scope = member
+        .schedule_slot_id
+        .strip_prefix("req:")
+        .map(|rest| rest.split(":R:").next().unwrap_or(rest));
+    if scope.is_some_and(|s| college_data::is_cas_gened_pool_flex_key(s, pool_idx)) {
+        return true;
+    }
+    member
+        .schedule_slot_id
+        .split_once(':')
+        .is_some_and(|(_, slot_key)| {
+            college_data::is_cas_gened_pool_flex_key(slot_key, pool_idx)
+        })
+}
+
+fn cap_cas_gened_flex_for_cross_degree_overlaps(
     all_requirement_slots: &mut Vec<String>,
     ug_schedule_items: &mut HashSet<String>,
     degree_results: &mut [DegreeResult],
@@ -309,7 +344,10 @@ fn suppress_redundant_cas_gened_flex_for_wh_overlaps(
     degree_schools: &[String],
     major_data: &[&Major],
 ) {
-    if !degree_schools.iter().any(|s| s == "WH") {
+    if !cross_degree::cross_degree_optimizer_applicable(degree_schools) {
+        return;
+    }
+    if !degree_schools.iter().any(|s| s == "CAS") {
         return;
     }
     let suppress_count = overlap_groups
@@ -321,7 +359,7 @@ fn suppress_redundant_cas_gened_flex_for_wh_overlaps(
                     .is_some_and(|school| school == "CAS")
                     && major_data
                         .get(m.degree_index)
-                        .is_some_and(|major| is_cas_gened_constraint_overlap_member(m, "CAS", major))
+                        .is_some_and(|major| is_cas_gened_overlap_member(m, "CAS", major))
             })
         })
         .count();
@@ -400,17 +438,17 @@ fn suppress_redundant_cas_gened_flex_for_wh_overlaps(
     }
 }
 
-fn is_cas_double_major_excluded_mapped(
+fn is_cas_gened_flex_cap_excluded_mapped(
+    degree_idx: usize,
     mapped: &requirement::MappedRequirement,
     is_secondary_cas_major: bool,
-    is_primary_cas_major: bool,
-    shared_flex_cap: Option<i32>,
+    cas_gened_flex_cap: Option<(usize, i32)>,
 ) -> bool {
     if is_secondary_cas_major && cas_college_shared_mapped(mapped) {
         return true;
     }
-    if is_primary_cas_major {
-        if let Some(cap) = shared_flex_cap {
+    if let Some((cap_degree, cap)) = cas_gened_flex_cap {
+        if degree_idx == cap_degree {
             if mapped
                 .instance_id
                 .as_deref()
@@ -630,14 +668,25 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let primary_cas_degree_index = cas_college_double_major
         .then(|| degree_schools.iter().position(|s| s == "CAS"))
         .flatten();
-    let cas_shared_flex_cap = cas_college_double_major.then(|| {
-        let cas_majors: Vec<&Major> = resolved_degrees
+    let cas_gened_flex_cap: Option<(usize, i32)> = cross_degree_optimizer.then(|| {
+        let cas_indices: Vec<usize> = degree_schools
             .iter()
-            .filter(|r| r.input.school == "CAS")
-            .map(|r| &r.major_data)
+            .enumerate()
+            .filter(|(_, s)| s.as_str() == "CAS")
+            .map(|(i, _)| i)
             .collect();
-        college_data::cas_double_major_shared_flexible_slots(&cas_majors)
-    });
+        if cas_indices.is_empty() {
+            return None;
+        }
+        let cas_majors: Vec<&Major> = cas_indices
+            .iter()
+            .map(|&i| &resolved_degrees[i].major_data)
+            .collect();
+        Some((
+            cas_indices[0],
+            college_data::cas_cross_degree_gened_flex_cap(&cas_majors),
+        ))
+    }).flatten();
 
     for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
         let degree = &resolved.input;
@@ -656,8 +705,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let is_secondary_cas_major = primary_cas_degree_index.is_some_and(|primary| {
             degree_idx != primary && degree.school == "CAS"
         });
-        let is_primary_cas_major =
-            primary_cas_degree_index.is_some_and(|primary| degree_idx == primary);
 
         let mut suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
@@ -752,11 +799,11 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 }
                 for course_id in &mapped.course_ids {
                     if skip_cas_shared_schedule_item(
+                        degree_idx,
                         is_secondary_cas_major,
-                        is_primary_cas_major,
                         mapped,
                         course_id,
-                        cas_shared_flex_cap,
+                        cas_gened_flex_cap,
                     ) {
                         continue;
                     }
@@ -868,13 +915,15 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
             let mut api_suggested = suggested;
             let mut api_unfulfilled = unfulfilled;
-            if is_secondary_cas_major || is_primary_cas_major {
+            if is_secondary_cas_major
+                || cas_gened_flex_cap.is_some_and(|(cap_degree, _)| cap_degree == degree_idx)
+            {
                 let exclude = |mapped: &MappedRequirement| {
-                    is_cas_double_major_excluded_mapped(
+                    is_cas_gened_flex_cap_excluded_mapped(
+                        degree_idx,
                         mapped,
                         is_secondary_cas_major,
-                        is_primary_cas_major,
-                        cas_shared_flex_cap,
+                        cas_gened_flex_cap,
                     )
                 };
                 api_suggested.retain(|m| !exclude(m));
@@ -1118,7 +1167,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         .iter()
         .map(|r| &r.major_data)
         .collect();
-    suppress_redundant_cas_gened_flex_for_wh_overlaps(
+    cap_cas_gened_flex_for_cross_degree_overlaps(
         &mut all_requirement_slots,
         &mut ug_schedule_items,
         &mut degree_results,

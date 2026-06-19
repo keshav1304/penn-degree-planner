@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
 use crate::requirement::{PoolConstraint, PoolCoverageInfo};
-use crate::schedule_template::{ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S};
+use crate::schedule_template::{ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
 use serde::Serialize;
 
 // ── Path@Penn attribute codes ────────────────────────────────────────────────
@@ -280,10 +280,34 @@ pub fn cas_major_pool_major_cu(major: &Major) -> i32 {
 
 /// Shared flexible pool slots for a CAS college double major (one writing + one gen-ed pool).
 pub fn cas_double_major_shared_flexible_slots(cas_majors: &[&Major]) -> i32 {
-    let combined_major_cu: i32 = cas_majors.iter().map(|m| cas_major_pool_major_cu(m)).sum();
-    let cu_flex = (CAS_DEGREE_CU - 1 - combined_major_cu).max(0);
-    let gen_ed_rows = (FOUNDATIONAL_APPROACHES.len() + SECTORS.len()) as i32;
-    cu_flex.min(gen_ed_rows)
+    cas_cross_degree_gened_flex_cap(cas_majors)
+}
+
+/// Max gen-ed pool flex placeholders on the schedule when CAS is in a cross-degree plan.
+/// FA + sector coverage rows cap at 12; remaining pool capacity is free electives, not gen-ed slots.
+pub fn cas_cross_degree_gened_flex_cap(cas_majors: &[&Major]) -> i32 {
+    let gen_ed_rows = cas_gened_requirement_row_count() as i32;
+    match cas_majors.len() {
+        0 => 0,
+        1 => {
+            let major = cas_majors[0];
+            let pool_flex = cas_gened_pool(major)
+                .and_then(|(idx, _)| {
+                    if let Requirement::CoursePool { flexible_slots, .. } = &major.requirements[idx] {
+                        Some(*flexible_slots)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0);
+            pool_flex.min(gen_ed_rows)
+        }
+        _ => {
+            let combined_major_cu: i32 = cas_majors.iter().map(|m| cas_major_pool_major_cu(m)).sum();
+            let cu_flex = (CAS_DEGREE_CU - 1 - combined_major_cu).max(0);
+            cu_flex.min(gen_ed_rows)
+        }
+    }
 }
 
 pub fn cas_pool_flexible_slot_index(scope: &str) -> Option<usize> {
@@ -1726,6 +1750,601 @@ pub fn create_cis_cas_major() -> Major {
         major_requirements: cis_major_requirements(),
         auto_completed_sectors: vec![],
         concentrations: None,
+        schedule_hints,
+    })
+}
+
+fn phys_course(codes: &[&str]) -> Requirement {
+    Requirement::SingleCourse {
+        category: None,
+        possibilities: codes.iter().map(|c| (*c).to_string()).collect(),
+    }
+}
+
+fn phys_core_requirements() -> Vec<Requirement> {
+    vec![
+        Requirement::SingleCourse {
+            category: Some("Calculus".to_string()),
+            possibilities: vec!["MATH 1400".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Calculus".to_string()),
+            possibilities: vec![
+                phys_course(&["MATH 1410"]),
+                phys_course(&["MATH 1610"]),
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Linear Algebra".to_string()),
+            possibilities: vec!["MATH 2200".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Differential Equations".to_string()),
+            possibilities: vec!["MATH 2300".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Introductory Physics".to_string()),
+            possibilities: vec![
+                phys_course(&["PHYS 0150"]),
+                phys_course(&["PHYS 0170"]),
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("Introductory Physics".to_string()),
+            possibilities: vec![
+                phys_course(&["PHYS 0151"]),
+                phys_course(&["PHYS 0171"]),
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Intermediate Physics".to_string()),
+            possibilities: vec!["PHYS 1230".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Electromagnetism".to_string()),
+            possibilities: vec!["PHYS 3361".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Electromagnetism".to_string()),
+            possibilities: vec!["PHYS 3362".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Quantum Mechanics".to_string()),
+            possibilities: vec!["PHYS 4411".to_string()],
+        },
+    ]
+}
+
+fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    BTreeMap::from([
+        (
+            "Astrophysics".to_string(),
+            vec![
+                Requirement::SingleCourse {
+                    category: Some("Modern Physics".to_string()),
+                    possibilities: vec!["PHYS 1250".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Analytical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 3351".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Astrophysics".to_string()),
+                    possibilities: vec!["ASTR 1211".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Astrophysics".to_string()),
+                    possibilities: vec!["ASTR 1212".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 4401".to_string()],
+                },
+                Requirement::Restriction {
+                    category: Some("Astrophysics Electives".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["APHL".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::Restriction {
+                    category: Some("Astrophysics Electives".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["APHL".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::Restriction {
+                    category: Some("Astrophysics Electives".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["APHA".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+            ],
+        ),
+        (
+            "Business & Technology".to_string(),
+            vec![
+                Requirement::SingleCourse {
+                    category: Some("Modern Physics".to_string()),
+                    possibilities: vec!["PHYS 1250".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Analytical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 3351".to_string()],
+                },
+                Requirement::AnyOf {
+                    category: Some("Laboratory".to_string()),
+                    possibilities: vec![
+                        phys_course(&["PHYS 3364"]),
+                        phys_course(&["PHYS 4414"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Elective in Computer and Information Science".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec!["CIS".to_string()]),
+                            cu: None,
+                            level: Some(1000),
+                            attr: None,
+                            excluding: None,
+                            number: 1,
+                            no_school: None,
+                        },
+                        phys_course(&["ENGR 1050"]),
+                        phys_course(&["PHYS 2260"]),
+                        phys_course(&["PHYS 3358"]),
+                        phys_course(&["PHYS 3359"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Electives in Business and Technology".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec![
+                                "ACCT".to_string(),
+                                "ECON".to_string(),
+                                "FNCE".to_string(),
+                                "MGMT".to_string(),
+                                "STAT".to_string(),
+                            ]),
+                            cu: None,
+                            level: None,
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        Requirement::Restriction {
+                            category: None,
+                            department: None,
+                            cu: None,
+                            level: None,
+                            attr: Some(vec!["APHE".to_string()]),
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Electives in Business and Technology".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec![
+                                "ACCT".to_string(),
+                                "ECON".to_string(),
+                                "FNCE".to_string(),
+                                "MGMT".to_string(),
+                                "STAT".to_string(),
+                            ]),
+                            cu: None,
+                            level: None,
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        Requirement::Restriction {
+                            category: None,
+                            department: None,
+                            cu: None,
+                            level: None,
+                            attr: Some(vec!["APHE".to_string()]),
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Electives in Business and Technology".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec![
+                                "ACCT".to_string(),
+                                "ECON".to_string(),
+                                "FNCE".to_string(),
+                                "MGMT".to_string(),
+                                "STAT".to_string(),
+                            ]),
+                            cu: None,
+                            level: None,
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        Requirement::Restriction {
+                            category: None,
+                            department: None,
+                            cu: None,
+                            level: None,
+                            attr: Some(vec!["APHE".to_string()]),
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Electives in Business and Technology".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec![
+                                "ACCT".to_string(),
+                                "ECON".to_string(),
+                                "FNCE".to_string(),
+                                "MGMT".to_string(),
+                                "STAT".to_string(),
+                            ]),
+                            cu: None,
+                            level: None,
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        Requirement::Restriction {
+                            category: None,
+                            department: None,
+                            cu: None,
+                            level: None,
+                            attr: Some(vec!["APHE".to_string()]),
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                    ],
+                },
+            ],
+        ),
+        (
+            "Biological Science".to_string(),
+            vec![
+                Requirement::AnyOf {
+                    category: Some("Modern Physics".to_string()),
+                    possibilities: vec![
+                        phys_course(&["PHYS 1240"]),
+                        phys_course(&["PHYS 1250"]),
+                    ],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Introductory Biology".to_string()),
+                    possibilities: vec!["BIOL 1121".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Introductory Biology Laboratory".to_string()),
+                    possibilities: vec!["BIOL 1123".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Molecular Biology and Genetics".to_string()),
+                    possibilities: vec!["BIOL 2210".to_string()],
+                },
+                Requirement::AnyOf {
+                    category: Some("Biochemistry / Cell Biology".to_string()),
+                    possibilities: vec![
+                        phys_course(&["BIOL 2810"]),
+                        phys_course(&["BIOL 2010"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Biological Physics".to_string()),
+                    possibilities: vec![
+                        phys_course(&["PHYS 2280"]),
+                        phys_course(&["PHYS 5580"]),
+                    ],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 4401".to_string()],
+                },
+                Requirement::Restriction {
+                    category: Some("Biology Elective (2000 Level)".to_string()),
+                    department: Some(vec!["BIOL".to_string()]),
+                    cu: None,
+                    level: Some(2000),
+                    attr: None,
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::Restriction {
+                    category: Some("Biology Elective (3000+ Level)".to_string()),
+                    department: Some(vec!["BIOL".to_string()]),
+                    cu: None,
+                    level: Some(3000),
+                    attr: None,
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+            ],
+        ),
+        (
+            "Chemical Principles".to_string(),
+            vec![
+                Requirement::SingleCourse {
+                    category: Some("Modern Physics".to_string()),
+                    possibilities: vec!["PHYS 1250".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Analytical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 3351".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 4401".to_string()],
+                },
+                Requirement::AnyOf {
+                    category: Some("Introductory Chemistry I".to_string()),
+                    possibilities: vec![
+                        phys_course(&["CHEM 1011"]),
+                        phys_course(&["CHEM 1012"]),
+                        phys_course(&["CHEM 1151"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Introductory Chemistry II".to_string()),
+                    possibilities: vec![
+                        phys_course(&["CHEM 1021"]),
+                        phys_course(&["CHEM 1022"]),
+                        phys_course(&["CHEM 1161"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Advanced Chemistry".to_string()),
+                    possibilities: vec![
+                        Requirement::AllOf {
+                            category: None,
+                            requirements: vec![
+                                phys_course(&["CHEM 2210"]),
+                                phys_course(&["CHEM 2220"]),
+                            ],
+                        },
+                        Requirement::AllOf {
+                            category: None,
+                            requirements: vec![
+                                phys_course(&["CHEM 2410"]),
+                                phys_course(&["CHEM 2420"]),
+                            ],
+                        },
+                    ],
+                },
+            ],
+        ),
+        (
+            "Computer Techniques".to_string(),
+            vec![
+                Requirement::SingleCourse {
+                    category: Some("Modern Physics".to_string()),
+                    possibilities: vec!["PHYS 1250".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Analytical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 3351".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 4401".to_string()],
+                },
+                Requirement::Restriction {
+                    category: Some("Physics Laboratory Elective".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["APHL".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::AnyOf {
+                    category: Some("Computer Techniques Electives".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec!["CIS".to_string()]),
+                            cu: None,
+                            level: Some(1000),
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        phys_course(&["ENGR 1050"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Computer Techniques Electives".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec!["CIS".to_string()]),
+                            cu: None,
+                            level: Some(1000),
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        phys_course(&["ENGR 1050"]),
+                    ],
+                },
+                Requirement::AnyOf {
+                    category: Some("Computer Techniques Electives".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec!["CIS".to_string()]),
+                            cu: None,
+                            level: Some(1000),
+                            attr: None,
+                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
+                            number: 1,
+                            no_school: None,
+                        },
+                        phys_course(&["ENGR 1050"]),
+                    ],
+                },
+            ],
+        ),
+        (
+            "Physical Theory and Experimental Technique".to_string(),
+            vec![
+                Requirement::SingleCourse {
+                    category: Some("Modern Physics".to_string()),
+                    possibilities: vec!["PHYS 1250".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Analytical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 3351".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
+                    possibilities: vec!["PHYS 4401".to_string()],
+                },
+                Requirement::SingleCourse {
+                    category: Some("Quantum Mechanics".to_string()),
+                    possibilities: vec!["PHYS 4412".to_string()],
+                },
+                Requirement::Restriction {
+                    category: Some("Physics Laboratory Elective".to_string()),
+                    department: None,
+                    cu: None,
+                    level: None,
+                    attr: Some(vec!["APHL".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::AnyOf {
+                    category: Some("Advanced Physics / Astrophysics Elective".to_string()),
+                    possibilities: vec![
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec!["ASTR".to_string()]),
+                            cu: None,
+                            level: Some(3000),
+                            attr: None,
+                            excluding: None,
+                            number: 1,
+                            no_school: None,
+                        },
+                        Requirement::Restriction {
+                            category: None,
+                            department: Some(vec!["PHYS".to_string()]),
+                            cu: None,
+                            level: Some(3000),
+                            attr: None,
+                            excluding: None,
+                            number: 1,
+                            no_school: None,
+                        },
+                    ],
+                },
+            ],
+        ),
+    ])
+}
+
+fn phys_concentration_requirement(concentration_name: &str) -> Requirement {
+    let requirements = phys_concentrations()
+        .get(concentration_name)
+        .cloned()
+        .unwrap_or_default();
+    let number = requirements.iter().map(requirement_slot_cu).sum();
+    Requirement::Concentration {
+        category: Some(format!("Concentration - {concentration_name}")),
+        number,
+        requirements,
+    }
+}
+
+pub fn phys_concentration_names() -> Vec<String> {
+    cas_concentration_names("PHYS")
+}
+
+pub fn create_phys_major(concentration_name: String) -> Major {
+    let schedule_hints = HashMap::from([
+        ("MATH 1400".to_string(), Y1F.into()),
+        ("MATH 1410".to_string(), Y1S.into()),
+        ("MATH 1610".to_string(), Y1S.into()),
+        ("PHYS 0150".to_string(), Y1F.into()),
+        ("PHYS 0170".to_string(), Y1F.into()),
+        ("PHYS 0151".to_string(), Y1S.into()),
+        ("PHYS 0171".to_string(), Y1S.into()),
+        ("MATH 2200".to_string(), Y2F.into()),
+        ("PHYS 1230".to_string(), Y2F.into()),
+        ("MATH 2300".to_string(), Y2S.into()),
+        ("PHYS 1250".to_string(), Y2S.into()),
+        ("PHYS 1240".to_string(), Y2S.into()),
+        ("PHYS 3351".to_string(), Y3F.into()),
+        ("PHYS 3361".to_string(), Y3F.into()),
+        ("PHYS 3362".to_string(), Y3S.into()),
+        ("PHYS 4411".to_string(), Y4F.into()),
+        ("ASTR 1211".to_string(), Y3S.into()),
+        ("ASTR 1212".to_string(), Y4F.into()),
+        ("PHYS 4401".to_string(), Y4F.into()),
+        ("PHYS 4412".to_string(), Y4S.into()),
+        ("CHEM 1011".to_string(), Y1F.into()),
+        ("CHEM 1012".to_string(), Y1F.into()),
+        ("CHEM 1151".to_string(), Y1F.into()),
+        ("CHEM 1021".to_string(), Y1S.into()),
+        ("CHEM 1022".to_string(), Y1S.into()),
+        ("CHEM 1161".to_string(), Y1S.into()),
+        ("CHEM 2210".to_string(), Y3F.into()),
+        ("CHEM 2220".to_string(), Y3S.into()),
+        ("CHEM 2410".to_string(), Y3F.into()),
+        ("CHEM 2420".to_string(), Y3S.into()),
+        ("ENGR 1050".to_string(), Y2S.into()),
+        ("BIOL 1121".to_string(), Y2F.into()),
+        ("BIOL 1123".to_string(), Y2F.into()),
+        ("BIOL 2210".to_string(), Y3F.into()),
+    ]);
+    let mut major_requirements = phys_core_requirements();
+    major_requirements.push(phys_concentration_requirement(&concentration_name));
+    create_cas_major(CasMajorConfig {
+        short_name: "PHYS".to_string(),
+        name: "Physics".to_string(),
+        major_requirements,
+        auto_completed_sectors: vec![SECTOR_PHYSICAL_WORLD.to_string()],
+        concentrations: Some(phys_concentrations()),
         schedule_hints,
     })
 }
