@@ -118,6 +118,9 @@ function buildCourseMapFromDegreeResults(degreeResults = []) {
 }
 
 export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
+    // Always seed from degree_results (fulfilled + suggested). Required for multi-degree
+    // plans without the cross-degree overlap optimizer (e.g. undergrad + SEAS_MS), where
+    // course_allocations only lists fulfilled/taken courses—not scheduler suggestions.
     const degMap = buildCourseMapFromDegreeResults(degreeResults);
 
     // Authoritative for shared / resolved courses when the backend tracked allocations.

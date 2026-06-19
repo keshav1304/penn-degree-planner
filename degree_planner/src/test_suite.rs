@@ -111,6 +111,85 @@ fn dual_degree_input(
     }
 }
 
+fn dual_degree_input_with_conc(
+    school1: &str,
+    major1: &str,
+    conc1: Option<&str>,
+    school2: &str,
+    major2: &str,
+    conc2: Option<&str>,
+) -> ScheduleInput {
+    ScheduleInput {
+        taken: vec![],
+        degrees: vec![
+            DegreeInput {
+                major: major1.to_string(),
+                school: school1.to_string(),
+                concentrations: conc1.map(str::to_string).into_iter().collect(),
+                concentration: conc1.map(str::to_string),
+            },
+            DegreeInput {
+                major: major2.to_string(),
+                school: school2.to_string(),
+                concentrations: conc2.map(str::to_string).into_iter().collect(),
+                concentration: conc2.map(str::to_string),
+            },
+        ],
+        frozen: vec![],
+        allow_summer: Some(true),
+        semester_cu_limits: None,
+    }
+}
+
+/// Mirrors frontend `buildCourseMapFromDegreeResults` + allocation overlay.
+fn course_has_stripe_mapping(output: &scheduler::ScheduleOutput, course: &str) -> bool {
+    if !course::is_valid_course_code(course) {
+        return false;
+    }
+    if output
+        .cross_degree_summary
+        .as_ref()
+        .is_some_and(|s| s.course_allocations.contains_key(course))
+    {
+        return true;
+    }
+    output.degree_results.iter().any(|result| {
+        let in_mapped = |mapped: &requirement::MappedRequirement| {
+            mapped.course_ids.iter().any(|id| id == course)
+        };
+        result.fulfilled_requirements.iter().any(in_mapped)
+            || result.suggested_for_unfulfilled.iter().any(in_mapped)
+            || result
+                .unfulfilled_requirements
+                .iter()
+                .any(|mapped| mapped.partial && in_mapped(mapped))
+            || result.concentration_info.iter().any(|ci| {
+                !ci.is_core
+                    && ci
+                        .matched_courses
+                        .iter()
+                        .flatten()
+                        .any(|id| id == course)
+            })
+    })
+}
+
+fn assert_scheduled_courses_have_stripe_mapping(output: &scheduler::ScheduleOutput, label: &str) {
+    assert!(output.error.is_none(), "{label}: {:?}", output.error);
+    let unmapped: Vec<String> = output
+        .schedule
+        .iter()
+        .flat_map(|plan| plan.courses.iter().cloned())
+        .filter(|c| course::is_valid_course_code(c))
+        .filter(|c| !course_has_stripe_mapping(output, c))
+        .collect();
+    assert!(
+        unmapped.is_empty(),
+        "{label}: scheduled courses missing degree stripe mapping: {:?}",
+        unmapped
+    );
+}
+
 /// True when this requirement subtree includes a 1-CU WRIT department restriction.
 fn requirement_tree_has_writ_department(req: &Requirement) -> bool {
     match req {
@@ -1624,6 +1703,57 @@ mod overlap {
 
 mod scheduling {
     use super::*;
+
+    #[test]
+    fn scheduled_courses_have_degree_stripe_mapping_undergrad_plus_grad() {
+        let cases = [
+            (
+                "EE+MS_ROBO (Data Science conc)",
+                dual_degree_input_with_conc(
+                    "SEAS",
+                    "EE",
+                    Some("Data Science"),
+                    "SEAS_MS",
+                    "MS_ROBO",
+                    None,
+                ),
+            ),
+            (
+                "CIS+MS_ROBO",
+                dual_degree_input("SEAS", "CIS", "SEAS_MS", "MS_ROBO"),
+            ),
+            (
+                "NEUR+MS_ROBO",
+                dual_degree_input("CAS", "NEUR", "SEAS_MS", "MS_ROBO"),
+            ),
+            (
+                "EE+MS_EE",
+                dual_degree_input("SEAS", "EE", "SEAS_MS", "MS_EE"),
+            ),
+            (
+                "MS_ROBO+MS_EE",
+                dual_degree_input("SEAS_MS", "MS_ROBO", "SEAS_MS", "MS_EE"),
+            ),
+        ];
+        for (label, input) in cases {
+            assert_scheduled_courses_have_stripe_mapping(&generate_schedule(input), label);
+        }
+    }
+
+    #[test]
+    fn scheduled_courses_have_degree_stripe_mapping_dual_undergrad() {
+        for (label, input) in implemented_dual_undergrad_pairs() {
+            assert_scheduled_courses_have_stripe_mapping(&generate_schedule(input), &label);
+        }
+        assert_scheduled_courses_have_stripe_mapping(
+            &generate_schedule(dual_degree_input("CAS", "ECON", "CAS", "CIS")),
+            "CAS ECON+CIS",
+        );
+        assert_scheduled_courses_have_stripe_mapping(
+            &generate_schedule(dual_degree_input("SEAS", "EE", "CAS", "ECON")),
+            "SEAS EE+CAS ECON",
+        );
+    }
 
     #[test]
     fn year_one_fall_is_always_five_point_five() {
