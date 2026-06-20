@@ -22,6 +22,27 @@ pub fn overlap_plan_applicable(degree_schools: &[String]) -> bool {
     degree_schools.len() >= 2
 }
 
+pub fn undergrad_degree_count(degree_schools: &[String]) -> usize {
+    degree_schools
+        .iter()
+        .filter(|s| !is_graduate_degree(s))
+        .count()
+}
+
+/// Two or more undergraduate degrees selected (grad programs may also be present).
+pub fn has_dual_undergrad(degree_schools: &[String]) -> bool {
+    undergrad_degree_count(degree_schools) >= 2
+}
+
+/// Every undergraduate degree is in CAS (dual-college rule).
+pub fn all_undergrad_degrees_are_cas(degree_schools: &[String]) -> bool {
+    let ug: Vec<_> = degree_schools
+        .iter()
+        .filter(|s| !is_graduate_degree(s))
+        .collect();
+    ug.len() >= 2 && ug.iter().all(|s| *s == "CAS")
+}
+
 fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
     *cu_map.get(course).unwrap_or(&1.0)
 }

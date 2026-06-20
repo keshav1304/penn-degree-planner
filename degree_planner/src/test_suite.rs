@@ -1981,8 +1981,28 @@ mod scheduling {
     }
 
     #[test]
-    fn undergrad_plus_grad_stays_four_years_not_dual_undergrad_optimizer() {
+    fn single_undergrad_plus_grad_stays_five_point_five() {
         let schools = vec!["SEAS".into(), "SEAS_MS".into()];
+        assert_eq!(default_semester_cu_limit(&schools, 2, "Fall"), 5.5);
+        assert_eq!(undergrad_schedule_years(&schools), 4);
+        assert!(!cross_degree::has_dual_undergrad(&schools));
+    }
+
+    #[test]
+    fn dual_undergrad_plus_grad_gets_six_point_five_except_y1f() {
+        let schools = vec!["SEAS".into(), "WH".into(), "SEAS_MS".into()];
+        assert!(!scheduler::dual_undergrad_only(&schools));
+        assert!(cross_degree::has_dual_undergrad(&schools));
+        assert_eq!(default_semester_cu_limit(&schools, 1, "Fall"), 5.5);
+        assert_eq!(default_semester_cu_limit(&schools, 1, "Spring"), 6.5);
+        assert_eq!(default_semester_cu_limit(&schools, 2, "Fall"), 6.5);
+        assert_eq!(undergrad_schedule_years(&schools), 5);
+    }
+
+    #[test]
+    fn dual_cas_undergrad_plus_grad_stays_five_point_five() {
+        let schools = vec!["CAS".into(), "CAS".into(), "SEAS_MS".into()];
+        assert!(cross_degree::has_dual_undergrad(&schools));
         assert_eq!(default_semester_cu_limit(&schools, 2, "Fall"), 5.5);
         assert_eq!(undergrad_schedule_years(&schools), 4);
     }

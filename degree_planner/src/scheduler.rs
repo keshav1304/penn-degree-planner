@@ -92,23 +92,20 @@ pub fn default_semester_cu_limit(schools: &[String], year: i32, semester: &str) 
     if year == 1 && semester == "Fall" {
         return DEFAULT_SEMESTER_CU_LIMIT;
     }
-    if dual_undergrad_only(schools) && !all_cas_college(schools) {
+    if cross_degree::has_dual_undergrad(schools) && !cross_degree::all_undergrad_degrees_are_cas(schools) {
         return DUAL_UG_SEMESTER_CU_LIMIT;
     }
     DEFAULT_SEMESTER_CU_LIMIT
 }
 
 pub fn undergrad_schedule_years(schools: &[String]) -> i32 {
-    if schools.len() < 2 {
+    if !cross_degree::has_dual_undergrad(schools) {
         return 4;
     }
-    if all_cas_college(schools) {
+    if cross_degree::all_undergrad_degrees_are_cas(schools) {
         return 4;
     }
-    if dual_undergrad_only(schools) {
-        return 5;
-    }
-    4
+    5
 }
 
 

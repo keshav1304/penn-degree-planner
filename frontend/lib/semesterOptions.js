@@ -16,6 +16,17 @@ export function isDualUndergradOnly(degrees) {
     );
 }
 
+/** Two or more undergraduate degrees (grad programs may also be present). */
+export function hasDualUndergrad(degrees) {
+    return (degrees || []).filter((d) => !isGraduateSchool(d.schoolCode)).length >= 2;
+}
+
+/** Every undergraduate degree is in CAS (dual-college rule). */
+export function allUndergradCasCollege(degrees) {
+    const ug = (degrees || []).filter((d) => !isGraduateSchool(d.schoolCode));
+    return ug.length >= 2 && ug.every((d) => d.schoolCode === "CAS");
+}
+
 /** Every selected degree is in the College (CAS). */
 export function isAllCasCollege(degrees) {
     return degrees?.length > 0 && degrees.every((d) => d.schoolCode === "CAS");
@@ -25,7 +36,7 @@ export function isAllCasCollege(degrees) {
  * Default max CU for a semester (before user overrides).
  *
  * - Year 1 Fall: always 5.5
- * - Dual undergrad (not MS), not all-CAS: 6.5 for other fall/spring terms
+ * - Two or more undergrad degrees (even with MS), not all-CAS undergrad: 6.5 for other fall/spring terms
  * - Dual CAS college majors: 5.5 everywhere
  * - Single degree or any other case: 5.5
  */
@@ -36,7 +47,7 @@ export function defaultSemesterCuLimit(semester, year = null, degrees = []) {
     if (year === 1 && semester === "Fall") {
         return DEFAULT_SEMESTER_CU_LIMIT;
     }
-    if (isDualUndergradOnly(degrees) && !isAllCasCollege(degrees)) {
+    if (hasDualUndergrad(degrees) && !allUndergradCasCollege(degrees)) {
         return DUAL_UG_SEMESTER_CU_LIMIT;
     }
     return DEFAULT_SEMESTER_CU_LIMIT;
@@ -78,7 +89,7 @@ export function undergradScheduleYears(degrees) {
     const schools = (degrees || []).map((d) => d.schoolCode);
     if (schools.length < 2) return 4;
     if (schools.every((s) => s === "CAS")) return 4;
-    if (isDualUndergradOnly(degrees)) return 5;
+    if (hasDualUndergrad(degrees) && !allUndergradCasCollege(degrees)) return 5;
     return 4;
 }
 
