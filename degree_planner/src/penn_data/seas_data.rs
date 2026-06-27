@@ -43,6 +43,7 @@ pub fn concentration_names_for(major_code: &str) -> Vec<String> {
         "CMPE" => create_cmpe_major().concentrations,
         "MEAM" => create_meam_major("General".to_string()).concentrations,
         "MSE" => create_mse_major().concentrations,
+        "BE" => create_be_major().concentrations,
         _ => return vec![],
     };
     concentrations
@@ -982,4 +983,475 @@ pub fn create_cmpe_major() -> Major {
             ),
         ])),
     };
+}
+
+fn be_conc_courses(courses: &[&str]) -> Vec<String> {
+    courses.iter().map(|c| c.to_string()).collect()
+}
+
+fn be_conc_slot(category: &str, courses: &[&str]) -> Requirement {
+    Requirement::SingleCourse {
+        category: Some(category.to_string()),
+        possibilities: be_conc_courses(courses),
+    }
+}
+
+/// Optional overlay concentration: 2 CU from `primary`, then 2 CU from `extended`.
+fn be_overlay_concentration(
+    name: &str,
+    primary: &[&str],
+    extended: &[&str],
+) -> (String, Vec<Requirement>) {
+    let cat = name.to_string();
+    (
+        cat.clone(),
+        vec![
+            be_conc_slot(&cat, primary),
+            be_conc_slot(&cat, primary),
+            be_conc_slot(&cat, extended),
+            be_conc_slot(&cat, extended),
+        ],
+    )
+}
+
+fn be_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    BTreeMap::from([
+        be_overlay_concentration(
+            "Biomedical Data Science and Computational Medicine",
+            &["BE 4900", "BE 5040", "BE 5210", "BE 5300", "BE 5590", "BE 5660"],
+            &[
+                "BE 4900", "BE 5040", "BE 5210", "BE 5300", "BE 5590", "BE 5660",
+                "CIS 5210", "CIS 4500", "CIS 5200", "CIS 5450", "CIS 5350", "CIS 5360",
+                "CBE 5250", "ESE 3050", "ESE 5420", "BIOM 5350", "MTR 5350", "BIOL 4511",
+                "BIOL 5536", "GCB 5360", "GCB 5370", "STAT 9915",
+            ],
+        ),
+        be_overlay_concentration(
+            "Biomedical Devices",
+            &[
+                "BE 4700", "BE 4720", "BE 4900", "BE 5020", "BE 5140", "BE 5180",
+                "BE 5210", "BE 5280", "BE 5290", "BE 5510", "BE 5560", "BE 5700",
+            ],
+            &[
+                "BE 4700", "BE 4720", "BE 4900", "BE 5020", "BE 5140", "BE 5180",
+                "BE 5210", "BE 5280", "BE 5290", "BE 5510", "BE 5560", "BE 5700",
+                "ESE 2150", "ESE 5050", "MEAM 5130", "ESE 5290", "MEAM 1010", "MEAM 2010",
+                "MEAM 5100", "MEAM 4150", "OIDD 4150", "MEAM 5140", "MEAM 5200",
+            ],
+        ),
+        be_overlay_concentration(
+            "Cellular/Tissue Engineering and Biomaterials",
+            &[
+                "BE 3300", "BE 4900", "BE 5120", "BE 5400", "BE 5530", "BE 5580",
+                "BE 5650", "BE 5690", "BE 5780",
+            ],
+            &[
+                "BE 3300", "BE 4900", "BE 5120", "BE 5400", "BE 5530", "BE 5580",
+                "BE 5650", "BE 5690", "BE 5780", "CBE 4300", "MSE 4300", "CBE 5570",
+                "MEAM 5140", "MSE 5850", "BE 5850", "MSE 5180",
+            ],
+        ),
+        be_overlay_concentration(
+            "Biomedical Imaging and Radiation Physics",
+            &[
+                "BE 4900", "BE 5180", "BE 5370", "BE 5470", "BE 5810", "BE 5830",
+                "BE 6500",
+            ],
+            &[
+                "BE 4900", "BE 5180", "BE 5370", "BE 5470", "BE 5810", "BE 5830",
+                "BE 6500", "MPHY 6030", "MPHY 6070", "PHYS 4421",
+            ],
+        ),
+        be_overlay_concentration(
+            "Systems and Synthetic Biology",
+            &[
+                "BE 4900", "BE 5270", "BE 5400", "BE 5580", "BE 5590", "BE 5650",
+                "BE 5690",
+            ],
+            &[
+                "BE 4900", "BE 5270", "BE 5400", "BE 5580", "BE 5590", "BE 5650",
+                "BE 5690", "CBE 4790", "CBE 4800", "CBE 5170", "CBE 5270", "CBE 5540",
+                "CBE 5570", "MEAM 6630", "BIOL 5262",
+            ],
+        ),
+        be_overlay_concentration(
+            "Neuroengineering",
+            &[
+                "BE 4900", "BE 5060", "BE 5210", "BE 5300", "BE 5660", "BE 5850",
+                "BE 5950", "BE 6100",
+            ],
+            &[
+                "BE 4900", "BE 5060", "BE 5210", "BE 5300", "BE 5660", "BE 5850",
+                "BE 5950", "BE 6100", "NRSC 2249", "PSYC 1230", "NRSC 2110", "BIOL 2110",
+                "BIOL 4110", "BIOL 5110", "BIOL 4142", "NRSC 2205", "NRSC 3334",
+                "NGG 5720", "NGG 5730",
+            ],
+        ),
+        be_overlay_concentration(
+            "Multiscale Biomechanics",
+            &["BE 4900", "BE 5100", "BE 5140", "BE 5500", "BE 5700", "BE 5610"],
+            &["BE 4900", "BE 5100", "BE 5140", "BE 5500", "BE 5700", "BE 5610"],
+        ),
+        be_overlay_concentration(
+            "Therapeutics, Drug Delivery & Nanomedicine",
+            &[
+                "BE 4900", "BE 5550", "CBE 5550", "MEAM 5550", "BE 5570", "BE 5620",
+                "BE 5780",
+            ],
+            &[
+                "BE 4900", "BE 5550", "CBE 5550", "MEAM 5550", "BE 5570", "BE 5620",
+                "BE 5780", "BIOL 4810", "CBE 5570", "CBE 5640",
+            ],
+        ),
+        be_overlay_concentration(
+            "Immune Engineering",
+            &[
+                "BE 4900", "BE 5120", "BE 4260", "BE 5260", "BIOL 4004", "BE 5270",
+                "BE 5570",
+            ],
+            &[
+                "BE 4900", "BE 5120", "BE 4260", "BE 5260", "BIOL 4004", "BE 5270",
+                "BE 5570", "ENGR 4500", "IMUN 5060", "IMUN 5070", "IMUN 6090",
+                "CAMB 6090", "REG 6180",
+            ],
+        ),
+    ])
+}
+
+/// BE schedule template — one semester per top-level requirement, in list order.
+/// Based on the official Bioengineering BSE sample curriculum.
+const BE_SCHEDULE: [Semester; 35] = [
+    // Engineering
+    Y1F, Y1S, Y2F, Y2S, Y2S, Y3F, Y3S, Y3F, Y3S, Y3S, Y4F, Y4S, Y4F, Y4S, Y4F, Y4S,
+    // Math and Natural Science
+    Y1F, Y1S, Y2F, Y2S, Y1F, Y1S, Y1F, Y1F, Y1S, Y1S, Y2F, Y2F, Y3F,
+    // General Electives — SSH distribution (AnyOf), flex SSH, TBS
+    Y2F, Y3S, Y4F,
+    // Free Electives
+    Y3F, Y3S, Y4F,
+];
+
+pub fn create_be_major() -> Major {
+    Major {
+        short_name: "BE".to_string(),
+        name: "Bioengineering".to_string(),
+        requirements: vec![
+            // Engineering
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 1000".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec![
+                    "ENGR 1050".to_string(),
+                    "CIS 1200".to_string(),
+                    "CIS 1210".to_string(),
+                    "CIS 2400".to_string(),
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 2000".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 2200".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 2700".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 3010".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 3060".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 3090".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 3100".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 3500".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 4950".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["BE 4960".to_string()],
+            },
+            Requirement::Restriction {
+                category: Some("BE Elective (4000 or 5000 level)".to_string()),
+                department: Some(vec!["BE".to_string()]),
+                cu: None,
+                level: Some(4000),
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("BE Elective (4000 or 5000 level)".to_string()),
+                department: Some(vec!["BE".to_string()]),
+                cu: None,
+                level: Some(4000),
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Engineering Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["EUNG".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Engineering Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["EUNG".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+
+            // Math and Natural Science
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["MATH 1400".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["MATH 1410".to_string()],
+            },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["ESE 2030".to_string(), "ENM 2030".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["ENM 2400".to_string()],
+                    },
+                ],
+            },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["ENM 3750".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["ENGR 3440".to_string()],
+                    },
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["PHYS 0140".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["PHYS 0141".to_string()],
+            },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CHEM 1012".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CHEM 1151".to_string()],
+                    },
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["CHEM 1101".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["CHEM 1102".to_string()],
+            },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CHEM 1022".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CHEM 1161".to_string()],
+                    },
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["BIOL 1121".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["BIOL 1123".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["BIOL 3310".to_string()],
+            },
+
+            // General Electives — 2 SS + 2 Hum with ethics double-counting (AnyOf branch)
+            Requirement::AnyOf {
+                category: Some("General Electives".to_string()),
+                possibilities: vec![
+                    Requirement::AllOf {
+                        category: None,
+                        requirements: vec![
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec![
+                                    "EAS 2030".to_string(),
+                                    "HSOC 1330".to_string(),
+                                    "HSOC 2457".to_string(),
+                                    "LGST 1000".to_string(),
+                                    "LGST 2200".to_string(),
+                                    "NURS 3300".to_string(),
+                                    "NURS 5250".to_string(),
+                                ],
+                            },
+                            Requirement::Restriction {
+                                category: None,
+                                department: None,
+                                cu: None,
+                                level: None,
+                                attr: Some(vec!["EUSS".to_string()]),
+                                number: 1,
+                                excluding: None,
+                                no_school: None,
+                            },
+                            Requirement::Restriction {
+                                category: None,
+                                department: None,
+                                cu: None,
+                                level: None,
+                                attr: Some(vec!["EUHS".to_string()]),
+                                number: 2,
+                                excluding: None,
+                                no_school: None,
+                            },
+                        ],
+                    },
+                    Requirement::AllOf {
+                        category: None,
+                        requirements: vec![
+                            Requirement::Restriction {
+                                category: None,
+                                department: None,
+                                cu: None,
+                                level: None,
+                                attr: Some(vec!["EUSS".to_string()]),
+                                number: 2,
+                                excluding: None,
+                                no_school: None,
+                            },
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec![
+                                    "BIOE 4010".to_string(),
+                                    "BIOE 4020".to_string(),
+                                    "PHIL 1342".to_string(),
+                                    "PHIL 4330".to_string(),
+                                ],
+                            },
+                            Requirement::Restriction {
+                                category: None,
+                                department: None,
+                                cu: None,
+                                level: None,
+                                attr: Some(vec!["EUHS".to_string()]),
+                                number: 1,
+                                excluding: None,
+                                no_school: None,
+                            },
+                        ],
+                    },
+                ],
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["EUSS".to_string(), "EUHS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: Some(vec!["EUSS".to_string(), "EUHS".to_string(), "EUTB".to_string()]),
+                number: 2,
+                excluding: None,
+                no_school: None,
+            },
+
+            // Free Electives
+            Requirement::Restriction {
+                category: Some("Free Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Free Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Free Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+        ],
+        schedule_hints: seas_schedule_hints(&BE_SCHEDULE),
+        concentrations: Some(be_concentrations()),
+    }
 }
