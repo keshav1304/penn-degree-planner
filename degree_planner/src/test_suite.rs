@@ -390,6 +390,48 @@ mod catalog {
     }
 
     #[test]
+    fn math_major_resolves_with_concentrations() {
+        use crate::Requirement;
+
+        let general =
+            resolve_major("CAS", "MATH", &["General Mathematics".into()]).expect("MATH general");
+        assert_eq!(general.short_name, "MATH");
+        assert!(general.concentrations.is_some());
+        let pool_has_3001 = general.requirements.iter().any(|r| {
+            let Requirement::CoursePool { fixed_slots, .. } = r else {
+                return false;
+            };
+            fixed_slots.iter().any(|slot| {
+                matches!(
+                    slot,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"MATH 3001".to_string())
+                )
+            })
+        });
+        assert!(pool_has_3001, "shared math core should include MATH 3001");
+
+        let bio = resolve_major("CAS", "MATH", &["Biological Mathematics".into()]).expect("MATH bio");
+        let bio_conc_in_pool = bio.requirements.iter().any(|r| {
+            let Requirement::CoursePool { fixed_slots, .. } = r else {
+                return false;
+            };
+            fixed_slots.iter().any(|slot| {
+                matches!(
+                    slot,
+                    Requirement::Concentration { category, .. }
+                        if category.as_deref() == Some("Biological Mathematics")
+                )
+            })
+        });
+        assert!(
+            bio_conc_in_pool,
+            "Biological Mathematics concentration should live in the major course pool"
+        );
+        assert!(major::major_is_implemented("CAS", "MATH"));
+    }
+
+    #[test]
     fn cas_lists_all_college_majors() {
         assert_eq!(college_data::CAS_DEGREE_CATALOG.len(), 56);
         assert!(college_data::cas_catalog_entry("BIOL").is_some());

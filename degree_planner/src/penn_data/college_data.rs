@@ -2794,3 +2794,239 @@ pub fn create_neur_major() -> Major {
         schedule_hints,
     })
 }
+
+fn math_single_course(code: &str) -> Requirement {
+    Requirement::SingleCourse {
+        category: None,
+        possibilities: vec![code.to_string()],
+    }
+}
+
+fn math_bio_core_electives(number: i32) -> Requirement {
+    Requirement::CourseGroup {
+        category: Some("Biology".to_string()),
+        number,
+        possibilities: ["BIOL 2210", "BIOL 2410", "BIOL 2610"]
+            .into_iter()
+            .map(math_single_course)
+            .collect(),
+    }
+}
+
+fn math_bio_advanced_electives() -> Requirement {
+    Requirement::CourseGroup {
+        category: Some("Advanced Biology".to_string()),
+        number: 3,
+        possibilities: ["BIOL 4517", "BIOL 4231", "BIOL 4536", "BIOL 5536"]
+            .into_iter()
+            .map(math_single_course)
+            .collect(),
+    }
+}
+
+fn math_bio_additional_science() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Additional Science".to_string()),
+        possibilities: vec![
+            Requirement::AllOf {
+                category: None,
+                requirements: vec![
+                    math_single_course("CHEM 1011"),
+                    math_single_course("CHEM 1101"),
+                ],
+            },
+            Requirement::AllOf {
+                category: None,
+                requirements: vec![
+                    math_single_course("CHEM 1011"),
+                    math_single_course("CHEM 1102"),
+                ],
+            },
+            math_single_course("PHYS 0151"),
+        ],
+    }
+}
+
+fn math_biological_track_1() -> Requirement {
+    Requirement::AllOf {
+        category: Some("Biological Mathematics — Track 1".to_string()),
+        requirements: vec![
+            math_single_course("BIOL 1121"),
+            math_single_course("BIOL 1124"),
+            math_bio_core_electives(2),
+            math_bio_advanced_electives(),
+            math_bio_additional_science(),
+        ],
+    }
+}
+
+fn math_biological_track_2() -> Requirement {
+    Requirement::AllOf {
+        category: Some("Biological Mathematics — Track 2".to_string()),
+        requirements: vec![
+            math_single_course("BIOL 1101"),
+            math_single_course("BIOL 1102"),
+            math_single_course("BIOL 4231"),
+            math_bio_core_electives(2),
+            math_bio_additional_science(),
+        ],
+    }
+}
+
+fn math_biological_mathematics_requirements() -> Vec<Requirement> {
+    vec![Requirement::AnyOf {
+        category: Some("Biological Mathematics".to_string()),
+        possibilities: vec![math_biological_track_1(), math_biological_track_2()],
+    }]
+}
+
+fn math_shared_requirements() -> Vec<Requirement> {
+    vec![
+        Requirement::SingleCourse {
+            category: Some("Mathematics".to_string()),
+            possibilities: vec!["MATH 1400".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Mathematics".to_string()),
+            possibilities: vec![
+                math_single_course("MATH 1410"),
+                math_single_course("MATH 1610"),
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Mathematics".to_string()),
+            possibilities: vec!["MATH 3000".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Mathematics".to_string()),
+            possibilities: vec!["MATH 3001".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Advanced Calculus".to_string()),
+            possibilities: vec![
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        math_single_course("MATH 3600"),
+                        math_single_course("MATH 3610"),
+                    ],
+                },
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        math_single_course("MATH 5080"),
+                        math_single_course("MATH 5090"),
+                    ],
+                },
+            ],
+        },
+        Requirement::AnyOf {
+            category: Some("Algebra".to_string()),
+            possibilities: vec![
+                math_single_course("MATH 3700"),
+                math_single_course("MATH 5020"),
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Statistics".to_string()),
+            possibilities: vec!["MATH 3200".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Statistics".to_string()),
+            possibilities: vec!["STAT 4310".to_string()],
+        },
+        Requirement::AnyOf {
+            category: Some("Upper Level Mathematics".to_string()),
+            possibilities: vec![
+                math_single_course("MATH 2300"),
+                math_single_course("MATH 4200"),
+                math_single_course("MATH 4250"),
+            ],
+        },
+        Requirement::Restriction {
+            category: Some("Mathematics Electives".to_string()),
+            department: Some(vec!["MATH".to_string()]),
+            cu: None,
+            level: Some(3000),
+            attr: None,
+            excluding: None,
+            number: 4,
+            no_school: None,
+        },
+    ]
+}
+
+fn math_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    BTreeMap::from([
+        ("General Mathematics".to_string(), vec![]),
+        (
+            "Biological Mathematics".to_string(),
+            math_biological_mathematics_requirements(),
+        ),
+    ])
+}
+
+fn math_concentration_requirement(concentration_name: &str) -> Option<Requirement> {
+    let requirements = math_concentrations()
+        .get(concentration_name)
+        .unwrap_or_else(|| panic!("unknown MATH concentration: {concentration_name}"))
+        .clone();
+    if requirements.is_empty() {
+        return None;
+    }
+    let number = requirements.iter().map(requirement_slot_cu).sum();
+    Some(Requirement::Concentration {
+        category: Some(concentration_name.to_string()),
+        number,
+        requirements,
+    })
+}
+
+pub fn math_concentration_names() -> Vec<String> {
+    cas_concentration_names("MATH")
+}
+
+pub fn create_math_major(concentration_name: String) -> Major {
+    let schedule_hints = HashMap::from([
+        ("MATH 1400".to_string(), Y1F.into()),
+        ("MATH 1410".to_string(), Y1S.into()),
+        ("MATH 1610".to_string(), Y1S.into()),
+        ("MATH 3000".to_string(), Y2F.into()),
+        ("MATH 3001".to_string(), Y2S.into()),
+        ("MATH 3200".to_string(), Y3F.into()),
+        ("STAT 4310".to_string(), Y3S.into()),
+        ("MATH 3600".to_string(), Y3F.into()),
+        ("MATH 3610".to_string(), Y4F.into()),
+        ("MATH 5080".to_string(), Y3F.into()),
+        ("MATH 5090".to_string(), Y4F.into()),
+        ("MATH 3700".to_string(), Y3S.into()),
+        ("MATH 5020".to_string(), Y3S.into()),
+        ("MATH 2300".to_string(), Y3F.into()),
+        ("MATH 4200".to_string(), Y3F.into()),
+        ("MATH 4250".to_string(), Y3F.into()),
+        ("BIOL 1121".to_string(), Y1F.into()),
+        ("BIOL 1124".to_string(), Y1S.into()),
+        ("BIOL 1101".to_string(), Y1F.into()),
+        ("BIOL 1102".to_string(), Y1S.into()),
+        ("BIOL 4231".to_string(), Y3F.into()),
+        ("BIOL 2210".to_string(), Y2F.into()),
+        ("BIOL 2410".to_string(), Y2S.into()),
+        ("BIOL 2610".to_string(), Y3F.into()),
+        ("CHEM 1011".to_string(), Y2F.into()),
+        ("CHEM 1101".to_string(), Y2F.into()),
+        ("CHEM 1102".to_string(), Y2S.into()),
+        ("PHYS 0151".to_string(), Y2S.into()),
+    ]);
+    let mut major_requirements = math_shared_requirements();
+    if let Some(conc) = math_concentration_requirement(&concentration_name) {
+        major_requirements.push(conc);
+    }
+    create_cas_major(CasMajorConfig {
+        short_name: "MATH".to_string(),
+        name: "Mathematics".to_string(),
+        major_requirements,
+        auto_completed_sectors: vec![],
+        concentrations: Some(math_concentrations()),
+        schedule_hints,
+    })
+}

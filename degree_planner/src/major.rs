@@ -345,6 +345,13 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 Some(college_data::create_phys_major(conc))
             }
             "ANCH" => Some(college_data::create_anch_major()),
+            "MATH" => {
+                let conc = concentrations
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "General Mathematics".to_string());
+                Some(college_data::create_math_major(conc))
+            }
             other => college_data::cas_catalog_entry(other)
                 .map(college_data::create_cas_placeholder_major),
         },
