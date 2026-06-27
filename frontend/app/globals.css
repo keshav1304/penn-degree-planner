@@ -846,15 +846,6 @@ select {
   display: block;
 }
 
-.schedule-overlap-segment {
-  display: inline;
-}
-
-.schedule-overlap-req-label {
-  border-bottom: 2px solid;
-  padding-bottom: 1px;
-}
-
 .schedule-overlap-slash {
   color: var(--text-muted);
   font-weight: 500;

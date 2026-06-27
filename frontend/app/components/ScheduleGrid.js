@@ -320,20 +320,13 @@ export default function ScheduleGrid({
                     >
                         <div className="schedule-overlap-inline">
                             {members.map((m, i) => {
-                                const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
-                                const color = degKey ? (degreeColorMap[degKey] || "#888") : "#888";
                                 const slotText = m.schedule_slot_id
                                     ? getSlotLabel(m.schedule_slot_id)
                                     : "";
                                 const text = formatOverlapMemberLabel(slotText, m.label);
                                 return (
                                     <div key={i} className="schedule-overlap-line">
-                                        <span
-                                            className="schedule-overlap-req-label"
-                                            style={{ borderBottomColor: color }}
-                                        >
-                                            {text}
-                                        </span>
+                                        {text}
                                         {i < members.length - 1 && (
                                             <span className="schedule-overlap-slash"> /</span>
                                         )}
