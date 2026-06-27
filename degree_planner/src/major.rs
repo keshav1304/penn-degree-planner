@@ -32,7 +32,61 @@ pub struct SchoolCatalogEntry {
     pub majors: Vec<MajorCatalogEntry>,
 }
 
+/// Whether a resolved major has authored requirements beyond gen-ed-only / stub placeholders.
+pub fn major_has_authored_requirements(school: &str, major: &Major) -> bool {
+    if major.requirements.is_empty() || requirement_tree_has_placeholder(&major.requirements) {
+        return false;
+    }
+    match school {
+        "CAS" => {
+            college_data::cas_major_pool_major_cu(major) > 0
+                || major.concentrations.as_ref().is_some_and(|concs| {
+                    concs.values().any(|reqs| !reqs.is_empty())
+                })
+        }
+        _ => true,
+    }
+}
+
+fn requirement_tree_has_placeholder(requirements: &[Requirement]) -> bool {
+    requirements.iter().any(requirement_is_placeholder)
+}
+
+fn requirement_is_placeholder(req: &Requirement) -> bool {
+    match req {
+        Requirement::Restriction { category, .. } => category
+            .as_deref()
+            .is_some_and(|label| label.contains("(placeholder)")),
+        Requirement::AllOf { requirements, .. }
+        | Requirement::Concentration { requirements, .. } => {
+            requirement_tree_has_placeholder(requirements)
+        }
+        Requirement::AnyOf { possibilities, .. } | Requirement::CourseGroup { possibilities, .. } => {
+            requirement_tree_has_placeholder(possibilities)
+        }
+        Requirement::CoursePool {
+            fixed_slots,
+            constraints,
+            ..
+        } => {
+            requirement_tree_has_placeholder(fixed_slots)
+                || constraints
+                    .iter()
+                    .any(|c| requirement_is_placeholder(&c.requirement))
+        }
+        _ => false,
+    }
+}
+
+/// Whether this school/major pair has real requirements (shown in the UI catalog).
+pub fn major_is_implemented(school: &str, api_code: &str) -> bool {
+    resolve_major(school, api_code, &[]).is_some_and(|major| {
+        major_has_authored_requirements(school, &major)
+    })
+}
+
 /// Canonical school/major list for the UI and `/all_majors`.
+/// Only majors with authored requirements are included.
 pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
     vec![
         SchoolCatalogEntry {
@@ -141,6 +195,15 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
             }],
         },
     ]
+    .into_iter()
+    .map(|mut school| {
+        school
+            .majors
+            .retain(|m| major_is_implemented(&school.school_code, &m.api_code));
+        school
+    })
+    .filter(|school| !school.majors.is_empty())
+    .collect()
 }
 
 pub fn all_majors() -> BTreeMap<String, Vec<String>> {
@@ -190,6 +253,9 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
     let mut map = BTreeMap::new();
 
     for entry in college_data::CAS_DEGREE_CATALOG {
+        if !major_is_implemented("CAS", entry.api_code) {
+            continue;
+        }
         let concs = concentrations_for("CAS", entry.api_code);
         if !concs.is_empty() {
             map.insert(format!("CAS:{}", entry.api_code), concs);

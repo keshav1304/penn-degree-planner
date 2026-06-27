@@ -397,6 +397,50 @@ mod catalog {
     }
 
     #[test]
+    fn degree_catalog_excludes_unimplemented_majors() {
+        let catalog = major::degree_catalog();
+        let cas = catalog
+            .iter()
+            .find(|s| s.school_code == "CAS")
+            .expect("CAS in catalog");
+        assert!(
+            !cas.majors.iter().any(|m| m.api_code == "BIOL"),
+            "gen-ed-only placeholders should not appear in the UI catalog"
+        );
+        assert!(
+            cas.majors.iter().any(|m| m.api_code == "ECON"),
+            "implemented CAS majors should remain selectable"
+        );
+        assert!(
+            !catalog.iter().any(|s| s.school_code == "NURS"),
+            "schools with no implemented majors should be omitted"
+        );
+        let seas_ms = catalog
+            .iter()
+            .find(|s| s.school_code == "SEAS_MS")
+            .expect("SEAS_MS in catalog");
+        assert!(
+            !seas_ms.majors.iter().any(|m| m.api_code == "MS_MEAM"),
+            "placeholder grad programs should not appear in the UI catalog"
+        );
+    }
+
+    #[test]
+    fn major_is_implemented_inferred_from_requirements() {
+        let biol = resolve_major("CAS", "BIOL", &[]).expect("BIOL resolves");
+        assert!(
+            !major::major_has_authored_requirements("CAS", &biol),
+            "CAS placeholder with empty pool major CU should not count as implemented"
+        );
+        let econ = resolve_major("CAS", "ECON", &[]).expect("ECON resolves");
+        assert!(major::major_has_authored_requirements("CAS", &econ));
+        let meam = resolve_major("SEAS_MS", "MS_MEAM", &[]).expect("MS_MEAM resolves");
+        assert!(!major::major_is_implemented("SEAS_MS", "MS_MEAM"));
+        assert!(!major::major_has_authored_requirements("SEAS_MS", &meam));
+        assert!(major::major_is_implemented("SEAS_MS", "MS_EE"));
+    }
+
+    #[test]
     fn chem_major_resolves() {
         let chem = resolve_major("CAS", "CHEM", &[]).expect("CHEM");
         assert_eq!(chem.short_name, "CHEM");
