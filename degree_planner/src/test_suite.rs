@@ -410,8 +410,40 @@ mod catalog {
             })
         });
         assert!(pool_has_3001, "shared math core should include MATH 3001");
+        let general_has_math_electives = general.requirements.iter().any(|r| {
+            let Requirement::CoursePool { fixed_slots, .. } = r else {
+                return false;
+            };
+            fixed_slots.iter().any(|slot| {
+                matches!(
+                    slot,
+                    Requirement::Restriction { category, .. }
+                        if category.as_deref() == Some("Mathematics Electives")
+                )
+            })
+        });
+        assert!(
+            general_has_math_electives,
+            "General Mathematics should include 4 math electives"
+        );
 
         let bio = resolve_major("CAS", "MATH", &["Biological Mathematics".into()]).expect("MATH bio");
+        let bio_has_math_electives = bio.requirements.iter().any(|r| {
+            let Requirement::CoursePool { fixed_slots, .. } = r else {
+                return false;
+            };
+            fixed_slots.iter().any(|slot| {
+                matches!(
+                    slot,
+                    Requirement::Restriction { category, .. }
+                        if category.as_deref() == Some("Mathematics Electives")
+                )
+            })
+        });
+        assert!(
+            !bio_has_math_electives,
+            "Biological Mathematics should not include math electives"
+        );
         let bio_conc_in_pool = bio.requirements.iter().any(|r| {
             let Requirement::CoursePool { fixed_slots, .. } = r else {
                 return false;

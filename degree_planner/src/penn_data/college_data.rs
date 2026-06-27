@@ -2802,27 +2802,8 @@ fn math_single_course(code: &str) -> Requirement {
     }
 }
 
-fn math_bio_core_electives(number: i32) -> Requirement {
-    Requirement::CourseGroup {
-        category: Some("Biology".to_string()),
-        number,
-        possibilities: ["BIOL 2210", "BIOL 2410", "BIOL 2610"]
-            .into_iter()
-            .map(math_single_course)
-            .collect(),
-    }
-}
-
-fn math_bio_advanced_electives() -> Requirement {
-    Requirement::CourseGroup {
-        category: Some("Advanced Biology".to_string()),
-        number: 3,
-        possibilities: ["BIOL 4517", "BIOL 4231", "BIOL 4536", "BIOL 5536"]
-            .into_iter()
-            .map(math_single_course)
-            .collect(),
-    }
-}
+const MATH_BIO_ELECTIVE_COURSES: &[&str] = &["BIOL 2210", "BIOL 2410", "BIOL 2610"];
+const MATH_BIO_ADVANCED_COURSES: &[&str] = &["BIOL 4517", "BIOL 4231", "BIOL 4536", "BIOL 5536"];
 
 fn math_bio_additional_science() -> Requirement {
     Requirement::AnyOf {
@@ -2847,40 +2828,68 @@ fn math_bio_additional_science() -> Requirement {
     }
 }
 
-fn math_biological_track_1() -> Requirement {
-    Requirement::AllOf {
-        category: Some("Biological Mathematics — Track 1".to_string()),
-        requirements: vec![
-            math_single_course("BIOL 1121"),
-            math_single_course("BIOL 1124"),
-            math_bio_core_electives(2),
-            math_bio_advanced_electives(),
-            math_bio_additional_science(),
-        ],
-    }
-}
-
-fn math_biological_track_2() -> Requirement {
-    Requirement::AllOf {
-        category: Some("Biological Mathematics — Track 2".to_string()),
-        requirements: vec![
-            math_single_course("BIOL 1101"),
-            math_single_course("BIOL 1102"),
-            math_single_course("BIOL 4231"),
-            math_bio_core_electives(2),
-            math_bio_additional_science(),
-        ],
-    }
-}
-
 fn math_biological_mathematics_requirements() -> Vec<Requirement> {
-    vec![Requirement::AnyOf {
-        category: Some("Biological Mathematics".to_string()),
-        possibilities: vec![math_biological_track_1(), math_biological_track_2()],
-    }]
+    vec![
+        Requirement::AnyOf {
+            category: Some("Biological Mathematics".to_string()),
+            possibilities: vec![
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        math_single_course("BIOL 1121"),
+                        math_single_course("BIOL 1124"),
+                        Requirement::SingleCourse {
+                            category: Some("Advanced Biology".to_string()),
+                            possibilities: MATH_BIO_ADVANCED_COURSES
+                                .iter()
+                                .map(|c| (*c).to_string())
+                                .collect(),
+                        },
+                        Requirement::SingleCourse {
+                            category: Some("Advanced Biology".to_string()),
+                            possibilities: MATH_BIO_ADVANCED_COURSES
+                                .iter()
+                                .map(|c| (*c).to_string())
+                                .collect(),
+                        },
+                        Requirement::SingleCourse {
+                            category: Some("Advanced Biology".to_string()),
+                            possibilities: MATH_BIO_ADVANCED_COURSES
+                                .iter()
+                                .map(|c| (*c).to_string())
+                                .collect(),
+                        },
+                    ],
+                },
+                Requirement::AllOf {
+                    category: None,
+                    requirements: vec![
+                        math_single_course("BIOL 1101"),
+                        math_single_course("BIOL 1102"),
+                        math_single_course("BIOL 4231"),
+                    ],
+                },
+            ],
+        },
+        Requirement::SingleCourse {
+            category: Some("Biology".to_string()),
+            possibilities: MATH_BIO_ELECTIVE_COURSES
+                .iter()
+                .map(|c| (*c).to_string())
+                .collect(),
+        },
+        Requirement::SingleCourse {
+            category: Some("Biology".to_string()),
+            possibilities: MATH_BIO_ELECTIVE_COURSES
+                .iter()
+                .map(|c| (*c).to_string())
+                .collect(),
+        },
+        math_bio_additional_science(),
+    ]
 }
 
-fn math_shared_requirements() -> Vec<Requirement> {
+fn math_core_requirements() -> Vec<Requirement> {
     vec![
         Requirement::SingleCourse {
             category: Some("Mathematics".to_string()),
@@ -2943,17 +2952,20 @@ fn math_shared_requirements() -> Vec<Requirement> {
                 math_single_course("MATH 4250"),
             ],
         },
-        Requirement::Restriction {
-            category: Some("Mathematics Electives".to_string()),
-            department: Some(vec!["MATH".to_string()]),
-            cu: None,
-            level: Some(3000),
-            attr: None,
-            excluding: None,
-            number: 4,
-            no_school: None,
-        },
     ]
+}
+
+fn math_general_electives() -> Vec<Requirement> {
+    vec![Requirement::Restriction {
+        category: Some("Mathematics Electives".to_string()),
+        department: Some(vec!["MATH".to_string()]),
+        cu: None,
+        level: Some(3000),
+        attr: None,
+        excluding: None,
+        number: 4,
+        no_school: None,
+    }]
 }
 
 fn math_concentrations() -> BTreeMap<String, Vec<Requirement>> {
@@ -3017,7 +3029,10 @@ pub fn create_math_major(concentration_name: String) -> Major {
         ("CHEM 1102".to_string(), Y2S.into()),
         ("PHYS 0151".to_string(), Y2S.into()),
     ]);
-    let mut major_requirements = math_shared_requirements();
+    let mut major_requirements = math_core_requirements();
+    if concentration_name == "General Mathematics" {
+        major_requirements.extend(math_general_electives());
+    }
     if let Some(conc) = math_concentration_requirement(&concentration_name) {
         major_requirements.push(conc);
     }
