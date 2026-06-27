@@ -88,6 +88,7 @@ pub enum Requirement {
     /// - `department` — allowed departments (e.g. `["CIS", "ESE"]`); `None` = any.
     /// - `cu` — optional override in tenths (e.g. `5` → 0.5 CU); when `None`, `number` is whole CUs.
     /// - `level` — minimum course number (e.g. `5000` for graduate-level).
+    /// - `max_level` — maximum course number; defaults to 9000 when unset.
     /// - `attr` — course-attribute tags the course must carry (e.g. `["EMRT"]`).
     /// - `excluding` — course codes and/or attribute codes that cannot count toward this slot.
     /// - `number` — when `cu` is `None`, duplicate this slot `number` times at load time
@@ -98,6 +99,7 @@ pub enum Requirement {
         department: Option<Vec<String>>,
         cu: Option<i32>,
         level: Option<i32>,
+        max_level: Option<i32>,
         attr: Option<Vec<String>>,
         excluding: Option<Vec<String>>,
         number: i32,
@@ -221,6 +223,7 @@ fn expand_restriction_slot(req: Requirement) -> Vec<Requirement> {
             department,
             cu,
             level,
+            max_level,
             attr,
             excluding,
             number,
@@ -231,6 +234,7 @@ fn expand_restriction_slot(req: Requirement) -> Vec<Requirement> {
                 department: department.clone(),
                 cu: None,
                 level: level.clone(),
+                max_level: max_level.clone(),
                 attr: attr.clone(),
                 excluding: excluding.clone(),
                 number: 1,
@@ -555,6 +559,7 @@ pub fn courses_fulfilling_restriction_cu(
     taken: &[String],
     department: &Option<Vec<String>>,
     level: &Option<i32>,
+    max_level: &Option<i32>,
     attr: &Option<Vec<String>>,
     excluding: &Option<Vec<String>>,
     no_school: &Option<String>,
@@ -566,7 +571,7 @@ pub fn courses_fulfilling_restriction_cu(
         .iter()
         .filter(|course| {
             course_matches_restriction(
-                course, department, level, attr, excluding, no_school, attributes,
+                course, department, level, max_level, attr, excluding, no_school, attributes,
             )
         })
         .map(|course| (course.clone(), lookup_course_cu(cu_map, course)))
@@ -612,11 +617,19 @@ fn format_restriction_description(
     response
 }
 
+/// Default upper bound for [`Requirement::Restriction`] course numbers when `max_level` is unset.
+pub const RESTRICTION_DEFAULT_MAX_LEVEL: i32 = 9000;
+
+pub fn effective_restriction_max_level(max_level: Option<i32>) -> i32 {
+    max_level.unwrap_or(RESTRICTION_DEFAULT_MAX_LEVEL)
+}
+
 /// Whether a catalog course code satisfies a Restriction requirement.
 pub fn course_matches_restriction(
     course: &str,
     department: &Option<Vec<String>>,
     level: &Option<i32>,
+    max_level: &Option<i32>,
     attr: &Option<Vec<String>>,
     excluding: &Option<Vec<String>>,
     no_school: &Option<String>,
@@ -665,7 +678,22 @@ pub fn course_matches_restriction(
         }
     }
     if let Some(min_level) = level {
-        if course_id.parse::<i32>().unwrap_or(0) < *min_level {
+        let course_level = course_id.parse::<i32>().unwrap_or(0);
+        if course_level < *min_level {
+            return false;
+        }
+        let cap = effective_restriction_max_level(*max_level);
+        if course_level > cap {
+            return false;
+        }
+    } else if let Some(max_only) = max_level {
+        let course_level = course_id.parse::<i32>().unwrap_or(0);
+        if course_level > *max_only {
+            return false;
+        }
+    } else {
+        let course_level = course_id.parse::<i32>().unwrap_or(0);
+        if course_level > RESTRICTION_DEFAULT_MAX_LEVEL {
             return false;
         }
     }
@@ -739,6 +767,7 @@ pub fn pool_flexible_slot_requirement(pool_category: &str, _index: usize) -> Req
         department: None,
         cu: None,
         level: None,
+        max_level: None,
         attr: None,
         excluding: None,
         number: 1,
@@ -1156,11 +1185,12 @@ impl Requirement {
                 let composite_requirement = &Requirement::AllOf { category: Some("Concentration".to_string()), requirements: requirements.clone() };
                 composite_requirement.fulfills_requirement(taken, attributes, cu_map)
             },
-            Requirement::Restriction { category, department, cu, level, attr, excluding, no_school, number, .. } => {
+            Requirement::Restriction { category, department, cu, level, max_level, attr, excluding, no_school, number, .. } => {
                 courses_fulfilling_restriction_cu(
                     taken,
                     department,
                     level,
+                    max_level,
                     attr,
                     excluding,
                     no_school,
@@ -1943,6 +1973,7 @@ pub fn requirement_accepts_shared_course(req: &Requirement, course: &str) -> boo
         Requirement::Restriction {
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,
@@ -1951,6 +1982,7 @@ pub fn requirement_accepts_shared_course(req: &Requirement, course: &str) -> boo
             course,
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,
@@ -2172,6 +2204,7 @@ fn attribute_fulfillment_for_requirement(
     let Requirement::Restriction {
         department,
         level,
+        max_level,
         attr,
         excluding,
         no_school,
@@ -2191,6 +2224,7 @@ fn attribute_fulfillment_for_requirement(
                     course,
                     department,
                     level,
+                    max_level,
                     &single_attr,
                     excluding,
                     no_school,

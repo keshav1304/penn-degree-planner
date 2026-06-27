@@ -66,6 +66,7 @@ impl CatalogIndex {
         &self,
         department: &Option<Vec<String>>,
         level: &Option<i32>,
+        max_level: &Option<i32>,
         attr: &Option<Vec<String>>,
         excluding: &Option<Vec<String>>,
         no_school: &Option<String>,
@@ -103,6 +104,7 @@ impl CatalogIndex {
                     c,
                     department,
                     level,
+                    max_level,
                     attr,
                     excluding,
                     no_school,
@@ -134,6 +136,7 @@ enum CourseMatcher {
     Restriction {
         department: Option<Vec<String>>,
         level: Option<i32>,
+        max_level: Option<i32>,
         attr: Option<Vec<String>>,
         excluding: Option<Vec<String>>,
         no_school: Option<String>,
@@ -181,6 +184,7 @@ fn compile_matcher(req: &Requirement, committed_branch: Option<usize>) -> Course
         Requirement::Restriction {
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,
@@ -188,6 +192,7 @@ fn compile_matcher(req: &Requirement, committed_branch: Option<usize>) -> Course
         } => CourseMatcher::Restriction {
             department: department.clone(),
             level: *level,
+            max_level: *max_level,
             attr: attr.clone(),
             excluding: excluding.clone(),
             no_school: no_school.clone(),
@@ -237,6 +242,7 @@ fn course_satisfies_matcher(
         CourseMatcher::Restriction {
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,
@@ -244,6 +250,7 @@ fn course_satisfies_matcher(
             course,
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,
@@ -270,12 +277,14 @@ fn candidates_for_matcher(
         CourseMatcher::Restriction {
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,
         } => Some(index.candidates_for_restriction(
             department,
             level,
+            max_level,
             attr,
             excluding,
             no_school,

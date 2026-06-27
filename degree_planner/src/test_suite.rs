@@ -71,6 +71,7 @@ fn one_cu_restriction() -> Requirement {
         department: Some(vec!["TEST".into()]),
         cu: None,
         level: None,
+        max_level: None,
         attr: None,
         number: 1,
         excluding: None,
@@ -516,6 +517,90 @@ mod catalog {
     }
 
     #[test]
+    fn psyc_major_resolves_with_distribution_and_electives() {
+        use crate::Requirement;
+
+        fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            if pred(req) {
+                return true;
+            }
+            match req {
+                Requirement::AnyOf { possibilities, .. }
+                | Requirement::CourseGroup { possibilities, .. } => possibilities
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::AllOf { requirements, .. }
+                | Requirement::Concentration { requirements, .. } => requirements
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                _ => false,
+            }
+        }
+
+        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            major
+                .requirements
+                .iter()
+                .any(|r| requirement_tree_contains(r, pred))
+        }
+
+        let psyc = resolve_major("CAS", "PSYC", &[]).expect("PSYC major");
+        assert_eq!(psyc.short_name, "PSYC");
+        assert!(
+            major_contains(&psyc, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
+                        if category.as_deref() == Some("Introductory Psychology")
+                )
+            }),
+            "Psychology should include introductory requirement"
+        );
+        assert!(
+            major_contains(&psyc, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction { category, attr, .. }
+                        if category.as_deref() == Some("Biological Psychology Elective")
+                            && attr.as_ref().is_some_and(|a| a.contains(&"APCI".to_string()))
+                )
+            }),
+            "Psychology should include APCI biological elective"
+        );
+        assert!(
+            major_contains(&psyc, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        category,
+                        department,
+                        level: Some(4000),
+                        excluding,
+                        ..
+                    } if category.as_deref() == Some("Research Experience")
+                        && department.as_ref().is_some_and(|d| d.contains(&"PSYC".to_string()))
+                        && excluding.as_ref().is_some_and(|e| e.contains(&"PSYC 4997".to_string()))
+                )
+            }),
+            "Psychology research requirement should exclude PSYC 4997"
+        );
+        assert!(
+            major_contains(&psyc, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
+                        if category.as_deref() == Some("Psychology Electives")
+                )
+            }),
+            "Psychology should include four elective slots"
+        );
+        assert!(major::major_is_implemented("CAS", "PSYC"));
+    }
+
+    #[test]
     fn cas_lists_all_college_majors() {
         assert_eq!(college_data::CAS_DEGREE_CATALOG.len(), 56);
         assert!(college_data::cas_catalog_entry("BIOL").is_some());
@@ -781,6 +866,7 @@ mod requirement_fulfillment {
             department: Some(vec!["TEST".into()]),
             cu: None,
             level: None,
+            max_level: None,
             attr: None,
             excluding: None,
             number: 4,
@@ -819,6 +905,7 @@ mod requirement_fulfillment {
             "AFRC 0030",
             &None,
             &None,
+            &None,
             &Some(vec!["AIRE".into()]),
             &Some(vec!["AUFS".into()]),
             &None,
@@ -826,6 +913,7 @@ mod requirement_fulfillment {
         ));
         assert!(course_matches_restriction(
             "BEPP 2010",
+            &None,
             &None,
             &None,
             &Some(vec!["AIRE".into()]),
@@ -1793,6 +1881,7 @@ mod overlap {
                     department: None,
                     cu: None,
                     level: None,
+                    max_level: None,
                     attr: Some(vec!["EUNG".into()]),
                     excluding: None,
                     number: 1,
@@ -1805,6 +1894,7 @@ mod overlap {
             department: None,
             cu: None,
             level: None,
+            max_level: None,
             attr: Some(vec!["EUNG".into(), "EUMA".into(), "EUNS".into()]),
             excluding: None,
             number: 1,
