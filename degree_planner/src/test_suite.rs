@@ -393,56 +393,108 @@ mod catalog {
     fn math_major_resolves_with_concentrations() {
         use crate::Requirement;
 
+        fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            if pred(req) {
+                return true;
+            }
+            match req {
+                Requirement::AnyOf { possibilities, .. }
+                | Requirement::CourseGroup { possibilities, .. } => possibilities
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::AllOf { requirements, .. }
+                | Requirement::Concentration { requirements, .. } => requirements
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                _ => false,
+            }
+        }
+
+        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            major
+                .requirements
+                .iter()
+                .any(|r| requirement_tree_contains(r, pred))
+        }
+
         let general =
             resolve_major("CAS", "MATH", &["General Mathematics".into()]).expect("MATH general");
         assert_eq!(general.short_name, "MATH");
         assert!(general.concentrations.is_some());
-        let pool_has_3001 = general.requirements.iter().any(|r| {
-            let Requirement::CoursePool { fixed_slots, .. } = r else {
-                return false;
-            };
-            fixed_slots.iter().any(|slot| {
+        assert!(
+            major_contains(&general, &|req| {
                 matches!(
-                    slot,
+                    req,
                     Requirement::SingleCourse { possibilities, .. }
                         if possibilities.contains(&"MATH 3001".to_string())
                 )
-            })
-        });
-        assert!(pool_has_3001, "shared math core should include MATH 3001");
-        let general_has_math_electives = general.requirements.iter().any(|r| {
-            let Requirement::CoursePool { fixed_slots, .. } = r else {
-                return false;
-            };
-            fixed_slots.iter().any(|slot| {
+            }),
+            "General Mathematics should include MATH 3001"
+        );
+        assert!(
+            major_contains(&general, &|req| {
                 matches!(
-                    slot,
-                    Requirement::Restriction { category, .. }
+                    req,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"MATH 4100".to_string())
+                )
+            }),
+            "General Mathematics should include MATH 4100"
+        );
+        assert!(
+            major_contains(&general, &|req| {
+                matches!(
+                    req,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"MATH 3710".to_string())
+                )
+            }),
+            "General Mathematics algebra should include MATH 3710 pair option"
+        );
+        assert!(
+            major_contains(&general, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
                         if category.as_deref() == Some("Mathematics Electives")
                 )
-            })
-        });
+            }),
+            "General Mathematics should include mathematics electives"
+        );
         assert!(
-            general_has_math_electives,
-            "General Mathematics should include 4 math electives"
+            !major_contains(&general, &|req| {
+                matches!(
+                    req,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities == &vec!["MATH 3200".to_string()]
+                )
+            }),
+            "General Mathematics should not require MATH 3200 statistics"
         );
 
         let bio = resolve_major("CAS", "MATH", &["Biological Mathematics".into()]).expect("MATH bio");
-        let bio_has_math_electives = bio.requirements.iter().any(|r| {
-            let Requirement::CoursePool { fixed_slots, .. } = r else {
-                return false;
-            };
-            fixed_slots.iter().any(|slot| {
+        assert!(
+            !major_contains(&bio, &|req| {
                 matches!(
-                    slot,
-                    Requirement::Restriction { category, .. }
+                    req,
+                    Requirement::AnyOf { category, .. }
                         if category.as_deref() == Some("Mathematics Electives")
                 )
-            })
-        });
-        assert!(
-            !bio_has_math_electives,
+            }),
             "Biological Mathematics should not include math electives"
+        );
+        assert!(
+            major_contains(&bio, &|req| {
+                matches!(
+                    req,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"STAT 4310".to_string())
+                )
+            }),
+            "Biological Mathematics should include STAT 4310"
         );
         let bio_conc_in_pool = bio.requirements.iter().any(|r| {
             let Requirement::CoursePool { fixed_slots, .. } = r else {

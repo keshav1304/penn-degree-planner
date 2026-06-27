@@ -2807,7 +2807,7 @@ const MATH_BIO_ADVANCED_COURSES: &[&str] = &["BIOL 4517", "BIOL 4231", "BIOL 453
 
 fn math_bio_additional_science() -> Requirement {
     Requirement::AnyOf {
-        category: Some("Additional Science".to_string()),
+        category: Some("Biological Mathematics".to_string()),
         possibilities: vec![
             Requirement::AllOf {
                 category: None,
@@ -2823,6 +2823,7 @@ fn math_bio_additional_science() -> Requirement {
                     math_single_course("CHEM 1102"),
                 ],
             },
+            math_single_course("CHEM 1151"),
             math_single_course("PHYS 0151"),
         ],
     }
@@ -2872,14 +2873,14 @@ fn math_biological_mathematics_requirements() -> Vec<Requirement> {
             ],
         },
         Requirement::SingleCourse {
-            category: Some("Biology".to_string()),
+            category: Some("Biological Mathematics".to_string()),
             possibilities: MATH_BIO_ELECTIVE_COURSES
                 .iter()
                 .map(|c| (*c).to_string())
                 .collect(),
         },
         Requirement::SingleCourse {
-            category: Some("Biology".to_string()),
+            category: Some("Biological Mathematics".to_string()),
             possibilities: MATH_BIO_ELECTIVE_COURSES
                 .iter()
                 .map(|c| (*c).to_string())
@@ -2889,53 +2890,153 @@ fn math_biological_mathematics_requirements() -> Vec<Requirement> {
     ]
 }
 
-fn math_core_requirements() -> Vec<Requirement> {
-    vec![
+fn math_calculus_1400() -> Requirement {
+    Requirement::SingleCourse {
+        category: Some("Calculus".to_string()),
+        possibilities: vec!["MATH 1400".to_string()],
+    }
+}
+
+fn math_calculus_1410_or_1610() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Calculus".to_string()),
+        possibilities: vec![
+            math_single_course("MATH 1410"),
+            math_single_course("MATH 1610"),
+        ],
+    }
+}
+
+fn math_algebra_requirement() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Algebra".to_string()),
+        possibilities: vec![
+            Requirement::AllOf {
+                category: None,
+                requirements: vec![
+                    math_single_course("MATH 3700"),
+                    math_single_course("MATH 3710"),
+                ],
+            },
+            Requirement::AllOf {
+                category: None,
+                requirements: vec![
+                    math_single_course("MATH 5020"),
+                    math_single_course("MATH 5030"),
+                ],
+            },
+        ],
+    }
+}
+
+fn math_analysis_requirement() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Analysis".to_string()),
+        possibilities: vec![
+            Requirement::AllOf {
+                category: None,
+                requirements: vec![
+                    math_single_course("MATH 3600"),
+                    math_single_course("MATH 3610"),
+                ],
+            },
+            Requirement::AllOf {
+                category: None,
+                requirements: vec![
+                    math_single_course("MATH 5080"),
+                    math_single_course("MATH 5090"),
+                ],
+            },
+        ],
+    }
+}
+
+fn math_differential_equations_requirement() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Differential Equations".to_string()),
+        possibilities: vec![
+            math_single_course("MATH 2300"),
+            math_single_course("MATH 4200"),
+            math_single_course("MATH 4250"),
+        ],
+    }
+}
+
+fn math_elective_restriction(department: Option<Vec<String>>, attr: Option<Vec<String>>) -> Requirement {
+    let level = department.as_ref().map(|_| 3000);
+    Requirement::Restriction {
+        category: None,
+        department,
+        cu: None,
+        level,
+        attr,
+        excluding: None,
+        number: 1,
+        no_school: None,
+    }
+}
+
+fn math_elective_slot(allow_cognate: bool) -> Requirement {
+    let mut possibilities = vec![
+        math_elective_restriction(Some(vec!["MATH".to_string()]), None),
+        math_elective_restriction(None, Some(vec!["AMMR".to_string()])),
+    ];
+    if allow_cognate {
+        possibilities.push(math_elective_restriction(
+            None,
+            Some(vec!["AMOR".to_string()]),
+        ));
+    }
+    Requirement::AnyOf {
+        category: Some("Mathematics Electives".to_string()),
+        possibilities,
+    }
+}
+
+fn math_general_elective_slots(count: i32) -> Vec<Requirement> {
+    (0..count)
+        .map(|i| math_elective_slot(i == 0))
+        .collect()
+}
+
+fn math_general_mathematics_requirements() -> Vec<Requirement> {
+    let mut requirements = vec![
+        math_calculus_1400(),
+        math_calculus_1410_or_1610(),
         Requirement::SingleCourse {
-            category: Some("Mathematics".to_string()),
-            possibilities: vec!["MATH 1400".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Mathematics".to_string()),
-            possibilities: vec![
-                math_single_course("MATH 1410"),
-                math_single_course("MATH 1610"),
-            ],
+            category: Some("Complex Analysis".to_string()),
+            possibilities: vec!["MATH 4100".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Mathematics".to_string()),
+            category: Some("Advanced Linear Algebra".to_string()),
             possibilities: vec!["MATH 3000".to_string()],
         },
         Requirement::SingleCourse {
-            category: Some("Mathematics".to_string()),
+            category: Some("Advanced Linear Algebra".to_string()),
             possibilities: vec!["MATH 3001".to_string()],
         },
-        Requirement::AnyOf {
-            category: Some("Advanced Calculus".to_string()),
-            possibilities: vec![
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        math_single_course("MATH 3600"),
-                        math_single_course("MATH 3610"),
-                    ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        math_single_course("MATH 5080"),
-                        math_single_course("MATH 5090"),
-                    ],
-                },
-            ],
+        math_differential_equations_requirement(),
+        math_algebra_requirement(),
+        math_analysis_requirement(),
+    ];
+    requirements.extend(math_general_elective_slots(3));
+    requirements
+}
+
+fn math_biological_mathematics_math_requirements() -> Vec<Requirement> {
+    vec![
+        math_calculus_1400(),
+        math_calculus_1410_or_1610(),
+        Requirement::SingleCourse {
+            category: Some("Advanced Linear Algebra".to_string()),
+            possibilities: vec!["MATH 3000".to_string()],
         },
-        Requirement::AnyOf {
-            category: Some("Algebra".to_string()),
-            possibilities: vec![
-                math_single_course("MATH 3700"),
-                math_single_course("MATH 5020"),
-            ],
+        Requirement::SingleCourse {
+            category: Some("Advanced Linear Algebra".to_string()),
+            possibilities: vec!["MATH 3001".to_string()],
         },
+        math_analysis_requirement(),
+        math_algebra_requirement(),
         Requirement::SingleCourse {
             category: Some("Statistics".to_string()),
             possibilities: vec!["MATH 3200".to_string()],
@@ -2944,28 +3045,8 @@ fn math_core_requirements() -> Vec<Requirement> {
             category: Some("Statistics".to_string()),
             possibilities: vec!["STAT 4310".to_string()],
         },
-        Requirement::AnyOf {
-            category: Some("Upper Level Mathematics".to_string()),
-            possibilities: vec![
-                math_single_course("MATH 2300"),
-                math_single_course("MATH 4200"),
-                math_single_course("MATH 4250"),
-            ],
-        },
+        math_differential_equations_requirement(),
     ]
-}
-
-fn math_general_electives() -> Vec<Requirement> {
-    vec![Requirement::Restriction {
-        category: Some("Mathematics Electives".to_string()),
-        department: Some(vec!["MATH".to_string()]),
-        cu: None,
-        level: Some(3000),
-        attr: None,
-        excluding: None,
-        number: 4,
-        no_school: None,
-    }]
 }
 
 fn math_concentrations() -> BTreeMap<String, Vec<Requirement>> {
@@ -3012,7 +3093,10 @@ pub fn create_math_major(concentration_name: String) -> Major {
         ("MATH 5080".to_string(), Y3F.into()),
         ("MATH 5090".to_string(), Y4F.into()),
         ("MATH 3700".to_string(), Y3S.into()),
+        ("MATH 3710".to_string(), Y4F.into()),
         ("MATH 5020".to_string(), Y3S.into()),
+        ("MATH 5030".to_string(), Y4F.into()),
+        ("MATH 4100".to_string(), Y3F.into()),
         ("MATH 2300".to_string(), Y3F.into()),
         ("MATH 4200".to_string(), Y3F.into()),
         ("MATH 4250".to_string(), Y3F.into()),
@@ -3029,10 +3113,11 @@ pub fn create_math_major(concentration_name: String) -> Major {
         ("CHEM 1102".to_string(), Y2S.into()),
         ("PHYS 0151".to_string(), Y2S.into()),
     ]);
-    let mut major_requirements = math_core_requirements();
-    if concentration_name == "General Mathematics" {
-        major_requirements.extend(math_general_electives());
-    }
+    let mut major_requirements = if concentration_name == "General Mathematics" {
+        math_general_mathematics_requirements()
+    } else {
+        math_biological_mathematics_math_requirements()
+    };
     if let Some(conc) = math_concentration_requirement(&concentration_name) {
         major_requirements.push(conc);
     }
