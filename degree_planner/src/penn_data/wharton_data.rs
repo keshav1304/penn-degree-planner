@@ -175,6 +175,7 @@ pub fn resolve_wh_concentration_key(input: &str) -> Option<String> {
         "Management" => Some("MGMT"),
         "Marketing" => Some("MKTG"),
         "Statistics and Data Science" => Some("STAT"),
+        "Health Care Management" => Some("HCMG"),
         _ => None,
     };
     legacy
@@ -226,6 +227,30 @@ fn wh_marketing_operations_management_requirements() -> Vec<Requirement> {
                 "MKTG 4710",
             ]),
         },
+    ]
+}
+
+fn wh_hcmg_concentration_requirements() -> Vec<Requirement> {
+    let category = "Concentration - HCMG";
+    let elective = || Requirement::Restriction {
+        category: Some(category.to_string()),
+        department: Some(vec!["HCMG".to_string()]),
+        cu: None,
+        level: Some(2000),
+        max_level: Some(4000),
+        attr: None,
+        excluding: Some(vec!["HCMG 1010".to_string()]),
+        number: 1,
+        no_school: None,
+    };
+    vec![
+        Requirement::SingleCourse {
+            category: Some(category.to_string()),
+            possibilities: vec!["HCMG 1010".to_string()],
+        },
+        elective(),
+        elective(),
+        elective(),
     ]
 }
 
@@ -381,6 +406,10 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
         (
             "MAOM".to_string(),
             wh_marketing_operations_management_requirements(),
+        ),
+        (
+            "HCMG".to_string(),
+            wh_hcmg_concentration_requirements(),
         ),
     ])
 }

@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::Requirement;
 use crate::schedule_template::ScheduleHint;
 use crate::penn_data::college_data;
+use crate::penn_data::nursing_data;
 use crate::penn_data::seas_data;
 use crate::penn_data::seas_grad_data;
 use crate::penn_data::wharton_data;
@@ -189,10 +190,24 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
         SchoolCatalogEntry {
             school_code: "NURS".to_string(),
             display_name: "School of Nursing".to_string(),
-            majors: vec![MajorCatalogEntry {
-                display_name: "Not implemented".to_string(),
-                api_code: "NA".to_string(),
-            }],
+            majors: vec![
+                MajorCatalogEntry {
+                    display_name: "Nursing, BSN".to_string(),
+                    api_code: "BSN".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Nursing, BSN (Language Exempt)".to_string(),
+                    api_code: "BSN_NOFL".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Nutrition Science, BSN".to_string(),
+                    api_code: "NUTR_BSN".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Nutrition Science, BSN (Language Exempt)".to_string(),
+                    api_code: "NUTR_BSN_NOFL".to_string(),
+                },
+            ],
         },
     ]
     .into_iter()
@@ -323,7 +338,13 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 _ => None,
             }
         },
-        "NURS" => None,
+        "NURS" => match major {
+            "BSN" => Some(nursing_data::create_bsn_major()),
+            "BSN_NOFL" => Some(nursing_data::create_bsn_nofl_major()),
+            "NUTR_BSN" => Some(nursing_data::create_nutr_bsn_major()),
+            "NUTR_BSN_NOFL" => Some(nursing_data::create_nutr_bsn_nofl_major()),
+            _ => None,
+        },
         "CAS" => match major {
             "ECON" => Some(college_data::create_econ_major()),
             "MECON" => Some(college_data::create_mathecon_major()),

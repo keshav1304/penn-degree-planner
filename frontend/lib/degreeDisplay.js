@@ -9,6 +9,7 @@ const WH_CONCENTRATION_DROPDOWN_LABELS = {
     MGMT: "Management",
     MKTG: "Marketing",
     STAT: "Statistics and Data Science",
+    HCMG: "Health Care Management",
 };
 
 /** Wharton concentration picker only: "Finance (FNCE)". */

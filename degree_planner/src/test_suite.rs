@@ -601,6 +601,216 @@ mod catalog {
     }
 
     #[test]
+    fn bsn_major_resolves_with_requirements() {
+        use crate::Requirement;
+
+        fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            if pred(req) {
+                return true;
+            }
+            match req {
+                Requirement::AnyOf { possibilities, .. }
+                | Requirement::CourseGroup { possibilities, .. } => possibilities
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::AllOf { requirements, .. }
+                | Requirement::Concentration { requirements, .. } => requirements
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                _ => false,
+            }
+        }
+
+        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            major
+                .requirements
+                .iter()
+                .any(|r| requirement_tree_contains(r, pred))
+        }
+
+        let bsn = resolve_major("NURS", "BSN", &[]).expect("BSN major");
+        assert_eq!(bsn.short_name, "BSN");
+        assert_eq!(bsn.requirements.len(), 30);
+        assert!(
+            major_contains(&bsn, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
+                        if category.as_deref() == Some("Writing Requirement")
+                )
+            }),
+            "BSN should include writing requirement"
+        );
+        assert!(
+            major_contains(&bsn, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction { category, .. }
+                        if category.as_deref() == Some("Language Requirement 1")
+                )
+            }),
+            "BSN should include language slots"
+        );
+        assert!(
+            major_contains(&bsn, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
+                        if category.as_deref() == Some("The Planet & Our Climate")
+                )
+            }),
+            "BSN should include planet sector"
+        );
+        assert!(
+            major_contains(&bsn, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        category,
+                        no_school: Some(school),
+                        ..
+                    } if category.as_deref() == Some("Exploration Course Requirement")
+                        && school == "NURS"
+                )
+            }),
+            "BSN should include exploration requirement outside Nursing"
+        );
+        assert!(
+            major_contains(&bsn, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
+                        if category.as_deref() == Some("Ethics Requirement")
+                )
+            }),
+            "BSN should include ethics AnyOf"
+        );
+        assert!(
+            major_contains(&bsn, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        category,
+                        department,
+                        level: Some(3510),
+                        max_level: Some(3690),
+                        ..
+                    } if category.as_deref() == Some("Nursing Case Study")
+                        && department.as_ref().is_some_and(|d| d.contains(&"NURS".to_string()))
+                )
+            }),
+            "BSN should include case study restriction"
+        );
+        assert!(major::major_is_implemented("NURS", "BSN"));
+        assert!(major::major_is_implemented("NURS", "BSN_NOFL"));
+    }
+
+    #[test]
+    fn nutr_bsn_major_resolves_with_nutrition_requirements() {
+        use crate::Requirement;
+
+        fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            if pred(req) {
+                return true;
+            }
+            match req {
+                Requirement::AnyOf { possibilities, .. }
+                | Requirement::CourseGroup { possibilities, .. } => possibilities
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::AllOf { requirements, .. }
+                | Requirement::Concentration { requirements, .. } => requirements
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                _ => false,
+            }
+        }
+
+        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            major
+                .requirements
+                .iter()
+                .any(|r| requirement_tree_contains(r, pred))
+        }
+
+        let nutr = resolve_major("NURS", "NUTR_BSN", &[]).expect("NUTR_BSN major");
+        assert_eq!(nutr.short_name, "NUTR_BSN");
+        assert_eq!(nutr.requirements.len(), 37);
+        assert!(
+            major_contains(&nutr, &|req| {
+                matches!(
+                    req,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"NURS 3120".to_string())
+                            || possibilities.contains(&"NURS 5230".to_string())
+                            || possibilities.contains(&"NURS 5240".to_string())
+                )
+            }),
+            "Nutrition Science BSN should include required nutrition courses"
+        );
+        let nune_count = nutr
+            .requirements
+            .iter()
+            .filter(|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction { attr, .. }
+                        if attr.as_ref().is_some_and(|a| a.contains(&"NUNE".to_string()))
+                )
+            })
+            .count();
+        assert_eq!(
+            nune_count, 4,
+            "Nutrition Science BSN should include four NUNE electives"
+        );
+        assert!(
+            major_contains(&nutr, &|req| {
+                matches!(
+                    req,
+                    Requirement::AnyOf { category, .. }
+                        if category.as_deref() == Some("Diversity, Universality, Justice, & Equity")
+                )
+            }),
+            "Nutrition Science BSN should use DUJE sector label"
+        );
+        assert!(major::major_is_implemented("NURS", "NUTR_BSN"));
+        assert!(major::major_is_implemented("NURS", "NUTR_BSN_NOFL"));
+    }
+
+    #[test]
+    fn bsn_nofl_uses_free_electives_not_language() {
+        let nofl = resolve_major("NURS", "BSN_NOFL", &[]).expect("BSN_NOFL major");
+        assert!(
+            nofl.requirements.iter().any(|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction { category, .. }
+                        if category.as_deref() == Some("Free Elective 1")
+                )
+            }),
+            "NOFL variant should use free electives"
+        );
+        assert!(
+            !nofl.requirements.iter().any(|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction { category, .. }
+                        if category
+                            .as_deref()
+                            .is_some_and(|c| c.starts_with("Language Requirement"))
+                )
+            }),
+            "NOFL variant should not include language slots"
+        );
+    }
+
+    #[test]
     fn cas_lists_all_college_majors() {
         assert_eq!(college_data::CAS_DEGREE_CATALOG.len(), 56);
         assert!(college_data::cas_catalog_entry("BIOL").is_some());
@@ -623,8 +833,17 @@ mod catalog {
             "implemented CAS majors should remain selectable"
         );
         assert!(
-            !catalog.iter().any(|s| s.school_code == "NURS"),
-            "schools with no implemented majors should be omitted"
+            catalog
+                .iter()
+                .any(|s| s.school_code == "NURS")
+                && catalog.iter().any(|s| {
+                    s.school_code == "NURS"
+                        && s.majors.iter().any(|m| m.api_code == "BSN")
+                        && s.majors.iter().any(|m| m.api_code == "BSN_NOFL")
+                        && s.majors.iter().any(|m| m.api_code == "NUTR_BSN")
+                        && s.majors.iter().any(|m| m.api_code == "NUTR_BSN_NOFL")
+                }),
+            "implemented Nursing majors should appear in the UI catalog"
         );
         let seas_ms = catalog
             .iter()
@@ -758,6 +977,8 @@ mod catalog {
             ("SEAS", "CIS", vec![]),
             ("WH", "WH_NOFL", vec!["FNCE"]),
             ("SEAS_MS", "MS_ROBO", vec![]),
+            ("NURS", "BSN", vec![]),
+            ("NURS", "NUTR_BSN", vec![]),
         ];
         for (school, major_code, concs) in cases {
             let conc_vec: Vec<String> = concs.into_iter().map(str::to_string).collect();
@@ -924,6 +1145,32 @@ mod requirement_fulfillment {
     }
 
     #[test]
+    fn nurs_exploration_excludes_nurs_courses() {
+        let attributes = attributes_data::create_attributes();
+        let no_school = Some("NURS".to_string());
+        assert!(!course_matches_restriction(
+            "NURS 1030",
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &no_school,
+            &attributes,
+        ));
+        assert!(course_matches_restriction(
+            "ECON 0100",
+            &None,
+            &None,
+            &None,
+            &None,
+            &None,
+            &no_school,
+            &attributes,
+        ));
+    }
+
+    #[test]
     fn taken_courses_partition_into_fulfilled_and_open() {
         let cu_map = catalog_cu_map();
         let major = resolve_major("SEAS", "CIS", &[]).expect("CIS");
@@ -1015,19 +1262,52 @@ mod pools_and_concentrations {
         let catalog = create_wh_concentrations();
         assert!(!catalog.contains_key("OIDD"));
         assert!(catalog.contains_key("MAOM"));
-        assert_eq!(catalog.len(), 8);
+        assert_eq!(catalog.len(), 9);
 
         let names = concentration_names();
         assert!(names.contains(&"FNCE".to_string()));
         assert!(names.contains(&"STAT".to_string()));
         assert!(names.contains(&"MAOM".to_string()));
+        assert!(names.contains(&"HCMG".to_string()));
         assert!(!names.iter().any(|n| n == "OIDD"));
 
         assert_eq!(
             resolve_wh_concentration_key("Marketing & Operations Management"),
             Some("MAOM".to_string())
         );
+        assert_eq!(
+            resolve_wh_concentration_key("Health Care Management"),
+            Some("HCMG".to_string())
+        );
         assert_eq!(resolve_wh_concentration_key("OIDD"), None);
+    }
+
+    #[test]
+    fn wh_hcmg_concentration_requires_1010_and_three_electives() {
+        use crate::Requirement;
+        use crate::penn_data::wharton_data::create_wh_concentrations;
+
+        let catalog = create_wh_concentrations();
+        let hc = catalog.get("HCMG").expect("HCMG concentration");
+        assert_eq!(hc.len(), 4);
+        assert!(matches!(
+            &hc[0],
+            Requirement::SingleCourse { possibilities, .. }
+                if possibilities == &vec!["HCMG 1010".to_string()]
+        ));
+        for slot in &hc[1..] {
+            assert!(matches!(
+                slot,
+                Requirement::Restriction {
+                    department,
+                    level: Some(2000),
+                    max_level: Some(4000),
+                    excluding,
+                    ..
+                } if department.as_ref().is_some_and(|d| d == &vec!["HCMG".to_string()])
+                    && excluding.as_ref().is_some_and(|e| e.contains(&"HCMG 1010".to_string()))
+            ));
+        }
     }
 
     #[test]
@@ -2333,6 +2613,43 @@ mod scheduling {
         });
         assert!(output.cross_degree_summary.is_none());
         assert_schedule_respects_cu_limits(&output, "single CIS");
+    }
+
+    #[test]
+    fn nurs_bsn_generates_valid_schedule() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "BSN".into(),
+                school: "NURS".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        assert_schedule_respects_cu_limits(&output, "NURS BSN");
+        assert_eq!(undergrad_schedule_years(&vec!["NURS".into()]), 4);
+    }
+
+    #[test]
+    fn nutr_bsn_generates_valid_schedule() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "NUTR_BSN".into(),
+                school: "NURS".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        assert_schedule_respects_cu_limits(&output, "NURS NUTR_BSN");
     }
 
     #[test]

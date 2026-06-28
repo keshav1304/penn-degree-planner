@@ -665,7 +665,8 @@ pub fn course_matches_restriction(
         let blocked: Vec<&str> = match school_name.as_str() {
             "WH" => wh_dept_names,
             "SEAS" => seas_dept_names,
-            "CAS" | "NURS" => vec![],
+            "CAS" => vec![],
+            "NURS" => vec!["NURS"],
             _ => return false,
         };
         if blocked.contains(&dept) {
