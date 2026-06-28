@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
     filterValidCourseCodes,
     filterValidPlacements,
@@ -800,46 +800,15 @@ function prioritizeCourseIds(ids, chipCtx) {
 }
 
 function ScrollableCourseChips({ itemCount, children }) {
-    const scrollRef = useRef(null);
-    const [showLeftHint, setShowLeftHint] = useState(false);
-    const [showRightHint, setShowRightHint] = useState(itemCount > SINGLE_COURSE_SCROLL_THRESHOLD);
-
-    const updateHints = useCallback(() => {
-        const el = scrollRef.current;
-        if (!el) return;
-        const atStart = el.scrollLeft <= 1;
-        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
-        setShowLeftHint(!atStart);
-        setShowRightHint(!atEnd);
-    }, []);
-
-    useEffect(() => {
-        updateHints();
-    }, [updateHints, itemCount]);
-
     if (itemCount <= SINGLE_COURSE_SCROLL_THRESHOLD) {
         return <span className="req-chips">{children}</span>;
     }
 
     return (
         <span className="req-chips-scroll-wrap">
-            {showLeftHint && (
-                <span className="req-chips-scroll-hint req-chips-scroll-hint--left" aria-hidden="true">
-                    ···
-                </span>
-            )}
-            <span
-                className="req-chips req-chips--scrollable"
-                ref={scrollRef}
-                onScroll={updateHints}
-            >
+            <span className="req-chips req-chips--scrollable">
                 {children}
             </span>
-            {showRightHint && (
-                <span className="req-chips-scroll-hint req-chips-scroll-hint--right" aria-hidden="true">
-                    ···
-                </span>
-            )}
         </span>
     );
 }

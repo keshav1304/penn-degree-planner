@@ -1715,37 +1715,6 @@ select {
   padding-bottom: 1px;
 }
 
-.req-chips-scroll-hint {
-  font-size: var(--req-font-meta);
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 1.5px;
-  line-height: 1;
-  pointer-events: none;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.req-chips-scroll-hint--left {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-  padding-right: 12px;
-  background: linear-gradient(to right, var(--bg-secondary) 55%, transparent);
-}
-
-.req-chips-scroll-hint--right {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
-  padding-left: 12px;
-  background: linear-gradient(to left, var(--bg-secondary) 55%, transparent);
-}
-
 .req-chip {
   font-size: var(--req-font-meta);
   font-weight: 600;
