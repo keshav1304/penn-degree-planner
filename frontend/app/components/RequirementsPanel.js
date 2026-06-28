@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
     filterValidCourseCodes,
     filterValidPlacements,
@@ -779,6 +779,93 @@ function pillClassForGroupTone(tone) {
     return "pill-pending";
 }
 
+const SINGLE_COURSE_SCROLL_THRESHOLD = 3;
+
+function courseDisplayPriority(courseId, { frozenIds, assignedIds, fulfillingSet }) {
+    if (frozenIds.has(courseId)) return 0;
+    if (fulfillingSet?.has(courseId) || assignedIds.has(courseId)) return 1;
+    return 2;
+}
+
+function prioritizeCourseIds(ids, chipCtx) {
+    return ids
+        .map((id, index) => ({ id, index }))
+        .sort((a, b) => {
+            const priorityDiff =
+                courseDisplayPriority(a.id, chipCtx) - courseDisplayPriority(b.id, chipCtx);
+            if (priorityDiff !== 0) return priorityDiff;
+            return a.index - b.index;
+        })
+        .map(({ id }) => id);
+}
+
+function ScrollableCourseChips({ itemCount, children }) {
+    const scrollRef = useRef(null);
+    const [showTopHint, setShowTopHint] = useState(false);
+    const [showBottomHint, setShowBottomHint] = useState(itemCount > SINGLE_COURSE_SCROLL_THRESHOLD);
+
+    const updateHints = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+        const atTop = el.scrollTop <= 1;
+        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+        setShowTopHint(!atTop);
+        setShowBottomHint(!atBottom);
+    }, []);
+
+    useEffect(() => {
+        updateHints();
+    }, [updateHints, itemCount]);
+
+    if (itemCount <= SINGLE_COURSE_SCROLL_THRESHOLD) {
+        return <span className="req-chips">{children}</span>;
+    }
+
+    return (
+        <span className="req-chips-scroll-wrap">
+            {showTopHint && (
+                <span className="req-chips-scroll-hint req-chips-scroll-hint--top" aria-hidden="true">
+                    ···
+                </span>
+            )}
+            <span
+                className="req-chips req-chips--scrollable"
+                ref={scrollRef}
+                onScroll={updateHints}
+            >
+                {children}
+            </span>
+            {showBottomHint && (
+                <span className="req-chips-scroll-hint req-chips-scroll-hint--bottom" aria-hidden="true">
+                    ···
+                </span>
+            )}
+        </span>
+    );
+}
+
+function renderCourseChipBadges(badges, chipCtx, crossDegreeChipTitle) {
+    const renderBadge = (badge, key) => {
+        const chipTitle = crossDegreeChipTitle?.(badge.id);
+        return (
+            <span
+                key={key}
+                className={chipClass(badgeKindFor(badge.id, chipCtx))}
+                title={chipTitle}
+            >
+                {badge.id}
+            </span>
+        );
+    };
+
+    const chips = badges.map((badge, i) => renderBadge(badge, badge.id ?? i));
+    return (
+        <ScrollableCourseChips itemCount={badges.length}>
+            {chips}
+        </ScrollableCourseChips>
+    );
+}
+
 function groupBadgeIcon(tone) {
     if (tone === "fulfilled") return "✓";
     if (tone === "frozen") return "◐";
@@ -800,23 +887,34 @@ function chipClass(kind) {
     return "req-chip chip-default";
 }
 
-function buildRowContent(item) {
+function buildRowContent(item, sortCtx = null) {
     const { type, data } = parseRequirement(item.requirement);
     const stem = getRequirementStem(item.requirement);
     const fulfilling = collectFulfillingCourses(item);
     const fulfillingSet = new Set(fulfilling);
+    const chipSortCtx = sortCtx
+        ? { ...sortCtx, fulfillingSet, partialTone: sortCtx.partialTone ?? item.partial }
+        : null;
 
     if (type === "SingleCourse") {
         const possibilities = (data.possibilities || []).filter(Boolean);
         if (possibilities.length <= 1) {
             const ids = possibilities.length ? possibilities : fulfilling;
-            return { stem: null, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet };
+            return { stem: null, badges: ids.map((id) => ({ kind: "course", id })), fulfillingSet, scrollableChips: false };
         }
-        return { stem, badges: possibilities.map((id) => ({ kind: "course", id })), fulfillingSet };
+        const sorted = chipSortCtx
+            ? prioritizeCourseIds(possibilities, chipSortCtx)
+            : possibilities;
+        return {
+            stem,
+            badges: sorted.map((id) => ({ kind: "course", id })),
+            fulfillingSet,
+            scrollableChips: sorted.length > SINGLE_COURSE_SCROLL_THRESHOLD,
+        };
     }
 
     if (type === "CourseGroup") {
-        return { stem: null, badges: [], fulfillingSet };
+        return { stem: null, badges: [], fulfillingSet, scrollableChips: false };
     }
 
     if (type === "Restriction" && data.attr?.length > 0) {
@@ -828,11 +926,12 @@ function buildRowContent(item) {
                 courses: (item.attributeFulfillment?.get(code) || []).filter(isValidCourseCode),
             })),
             fulfillingSet,
+            scrollableChips: false,
         };
     }
 
     if (type === "Restriction") {
-        return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
+        return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet, scrollableChips: false };
     }
 
     if (type === "AllOf") {
@@ -840,21 +939,21 @@ function buildRowContent(item) {
             .map((sub) => createRequirementDescription(sub))
             .filter(Boolean);
         if (parts.length > 0) {
-            return { stem: null, badges: [], fulfillingSet };
+            return { stem: null, badges: [], fulfillingSet, scrollableChips: false };
         }
     }
 
-    return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet };
+    return { stem, badges: fulfilling.map((id) => ({ kind: "course", id })), fulfillingSet, scrollableChips: false };
 }
 
 function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => undefined) {
-    const { stem, badges, fulfillingSet } = buildRowContent(item);
-    const fullDesc = createRequirementDescription(item.requirement);
     const chipCtx = {
         ...scheduleCtx,
-        fulfillingSet,
         partialTone: scheduleCtx.partialTone ?? item.partial,
     };
+    const { stem, badges, fulfillingSet, scrollableChips } = buildRowContent(item, chipCtx);
+    chipCtx.fulfillingSet = fulfillingSet;
+    const fullDesc = createRequirementDescription(item.requirement);
 
     const renderBadge = (badge, key) => {
         if (badge.kind === "attr") {
@@ -883,7 +982,13 @@ function renderRequirementLine(item, scheduleCtx, crossDegreeChipTitle = () => u
             <div className="req-item-line">
                 <span className="req-stem-text">{stem}</span>
                 <span className="req-item-colon">:</span>
-                <span className="req-chips">{badges.map((b, i) => renderBadge(b, i))}</span>
+                {scrollableChips
+                    ? renderCourseChipBadges(badges, chipCtx, crossDegreeChipTitle)
+                    : (
+                        <span className="req-chips">
+                            {badges.map((b, i) => renderBadge(b, i))}
+                        </span>
+                    )}
             </div>
         );
     }
@@ -1012,6 +1117,7 @@ function courseOptionsForArea(childReq) {
 }
 
 function renderCourseGroupAreaLine(childReq, areaTone, fulfilledCourses, scheduleCtx) {
+    const { type } = parseRequirement(childReq);
     const options = courseOptionsForArea(childReq);
     const fulfillingSet = new Set(fulfilledCourses);
     const chipCtx = {
@@ -1019,6 +1125,12 @@ function renderCourseGroupAreaLine(childReq, areaTone, fulfilledCourses, schedul
         fulfillingSet,
         partialTone: areaTone === "partial",
     };
+    const sortedOptions = type === "SingleCourse" && options.length > 1
+        ? prioritizeCourseIds(options, chipCtx)
+        : options;
+    const badges = sortedOptions.map((id) => ({ kind: "course", id }));
+    const scrollableChips = type === "SingleCourse"
+        && sortedOptions.length > SINGLE_COURSE_SCROLL_THRESHOLD;
 
     return (
         <div className="req-item-line">
@@ -1026,17 +1138,21 @@ function renderCourseGroupAreaLine(childReq, areaTone, fulfilledCourses, schedul
             {options.length > 0 && (
                 <>
                     <span className="req-item-colon">:</span>
-                    <span className="req-chips">
-                        {options.map((id, i) => (
-                            <span
-                                key={i}
-                                className={chipClass(badgeKindFor(id, chipCtx))}
-                                title={scheduleCtx.crossDegreeChipTitle?.(id)}
-                            >
-                                {id}
+                    {scrollableChips
+                        ? renderCourseChipBadges(badges, chipCtx, scheduleCtx.crossDegreeChipTitle)
+                        : (
+                            <span className="req-chips">
+                                {sortedOptions.map((id, i) => (
+                                    <span
+                                        key={i}
+                                        className={chipClass(badgeKindFor(id, chipCtx))}
+                                        title={scheduleCtx.crossDegreeChipTitle?.(id)}
+                                    >
+                                        {id}
+                                    </span>
+                                ))}
                             </span>
-                        ))}
-                    </span>
+                        )}
                 </>
             )}
         </div>

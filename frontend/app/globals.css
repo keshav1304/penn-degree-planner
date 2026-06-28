@@ -1694,6 +1694,50 @@ select {
   align-items: center;
 }
 
+.req-chips-scroll-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.req-chips--scrollable {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  max-height: calc(3 * (1.35 * var(--req-font-meta) + 4px) + 4px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  padding-right: 2px;
+}
+
+.req-chips-scroll-hint {
+  font-size: var(--req-font-meta);
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  line-height: 1;
+  pointer-events: none;
+  text-align: center;
+  user-select: none;
+}
+
+.req-chips-scroll-hint--top {
+  padding-bottom: 2px;
+}
+
+.req-chips-scroll-hint--bottom {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 8px;
+  padding-top: 10px;
+  background: linear-gradient(to top, var(--bg-secondary) 55%, transparent);
+}
+
 .req-chip {
   font-size: var(--req-font-meta);
   font-weight: 600;

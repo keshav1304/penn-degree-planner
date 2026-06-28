@@ -2863,10 +2863,75 @@ const PSYC_APPROVED_STATISTICS: &[&str] = &[
     "STAT 4310",
 ];
 
+const PSYC_COGNATE_ELECTIVES: &[&str] = &[
+    "ANTH 1040",
+    "ASAM 1800",
+    "ECON 0120",
+    "EDUC 2535",
+    "EDUC 2541",
+    "EDUC 2551",
+    "EDUC 3545",
+    "GSWS 3440",
+    "LING 0750",
+    "LING 2700",
+    "NRSC 2233",
+    "NRSC 2240",
+    "NRSC 3310",
+    "NRSC 4430",
+    "NRSC 4469",
+    "NRSC 4470",
+    "NRSC 4482",
+    "OIDD 2900",
+    "PHIL 4840",
+    "PHIL 4843",
+    "PPE 3001",
+    "PPE 3003",
+    "PSYC 2750",
+    "STAT 1020",
+    "STAT 1120",
+];
+
 fn psyc_elective_slot() -> Requirement {
     Requirement::AnyOf {
         category: Some("Psychology Electives".to_string()),
         possibilities: vec![
+            Requirement::Restriction {
+                category: None,
+                department: Some(vec!["PSYC".to_string()]),
+                cu: None,
+                level: Some(1000),
+                max_level: Some(4999),
+                attr: None,
+                excluding: Some(vec!["PSYC 4997".to_string()]),
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: None,
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["APMR".to_string()]),
+                excluding: Some(vec!["PSYC 4997".to_string()]),
+                number: 1,
+                no_school: None,
+            },
+        ],
+    }
+}
+
+fn psyc_elective_cognate_slot() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Psychology Electives".to_string()),
+        possibilities: vec![
+            Requirement::SingleCourse {
+                category: None,
+                possibilities: PSYC_COGNATE_ELECTIVES
+                    .iter()
+                    .map(|code| (*code).to_string())
+                    .collect(),
+            },
             Requirement::Restriction {
                 category: None,
                 department: Some(vec!["PSYC".to_string()]),
@@ -2926,7 +2991,7 @@ fn psyc_major_requirements() -> Vec<Requirement> {
             ],
         },
         Requirement::Restriction {
-            category: Some("Biological Psychology Elective".to_string()),
+            category: Some("Biological Basis of Behavior".to_string()),
             department: None,
             cu: None,
             level: None,
@@ -2946,7 +3011,7 @@ fn psyc_major_requirements() -> Vec<Requirement> {
             ],
         },
         Requirement::Restriction {
-            category: Some("Cognitive Psychology Elective".to_string()),
+            category: Some("Cognitive Basis of Behavior".to_string()),
             department: None,
             cu: None,
             level: None,
@@ -2965,7 +3030,7 @@ fn psyc_major_requirements() -> Vec<Requirement> {
             ],
         },
         Requirement::Restriction {
-            category: Some("Social Psychology Elective".to_string()),
+            category: Some("Social Science Bases of Behavior".to_string()),
             department: None,
             cu: None,
             level: None,
@@ -2991,7 +3056,32 @@ fn psyc_major_requirements() -> Vec<Requirement> {
             possibilities: statistics_options,
         },
     ];
-    requirements.extend((0..4).map(|_| psyc_elective_slot()));
+    requirements.extend([
+        psyc_elective_cognate_slot(),
+        psyc_elective_cognate_slot(),
+        Requirement::Restriction {
+            category: Some("Psychology Elective".to_string()),
+            department: Some(vec!["PSYC".to_string()]),
+            cu: None,
+            level: Some(1000),
+            max_level: Some(4999),
+            attr: None,
+            excluding: Some(vec!["PSYC 4997".to_string()]),
+            number: 1,
+            no_school: None,
+        },
+        Requirement::Restriction {
+            category: Some("Psychology Elective".to_string()),
+            department: Some(vec!["PSYC".to_string()]),
+            cu: None,
+            level: Some(1000),
+            max_level: Some(4999),
+            attr: None,
+            excluding: Some(vec!["PSYC 4997".to_string()]),
+            number: 1,
+            no_school: None,
+        },
+    ]);
     requirements
 }
 
