@@ -1697,21 +1697,22 @@ select {
 .req-chips-scroll-wrap {
   position: relative;
   display: inline-flex;
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: center;
+  min-width: 0;
   max-width: 100%;
-  vertical-align: top;
+  flex: 1 1 auto;
 }
 
 .req-chips--scrollable {
-  flex-direction: column;
+  flex-direction: row;
   flex-wrap: nowrap;
-  align-items: flex-start;
-  max-height: calc(3 * (1.35 * var(--req-font-meta) + 4px) + 4px);
-  overflow-y: auto;
-  overflow-x: hidden;
+  align-items: center;
+  max-width: min(100%, 15.5rem);
+  overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: thin;
-  padding-right: 2px;
+  padding-bottom: 1px;
 }
 
 .req-chips-scroll-hint {
@@ -1721,21 +1722,28 @@ select {
   letter-spacing: 1.5px;
   line-height: 1;
   pointer-events: none;
-  text-align: center;
   user-select: none;
+  flex-shrink: 0;
 }
 
-.req-chips-scroll-hint--top {
-  padding-bottom: 2px;
-}
-
-.req-chips-scroll-hint--bottom {
+.req-chips-scroll-hint--left {
   position: absolute;
-  bottom: 0;
   left: 0;
-  right: 8px;
-  padding-top: 10px;
-  background: linear-gradient(to top, var(--bg-secondary) 55%, transparent);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  padding-right: 12px;
+  background: linear-gradient(to right, var(--bg-secondary) 55%, transparent);
+}
+
+.req-chips-scroll-hint--right {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  padding-left: 12px;
+  background: linear-gradient(to left, var(--bg-secondary) 55%, transparent);
 }
 
 .req-chip {

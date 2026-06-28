@@ -801,16 +801,16 @@ function prioritizeCourseIds(ids, chipCtx) {
 
 function ScrollableCourseChips({ itemCount, children }) {
     const scrollRef = useRef(null);
-    const [showTopHint, setShowTopHint] = useState(false);
-    const [showBottomHint, setShowBottomHint] = useState(itemCount > SINGLE_COURSE_SCROLL_THRESHOLD);
+    const [showLeftHint, setShowLeftHint] = useState(false);
+    const [showRightHint, setShowRightHint] = useState(itemCount > SINGLE_COURSE_SCROLL_THRESHOLD);
 
     const updateHints = useCallback(() => {
         const el = scrollRef.current;
         if (!el) return;
-        const atTop = el.scrollTop <= 1;
-        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-        setShowTopHint(!atTop);
-        setShowBottomHint(!atBottom);
+        const atStart = el.scrollLeft <= 1;
+        const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1;
+        setShowLeftHint(!atStart);
+        setShowRightHint(!atEnd);
     }, []);
 
     useEffect(() => {
@@ -823,8 +823,8 @@ function ScrollableCourseChips({ itemCount, children }) {
 
     return (
         <span className="req-chips-scroll-wrap">
-            {showTopHint && (
-                <span className="req-chips-scroll-hint req-chips-scroll-hint--top" aria-hidden="true">
+            {showLeftHint && (
+                <span className="req-chips-scroll-hint req-chips-scroll-hint--left" aria-hidden="true">
                     ···
                 </span>
             )}
@@ -835,8 +835,8 @@ function ScrollableCourseChips({ itemCount, children }) {
             >
                 {children}
             </span>
-            {showBottomHint && (
-                <span className="req-chips-scroll-hint req-chips-scroll-hint--bottom" aria-hidden="true">
+            {showRightHint && (
+                <span className="req-chips-scroll-hint req-chips-scroll-hint--right" aria-hidden="true">
                     ···
                 </span>
             )}
