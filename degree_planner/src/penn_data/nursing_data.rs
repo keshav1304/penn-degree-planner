@@ -26,14 +26,6 @@ const GLOBAL_ARTS_SECTOR_DEPTS: &[&str] = &[
 const UNIVERSALITY_SECTOR_DEPTS: &[&str] =
     &["AFRC", "ASAM", "GSWS", "JWST", "LALS", "RELS", "REES", "SAST", "URBS"];
 
-const LANGUAGE_DEPTS: &[&str] = &[
-    "AMHR", "ARAB", "ASLD", "BENG", "BCS", "CHIC", "CHIN", "CZCH", "DTCH", "FILP", "FREN", "GRMN",
-    "GREK", "GUJR", "HEBR", "HIND", "HUNG", "IGBO", "INDO", "IRIS", "ITAL", "JPAN", "KAND", "KORN",
-    "LATN", "MALG", "MLYM", "MRTI", "PASH", "PERS", "PLSH", "PRTG", "PUNJ", "QUEC", "RUSS", "SKRT",
-    "SARB", "SWAH", "SWED", "TAML", "TELU", "THAI", "TIBT", "TIGR", "TURK", "TWI", "UKRN", "URDU",
-    "VIET", "WOLF", "YDSH", "YORB", "ZULU",
-];
-
 fn depts_vec(depts: &[&str]) -> Vec<String> {
     depts.iter().map(|s| s.to_string()).collect()
 }
@@ -60,13 +52,14 @@ fn nurs_dept_restriction(label: &str, depts: &[&str], min: i32, max: i32) -> Req
 }
 
 fn nurs_dept_sector(label: &str, depts: &[&str], min: i32, max: i32, alternates: &[&str]) -> Requirement {
-    let mut possibilities = vec![nurs_dept_restriction(label, depts, min, max)];
-    for code in alternates {
-        possibilities.push(Requirement::SingleCourse {
+    let mut possibilities: Vec<Requirement> = alternates
+        .iter()
+        .map(|code| Requirement::SingleCourse {
             category: None,
             possibilities: vec![code.to_string()],
-        });
-    }
+        })
+        .collect();
+    possibilities.push(nurs_dept_restriction(label, depts, min, max));
     Requirement::AnyOf {
         category: Some(label.to_string()),
         possibilities,
@@ -104,16 +97,25 @@ fn nurs_writing_requirement() -> Requirement {
 }
 
 fn nurs_language_slot(label: &str) -> Requirement {
-    Requirement::Restriction {
+    Requirement::AnyOf {
         category: Some(label.to_string()),
-        department: Some(depts_vec(LANGUAGE_DEPTS)),
-        cu: None,
-        level: Some(1),
-        max_level: Some(4999),
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
+        possibilities: vec![
+            Requirement::Restriction {
+                category: None,
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["WUFL".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::SingleCourse {
+                category: None,
+                possibilities: vec!["SPAN 0105".to_string(), "SPAN 0205".to_string()],
+            },
+        ],
     }
 }
 

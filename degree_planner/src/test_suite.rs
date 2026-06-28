@@ -648,11 +648,16 @@ mod catalog {
             major_contains(&bsn, &|req| {
                 matches!(
                     req,
-                    Requirement::Restriction { category, .. }
+                    Requirement::AnyOf { category, possibilities, .. }
                         if category.as_deref() == Some("Language Requirement 1")
+                            && possibilities.iter().any(|child| matches!(
+                                child,
+                                Requirement::Restriction { attr, .. }
+                                    if attr.as_ref().is_some_and(|a| a.contains(&"WUFL".to_string()))
+                            ))
                 )
             }),
-            "BSN should include language slots"
+            "BSN language slots should use WUFL attribute per Nursing handbook"
         );
         assert!(
             major_contains(&bsn, &|req| {
