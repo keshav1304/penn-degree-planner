@@ -721,6 +721,7 @@ export default function Home() {
                   degreeCatalog={degreeCatalog}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
+                  takenCourses={takenCourses}
                   courseDegreesMap={courseDegreesMap}
                   crossDegreeViolationsByCourse={crossDegreeViolationsByCourse}
                   navTarget={reqNavTarget}

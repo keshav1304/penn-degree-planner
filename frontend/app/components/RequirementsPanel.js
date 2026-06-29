@@ -41,6 +41,8 @@ import {
     getCategory,
     normalizeCategory,
     poolGroupStats,
+    poolProgressLabel,
+    isPoolComplete,
     resolveActiveTabIndex,
 } from "@/lib/casRequirementsLayout";
 
@@ -50,6 +52,7 @@ export default function RequirementsPanel({
     degreeCatalog = [],
     frozenCourses = [],
     assignedCourses = [],
+    takenCourses = [],
     courseDegreesMap = {},
     crossDegreeViolationsByCourse = {},
     navTarget = null,
@@ -107,6 +110,7 @@ export default function RequirementsPanel({
 
     const assignedIds = new Set(filterValidPlacements(assignedCourses).map((a) => a.courseId));
     const frozenIds = new Set(filterFrozenPlacements(frozenCourses).map((f) => f.courseId));
+    const takenIds = new Set(filterValidCourseCodes(takenCourses));
     const crossDegreeChipTitle = (courseId) => crossDegreeViolationsByCourse[courseId] || undefined;
 
     const isCasLayout = activeTabDef.type === "cas-combined" || activeTabDef.type === "cas-single";
@@ -150,6 +154,7 @@ export default function RequirementsPanel({
         scheduleCtx = {
             assignedIds,
             frozenIds,
+            takenIds,
             crossDegreeViolationsByCourse,
             crossDegreeChipTitle,
             degreeIndex: casIndices[0],
@@ -244,6 +249,7 @@ export default function RequirementsPanel({
         scheduleCtx = {
             assignedIds,
             frozenIds,
+            takenIds,
             crossDegreeViolationsByCourse,
             crossDegreeChipTitle,
             degreeIndex: activeTabDef.index,
@@ -355,6 +361,7 @@ export default function RequirementsPanel({
                         if (!items.length && !pool) return null;
 
                         const poolStats = pool ? poolGroupStats(pool) : null;
+                        const poolComplete = poolStats ? isPoolComplete(poolStats) : false;
                         const groupStatusTone = computeGroupTone(items, pool, frozenIds);
                         const isCollapsed = (() => {
                             if (navTarget?.category && normalizeCategory(navTarget.category) === cat) {
@@ -364,7 +371,7 @@ export default function RequirementsPanel({
                         })();
                         const groupClass = groupClassForTone(groupStatusTone);
                         const pillLabel = poolStats
-                            ? `${poolStats.slotsFilled}/${poolStats.slotsTotal}`
+                            ? poolProgressLabel(poolStats)
                             : formatCategoryProgress(items);
 
                         return (
@@ -414,6 +421,7 @@ export default function RequirementsPanel({
                                                         pool.pool_index,
                                                         j,
                                                         flashRowId,
+                                                        poolComplete,
                                                     ),
                                                 )}
                                             </>
@@ -516,6 +524,7 @@ function renderCasSuperSections({
             const pool = section.pool;
             const casProgress = casGenEd ? casGenEdProgress(casGenEd) : null;
             const poolStats = pool ? poolGroupStats(pool) : null;
+            const poolComplete = poolStats ? isPoolComplete(poolStats) : false;
             const genEdItems = casGenEd
                 ? [...(casGenEd.foundational_approaches || []), ...(casGenEd.sectors || [])].map((row) => ({
                     fulfilled: row.fulfilled,
@@ -571,6 +580,7 @@ function renderCasSuperSections({
                                             pool.pool_index,
                                             j,
                                             flashRowId,
+                                            poolComplete,
                                         ),
                                     )}
                                 </>
@@ -841,11 +851,12 @@ function groupBadgeIcon(tone) {
     return "·";
 }
 
-function badgeKindFor(courseId, { assignedIds, frozenIds, fulfillingSet, partialTone }) {
+function badgeKindFor(courseId, { assignedIds, frozenIds, takenIds, fulfillingSet, partialTone, poolProgressTone }) {
     if (!fulfillingSet?.has(courseId)) return "open";
     if (frozenIds.has(courseId)) return "frozen";
+    if (assignedIds.has(courseId) || takenIds?.has(courseId)) return "fulfilled";
+    if (poolProgressTone) return "frozen";
     if (partialTone) return "partial";
-    if (assignedIds.has(courseId)) return "fulfilled";
     return "fulfilled";
 }
 
@@ -1366,6 +1377,24 @@ function renderCasGenEdRow(row, majorDisplayName, scheduleCtx, filterCourses, de
     );
 }
 
+function poolConstraintMatchedCourses(constraint) {
+    return filterValidCourseCodes(constraint.matched_courses || []);
+}
+
+function constraintCoursesAreTaken(courses, { takenIds, assignedIds }) {
+    return courses.some((c) => takenIds.has(c) || assignedIds.has(c));
+}
+
+/** Row tone for a pool coverage constraint — mirrors schedule status priority. */
+function poolConstraintTone(constraint, { frozenIds, takenIds, assignedIds }, poolComplete) {
+    if (!constraint.fulfilled) return "open";
+    const courses = poolConstraintMatchedCourses(constraint);
+    if (itemHasFrozenCourse(courses, frozenIds)) return "frozen";
+    if (constraintCoursesAreTaken(courses, { takenIds, assignedIds })) return "fulfilled";
+    if (poolComplete) return "fulfilled";
+    return "frozen";
+}
+
 function renderPoolConstraintItem(
     constraint,
     rowKey,
@@ -1375,15 +1404,23 @@ function renderPoolConstraintItem(
     poolIndex,
     constraintIndex,
     flashRowId,
+    poolComplete = false,
 ) {
     const instanceId = poolConstraintInstanceId(poolIndex, constraintIndex);
     const rowDomId = reqRowDomId(degreeIndex, instanceId);
-    const rowTone = constraint.fulfilled ? "fulfilled" : "open";
+    const rowTone = poolConstraintTone(constraint, scheduleCtx, poolComplete);
     const fulfillingSet = new Set(constraint.matched_courses || []);
     const chipCtx = {
         ...scheduleCtx,
         fulfillingSet,
         partialTone: false,
+        poolProgressTone: constraint.fulfilled
+            && rowTone === "frozen"
+            && !itemHasFrozenCourse(poolConstraintMatchedCourses(constraint), scheduleCtx.frozenIds)
+            && !constraintCoursesAreTaken(
+                poolConstraintMatchedCourses(constraint),
+                scheduleCtx,
+            ),
     };
 
     const fauxItem = {
@@ -1402,7 +1439,7 @@ function renderPoolConstraintItem(
             className={`req-item req-item--${rowTone} ${isFirst ? "req-item-first" : ""} ${flashRowId === rowDomId ? "req-row-flash" : ""}`}
         >
             <span className={`req-item-icon icon-${rowTone}`}>
-                {constraint.fulfilled ? "✓" : "○"}
+                {requirementStatusIcon({ fulfilled: constraint.fulfilled }, rowTone)}
             </span>
             <div className="req-item-body">
                 {lineContent}

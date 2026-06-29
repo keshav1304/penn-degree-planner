@@ -1874,6 +1874,13 @@ fn build_pool_coverage_info(
     }
 }
 
+fn pool_slot_has_valid_course(mapped: &MappedRequirement) -> bool {
+    mapped
+        .course_ids
+        .iter()
+        .any(|c| course::is_valid_course_code(c))
+}
+
 fn count_pool_prefix_slots_filled(
     pool_idx: usize,
     prefix: char,
@@ -1885,7 +1892,7 @@ fn count_pool_prefix_slots_filled(
     for pi in 0..total.max(0) {
         let child_id = format!("{pool_idx}:{prefix}{pi}");
         let filled = fulfilled.iter().chain(unfulfilled.iter()).any(|m| {
-            m.instance_id.as_deref() == Some(child_id.as_str()) && !m.course_ids.is_empty()
+            m.instance_id.as_deref() == Some(child_id.as_str()) && pool_slot_has_valid_course(m)
         });
         if filled {
             count += 1;
@@ -1907,7 +1914,13 @@ fn collect_pool_courses_for_block(
     {
         if let Some(id) = &mapped.instance_id {
             if id.starts_with(&prefix) && !is_pool_constraint_instance_id(Some(id)) {
-                courses.extend(mapped.course_ids.clone());
+                courses.extend(
+                    mapped
+                        .course_ids
+                        .iter()
+                        .filter(|c| course::is_valid_course_code(c))
+                        .cloned(),
+                );
             }
         }
     }

@@ -495,3 +495,19 @@ export function poolGroupStats(pool) {
     const covTotal = (pool.constraints || []).length;
     return { slotsFilled, slotsTotal, covDone, covTotal };
 }
+
+/** Pool is complete when every slot has a real course and every coverage constraint is met. */
+export function isPoolComplete(poolStats) {
+    if (!poolStats) return false;
+    return poolStats.slotsFilled >= poolStats.slotsTotal
+        && poolStats.covDone >= poolStats.covTotal;
+}
+
+/** Header pill for a course pool — prefer coverage constraint progress when present. */
+export function poolProgressLabel(poolStats) {
+    if (!poolStats) return null;
+    if (poolStats.covTotal > 0) {
+        return `${poolStats.covDone}/${poolStats.covTotal}`;
+    }
+    return `${poolStats.slotsFilled}/${poolStats.slotsTotal}`;
+}

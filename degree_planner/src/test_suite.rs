@@ -934,6 +934,64 @@ mod catalog {
     }
 
     #[test]
+    fn be_pool_slots_count_only_valid_courses() {
+        let be = resolve_major("SEAS", "BE", &[]).expect("BE");
+        let cu_map = catalog_cu_map();
+        let taken = vec!["EAS 2030".to_string()];
+        let validation =
+            validate_courses_for_degree(be.requirements.clone(), &taken, &cu_map);
+        let pool = validation
+            .pool_coverage_info
+            .iter()
+            .find(|p| p.category == "General Electives")
+            .expect("General Electives pool");
+        assert_eq!(
+            pool.flexible_slots_filled, 1,
+            "one taken course should fill one flex slot, got {}",
+            pool.flexible_slots_filled
+        );
+        let cov_done = pool.constraints.iter().filter(|c| c.fulfilled).count();
+        assert_eq!(
+            cov_done, 2,
+            "EAS 2030 should satisfy ethics + one distribution constraint, got {cov_done}"
+        );
+        assert!(
+            pool.pool_courses.iter().all(|c| course::is_valid_course_code(c)),
+            "pool_courses should not include requirement slot placeholders: {:?}",
+            pool.pool_courses
+        );
+    }
+
+    #[test]
+    fn be_pool_schedule_flex_filled_matches_valid_courses_only() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "BE".into(),
+                school: "SEAS".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let pool = output.degree_results[0]
+            .pool_coverage_info
+            .iter()
+            .find(|p| p.category == "General Electives")
+            .expect("General Electives pool");
+        assert_eq!(
+            pool.flexible_slots_filled as usize,
+            pool.pool_courses.len(),
+            "flex slots filled ({}) should match valid pool courses ({})",
+            pool.flexible_slots_filled,
+            pool.pool_courses.len()
+        );
+    }
+
+    #[test]
     fn be_pool_schedule_uses_only_general_electives_labels() {
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
