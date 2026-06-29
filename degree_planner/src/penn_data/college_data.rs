@@ -3110,6 +3110,197 @@ pub fn create_psyc_major() -> Major {
     })
 }
 
+const DSGN_INTEGRATIVE_STUDIOS: &[&str] = &[
+    "DSGN 1011",
+    "DSGN 1020",
+    "DSGN 1070",
+    "DSGN 1200",
+    "DSGN 2040",
+    "DSGN 2070",
+    "DSGN 2220",
+    "DSGN 2230",
+    "DSGN 2260",
+    "DSGN 2510",
+    "DSGN 2530",
+    "DSGN 2550",
+    "DSGN 2570",
+    "DSGN 2580",
+];
+
+fn dsgn_theory_slot() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Design Theory".to_string()),
+        possibilities: vec![
+            Requirement::Restriction {
+                category: None,
+                department: Some(vec!["DSGN".to_string()]),
+                cu: None,
+                level: Some(3000),
+                max_level: Some(3999),
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: None,
+                department: Some(vec!["FNAR".to_string()]),
+                cu: None,
+                level: Some(3000),
+                max_level: Some(3999),
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: None,
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["ADTH".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ],
+    }
+}
+
+fn dsgn_art_design_elective_slot() -> Requirement {
+    Requirement::AnyOf {
+        category: Some("Art and Design Elective".to_string()),
+        possibilities: vec![
+            Requirement::Restriction {
+                category: None,
+                department: Some(vec!["DSGN".to_string()]),
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: None,
+                department: Some(vec!["FNAR".to_string()]),
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: None,
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["ADEL".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ],
+    }
+}
+
+fn dsgn_major_requirements() -> Vec<Requirement> {
+    vec![
+        Requirement::SingleCourse {
+            category: Some("Core Studio".to_string()),
+            possibilities: vec!["DSGN 0010".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Core Studio".to_string()),
+            possibilities: vec!["DSGN 0020".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Integrative Design Studio".to_string()),
+            possibilities: DSGN_INTEGRATIVE_STUDIOS
+                .iter()
+                .map(|code| (*code).to_string())
+                .collect(),
+        },
+        Requirement::SingleCourse {
+            category: Some("Integrative Design Studio".to_string()),
+            possibilities: DSGN_INTEGRATIVE_STUDIOS
+                .iter()
+                .map(|code| (*code).to_string())
+                .collect(),
+        },
+        Requirement::SingleCourse {
+            category: Some("Integrative Design Studio".to_string()),
+            possibilities: DSGN_INTEGRATIVE_STUDIOS
+                .iter()
+                .map(|code| (*code).to_string())
+                .collect(),
+        },
+        Requirement::AnyOf {
+            category: Some("Art History".to_string()),
+            possibilities: vec![
+                Requirement::Restriction {
+                    category: None,
+                    department: Some(vec!["ARTH".to_string()]),
+                    cu: None,
+                    level: None,
+                    max_level: Some(4999),
+                    attr: None,
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+                Requirement::Restriction {
+                    category: None,
+                    department: None,
+                    cu: None,
+                    level: None,
+                    max_level: None,
+                    attr: Some(vec!["ADAH".to_string()]),
+                    excluding: None,
+                    number: 1,
+                    no_school: None,
+                },
+            ],
+        },
+        dsgn_theory_slot(),
+        dsgn_theory_slot(),
+        Requirement::SingleCourse {
+            category: Some("Design Senior Seminar".to_string()),
+            possibilities: vec!["DSGN 4020".to_string()],
+        },
+        Requirement::SingleCourse {
+            category: Some("Design Senior Seminar".to_string()),
+            possibilities: vec!["DSGN 4030".to_string()],
+        },
+        dsgn_art_design_elective_slot(),
+        dsgn_art_design_elective_slot(),
+        dsgn_art_design_elective_slot(),
+        dsgn_art_design_elective_slot(),
+    ]
+}
+
+pub fn create_dsgn_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("DSGN 0010".to_string(), Y1F.into()),
+        ("DSGN 0020".to_string(), Y1S.into()),
+        ("DSGN 4020".to_string(), Y4F.into()),
+        ("DSGN 4030".to_string(), Y4S.into()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "DSGN".to_string(),
+        name: "Design".to_string(),
+        major_requirements: dsgn_major_requirements(),
+        auto_completed_sectors: vec![],
+        concentrations: None,
+        schedule_hints,
+    })
+}
+
 fn math_single_course(code: &str) -> Requirement {
     Requirement::SingleCourse {
         category: None,

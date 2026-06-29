@@ -377,6 +377,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 Some(college_data::create_phys_major(conc))
             }
             "ANCH" => Some(college_data::create_anch_major()),
+            "DSGN" => Some(college_data::create_dsgn_major()),
             "MATH" => {
                 let conc = concentrations
                     .first()

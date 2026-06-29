@@ -593,7 +593,7 @@ pub fn create_cis_major() -> Major {
         name: "Computer Science, BSE".to_string(),
         requirements: vec![
             // Engineering
-            Requirement::SingleCourse { category: SDome("Engineering".to_string()), possibilities: vec!["CIS 1100".to_string()] },
+            Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1100".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1200".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1210".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 2400".to_string()] },
