@@ -835,12 +835,13 @@ fn pair_within_undergrad_grad_budget(
     cross_state: &CrossDegreeState,
     degree_schools: &[String],
     cu_map: &HashMap<String, f64>,
+    ug_grad_budget_used: f64,
 ) -> bool {
     if !pair_crosses_undergrad_grad(&opportunity.slots, degree_schools) {
         return true;
     }
     let cu = opportunity_undergrad_grad_cu(opportunity, cu_map);
-    if cross_state.undergrad_grad_cu_used + cu > UNDERGRAD_GRAD_CU_LIMIT + cross_degree::CU_EPS {
+    if ug_grad_budget_used + cu > UNDERGRAD_GRAD_CU_LIMIT + cross_degree::CU_EPS {
         return false;
     }
     if let Some(course) = opportunity
@@ -855,9 +856,20 @@ fn pair_within_undergrad_grad_budget(
             }
             sim.register_claim(course, slot.degree_index, cu_map);
         }
-        return true;
+        return sim.undergrad_grad_cu_used <= UNDERGRAD_GRAD_CU_LIMIT + cross_degree::CU_EPS;
     }
     true
+}
+
+fn ug_grad_budget_cost(
+    opportunity: &OverlapOpportunity,
+    degree_schools: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> Option<f64> {
+    if !pair_crosses_undergrad_grad(&opportunity.slots, degree_schools) {
+        return None;
+    }
+    Some(opportunity_undergrad_grad_cu(opportunity, cu_map))
 }
 
 fn register_pair_for_budget(
@@ -889,6 +901,7 @@ fn select_overlap_pairs(
     cu_map: &HashMap<String, f64>,
 ) -> Vec<OverlapPair> {
     let mut budget_state = cross_state.clone();
+    let mut ug_grad_budget_used = cross_state.undergrad_grad_cu_used;
     let mut used_slots: HashSet<(usize, String)> = HashSet::new();
     let mut pairs = Vec::new();
 
@@ -896,7 +909,13 @@ fn select_overlap_pairs(
         if !opportunity_is_valid_pair(&opp.slots) {
             continue;
         }
-        if !pair_within_undergrad_grad_budget(opp, &budget_state, degree_schools, cu_map) {
+        if !pair_within_undergrad_grad_budget(
+            opp,
+            &budget_state,
+            degree_schools,
+            cu_map,
+            ug_grad_budget_used,
+        ) {
             continue;
         }
         let slot_keys: Vec<(usize, String)> = opp
@@ -911,6 +930,9 @@ fn select_overlap_pairs(
             used_slots.insert(k.clone());
         }
         register_pair_for_budget(opp, &mut budget_state, degree_schools, cu_map);
+        if let Some(cu) = ug_grad_budget_cost(opp, degree_schools, cu_map) {
+            ug_grad_budget_used += cu;
+        }
         pairs.push(OverlapPair {
             slots: opp.slots.clone(),
             explanation: opp.explanation.clone(),

@@ -765,7 +765,7 @@ const DMD_ELECTIVE_DEPTS: &[&str] = &[
 
 fn dmd_advisor_elective() -> Requirement {
     Requirement::Restriction {
-        category: Some("DMD Elective".to_string()),
+        category: Some("DMD Electives".to_string()),
         department: Some(DMD_ELECTIVE_DEPTS.iter().map(|d| (*d).to_string()).collect()),
         cu: None,
         level: None,

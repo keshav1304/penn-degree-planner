@@ -89,7 +89,9 @@ pub struct CourseAllocation {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CrossDegreeSummary {
+    #[serde(skip_serializing)]
     pub undergrad_grad_cu_used: f64,
+    #[serde(skip_serializing)]
     pub undergrad_grad_cu_limit: f64,
     pub course_allocations: HashMap<String, Vec<CourseAllocation>>,
     pub violations: Vec<CrossDegreeViolation>,

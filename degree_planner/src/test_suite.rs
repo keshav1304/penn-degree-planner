@@ -564,7 +564,7 @@ mod catalog {
                 matches!(
                     req,
                     Requirement::Restriction { category, attr, .. }
-                        if category.as_deref() == Some("Biological Psychology Elective")
+                        if category.as_deref() == Some("Biological Basis of Behavior")
                             && attr.as_ref().is_some_and(|a| a.contains(&"APCI".to_string()))
                 )
             }),
