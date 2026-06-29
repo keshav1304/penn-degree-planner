@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
+use crate::requirement::PoolConstraint;
 use crate::schedule_template::{
     schedule_hints_from_array, scheduled, insert_fixed_course_hints, ScheduleHint, Semester,
     Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S,
@@ -745,32 +746,16 @@ pub fn create_cis_major() -> Major {
 }
 
 fn cis_or_nets_elective(category: &str) -> Requirement {
-    Requirement::AnyOf {
-        category: Some(category.to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: Some("CIS Elective".to_string()),
-                department: Some(vec!["CIS".to_string()]),
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: Some("CIS Elective".to_string()),
-                department: Some(vec!["NETS".to_string()]),
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-        ],
+    Requirement::Restriction {
+        category: Some("CIS Elective".to_string()),
+        department: Some(vec!["CIS".to_string(), "NETS".to_string()]),
+        cu: None,
+        level: None,
+        max_level: None,
+        attr: None,
+        excluding: Some(vec!["CIS 1050".to_string(), "CIS 1060".to_string(), "CIS 1070".to_string(), "CIS 1250".to_string(), "CIS 1600".to_string(), "CIS 2610".to_string(), "CIS 3333".to_string(), "CIS 4230".to_string(), "CIS 5230".to_string(), "CIS 7980".to_string()]),
+        number: 1,
+        no_school: None,
     }
 }
 
@@ -853,23 +838,9 @@ pub fn create_dmd_major() -> Major {
                 category: Some("Engineering".to_string()),
                 possibilities: vec!["CIS 4600".to_string(), "CIS 5600".to_string()],
             },
-            Requirement::CourseGroup {
+            Requirement::SingleCourse {
                 category: Some("Engineering".to_string()),
-                number: 2,
-                possibilities: vec![
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CIS 4610".to_string(), "CIS 5610".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CIS 4620".to_string(), "CIS 5620".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CIS 4550".to_string(), "CIS 5550".to_string()],
-                    },
-                ],
+                possibilities: vec!["CIS 4610".to_string(), "CIS 5610".to_string(), "CIS 4620".to_string(), "CIS 5620".to_string(), "CIS 4550".to_string(), "CIS 5550".to_string()],
             },
             Requirement::SingleCourse {
                 category: Some("Engineering".to_string()),
@@ -891,7 +862,7 @@ pub fn create_dmd_major() -> Major {
             },
             Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
-                possibilities: vec!["ESE 2030".to_string(), "ENM 2030".to_string(), "ENM 2400".to_string()],
+                possibilities: vec!["MATH 2400".to_string(), "ESE 2030".to_string(), "ENM 2030".to_string(), "ENM 2400".to_string()],
             },
             Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
@@ -966,7 +937,11 @@ pub fn create_dmd_major() -> Major {
                     },
                     Requirement::SingleCourse {
                         category: None,
-                        possibilities: vec!["PHYS 0151".to_string(), "PHYS 0171".to_string()],
+                        possibilities: vec!["PHYS 0151".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["PHYS 0171".to_string()],
                     },
                 ],
             },
@@ -1481,15 +1456,78 @@ fn be_concentrations() -> BTreeMap<String, Vec<Requirement>> {
     ])
 }
 
+fn be_attr_constraint(label: &str, attrs: &[&str], count: i32, group: &str) -> PoolConstraint {
+    PoolConstraint {
+        requirement: Requirement::Restriction {
+            category: Some(label.to_string()),
+            department: None,
+            cu: None,
+            level: None,
+            max_level: None,
+            attr: Some(attrs.iter().map(|s| s.to_string()).collect()),
+            excluding: None,
+            number: 1,
+            no_school: None,
+        },
+        count,
+        consumption_group: Some(group.to_string()),
+    }
+}
+
+fn be_ethics_constraint() -> PoolConstraint {
+    PoolConstraint {
+        requirement: Requirement::SingleCourse {
+            category: Some("Engineering Ethics".to_string()),
+            possibilities: vec![
+                "EAS 2030".to_string(),
+                "HSOC 1330".to_string(),
+                "HSOC 2457".to_string(),
+                "LGST 1000".to_string(),
+                "LGST 2200".to_string(),
+                "NURS 3300".to_string(),
+                "NURS 5250".to_string(),
+                "BIOE 4010".to_string(),
+                "BIOE 4020".to_string(),
+                "PHIL 1342".to_string(),
+                "PHIL 4330".to_string(),
+            ],
+        },
+        count: 1,
+        consumption_group: Some("be:ethics".to_string()),
+    }
+}
+
+/// 7 courses, 8 coverage requirements (ethics + 2 SS + 2 Hum + 1 flex SSH + 2 SSH/TBS).
+/// Exactly one double-count is permitted (typically ethics into Hum).
+fn be_general_electives_pool() -> Requirement {
+    Requirement::CoursePool {
+        category: Some("General Electives".to_string()),
+        fixed_slots: vec![],
+        flexible_slots: 7,
+        constraints: vec![
+            be_ethics_constraint(),
+            be_attr_constraint("Social Science", &["EUSS"], 2, "be:ssh"),
+            be_attr_constraint("Humanities", &["EUHS"], 2, "be:hum"),
+            be_attr_constraint("SSH Elective", &["EUSS", "EUHS"], 1, "be:flex"),
+            be_attr_constraint(
+                "Technology & Business",
+                &["EUHS", "EUSS", "EUTB"],
+                2,
+                "be:tbs",
+            ),
+        ],
+    }
+}
+
 /// BE schedule template — one semester per top-level requirement, in list order.
 /// Based on the official Bioengineering BSE sample curriculum.
-const BE_SCHEDULE: [Semester; 35] = [
+const BE_SCHEDULE: [Semester; 33] = [
     // Engineering
     Y1F, Y1S, Y2F, Y2S, Y2S, Y3F, Y3S, Y3F, Y3S, Y3S, Y4F, Y4S, Y4F, Y4S, Y4F, Y4S,
     // Math and Natural Science
     Y1F, Y1S, Y2F, Y2S, Y1F, Y1S, Y1F, Y1F, Y1S, Y1S, Y2F, Y2F, Y3F,
-    // General Electives — SSH distribution (AnyOf), flex SSH, TBS
-    Y2F, Y3S, Y4F,
+    // General Electives (CoursePool)
+    Y2F,
     // Free Electives
     Y3F, Y3S, Y4F,
 ];
@@ -1507,10 +1545,7 @@ pub fn create_be_major() -> Major {
             Requirement::SingleCourse {
                 category: Some("Engineering".to_string()),
                 possibilities: vec![
-                    "ENGR 1050".to_string(),
-                    "CIS 1200".to_string(),
-                    "CIS 1210".to_string(),
-                    "CIS 2400".to_string(),
+                    "ENGR 1050".to_string()
                 ],
             },
             Requirement::SingleCourse {
@@ -1607,31 +1642,13 @@ pub fn create_be_major() -> Major {
                 category: Some("Math and Natural Science".to_string()),
                 possibilities: vec!["MATH 1410".to_string()],
             },
-            Requirement::AnyOf {
+            Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
-                possibilities: vec![
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["ESE 2030".to_string(), "ENM 2030".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["ENM 2400".to_string()],
-                    },
-                ],
+                possibilities: vec!["ESE 2030".to_string(), "ENM 2400".to_string(), "MATH 2400".to_string(), "ENM 2030".to_string()],
             },
-            Requirement::AnyOf {
+            Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
-                possibilities: vec![
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["ENM 3750".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["ENGR 3440".to_string()],
-                    },
-                ],
+                possibilities: vec!["ENM 3750".to_string(), "ENGR 3440".to_string()],
             },
             Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
@@ -1641,18 +1658,9 @@ pub fn create_be_major() -> Major {
                 category: Some("Math and Natural Science".to_string()),
                 possibilities: vec!["PHYS 0141".to_string()],
             },
-            Requirement::AnyOf {
+            Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
-                possibilities: vec![
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CHEM 1012".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CHEM 1151".to_string()],
-                    },
-                ],
+                possibilities: vec!["CHEM 1012".to_string(), "CHEM 1151".to_string()],
             },
             Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
@@ -1662,18 +1670,9 @@ pub fn create_be_major() -> Major {
                 category: Some("Math and Natural Science".to_string()),
                 possibilities: vec!["CHEM 1102".to_string()],
             },
-            Requirement::AnyOf {
+            Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
-                possibilities: vec![
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CHEM 1022".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: None,
-                        possibilities: vec!["CHEM 1161".to_string()],
-                    },
-                ],
+                possibilities: vec!["CHEM 1022".to_string(), "CHEM 1161".to_string()],
             },
             Requirement::SingleCourse {
                 category: Some("Math and Natural Science".to_string()),
@@ -1688,109 +1687,7 @@ pub fn create_be_major() -> Major {
                 possibilities: vec!["BIOL 3310".to_string()],
             },
 
-            // General Electives — 2 SS + 2 Hum with ethics double-counting (AnyOf branch)
-            Requirement::AnyOf {
-                category: Some("General Electives".to_string()),
-                possibilities: vec![
-                    Requirement::AllOf {
-                        category: None,
-                        requirements: vec![
-                            Requirement::SingleCourse {
-                                category: None,
-                                possibilities: vec![
-                                    "EAS 2030".to_string(),
-                                    "HSOC 1330".to_string(),
-                                    "HSOC 2457".to_string(),
-                                    "LGST 1000".to_string(),
-                                    "LGST 2200".to_string(),
-                                    "NURS 3300".to_string(),
-                                    "NURS 5250".to_string(),
-                                ],
-                            },
-                            Requirement::Restriction {
-                                category: None,
-                                department: None,
-                                cu: None,
-                                level: None,
-                                max_level: None,
-                                attr: Some(vec!["EUSS".to_string()]),
-                                number: 1,
-                                excluding: None,
-                                no_school: None,
-                            },
-                            Requirement::Restriction {
-                                category: None,
-                                department: None,
-                                cu: None,
-                                level: None,
-                                max_level: None,
-                                attr: Some(vec!["EUHS".to_string()]),
-                                number: 2,
-                                excluding: None,
-                                no_school: None,
-                            },
-                        ],
-                    },
-                    Requirement::AllOf {
-                        category: None,
-                        requirements: vec![
-                            Requirement::Restriction {
-                                category: None,
-                                department: None,
-                                cu: None,
-                                level: None,
-                                max_level: None,
-                                attr: Some(vec!["EUSS".to_string()]),
-                                number: 2,
-                                excluding: None,
-                                no_school: None,
-                            },
-                            Requirement::SingleCourse {
-                                category: None,
-                                possibilities: vec![
-                                    "BIOE 4010".to_string(),
-                                    "BIOE 4020".to_string(),
-                                    "PHIL 1342".to_string(),
-                                    "PHIL 4330".to_string(),
-                                ],
-                            },
-                            Requirement::Restriction {
-                                category: None,
-                                department: None,
-                                cu: None,
-                                level: None,
-                                max_level: None,
-                                attr: Some(vec!["EUHS".to_string()]),
-                                number: 1,
-                                excluding: None,
-                                no_school: None,
-                            },
-                        ],
-                    },
-                ],
-            },
-            Requirement::Restriction {
-                category: Some("General Electives".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["EUSS".to_string(), "EUHS".to_string()]),
-                number: 1,
-                excluding: None,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: Some("General Electives".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["EUSS".to_string(), "EUHS".to_string(), "EUTB".to_string()]),
-                number: 2,
-                excluding: None,
-                no_school: None,
-            },
+            be_general_electives_pool(),
 
             // Free Electives
             Requirement::Restriction {

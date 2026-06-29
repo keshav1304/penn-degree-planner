@@ -1380,6 +1380,21 @@ function renderPoolConstraintItem(
     const rowDomId = reqRowDomId(degreeIndex, instanceId);
     const rowTone = constraint.fulfilled ? "fulfilled" : "open";
     const fulfillingSet = new Set(constraint.matched_courses || []);
+    const chipCtx = {
+        ...scheduleCtx,
+        fulfillingSet,
+        partialTone: false,
+    };
+
+    const fauxItem = {
+        requirement: constraint.requirement,
+        fulfilledCourses: constraint.matched_courses || [],
+        attributeFulfillment: null,
+    };
+    const lineContent = constraint.requirement
+        ? buildPoolConstraintLineContent(constraint, fauxItem, chipCtx, scheduleCtx.crossDegreeChipTitle)
+        : buildPoolConstraintFallbackLine(constraint, chipCtx, scheduleCtx.crossDegreeChipTitle);
+
     return (
         <div
             id={rowDomId}
@@ -1390,32 +1405,120 @@ function renderPoolConstraintItem(
                 {constraint.fulfilled ? "✓" : "○"}
             </span>
             <div className="req-item-body">
-                <div className="req-item-line">
-                    <span className="req-stem-text">
-                        {constraint.description || constraint.label}
-                    </span>
-                    {constraint.matched_courses?.length > 0 && (
-                        <>
-                            <span className="req-item-colon">:</span>
-                            <span className="req-chips">
-                                {constraint.matched_courses.map((courseId) => (
-                                    <span
-                                        key={courseId}
-                                        className={chipClass(badgeKindFor(courseId, {
-                                            ...scheduleCtx,
-                                            fulfillingSet,
-                                            partialTone: false,
-                                        }))}
-                                        title={scheduleCtx.crossDegreeChipTitle?.(courseId)}
-                                    >
-                                        {courseId}
-                                    </span>
-                                ))}
-                            </span>
-                        </>
-                    )}
-                </div>
+                {lineContent}
             </div>
         </div>
     );
+}
+
+function buildPoolConstraintFallbackLine(constraint, chipCtx, crossDegreeChipTitle) {
+    return (
+        <div className="req-item-line">
+            <span className="req-stem-text">
+                {constraint.description || constraint.label}
+            </span>
+            {constraint.matched_courses?.length > 0 && (
+                <>
+                    <span className="req-item-colon">:</span>
+                    {renderCourseChipBadges(
+                        constraint.matched_courses.map((id) => ({ kind: "course", id })),
+                        chipCtx,
+                        crossDegreeChipTitle,
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+function buildPoolConstraintLineContent(constraint, fauxItem, chipCtx, crossDegreeChipTitle) {
+    const { type, data } = parseRequirement(constraint.requirement);
+    const stem = (constraint.label && constraint.label !== "constraint")
+        ? constraint.label
+        : getRequirementStem(constraint.requirement);
+
+    if (type === "SingleCourse") {
+        const possibilities = (data.possibilities || []).filter(Boolean);
+        if (possibilities.length > 1) {
+            const sorted = prioritizeCourseIds(possibilities, chipCtx);
+            const badges = sorted.map((id) => ({ kind: "course", id }));
+            const scrollable = sorted.length > SINGLE_COURSE_SCROLL_THRESHOLD;
+            return (
+                <div className="req-item-line">
+                    <span className="req-stem-text">{stem || "One of"}</span>
+                    <span className="req-item-colon">:</span>
+                    {scrollable
+                        ? renderCourseChipBadges(badges, chipCtx, crossDegreeChipTitle)
+                        : (
+                            <span className="req-chips">
+                                {badges.map((b, i) => (
+                                    <span
+                                        key={b.id ?? i}
+                                        className={chipClass(badgeKindFor(b.id, chipCtx))}
+                                        title={crossDegreeChipTitle?.(b.id)}
+                                    >
+                                        {b.id}
+                                    </span>
+                                ))}
+                            </span>
+                        )}
+                </div>
+            );
+        }
+    }
+
+    if (type === "Restriction" && data.attr?.length > 0) {
+        const badges = data.attr.map((code) => ({
+            kind: "attr",
+            code,
+            courses: (constraint.matched_courses || []).filter(
+                (c) => chipCtx.fulfillingSet?.has(c),
+            ),
+        }));
+        const renderBadge = (badge, key) => {
+            const fulfillingForAttr = badge.courses.filter((c) => chipCtx.fulfillingSet.has(c));
+            const hasCourse = fulfillingForAttr.length > 0;
+            const label = hasCourse
+                ? `[${badge.code}] ${fulfillingForAttr.join(", ")}`
+                : `[${badge.code}]`;
+            const kind = hasCourse ? badgeKindFor(fulfillingForAttr[0], chipCtx) : "open";
+            return <span key={key} className={chipClass(kind)}>{label}</span>;
+        };
+        return (
+            <div className="req-item-line">
+                <span className="req-stem-text">{stem || createRequirementDescription(constraint.requirement)}</span>
+                <span className="req-item-colon">:</span>
+                <span className="req-chips">
+                    {badges.map((b, i) => renderBadge(b, i))}
+                </span>
+            </div>
+        );
+    }
+
+    const { stem: builtStem, badges, scrollableChips } = buildRowContent(fauxItem, chipCtx);
+    if (builtStem && badges.length > 0) {
+        return (
+            <div className="req-item-line">
+                <span className="req-stem-text">{stem || builtStem}</span>
+                <span className="req-item-colon">:</span>
+                {scrollableChips
+                    ? renderCourseChipBadges(badges, chipCtx, crossDegreeChipTitle)
+                    : (
+                        <span className="req-chips">
+                            {badges.map((b, i) => (
+                                <span
+                                    key={b.id ?? i}
+                                    className={chipClass(badgeKindFor(b.id, chipCtx))}
+                                    title={crossDegreeChipTitle?.(b.id)}
+                                >
+                                    {b.id}
+                                </span>
+                            ))}
+                        </span>
+                    )}
+            </div>
+        );
+    }
+
+    return buildPoolConstraintFallbackLine(constraint, chipCtx, crossDegreeChipTitle);
 }

@@ -877,6 +877,24 @@ mod catalog {
     }
 
     #[test]
+    fn restriction_description_omits_excluding() {
+        let req = Requirement::Restriction {
+            category: None,
+            department: Some(vec!["PSYC".to_string()]),
+            cu: None,
+            level: Some(1000),
+            max_level: Some(4999),
+            attr: None,
+            excluding: Some(vec!["PSYC 4997".to_string()]),
+            number: 1,
+            no_school: None,
+        };
+        let desc = req.create_requirement_description();
+        assert!(!desc.to_lowercase().contains("excluding"));
+        assert!(desc.contains("PSYC"));
+    }
+
+    #[test]
     fn dmd_major_resolves_with_thirty_seven_cu() {
         let dmd = resolve_major("SEAS", "DMD", &[]).expect("DMD");
         assert_eq!(dmd.short_name, "DMD");
@@ -887,24 +905,126 @@ mod catalog {
     }
 
     #[test]
-    fn ms_be_major_resolves_with_ten_cu_and_concentrations() {
-        use crate::penn_data::seas_grad_data::ms_be_concentration_names;
+    fn be_major_general_electives_use_course_pool() {
+        use crate::Requirement;
 
+        let be = resolve_major("SEAS", "BE", &[]).expect("BE");
+        assert_eq!(be.short_name, "BE");
+        assert_eq!(be.requirements.len(), 33);
+        let pool = be
+            .requirements
+            .iter()
+            .find(|r| matches!(r, Requirement::CoursePool { category, .. } if category.as_deref() == Some("General Electives")))
+            .expect("BE should have a General Electives CoursePool");
+        if let Requirement::CoursePool {
+            fixed_slots,
+            flexible_slots,
+            constraints,
+            ..
+        } = pool
+        {
+            assert!(fixed_slots.is_empty());
+            assert_eq!(*flexible_slots, 7);
+            assert_eq!(constraints.len(), 5);
+            let units: i32 = constraints.iter().map(|c| c.count).sum();
+            assert_eq!(units, 8, "8 coverage requirements on 7 pool courses");
+        } else {
+            panic!("expected CoursePool");
+        }
+    }
+
+    #[test]
+    fn be_pool_schedule_uses_only_general_electives_labels() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "BE".into(),
+                school: "SEAS".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        for (slot, label) in &output.slot_labels {
+            if slot.contains(":p") && slot.contains("29:") {
+                assert!(
+                    label.contains("General Electives"),
+                    "BE pool flex slot {slot} should be General Electives, got {label}"
+                );
+            }
+            if label.contains("Social Science") {
+                panic!(
+                    "pool constraint label on schedule: {slot} => {label}; all: {:?}",
+                    output.slot_labels
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn be_wh_dual_pool_schedule_avoids_constraint_slot_labels() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "BE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        for (slot, label) in &output.slot_labels {
+            if slot.contains(":p") && slot.contains("29:") {
+                assert!(
+                    label.contains("General Electives"),
+                    "BE pool flex slot {slot} should be General Electives, got {label}"
+                );
+            }
+            assert!(
+                !label.contains("Social Science"),
+                "pool constraint label on schedule: {slot} => {label}"
+            );
+        }
+        for group in &output.overlap_schedule_groups {
+            for m in &group.members {
+                if m.degree_index == 0 && m.label.contains("Social Science") {
+                    panic!(
+                        "BE overlap should use pool category, not constraint name: {:?}",
+                        group
+                    );
+                }
+                if m.degree_index == 0 {
+                    assert!(
+                        m.label.contains("General Electives"),
+                        "BE overlap member should be General Electives, got {}",
+                        m.label
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ms_be_major_resolves_with_ten_cu() {
         let ms_be = resolve_major("SEAS_MS", "MS_BE", &[]).expect("MS_BE");
         assert_eq!(ms_be.short_name, "MS_BE");
         assert_eq!(ms_be.name, "Bioengineering, MSE");
         assert_eq!(ms_be.requirements.len(), 9);
-        assert_eq!(ms_be_concentration_names().len(), 9);
-        assert!(ms_be.concentrations.is_some());
-
-        let with_conc = resolve_major(
-            "SEAS_MS",
-            "MS_BE",
-            &["Neuroengineering".into()],
-        )
-        .expect("MS_BE with concentration");
-        assert_eq!(with_conc.short_name, "MS_BE");
-        assert!(with_conc.concentrations.is_some());
+        assert!(ms_be.concentrations.is_none());
     }
 
     #[test]

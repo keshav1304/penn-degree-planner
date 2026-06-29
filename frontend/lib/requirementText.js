@@ -69,10 +69,6 @@ export function formatRestriction(data) {
     const attrs = data.attr.filter((a) => typeof a === "string");
     if (attrs.length) response += ` from attribute ${attrs.join("/")}`;
   }
-  // if (data.excluding?.length) {
-  //   const ex = data.excluding.filter((c) => typeof c === "string");
-  //   if (ex.length) response += ` excluding ${ex.join(", ")}`;
-  // }
   if (data.no_school) response += ` not from ${data.no_school}`;
   return response || "Restriction requirement";
 }

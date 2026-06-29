@@ -585,7 +585,6 @@ fn format_restriction_description(
     cu: &Option<i32>,
     level: &Option<i32>,
     attr: &Option<Vec<String>>,
-    _excluding: &Option<Vec<String>>,
     number: &i32,
     no_school: &Option<String>,
 ) -> String {
@@ -606,10 +605,6 @@ fn format_restriction_description(
         response.push_str(" from attribute ");
         response.push_str(&attr_names.join("/"));
     }
-    // if let Some(excluded_courses) = excluding {
-    //     response.push_str(" excluding ");
-    //     response.push_str(&excluded_courses.join(", "));
-    // }
     if let Some(no_school_name) = no_school {
         response.push_str(" not from ");
         response.push_str(no_school_name);
@@ -754,6 +749,58 @@ pub fn is_pool_constraint_slot_id(slot_id: &str) -> bool {
     };
     let scope = rest.split(":R:").next().unwrap_or(rest);
     is_pool_constraint_instance_id(Some(scope))
+}
+
+/// Map a pool coverage constraint instance (`29:c1`) to a schedulable flex slot (`29:p1`).
+pub fn pool_constraint_to_flex_slot_key(
+    constraint_key: &str,
+    pool: &PoolCoverageInfo,
+) -> Option<String> {
+    if !is_pool_constraint_instance_id(Some(constraint_key)) {
+        return None;
+    }
+    let mut parts = constraint_key.split(':');
+    let pool_idx = parts.next()?.parse::<usize>().ok()?;
+    if pool_idx != pool.pool_index {
+        return None;
+    }
+    let ci = parts
+        .next()
+        .and_then(|s| s.strip_prefix('c'))
+        .and_then(|n| n.parse::<i32>().ok())
+        .unwrap_or(0);
+    let flex_total = pool.flexible_slots_total.max(0);
+    if flex_total == 0 {
+        return None;
+    }
+    let flex_idx = (ci % flex_total).min(flex_total - 1);
+    Some(format!("{pool_idx}:p{flex_idx}"))
+}
+
+/// Schedule/overlap label for a pool coverage constraint — always the pool category, not the constraint name.
+pub fn pool_overlap_display_label(
+    slot_key: &str,
+    pool_coverage: &[PoolCoverageInfo],
+) -> Option<String> {
+    if !is_pool_constraint_instance_id(Some(slot_key)) {
+        return None;
+    }
+    let pool_idx: usize = slot_key.split(':').next()?.parse().ok()?;
+    let pool = pool_coverage.iter().find(|p| p.pool_index == pool_idx)?;
+    Some(format!("1 CU from {}", pool.category))
+}
+
+/// Resolve an open-slot key to the schedulable pool flex slot when it is a coverage constraint.
+pub fn effective_pool_schedule_slot_key(
+    slot_key: &str,
+    pool_coverage: &[PoolCoverageInfo],
+) -> String {
+    for pool in pool_coverage {
+        if let Some(flex) = pool_constraint_to_flex_slot_key(slot_key, pool) {
+            return flex;
+        }
+    }
+    slot_key.to_string()
 }
 
 /// Pool slot placeholders (fixed / flexible) that may be placed on the schedule.
@@ -1388,12 +1435,11 @@ impl Requirement {
                 cu,
                 level,
                 attr,
-                excluding,
                 number,
                 no_school,
                 ..
             } => format_restriction_description(
-                department, cu, level, attr, excluding, number, no_school,
+                department, cu, level, attr, number, no_school,
             ),
             Requirement::AnyOf { possibilities, .. } => {
                 if possibilities.len() == 1 {
@@ -1813,6 +1859,7 @@ fn build_pool_coverage_info(
             .map(|e| PoolConstraintStatus {
                 label: e.label.clone(),
                 description: e.requirement.create_requirement_description(),
+                requirement: e.requirement.clone(),
                 fulfilled: e.fulfilled,
                 matched_courses: e.course_ids.clone(),
                 consumption_group: e.consumption_group.clone(),
@@ -2395,6 +2442,7 @@ pub struct MappedRequirement {
 pub struct PoolConstraintStatus {
     pub label: String,
     pub description: String,
+    pub requirement: Requirement,
     pub fulfilled: bool,
     pub matched_courses: Vec<String>,
     pub consumption_group: String,

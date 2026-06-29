@@ -263,7 +263,13 @@ fn overlap_member_display_label(
     slot_ref: &OverlapSlotRef,
     school: &str,
     major_data: &Major,
+    pool_coverage: &[requirement::PoolCoverageInfo],
 ) -> String {
+    if let Some(label) =
+        requirement::pool_overlap_display_label(&slot_ref.slot_key, pool_coverage)
+    {
+        return label;
+    }
     if school != "CAS" {
         return slot_ref.label.clone();
     }
@@ -1005,7 +1011,12 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         schedulable_slot_lookup: &HashMap<(usize, String), String>,
         all_requirement_slots: &[String],
     ) -> Option<String> {
-        if let Some(id) = schedulable_slot_lookup.get(&(degree_idx, slot_key.to_string())) {
+        let validation = &per_degree_validation[degree_idx];
+        let slot_key = requirement::effective_pool_schedule_slot_key(
+            slot_key,
+            &validation.pool_coverage_info,
+        );
+        if let Some(id) = schedulable_slot_lookup.get(&(degree_idx, slot_key.clone())) {
             return Some(id.clone());
         }
         if let Some(id) = all_requirement_slots.iter().find_map(|id| {
@@ -1021,20 +1032,29 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }) {
             return Some(id);
         }
-        let validation = &per_degree_validation[degree_idx];
         let mapped = validation
             .unfulfilled
             .iter()
-            .find(|m| m.instance_id.as_deref() == Some(slot_key))
+            .find(|m| m.instance_id.as_deref() == Some(slot_key.as_str()))
             .or_else(|| {
                 validation
                     .fulfilled
                     .iter()
-                    .find(|m| m.partial && m.instance_id.as_deref() == Some(slot_key))
+                    .find(|m| m.partial && m.instance_id.as_deref() == Some(slot_key.as_str()))
+            })
+            .or_else(|| {
+                validation.unfulfilled.iter().find(|m| {
+                    m.instance_id.as_deref().is_some_and(|id| {
+                        requirement::effective_pool_schedule_slot_key(
+                            id,
+                            &validation.pool_coverage_info,
+                        ) == slot_key
+                    })
+                })
             })?;
         mapped
             .requirement
-            .schedulable_placeholder_id(Some(slot_key))
+            .schedulable_placeholder_id(Some(&slot_key))
     }
 
     let mut overlap_schedule_groups: Vec<OverlapScheduleGroup> = Vec::new();
@@ -1071,6 +1091,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                                 slot_ref,
                                 school,
                                 &r.major_data,
+                                &per_degree_validation[slot_ref.degree_index].pool_coverage_info,
                             )
                         })
                         .unwrap_or_else(|| slot_ref.label.clone());
@@ -1093,6 +1114,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                                 slot_ref,
                                 school,
                                 &r.major_data,
+                                &per_degree_validation[slot_ref.degree_index].pool_coverage_info,
                             )
                         })
                         .unwrap_or_else(|| slot_ref.label.clone());

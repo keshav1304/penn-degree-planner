@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 use crate::Major;
 use crate::Requirement;
@@ -313,291 +313,129 @@ pub fn create_ms_mse_major() -> Major {
     placeholder_ms_major("MS_MSE", "Materials Science and Engineering, MSE")
 }
 
-const MS_BE_SEAS_DEPTS: &[&str] = &[
-    "BE", "CBE", "CIS", "CIT", "EAS", "ENM", "ESE", "IPD", "MEAM", "MSE",
-];
+pub fn create_ms_be_major() -> Major {
+    let mut schedule_hints = schedule_hints_from_array(&[
+        Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S,
+    ]);
+    schedule_hints.insert("BE 9990".to_string(), Y2F.into());
 
-fn ms_be_math_course() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Math".to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: Some(5000),
-                max_level: None,
-                attr: Some(vec!["EMBM".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: Some(5000),
-                max_level: None,
-                attr: Some(vec!["EPBM".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-        ],
-    }
-}
-
-fn ms_be_bio_science_course() -> Requirement {
-    Requirement::AnyOf {
+    let bio_science = Requirement::Restriction {
         category: Some("Biological Science".to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: Some(5000),
-                max_level: None,
-                attr: Some(vec!["EMBS".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: Some(5000),
-                max_level: None,
-                attr: Some(vec!["EPBS".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-        ],
-    }
-}
-
-fn ms_be_grad_course() -> Requirement {
-    Requirement::Restriction {
-        category: Some("Bioengineering Graduate Course".to_string()),
-        department: Some(vec!["BE".to_string()]),
-        cu: None,
-        level: Some(5000),
-        max_level: None,
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
-}
-
-fn ms_be_seas_grad_restriction(category: Option<&str>) -> Requirement {
-    Requirement::Restriction {
-        category: category.map(str::to_string),
-        department: Some(MS_BE_SEAS_DEPTS.iter().map(|d| (*d).to_string()).collect()),
-        cu: None,
-        level: Some(5000),
-        max_level: None,
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
-}
-
-fn ms_be_seas_or_bio_elective(category: &str) -> Requirement {
-    Requirement::AnyOf {
-        category: Some(category.to_string()),
-        possibilities: vec![
-            ms_be_seas_grad_restriction(None),
-            ms_be_bio_science_course(),
-        ],
-    }
-}
-
-fn ms_be_non_thesis_elective() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("SEAS and/or Biological Science Elective".to_string()),
-        possibilities: vec![
-            ms_be_seas_grad_restriction(None),
-            ms_be_bio_science_course(),
-            Requirement::SingleCourse {
-                category: None,
-                possibilities: vec!["BE 5990".to_string()],
-            },
-        ],
-    }
-}
-
-fn ms_be_general_elective() -> Requirement {
-    Requirement::Restriction {
-        category: Some("General Elective".to_string()),
         department: None,
         cu: None,
         level: Some(5000),
         max_level: None,
+        attr: Some(vec!["EMBS".to_string(), "EPBS".to_string()]),
+        excluding: None,
+        number: 1,
+        no_school: None,
+    };
+
+    let seas_grad = Requirement::Restriction {
+        category: None,
+        department: Some(vec![
+            "BE".to_string(),
+            "CBE".to_string(),
+            "CIS".to_string(),
+            "CIT".to_string(),
+            "EAS".to_string(),
+            "ENM".to_string(),
+            "ESE".to_string(),
+            "IPD".to_string(),
+            "MEAM".to_string(),
+            "MSE".to_string(),
+        ]),
+        cu: None,
+        level: Some(5000),
+        max_level: None,
         attr: None,
         excluding: None,
         number: 1,
         no_school: None,
-    }
-}
+    };
 
-fn ms_be_thesis_or_non_thesis() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Thesis or Non-Thesis".to_string()),
-        possibilities: vec![
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    Requirement::SingleCourse {
-                        category: Some("Master's Thesis".to_string()),
-                        possibilities: vec!["BE 9990".to_string()],
-                    },
-                    Requirement::SingleCourse {
-                        category: Some("Master's Thesis".to_string()),
-                        possibilities: vec!["BE 9990".to_string()],
-                    },
-                ],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    ms_be_non_thesis_elective(),
-                    ms_be_non_thesis_elective(),
-                ],
-            },
-        ],
-    }
-}
-
-fn ms_be_conc_slot(category: &str, courses: &[&str]) -> Requirement {
-    Requirement::SingleCourse {
-        category: Some(category.to_string()),
-        possibilities: courses.iter().map(|code| (*code).to_string()).collect(),
-    }
-}
-
-fn ms_be_concentration(name: &str, courses: &[&str]) -> (String, Vec<Requirement>) {
-    let category = name.to_string();
-    (
-        category.clone(),
-        (0..4)
-            .map(|_| ms_be_conc_slot(&category, courses))
-            .collect(),
-    )
-}
-
-fn ms_be_concentrations() -> BTreeMap<String, Vec<Requirement>> {
-    BTreeMap::from([
-        ms_be_concentration(
-            "Biomedical Data Science and Computational Medicine",
-            &[
-                "BE 9990", "BE 5990", "BE 5040", "BE 5060", "BE 5210", "BE 5300", "BE 5320",
-                "BE 5370", "BE 5400", "BE 5570", "BE 5590", "BE 5660", "BE 5740", "BBCB 6340",
-                "BIOL 5262", "BIOL 5510", "BIOL 5860", "BMIN 5010", "BMIN 5030", "BMIN 5200",
-                "BMIN 5220", "CBE 5250", "CIS 5190", "CIS 5200", "CIS 5210", "CIS 5350",
-                "BIOM 5350", "MTR 5350", "CIS 5450", "CIT 5900", "CIS 7000", "ENM 5320",
-                "ESE 5420", "GCB 5330", "BMIN 5330", "IMUN 5770", "GCB 5360", "BIOL 5536",
-                "CIS 5360", "GCB 5370", "STAT 5000", "STAT 5010", "STAT 5030",
-            ],
-        ),
-        ms_be_concentration(
-            "Biomedical Devices",
-            &[
-                "BE 9990", "BE 5990", "BE 5020", "BE 5060", "BE 5130", "BE 5140", "BE 5180",
-                "BE 5210", "BE 5280", "BE 5290", "BE 5510", "BE 5560", "BE 5700", "BE 5850",
-                "BE 6080", "ESE 5050", "MEAM 5130", "ESE 5290", "ESE 5360", "HCMG 8530",
-                "IPD 5150", "IPD 5190", "MEAM 5100", "MEAM 5140", "MEAM 5200", "MEAM 5750",
-                "MSE 5050", "MEAM 5050",
-            ],
-        ),
-        ms_be_concentration(
-            "Cellular/Tissue Engineering and Biomaterials",
-            &[
-                "BE 9990", "BE 5990", "BE 5120", "BE 5400", "BE 5530", "BE 5580", "BE 5590",
-                "BE 5650", "BE 5690", "BE 5780", "BE 5850", "MSE 5850", "CBE 5570", "MEAM 5140",
-                "MEAM 5180",
-            ],
-        ),
-        ms_be_concentration(
-            "Biomedical Imaging and Radiation Physics",
-            &[
-                "BE 9990", "BE 5990", "BE 5180", "BE 5370", "BE 5470", "BE 5810", "BE 5830",
-                "BE 5840", "BE 6500", "BBCB 6010", "MPHY 6030", "MPHY 6070", "PHYS 5529",
-            ],
-        ),
-        ms_be_concentration(
-            "Systems and Synthetic Biology",
-            &[
-                "BE 9990", "BE 5990", "BE 5270", "BE 5400", "BE 5440", "BE 5580", "BE 5590",
-                "BE 5650", "BE 5690", "BIOL 5262", "CBE 5170", "CBE 5270", "CBE 5520", "CBE 5540",
-                "CBE 5570", "MEAM 6630",
-            ],
-        ),
-        ms_be_concentration(
-            "Neuroengineering",
-            &[
-                "BE 9990", "BE 5990", "BE 5060", "BE 5210", "BE 5300", "BE 5660", "ESE 5660",
-                "BE 5850", "BE 5950", "BE 6100", "NGG 5720", "NGG 5730", "PSYC 5470", "PSYC 5490",
-            ],
-        ),
-        ms_be_concentration(
-            "Multiscale Biomechanics",
-            &[
-                "BE 9990", "BE 5990", "BE 5100", "BE 5140", "BE 5500", "BE 5610", "BE 5700",
-                "MSE 6500",
-            ],
-        ),
-        ms_be_concentration(
-            "Therapeutics, Drug Delivery and Nanomedicine",
-            &[
-                "BE 9990", "BE 5990", "BE 5020", "BE 5260", "BE 5270", "BE 5550", "CBE 5550",
-                "BE 5570", "BE 5620", "CBE 5620", "BE 5780", "BE 6080", "CAMB 6090", "IMUN 6090",
-                "CBE 5540", "CBE 5570", "CBE 5640",
-            ],
-        ),
-        ms_be_concentration(
-            "Immune Engineering",
-            &[
-                "BE 9990", "BE 5990", "BE 5120", "BE 5260", "BE 5270", "BE 5550", "CBE 5550",
-                "BE 5570", "BE 5620", "CBE 5620", "BBCB 5850", "CAMB 6330", "CAMB 7070",
-                "MTR 6210", "CBE 5640", "IMUN 5060", "IMUN 5070", "IMUN 6090", "CAMB 6090",
-                "REG 6180",
-            ],
-        ),
-    ])
-}
-
-fn ms_be_schedule_hints() -> HashMap<String, ScheduleHint> {
-    let mut hints = schedule_hints_from_array(&[
-        Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S,
-    ]);
-    hints.insert("BE 9990".to_string(), Y2F.into());
-    hints
-}
-
-pub fn ms_be_concentration_names() -> Vec<String> {
-    ms_be_concentrations().keys().cloned().collect()
-}
-
-pub fn create_ms_be_major() -> Major {
     Major {
         short_name: "MS_BE".to_string(),
         name: "Bioengineering, MSE".to_string(),
         requirements: vec![
-            ms_be_math_course(),
-            ms_be_math_course(),
-            ms_be_bio_science_course(),
-            ms_be_bio_science_course(),
-            ms_be_grad_course(),
-            ms_be_grad_course(),
-            ms_be_seas_or_bio_elective("SEAS and/or Biological Science Elective"),
-            ms_be_general_elective(),
-            ms_be_thesis_or_non_thesis(),
+            Requirement::Restriction {
+                category: Some("Math".to_string()),
+                department: None,
+                cu: None,
+                level: Some(5000),
+                max_level: None,
+                attr: Some(vec!["EMBM".to_string(), "EPBM".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Math".to_string()),
+                department: None,
+                cu: None,
+                level: Some(5000),
+                max_level: None,
+                attr: Some(vec!["EMBM".to_string(), "EPBM".to_string()]),
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            bio_science.clone(),
+            bio_science.clone(),
+            Requirement::Restriction {
+                category: Some("Bioengineering Elective".to_string()),
+                department: Some(vec!["BE".to_string()]),
+                cu: None,
+                level: Some(5000),
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("Bioengineering Elective".to_string()),
+                department: Some(vec!["BE".to_string()]),
+                cu: None,
+                level: Some(5000),
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::AnyOf {
+                category: Some("Bioengineering Elective".to_string()),
+                possibilities: vec![seas_grad.clone(), bio_science.clone()],
+            },
+            Requirement::Restriction {
+                category: Some("General Elective".to_string()),
+                department: None,
+                cu: None,
+                level: Some(5000),
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::AnyOf {
+                category: Some("SEAS and/or Biological Science Elective".to_string()),
+                possibilities: vec![
+                    seas_grad.clone(),
+                    bio_science.clone(),
+                ],
+            },
+            Requirement::AnyOf {
+                category: Some("SEAS and/or Biological Science Elective".to_string()),
+                possibilities: vec![
+                    seas_grad.clone(),
+                    bio_science.clone(),
+                ],
+            },
         ],
-        schedule_hints: ms_be_schedule_hints(),
-        concentrations: Some(ms_be_concentrations()),
+        schedule_hints,
+        concentrations: None,
     }
 }
 
