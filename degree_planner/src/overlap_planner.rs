@@ -3,7 +3,10 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::course;
-use crate::cross_degree::{overlap_plan_applicable, CrossDegreeState};
+use crate::cross_degree::{
+    self, crosses_undergrad_grad, overlap_plan_applicable, CrossDegreeState,
+    UNDERGRAD_GRAD_CU_LIMIT,
+};
 use crate::major::Major;
 use crate::penn_data::college_data;
 use crate::penn_data::{attributes_data, courses_data};
@@ -810,12 +813,90 @@ fn dedupe_hints(hints_by_slot: &mut HashMap<String, Vec<String>>) {
     }
 }
 
-fn select_overlap_pairs(opportunities: &[OverlapOpportunity]) -> Vec<OverlapPair> {
+fn pair_crosses_undergrad_grad(slots: &[OverlapSlotRef], degree_schools: &[String]) -> bool {
+    let indices: HashSet<usize> = slots.iter().map(|s| s.degree_index).collect();
+    crosses_undergrad_grad("", &indices, degree_schools)
+}
+
+fn opportunity_undergrad_grad_cu(
+    opportunity: &OverlapOpportunity,
+    cu_map: &HashMap<String, f64>,
+) -> f64 {
+    opportunity
+        .suggested_courses
+        .iter()
+        .find(|c| course::is_valid_course_code(c))
+        .map(|c| *cu_map.get(c).unwrap_or(&1.0))
+        .unwrap_or(1.0)
+}
+
+fn pair_within_undergrad_grad_budget(
+    opportunity: &OverlapOpportunity,
+    cross_state: &CrossDegreeState,
+    degree_schools: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> bool {
+    if !pair_crosses_undergrad_grad(&opportunity.slots, degree_schools) {
+        return true;
+    }
+    let cu = opportunity_undergrad_grad_cu(opportunity, cu_map);
+    if cross_state.undergrad_grad_cu_used + cu > UNDERGRAD_GRAD_CU_LIMIT + cross_degree::CU_EPS {
+        return false;
+    }
+    if let Some(course) = opportunity
+        .suggested_courses
+        .iter()
+        .find(|c| course::is_valid_course_code(c))
+    {
+        let mut sim = cross_state.clone();
+        for slot in &opportunity.slots {
+            if sim.can_claim(course, slot.degree_index, cu_map).is_err() {
+                return false;
+            }
+            sim.register_claim(course, slot.degree_index, cu_map);
+        }
+        return true;
+    }
+    true
+}
+
+fn register_pair_for_budget(
+    opportunity: &OverlapOpportunity,
+    cross_state: &mut CrossDegreeState,
+    degree_schools: &[String],
+    cu_map: &HashMap<String, f64>,
+) {
+    if !pair_crosses_undergrad_grad(&opportunity.slots, degree_schools) {
+        return;
+    }
+    if let Some(course) = opportunity
+        .suggested_courses
+        .iter()
+        .find(|c| course::is_valid_course_code(c))
+    {
+        for slot in &opportunity.slots {
+            cross_state.register_claim(course, slot.degree_index, cu_map);
+        }
+    } else {
+        cross_state.undergrad_grad_cu_used += opportunity_undergrad_grad_cu(opportunity, cu_map);
+    }
+}
+
+fn select_overlap_pairs(
+    opportunities: &[OverlapOpportunity],
+    degree_schools: &[String],
+    cross_state: &CrossDegreeState,
+    cu_map: &HashMap<String, f64>,
+) -> Vec<OverlapPair> {
+    let mut budget_state = cross_state.clone();
     let mut used_slots: HashSet<(usize, String)> = HashSet::new();
     let mut pairs = Vec::new();
 
     for opp in opportunities {
         if !opportunity_is_valid_pair(&opp.slots) {
+            continue;
+        }
+        if !pair_within_undergrad_grad_budget(opp, &budget_state, degree_schools, cu_map) {
             continue;
         }
         let slot_keys: Vec<(usize, String)> = opp
@@ -829,6 +910,7 @@ fn select_overlap_pairs(opportunities: &[OverlapOpportunity]) -> Vec<OverlapPair
         for k in &slot_keys {
             used_slots.insert(k.clone());
         }
+        register_pair_for_budget(opp, &mut budget_state, degree_schools, cu_map);
         pairs.push(OverlapPair {
             slots: opp.slots.clone(),
             explanation: opp.explanation.clone(),
@@ -1073,7 +1155,7 @@ pub fn compute_overlap_plan(
         .map(|(_, opp)| opp)
         .collect();
 
-    let pairs = select_overlap_pairs(&opportunities);
+    let pairs = select_overlap_pairs(&opportunities, degree_schools, cross_state, cu_map);
 
     OverlapPlan {
         opportunities,

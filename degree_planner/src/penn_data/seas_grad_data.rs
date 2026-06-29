@@ -426,13 +426,6 @@ pub fn create_ms_be_major() -> Major {
                     bio_science.clone(),
                 ],
             },
-            Requirement::AnyOf {
-                category: Some("SEAS and/or Biological Science Elective".to_string()),
-                possibilities: vec![
-                    seas_grad.clone(),
-                    bio_science.clone(),
-                ],
-            },
         ],
         schedule_hints,
         concentrations: None,

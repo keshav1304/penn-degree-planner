@@ -163,7 +163,13 @@ export function courseViolationMap(summary) {
     (summary?.violations || []).forEach((v) => {
         if (v.course_id) {
             map[v.course_id] = v.message;
+        } else if (v.message) {
+            map.__global__ = v.message;
         }
     });
     return map;
+}
+
+export function globalCrossDegreeViolation(summary) {
+    return courseViolationMap(summary).__global__;
 }

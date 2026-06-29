@@ -1817,7 +1817,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let cross_degree_summary = if degree_schools.len() > 1 {
         cross_degree::enforce_claim_rules(&mut cross_state, &cu_map);
 
-        if cross_degree_optimizer {
+        if degree_schools.len() > 1 {
             for (degree_idx, result) in degree_results.iter_mut().enumerate() {
                 requirement::filter_mapped_requirements_by_allocation(
                     &mut result.fulfilled_requirements,

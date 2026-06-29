@@ -25,6 +25,7 @@ import {
   buildCourseDegreesMapFromAllocations,
   courseCountsForDegree,
   courseViolationMap,
+  globalCrossDegreeViolation,
   filterConcentrationInfoForDegree,
 } from "@/lib/crossDegree";
 
@@ -411,6 +412,21 @@ export default function Home() {
     [crossDegreeSummary]
   );
 
+  const globalCrossDegreeWarning = useMemo(
+    () => globalCrossDegreeViolation(crossDegreeSummary),
+    [crossDegreeSummary]
+  );
+
+  const undergradGradOverlapBudget = useMemo(() => {
+    if (!crossDegreeSummary?.undergrad_grad_cu_limit) return null;
+    const used = crossDegreeSummary.undergrad_grad_cu_used ?? 0;
+    const limit = crossDegreeSummary.undergrad_grad_cu_limit;
+    const hasGrad = (scheduleData?.degree_results || []).some((r) => r.school === "SEAS_MS");
+    const hasUg = (scheduleData?.degree_results || []).some((r) => r.school !== "SEAS_MS");
+    if (!hasGrad || !hasUg) return null;
+    return { used, limit };
+  }, [crossDegreeSummary, scheduleData]);
+
   const courseRequirementLinks = useMemo(() => {
     const links = {};
     if (!scheduleData?.degree_results) return links;
@@ -669,6 +685,22 @@ export default function Home() {
               </div>
             </div>
             <div className="panel-body">
+              {(globalCrossDegreeWarning || undergradGradOverlapBudget) && (
+                <div
+                  className={`cross-degree-banner${globalCrossDegreeWarning ? " cross-degree-banner-warn" : ""}`}
+                  style={{ margin: "0 0 12px" }}
+                >
+                  <span className="cross-degree-banner-label">
+                    {globalCrossDegreeWarning
+                      || `Undergrad↔masters double-count: ${undergradGradOverlapBudget.used.toFixed(1)} / ${undergradGradOverlapBudget.limit} CU`}
+                  </span>
+                  {undergradGradOverlapBudget && !globalCrossDegreeWarning && (
+                    <span className="cross-degree-banner-note">
+                      Total across all undergraduate degrees
+                    </span>
+                  )}
+                </div>
+              )}
               <ScheduleGrid
                 scheduleData={scheduleData}
                 requirementSlotLabels={requirementSlotLabels}

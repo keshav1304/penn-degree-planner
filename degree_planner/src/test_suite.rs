@@ -1769,10 +1769,28 @@ mod cross_degree_sharing {
                 has_ms && has_ug
             })
             .count();
+        let ug_ms_pairs = output
+            .overlap_plan
+            .as_ref()
+            .map(|plan| {
+                plan.pairs
+                    .iter()
+                    .filter(|pair| {
+                        let schools: HashSet<_> =
+                            pair.slots.iter().map(|s| s.school.as_str()).collect();
+                        schools.contains("SEAS_MS")
+                            && schools.iter().any(|s| *s != "SEAS_MS")
+                    })
+                    .count()
+            })
+            .unwrap_or(0);
+        assert!(
+            ug_ms_pairs <= UNDERGRAD_GRAD_CU_LIMIT as usize,
+            "too many undergrad↔masters overlap pairs: {ug_ms_pairs}"
+        );
         assert!(
             ug_ms_overlap_groups <= UNDERGRAD_GRAD_CU_LIMIT as usize,
-            "too many undergrad↔masters overlap blocks on schedule: {ug_ms_overlap_groups} (max {})",
-            UNDERGRAD_GRAD_CU_LIMIT as usize
+            "too many undergrad↔masters overlap blocks on schedule: {ug_ms_overlap_groups} (pairs: {ug_ms_pairs})"
         );
     }
 
@@ -1831,6 +1849,27 @@ mod cross_degree_sharing {
             summary.violations.is_empty(),
             "violations: {:?}",
             summary.violations
+        );
+
+        let ug_ms_in_results: Vec<String> = output.degree_results[0]
+            .fulfilled_requirements
+            .iter()
+            .flat_map(|m| m.course_ids.iter().cloned())
+            .filter(|c| {
+                course::is_valid_course_code(c)
+                    && output.degree_results[1]
+                        .fulfilled_requirements
+                        .iter()
+                        .any(|m| m.course_ids.iter().any(|id| id == c))
+            })
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        assert!(
+            ug_ms_in_results.len() <= UNDERGRAD_GRAD_CU_LIMIT as usize,
+            "MS degree results still show {} shared courses: {:?}",
+            ug_ms_in_results.len(),
+            ug_ms_in_results
         );
     }
 
