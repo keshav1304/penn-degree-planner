@@ -1498,7 +1498,8 @@ fn be_ethics_constraint() -> PoolConstraint {
 }
 
 /// 7 courses, 8 coverage requirements (ethics + 2 SS + 2 Hum + 1 flex SSH + 2 SSH/TBS).
-/// Exactly one double-count is permitted (typically ethics into Hum).
+/// Exactly one double-count is permitted — only ethics may overlap a distribution slot
+/// (`be:ethics` vs shared `be:distribution`; no SSH/TBS cross-double-count).
 fn be_general_electives_pool() -> Requirement {
     Requirement::CoursePool {
         category: Some("General Electives".to_string()),
@@ -1506,14 +1507,14 @@ fn be_general_electives_pool() -> Requirement {
         flexible_slots: 7,
         constraints: vec![
             be_ethics_constraint(),
-            be_attr_constraint("Social Science", &["EUSS"], 2, "be:ssh"),
-            be_attr_constraint("Humanities", &["EUHS"], 2, "be:hum"),
-            be_attr_constraint("SSH Elective", &["EUSS", "EUHS"], 1, "be:flex"),
+            be_attr_constraint("Social Science", &["EUSS"], 2, "be:distribution"),
+            be_attr_constraint("Humanities", &["EUHS"], 2, "be:distribution"),
+            be_attr_constraint("SSH Elective", &["EUSS", "EUHS"], 1, "be:distribution"),
             be_attr_constraint(
                 "Technology & Business",
                 &["EUHS", "EUSS", "EUTB"],
                 2,
-                "be:tbs",
+                "be:distribution",
             ),
         ],
     }

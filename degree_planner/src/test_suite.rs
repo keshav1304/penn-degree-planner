@@ -1698,6 +1698,143 @@ mod cross_degree_sharing {
     }
 
     #[test]
+    fn schedule_undergrad_grad_overlap_respects_three_cu_cap() {
+        use crate::cross_degree::is_graduate_degree;
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "EE".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec!["Robotics".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "WH_NOFL_MT".into(),
+                    school: "WH".into(),
+                    concentrations: vec!["FNCE".into()],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "MS_ROBO".into(),
+                    school: "SEAS_MS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let schools: Vec<String> = output
+            .degree_results
+            .iter()
+            .map(|r| r.school.clone())
+            .collect();
+        let cu_map = catalog_cu_map();
+
+        let summary = output
+            .cross_degree_summary
+            .as_ref()
+            .expect("cross degree summary");
+        let shared_cu: f64 = summary
+            .course_allocations
+            .iter()
+            .filter(|(course, allocs)| {
+                let idx: HashSet<_> = allocs.iter().map(|a| a.degree_index).collect();
+                crosses_undergrad_grad(course, &idx, &schools)
+            })
+            .map(|(course, _)| cu_map.get(course.as_str()).copied().unwrap_or(1.0))
+            .sum();
+        assert!(
+            shared_cu <= UNDERGRAD_GRAD_CU_LIMIT + CU_EPS,
+            "scheduled undergrad↔masters shared CU {shared_cu} exceeds {UNDERGRAD_GRAD_CU_LIMIT}"
+        );
+        assert!(
+            summary.violations.is_empty(),
+            "unexpected cross-degree violations: {:?}",
+            summary.violations
+        );
+
+        let ug_ms_overlap_groups = output
+            .overlap_schedule_groups
+            .iter()
+            .filter(|g| {
+                let has_ms = g.members.iter().any(|m| is_graduate_degree(&m.school));
+                let has_ug = g.members.iter().any(|m| !is_graduate_degree(&m.school));
+                has_ms && has_ug
+            })
+            .count();
+        assert!(
+            ug_ms_overlap_groups <= UNDERGRAD_GRAD_CU_LIMIT as usize,
+            "too many undergrad↔masters overlap blocks on schedule: {ug_ms_overlap_groups} (max {})",
+            UNDERGRAD_GRAD_CU_LIMIT as usize
+        );
+    }
+
+    #[test]
+    fn schedule_undergrad_grad_cap_with_taken_overlapping_courses() {
+        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![
+                "CIS 5190".into(),
+                "CIS 5200".into(),
+                "CIS 5210".into(),
+                "ESE 3010".into(),
+            ],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "SEAS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "MS_ROBO".into(),
+                    school: "SEAS_MS".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let schools: Vec<String> = output
+            .degree_results
+            .iter()
+            .map(|r| r.school.clone())
+            .collect();
+        let cu_map = catalog_cu_map();
+        let summary = output.cross_degree_summary.as_ref().unwrap();
+        let shared_cu: f64 = summary
+            .course_allocations
+            .iter()
+            .filter(|(course, allocs)| {
+                let idx: HashSet<_> = allocs.iter().map(|a| a.degree_index).collect();
+                crosses_undergrad_grad(course, &idx, &schools)
+            })
+            .map(|(course, _)| cu_map.get(course.as_str()).copied().unwrap_or(1.0))
+            .sum();
+        assert!(
+            shared_cu <= UNDERGRAD_GRAD_CU_LIMIT + CU_EPS,
+            "taken courses shared undergrad↔masters CU {shared_cu} exceeds cap"
+        );
+        assert!(
+            summary.violations.is_empty(),
+            "violations: {:?}",
+            summary.violations
+        );
+    }
+
+    #[test]
     fn ee_wh_nofl_mt_with_ms_robo_still_surfaces_undergrad_overlaps() {
         use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
