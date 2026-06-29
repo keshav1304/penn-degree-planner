@@ -873,6 +873,38 @@ mod catalog {
         assert!(!major::major_is_implemented("SEAS_MS", "MS_MEAM"));
         assert!(!major::major_has_authored_requirements("SEAS_MS", &meam));
         assert!(major::major_is_implemented("SEAS_MS", "MS_EE"));
+        assert!(major::major_is_implemented("SEAS_MS", "MS_BE"));
+    }
+
+    #[test]
+    fn dmd_major_resolves_with_thirty_seven_cu() {
+        let dmd = resolve_major("SEAS", "DMD", &[]).expect("DMD");
+        assert_eq!(dmd.short_name, "DMD");
+        assert_eq!(dmd.name, "Digital Media Design, BSE");
+        assert_eq!(dmd.requirements.len(), 35);
+        assert!(dmd.concentrations.is_none());
+        assert!(major::major_is_implemented("SEAS", "DMD"));
+    }
+
+    #[test]
+    fn ms_be_major_resolves_with_ten_cu_and_concentrations() {
+        use crate::penn_data::seas_grad_data::ms_be_concentration_names;
+
+        let ms_be = resolve_major("SEAS_MS", "MS_BE", &[]).expect("MS_BE");
+        assert_eq!(ms_be.short_name, "MS_BE");
+        assert_eq!(ms_be.name, "Bioengineering, MSE");
+        assert_eq!(ms_be.requirements.len(), 9);
+        assert_eq!(ms_be_concentration_names().len(), 9);
+        assert!(ms_be.concentrations.is_some());
+
+        let with_conc = resolve_major(
+            "SEAS_MS",
+            "MS_BE",
+            &["Neuroengineering".into()],
+        )
+        .expect("MS_BE with concentration");
+        assert_eq!(with_conc.short_name, "MS_BE");
+        assert!(with_conc.concentrations.is_some());
     }
 
     #[test]

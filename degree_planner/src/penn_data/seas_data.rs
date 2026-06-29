@@ -744,6 +744,367 @@ pub fn create_cis_major() -> Major {
     };
 }
 
+fn cis_or_nets_elective(category: &str) -> Requirement {
+    Requirement::AnyOf {
+        category: Some(category.to_string()),
+        possibilities: vec![
+            Requirement::Restriction {
+                category: Some("CIS Elective".to_string()),
+                department: Some(vec!["CIS".to_string()]),
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("CIS Elective".to_string()),
+                department: Some(vec!["NETS".to_string()]),
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: None,
+                excluding: None,
+                number: 1,
+                no_school: None,
+            },
+        ],
+    }
+}
+
+const DMD_ELECTIVE_DEPTS: &[&str] = &[
+    "COMM", "FNAR", "CIMS", "DSGN", "THAR", "MKTG", "ARTH", "IPD", "MUSC", "EDUC",
+];
+
+fn dmd_advisor_elective() -> Requirement {
+    Requirement::Restriction {
+        category: Some("DMD Elective".to_string()),
+        department: Some(DMD_ELECTIVE_DEPTS.iter().map(|d| (*d).to_string()).collect()),
+        cu: None,
+        level: None,
+        max_level: None,
+        attr: None,
+        excluding: None,
+        number: 1,
+        no_school: None,
+    }
+}
+
+/// DMD schedule template — one semester per top-level requirement, in list order.
+/// Based on the official Digital Media Design BSE sample four-year plan.
+const DMD_SCHEDULE: [Semester; 35] = [
+    // Engineering
+    Y1F, Y1S, Y2F, Y2S, Y2F, Y3F, Y2S, Y3F, Y4S, Y2F, Y2S, Y3F, Y4F,
+    // Math and Natural Science
+    Y1F, Y1S, Y2F, Y1S, Y2S, Y2F, Y3S, Y2S,
+    // DMD Electives
+    Y1F, Y1S, Y4S, Y3F, Y3S, Y4F,
+    // General Electives (5 SSH + 2 SSH/TBS)
+    Y1F, Y1S, Y2F, Y2S, Y3S, Y4F, Y4S,
+    // Free Elective
+    Y4S,
+];
+
+fn dmd_schedule_hints() -> HashMap<String, ScheduleHint> {
+    let mut hints = schedule_hints_from_array(&DMD_SCHEDULE);
+    hints.insert("CIS 4970".to_string(), Y4S.into());
+    hints
+}
+
+pub fn create_dmd_major() -> Major {
+    Major {
+        short_name: "DMD".to_string(),
+        name: "Digital Media Design, BSE".to_string(),
+        requirements: vec![
+            // Engineering
+            Requirement::AnyOf {
+                category: Some("Engineering".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CIS 1100".to_string()],
+                    },
+                    cis_or_nets_elective("Engineering"),
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 1200".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 1210".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 2400".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 2620".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 3200".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 4600".to_string(), "CIS 5600".to_string()],
+            },
+            Requirement::CourseGroup {
+                category: Some("Engineering".to_string()),
+                number: 2,
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CIS 4610".to_string(), "CIS 5610".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CIS 4620".to_string(), "CIS 5620".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["CIS 4550".to_string(), "CIS 5550".to_string()],
+                    },
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("Engineering".to_string()),
+                possibilities: vec!["CIS 4970".to_string()],
+            },
+            cis_or_nets_elective("Engineering"),
+            cis_or_nets_elective("Engineering"),
+            cis_or_nets_elective("Engineering"),
+            cis_or_nets_elective("Engineering"),
+
+            // Math and Natural Science
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["MATH 1400".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["MATH 1410".to_string(), "MATH 1610".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["ESE 2030".to_string(), "ENM 2030".to_string(), "ENM 2400".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec!["CIS 1600".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    "CIS 2610".to_string(),
+                    "ESE 3010".to_string(),
+                    "STAT 4300".to_string(),
+                ],
+            },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["PHYS 0150".to_string(), "PHYS 0170".to_string()],
+                    },
+                    Requirement::AllOf {
+                        category: None,
+                        requirements: vec![
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["MEAM 1100".to_string()],
+                            },
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["MEAM 1470".to_string()],
+                            },
+                        ],
+                    },
+                ],
+            },
+            Requirement::AnyOf {
+                category: Some("Math and Natural Science".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["BIOL 1101".to_string()],
+                    },
+                    Requirement::AllOf {
+                        category: None,
+                        requirements: vec![
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["BIOL 1121".to_string()],
+                            },
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["BIOL 1124".to_string()],
+                            },
+                        ],
+                    },
+                    Requirement::AllOf {
+                        category: None,
+                        requirements: vec![
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["CHEM 1012".to_string()],
+                            },
+                            Requirement::SingleCourse {
+                                category: None,
+                                possibilities: vec!["CHEM 1101".to_string()],
+                            },
+                        ],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["ESE 1120".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: None,
+                        possibilities: vec!["PHYS 0151".to_string(), "PHYS 0171".to_string()],
+                    },
+                ],
+            },
+            Requirement::Restriction {
+                category: Some("Math and Natural Science".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUMA".to_string(), "EUNS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+
+            // DMD Electives
+            Requirement::SingleCourse {
+                category: Some("DMD Electives".to_string()),
+                possibilities: vec![
+                    "FNAR 0010".to_string(),
+                    "FNAR 2200".to_string(),
+                    "FNAR 1080".to_string(),
+                ],
+            },
+            Requirement::SingleCourse {
+                category: Some("DMD Electives".to_string()),
+                possibilities: vec!["DSGN 1030".to_string(), "DSGN 2010".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("DMD Electives".to_string()),
+                possibilities: vec![
+                    "DSGN 2040".to_string(),
+                    "FNAR 1050".to_string(),
+                    "FNAR 2090".to_string(),
+                    "FNAR 2100".to_string(),
+                ],
+            },
+            dmd_advisor_elective(),
+            dmd_advisor_elective(),
+            dmd_advisor_elective(),
+
+            // General Electives — 5 SSH + 2 SSH/TBS (writing seminar via EUHS)
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string(), "EUTB".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+            Requirement::Restriction {
+                category: Some("General Electives".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: Some(vec!["EUHS".to_string(), "EUSS".to_string(), "EUTB".to_string()]),
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+
+            // Free Elective
+            Requirement::Restriction {
+                category: Some("Free Elective".to_string()),
+                department: None,
+                cu: None,
+                level: None,
+                max_level: None,
+                attr: None,
+                number: 1,
+                excluding: None,
+                no_school: None,
+            },
+        ],
+        schedule_hints: dmd_schedule_hints(),
+        concentrations: None,
+    }
+}
+
 /// AI schedule template — one semester per top-level requirement, in list order.
 const AI_SCHEDULE: [Semester; 44] = [
     Y1F, Y1F, Y1S, Y1S, Y2F,                                     // Engineering

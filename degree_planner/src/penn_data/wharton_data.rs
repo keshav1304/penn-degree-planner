@@ -665,9 +665,9 @@ pub fn create_wh_nofl_major(concentrations: Vec<String>) -> Major {
             (Y1F, Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, max_level: None, attr: None, excluding: None, number: 1, no_school: None }),
 
             // Leadership Journey
-            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] }),
-            (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 2010/2011".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
-            (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey - MGMT 3010".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
+            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 1010".to_string()] }),
+            (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
+            (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
             (Y3S, Requirement::Restriction { category: Some("Undergraduate Capstone".to_string()), department: None, cu: None, level: None, max_level: None, attr: Some(vec!["WUCP".to_string()]), excluding: None, number: 1, no_school: None }),
 
             // Fundamentals
@@ -744,9 +744,9 @@ pub fn create_wh_nofl_mt_major(concentrations: Vec<String>) -> Major {
             (Y1S, Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, max_level: None, attr: None, excluding: None, number: 1, no_school: None }),
 
             // Leadership Journey
-            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] }),
-            (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 2010/2011".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
-            (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey - MGMT 3010".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
+            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 1010".to_string()] }),
+            (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
+            (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
 
             // Fundamentals
             (Y1S, Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1010".to_string()] }),
@@ -820,9 +820,9 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
             (Y1S, Requirement::SingleCourse { category: Some("First-Year Foundations - Math".to_string()), possibilities: vec!["MATH 1410".to_string()] }),
             (Y1F, Requirement::Restriction { category: Some("First-Year Foundations - Writing Sem".to_string()), department: Some(vec!["WRIT".to_string()]), cu: None, level: None, max_level: None, attr: None, excluding: None, number: 1, no_school: None }),
 
-            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 1010".to_string()), possibilities: vec!["WH 1010".to_string()] }),
-            (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey - WH 2010/2011".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
-            (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey - MGMT 3010".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
+            (Y1F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 1010".to_string()] }),
+            (Y2F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["WH 2010".to_string(), "WH 2011".to_string()] }),
+            (Y3F, Requirement::SingleCourse { category: Some("Leadership Journey".to_string()), possibilities: vec!["MGMT 3010".to_string()] }),
 
             (Y1S, Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1010".to_string()] }),
             (Y2F, Requirement::SingleCourse { category: Some("Fundamentals".to_string()), possibilities: vec!["ACCT 1020".to_string()] }),

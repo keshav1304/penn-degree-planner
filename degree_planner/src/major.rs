@@ -130,6 +130,10 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                     api_code: "CMPE".to_string(),
                 },
                 MajorCatalogEntry {
+                    display_name: "Digital Media Design, BSE".to_string(),
+                    api_code: "DMD".to_string(),
+                },
+                MajorCatalogEntry {
                     display_name: "Bioengineering".to_string(),
                     api_code: "BE".to_string(),
                 },
@@ -154,6 +158,10 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
                 MajorCatalogEntry {
                     display_name: "Computer Science, MSE".to_string(),
                     api_code: "MS_CIS".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Bioengineering, MSE".to_string(),
+                    api_code: "MS_BE".to_string(),
                 },
                 MajorCatalogEntry {
                     display_name: "Materials Science and Engineering, MSE".to_string(),
@@ -244,10 +252,12 @@ pub fn normalize_degree_concentrations(school: &str, concentrations: &[String]) 
 
 /// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".
 pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
-    let optional_overlay = school == "SEAS" && matches!(major, "EE" | "MSE" | "CIS" | "CMPE" | "BE");
+    let optional_overlay = (school == "SEAS" && matches!(major, "EE" | "MSE" | "CIS" | "CMPE" | "BE"))
+        || (school == "SEAS_MS" && major == "MS_BE");
 
     let mut names = match school {
         "SEAS" => seas_data::concentration_names_for(major),
+        "SEAS_MS" if major == "MS_BE" => seas_grad_data::ms_be_concentration_names(),
         "WH" if matches!(major, "WH_FL" | "WH_NOFL" | "WH_NOFL_MT" | "WH_FL_MT") => {
             wharton_data::concentration_names()
         }
@@ -278,7 +288,8 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
     }
 
     for (school, majors) in [
-        ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CMPE", "BE"]),
+        ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CMPE", "BE", "DMD"]),
+        ("SEAS_MS", vec!["MS_BE"]),
         ("WH", vec!["WH_FL", "WH_NOFL", "WH_NOFL_MT", "WH_FL_MT"]),
     ] {
         for major in majors {
@@ -309,6 +320,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "AI" => Some(seas_data::create_ai_major()),
                 "CMPE" => Some(seas_data::create_cmpe_major()),
                 "BE" => Some(seas_data::create_be_major()),
+                "DMD" => Some(seas_data::create_dmd_major()),
                 _ => None,
             }
         },
@@ -318,6 +330,7 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "MS_ROBO" => Some(seas_grad_data::create_ms_robo_major()),
                 "MS_MEAM" => Some(seas_grad_data::create_ms_meam_major()),
                 "MS_CIS" => Some(seas_grad_data::create_ms_cis_major()),
+                "MS_BE" => Some(seas_grad_data::create_ms_be_major()),
                 "MS_MSE" => Some(seas_grad_data::create_ms_mse_major()),
                 "MCIT" => Some(seas_grad_data::create_mcit_major()),
                 _ => None,
