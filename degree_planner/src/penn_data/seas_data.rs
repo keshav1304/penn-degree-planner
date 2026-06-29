@@ -593,7 +593,7 @@ pub fn create_cis_major() -> Major {
         name: "Computer Science, BSE".to_string(),
         requirements: vec![
             // Engineering
-            Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1100".to_string()] },
+            Requirement::SingleCourse { category: SDome("Engineering".to_string()), possibilities: vec!["CIS 1100".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1200".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 1210".to_string()] },
             Requirement::SingleCourse { category: Some("Engineering".to_string()), possibilities: vec!["CIS 2400".to_string()] },
@@ -801,7 +801,7 @@ fn dmd_schedule_hints() -> HashMap<String, ScheduleHint> {
 pub fn create_dmd_major() -> Major {
     Major {
         short_name: "DMD".to_string(),
-        name: "Digital Media Design, BSE".to_string(),
+        name: "Digital Media Design".to_string(),
         requirements: vec![
             // Engineering
             Requirement::AnyOf {
@@ -1477,7 +1477,7 @@ fn be_attr_constraint(label: &str, attrs: &[&str], count: i32, group: &str) -> P
 fn be_ethics_constraint() -> PoolConstraint {
     PoolConstraint {
         requirement: Requirement::SingleCourse {
-            category: Some("Engineering Ethics".to_string()),
+            category: Some("Ethics".to_string()),
             possibilities: vec![
                 "EAS 2030".to_string(),
                 "HSOC 1330".to_string(),
