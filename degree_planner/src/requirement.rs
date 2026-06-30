@@ -1934,7 +1934,7 @@ pub fn pool_coverage_info_from_degree_requirements(
     unfulfilled: &[MappedRequirement],
     cu_map: &HashMap<String, f64>,
 ) -> Vec<PoolCoverageInfo> {
-    let attributes = attributes_data::create_attributes();
+    let attributes = attributes_data::attributes();
     let mut result = Vec::new();
 
     for (pool_idx, req) in requirements.iter().enumerate() {
@@ -2029,7 +2029,7 @@ pub fn requirement_accepts_shared_course(req: &Requirement, course: &str) -> boo
     if requirement_explicitly_lists_course(req, course) {
         return true;
     }
-    let attributes = attributes_data::create_attributes();
+    let attributes = attributes_data::attributes();
     match req {
         Requirement::Restriction {
             department,
@@ -2068,7 +2068,7 @@ pub fn validate_courses_for_degree(
     taken: &Vec<String>,
     cu_map: &HashMap<String, f64>,
 ) -> DegreeValidationResult {
-    let attributes = attributes_data::create_attributes();
+    let attributes = attributes_data::attributes();
     let requirements = expand_restriction_slots(requirements);
     let root_requirements = requirements.clone();
     let mut fulfilled_requirements = Vec::new();
@@ -2215,7 +2215,7 @@ pub fn suggest_courses_for_requirements(
     cross_state: Option<&CrossDegreeState>,
     degree_idx: Option<usize>,
 ) -> Vec<MappedRequirement> {
-    let attributes = attributes_data::create_attributes();
+    let attributes = attributes_data::attributes();
     let cross_filter = cross_state
         .zip(degree_idx)
         .map(|(state, idx)| (state, idx));
@@ -2619,7 +2619,7 @@ pub fn extract_concentration_info(
     cu_map: &HashMap<String, f64>,
     validation: Option<&DegreeValidationResult>,
 ) -> Vec<ConcentrationInfo> {
-    let attributes = attributes_data::create_attributes();
+    let attributes = attributes_data::attributes();
 
     // Check if this major has a core concentration (Requirement::Concentration in requirements)
     let has_core = requirements_contain_concentration(requirements)

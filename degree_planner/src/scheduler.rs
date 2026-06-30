@@ -502,14 +502,20 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     // Taken + frozen course codes count toward requirement fulfillment (frozen ≠ completed).
     let mut courses_for_validation: Vec<String> = taken.clone();
     for f in &frozen {
-        if course::is_valid_course_code(&f.course_id) && !courses_for_validation.contains(&f.course_id) {
+        if course::is_valid_course_code(&f.course_id)
+            && !courses_for_validation.contains(&f.course_id)
+        {
             courses_for_validation.push(f.course_id.clone());
         }
     }
+    let courses_for_validation_set: HashSet<String> =
+        courses_for_validation.iter().cloned().collect();
 
     let mut degree_results: Vec<DegreeResult> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
+    let mut all_suggested_courses_set: HashSet<String> = HashSet::new();
     let mut all_requirement_slots: Vec<String> = Vec::new();
+    let mut all_requirement_slots_set: HashSet<String> = HashSet::new();
     let mut slot_labels: HashMap<String, String> = HashMap::new();
     let mut item_hints: HashMap<String, ScheduleHint> = HashMap::new();
     let mut ug_schedule_items: HashSet<String> = HashSet::new();
@@ -646,12 +652,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         .iter()
         .map(|r| &r.major_data)
         .collect();
-    for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
-        per_degree_validation[degree_idx].refresh_pool_coverage_info(
-            &resolved.major_data.requirements,
-            &cu_map,
-        );
-    }
     let major_resolved_indices: Vec<usize> = resolved_degrees
         .iter()
         .enumerate()
@@ -870,15 +870,17 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                         true
                     };
                     if course::is_valid_course_code(course_id)
-                        && !all_suggested_courses.contains(course_id)
-                        && !courses_for_validation.contains(course_id)
+                        && !all_suggested_courses_set.contains(course_id)
+                        && !courses_for_validation_set.contains(course_id)
                         && allocated_to_degree
                     {
                         all_suggested_courses.push(course_id.clone());
+                        all_suggested_courses_set.insert(course_id.clone());
                     } else if requirement::is_schedulable_requirement_slot_id(course_id)
-                        && !all_requirement_slots.contains(course_id)
+                        && !all_requirement_slots_set.contains(course_id)
                     {
                         all_requirement_slots.push(course_id.clone());
+                        all_requirement_slots_set.insert(course_id.clone());
                         let label = if mapped
                             .instance_id
                             .as_deref()
@@ -1011,8 +1013,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             else {
                 continue;
             };
-            if !all_suggested_courses.contains(&course) {
+            if !all_suggested_courses_set.contains(&course) {
                 all_suggested_courses.push(course.clone());
+                all_suggested_courses_set.insert(course.clone());
             }
             ug_schedule_items.insert(course.clone());
             for slot_ref in &pair.slots {
@@ -1212,9 +1215,11 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     }
 
     all_requirement_slots.retain(|s| !suppressed_overlap_slots.contains(s));
+    all_requirement_slots_set = all_requirement_slots.iter().cloned().collect();
     for group in &overlap_schedule_groups {
-        if !all_requirement_slots.contains(&group.group_id) {
+        if !all_requirement_slots_set.contains(&group.group_id) {
             all_requirement_slots.push(group.group_id.clone());
+            all_requirement_slots_set.insert(group.group_id.clone());
             ug_schedule_items.insert(group.group_id.clone());
         }
     }

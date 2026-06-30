@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::sync::{Mutex, OnceLock};
 
 use serde::Serialize;
 
@@ -10,7 +11,7 @@ use crate::penn_data::seas_data;
 use crate::penn_data::seas_grad_data;
 use crate::penn_data::wharton_data;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Major {
     pub short_name: String,
     pub name: String,
@@ -272,6 +273,19 @@ pub fn minor_concentrations_for(school: &str, minor: &str) -> Vec<String> {
 }
 
 pub fn resolve_minor(school: &str, minor: &str, concentrations: &[String]) -> Option<Major> {
+    let key = format!(
+        "minor:{school}:{minor}:{}",
+        concentrations.join(",")
+    );
+    if let Some(cached) = minor_cache().lock().unwrap().get(&key).cloned() {
+        return Some(cached);
+    }
+    let built = build_minor(school, minor, concentrations)?;
+    minor_cache().lock().unwrap().insert(key, built.clone());
+    Some(built)
+}
+
+fn build_minor(school: &str, minor: &str, concentrations: &[String]) -> Option<Major> {
     let major = match (school, minor) {
         ("SEAS", "EENT") => {
             let conc = concentrations
@@ -284,6 +298,12 @@ pub fn resolve_minor(school: &str, minor: &str, concentrations: &[String]) -> Op
         _ => None,
     };
     major.map(normalize_major)
+}
+
+static MINOR_CACHE: OnceLock<Mutex<HashMap<String, Major>>> = OnceLock::new();
+
+fn minor_cache() -> &'static Mutex<HashMap<String, Major>> {
+    MINOR_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 pub fn all_majors() -> BTreeMap<String, Vec<String>> {
@@ -383,6 +403,25 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
 }
 
 pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Option<Major> {
+    let key = format!(
+        "major:{school}:{major}:{}",
+        concentrations.join(",")
+    );
+    if let Some(cached) = major_cache().lock().unwrap().get(&key).cloned() {
+        return Some(cached);
+    }
+    let built = build_major(school, major, concentrations)?;
+    major_cache().lock().unwrap().insert(key, built.clone());
+    Some(built)
+}
+
+static MAJOR_CACHE: OnceLock<Mutex<HashMap<String, Major>>> = OnceLock::new();
+
+fn major_cache() -> &'static Mutex<HashMap<String, Major>> {
+    MAJOR_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn build_major(school: &str, major: &str, concentrations: &[String]) -> Option<Major> {
     let major = match school {
         "SEAS" => {
             match major {

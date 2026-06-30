@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::OnceLock;
 
 use serde::Serialize;
 
@@ -27,9 +28,9 @@ struct CatalogIndex {
 
 impl CatalogIndex {
     fn build() -> Self {
-        let attributes = attributes_data::create_attributes();
+        let attributes = attributes_data::attributes();
         let mut courses_by_attr: HashMap<String, HashSet<String>> = HashMap::new();
-        for (attr, courses) in &attributes {
+        for (attr, courses) in attributes {
             courses_by_attr
                 .entry(attr.clone())
                 .or_default()
@@ -75,7 +76,7 @@ impl CatalogIndex {
         no_school: &Option<String>,
         taken: &HashSet<String>,
     ) -> HashSet<String> {
-        let attributes = attributes_data::create_attributes();
+        let attributes = attributes_data::attributes();
         let mut base: Option<HashSet<String>> = None;
 
         if let Some(attrs) = attr.as_ref().filter(|a| !a.is_empty()) {
@@ -1025,6 +1026,12 @@ fn index_explicit_courses_to_slots(
     }
 }
 
+static CATALOG_INDEX: OnceLock<CatalogIndex> = OnceLock::new();
+
+fn catalog_index() -> &'static CatalogIndex {
+    CATALOG_INDEX.get_or_init(CatalogIndex::build)
+}
+
 /// Inverted-index overlap discovery: O(sum of candidate set sizes), not O(slots²).
 pub fn compute_overlap_plan(
     per_degree: &[DegreeValidationResult],
@@ -1040,7 +1047,7 @@ pub fn compute_overlap_plan(
         return OverlapPlan::empty();
     }
 
-    let index = CatalogIndex::build();
+    let index = catalog_index();
     let open_slots = extract_open_slots(per_degree, majors, major_per_degree_indices);
     if open_slots.len() < 2 {
         return OverlapPlan::empty();
@@ -1057,7 +1064,7 @@ pub fn compute_overlap_plan(
         return OverlapPlan::empty();
     }
 
-    let attributes = crate::penn_data::attributes_data::create_attributes();
+    let attributes = attributes_data::attributes();
 
     let slot_candidates: Vec<Option<HashSet<String>>> = open_slots
         .iter()
