@@ -3666,20 +3666,20 @@ fn math_minor_linear_algebra_and_proofs() -> Requirement {
             Requirement::AllOf {
                 category: None,
                 requirements: vec![
-                    Requirement::AnyOf {
+                    Requirement::SingleCourse {
                         category: Some("Linear Algebra".to_string()),
                         possibilities: vec![
-                            math_single_course("MATH 2200"),
-                            math_single_course("ESE 2030"),
-                            math_single_course("CIS 5150"),
+                            "MATH 2200".to_string(),
+                            "ESE 2030".to_string(),
+                            "CIS 5150".to_string(),
                         ],
                     },
-                    Requirement::AnyOf {
+                    Requirement::SingleCourse {
                         category: Some("Introduction to Proofs".to_string()),
                         possibilities: vec![
-                            math_single_course("MATH 2030"),
-                            math_single_course("MATH 1610"),
-                            math_single_course("CIS 1600"),
+                            "MATH 2030".to_string(),
+                            "MATH 1610".to_string(),
+                            "CIS 1600".to_string(),
                         ],
                     },
                 ],

@@ -309,21 +309,30 @@ pub fn normalize_degree_concentrations(school: &str, concentrations: &[String]) 
 
 /// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".
 pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
-    if !major_is_implemented(school, major) && minor_is_implemented(school, major) {
-        return minor_concentrations_for(school, major);
+    concentrations_for_program(school, major, "major")
+}
+
+/// Concentration options for a degree program. `kind` is `"major"` or `"minor"`.
+pub fn concentrations_for_program(school: &str, program: &str, kind: &str) -> Vec<String> {
+    if kind == "minor" {
+        return minor_concentrations_for(school, program);
     }
 
-    let optional_overlay = school == "SEAS" && matches!(major, "EE" | "MSE" | "CIS" | "CMPE" | "BE");
+    if !major_is_implemented(school, program) && minor_is_implemented(school, program) {
+        return minor_concentrations_for(school, program);
+    }
+
+    let optional_overlay = school == "SEAS" && matches!(program, "EE" | "MSE" | "CIS" | "CMPE" | "BE");
 
     let mut names = match school {
-        "SEAS" => seas_data::concentration_names_for(major),
-        "WH" if matches!(major, "WH_FL" | "WH_NOFL" | "WH_NOFL_MT" | "WH_FL_MT") => {
+        "SEAS" => seas_data::concentration_names_for(program),
+        "WH" if matches!(program, "WH_FL" | "WH_NOFL" | "WH_NOFL_MT" | "WH_FL_MT") => {
             wharton_data::concentration_names()
         }
-        "CAS" if college_data::cas_catalog_entry(major).is_some() => {
-            college_data::cas_concentration_names(major)
+        "CAS" if college_data::cas_catalog_entry(program).is_some() => {
+            college_data::cas_concentration_names(program)
         }
-        "SEAS_MS" if major == "MS_BE" => seas_grad_data::ms_be_concentration_names(),
+        "SEAS_MS" if program == "MS_BE" => seas_grad_data::ms_be_concentration_names(),
         _ => vec![],
     };
 

@@ -850,6 +850,49 @@ mod catalog {
     }
 
     #[test]
+    fn math_minor_has_no_concentrations() {
+        let concs = major::concentrations_for_program("CAS", "MATH", "minor");
+        assert!(
+            concs.is_empty(),
+            "Mathematics minor has no concentrations per catalog"
+        );
+        let major_concs = major::concentrations_for("CAS", "MATH");
+        assert!(
+            major_concs.contains(&"Biological Mathematics".to_string()),
+            "MATH major still exposes concentrations"
+        );
+    }
+
+    #[test]
+    fn math_minor_has_no_biological_mathematics_requirements() {
+        let minor = major::resolve_minor("CAS", "MATH", &["Biological Mathematics".into()])
+            .expect("CAS Mathematics minor resolves");
+        fn categories(reqs: &[requirement::Requirement]) -> Vec<String> {
+            reqs.iter()
+                .flat_map(|r| {
+                    let mut cats = vec![r.get_category()];
+                    match r {
+                        requirement::Requirement::AnyOf { possibilities, .. }
+                        | requirement::Requirement::AllOf { requirements: possibilities, .. } => {
+                            cats.extend(categories(possibilities));
+                        }
+                        _ => {}
+                    }
+                    cats
+                })
+                .filter(|c| !c.is_empty())
+                .collect()
+        }
+        let cats = categories(&minor.requirements);
+        assert!(
+            !cats.iter().any(|c| c == "Biological Mathematics"),
+            "minor requirements should not include Biological Mathematics: {:?}",
+            cats
+        );
+        assert!(minor.concentrations.is_none());
+    }
+
+    #[test]
     fn math_minor_resolves_seven_cu_minimum() {
         let minor = major::resolve_minor("CAS", "MATH", &[])
             .expect("CAS Mathematics minor resolves");

@@ -112,7 +112,7 @@ export default function DegreeProgramPopover({
 
         const controller = new AbortController();
         setConcentrationsLoading(true);
-        const params = new URLSearchParams({ school: schoolCode, major: majorCode });
+        const params = new URLSearchParams({ school: schoolCode, major: majorCode, kind });
 
         fetch(`${API_BASE}/concentrations?${params}`, { signal: controller.signal })
             .then((r) => r.json())
@@ -130,7 +130,7 @@ export default function DegreeProgramPopover({
             .finally(() => setConcentrationsLoading(false));
 
         return () => controller.abort();
-    }, [schoolCode, majorCode, open, mode, initial?.concentrations]);
+    }, [schoolCode, majorCode, kind, open, mode, initial?.concentrations]);
 
     useEffect(() => {
         if (!open) return;
@@ -186,7 +186,7 @@ export default function DegreeProgramPopover({
 
     const prefetchConcentrations = (code) => {
         if (!schoolCode || !code) return;
-        const params = new URLSearchParams({ school: schoolCode, major: code });
+        const params = new URLSearchParams({ school: schoolCode, major: code, kind });
         fetch(`${API_BASE}/concentrations?${params}`).catch(() => {});
     };
 

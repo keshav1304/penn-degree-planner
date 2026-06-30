@@ -9,7 +9,7 @@ use axum::{
 };
 use degree_planner::course::{self, Course};
 use degree_planner::major::{
-    all_concentrations, all_majors, concentrations_for, degree_catalog, minor_catalog,
+    all_concentrations, all_majors, concentrations_for_program, degree_catalog, minor_catalog,
     resolve_major,
 };
 use degree_planner::requirement::{self, MappedRequirement, PoolCoverageInfo};
@@ -148,6 +148,8 @@ async fn minor_catalog_get() -> Json<Vec<degree_planner::major::SchoolCatalogEnt
 struct ConcentrationsGetParams {
     school: String,
     major: String,
+    /// `"major"` (default) or `"minor"`.
+    kind: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -159,8 +161,9 @@ struct ConcentrationsResponse {
 async fn concentrations_get(
     Query(params): Query<ConcentrationsGetParams>,
 ) -> Json<ConcentrationsResponse> {
+    let kind = params.kind.as_deref().unwrap_or("major");
     Json(ConcentrationsResponse {
-        concentrations: concentrations_for(&params.school, &params.major),
+        concentrations: concentrations_for_program(&params.school, &params.major, kind),
     })
 }
 

@@ -128,7 +128,10 @@ export function formatDegreeDisplay(degree, result, degreeCatalog) {
     const school = fromCatalog.displaySchool
         || stripAbbreviationSuffix(degree?.displaySchool)
         || schoolCode;
-    const concLabel = formatConcentrationLabel(getDegreeConcentrations(degree));
+    const isMinor = isMinorProgram(degree, result);
+    const concLabel = isMinor
+        ? null
+        : formatConcentrationLabel(getDegreeConcentrations(degree));
     const schoolLine = concLabel ? `${school} · Conc: ${concLabel}` : school;
 
     return { major, school, schoolLine, concLabel };
