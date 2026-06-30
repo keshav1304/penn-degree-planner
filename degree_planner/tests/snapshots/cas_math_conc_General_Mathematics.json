@@ -1,0 +1,1064 @@
+{
+  "short_name": "MATH",
+  "name": "Mathematics",
+  "requirements": [
+    {
+      "Restriction": {
+        "category": "Writing Seminar",
+        "department": [
+          "WRIT"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Education",
+        "fixed_slots": [
+          {
+            "SingleCourse": {
+              "category": "Calculus",
+              "possibilities": [
+                "MATH 1400"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Calculus",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 1410"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 1610"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Complex Analysis",
+              "possibilities": [
+                "MATH 4100"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Advanced Linear Algebra",
+              "possibilities": [
+                "MATH 3000"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Advanced Linear Algebra",
+              "possibilities": [
+                "MATH 3001"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Differential Equations",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 2300"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 4200"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 4250"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Algebra",
+              "possibilities": [
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 3700"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 3710"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5020"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5030"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Analysis",
+              "possibilities": [
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 3600"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 3610"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5080"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5090"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Mathematics Electives",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "MATH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AMMR"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AMOR"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Mathematics Electives",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "MATH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AMMR"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Mathematics Electives",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "MATH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AMMR"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "flexible_slots": 12,
+        "constraints": [
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cross-Cultural Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCC"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Quantitative Data Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUQD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cultural Diversity in the U.S.",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Formal Reasoning & Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUFR"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Language (last course)",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - I - Society",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUSO"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - II - History and Tradition",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHT"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - III - Arts and Letters",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUAL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - IV - Humanities & Social Sciences",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - V - Living World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VI - Physical World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUPW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": {
+    "Biological Mathematics": [
+      {
+        "AnyOf": {
+          "category": "Biological Mathematics",
+          "possibilities": [
+            {
+              "AllOf": {
+                "category": null,
+                "requirements": [
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "BIOL 1121"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "BIOL 1124"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": "Advanced Biology",
+                      "possibilities": [
+                        "BIOL 4517",
+                        "BIOL 4231",
+                        "BIOL 4536",
+                        "BIOL 5536"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": "Advanced Biology",
+                      "possibilities": [
+                        "BIOL 4517",
+                        "BIOL 4231",
+                        "BIOL 4536",
+                        "BIOL 5536"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": "Advanced Biology",
+                      "possibilities": [
+                        "BIOL 4517",
+                        "BIOL 4231",
+                        "BIOL 4536",
+                        "BIOL 5536"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "AllOf": {
+                "category": null,
+                "requirements": [
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "BIOL 1101"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "BIOL 1102"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "BIOL 4231"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biological Mathematics",
+          "possibilities": [
+            "BIOL 2210",
+            "BIOL 2410",
+            "BIOL 2610"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biological Mathematics",
+          "possibilities": [
+            "BIOL 2210",
+            "BIOL 2410",
+            "BIOL 2610"
+          ]
+        }
+      },
+      {
+        "AnyOf": {
+          "category": "Biological Mathematics",
+          "possibilities": [
+            {
+              "AllOf": {
+                "category": null,
+                "requirements": [
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "CHEM 1011"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "CHEM 1101"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "AllOf": {
+                "category": null,
+                "requirements": [
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "CHEM 1011"
+                      ]
+                    }
+                  },
+                  {
+                    "SingleCourse": {
+                      "category": null,
+                      "possibilities": [
+                        "CHEM 1102"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "SingleCourse": {
+                "category": null,
+                "possibilities": [
+                  "CHEM 1151"
+                ]
+              }
+            },
+            {
+              "SingleCourse": {
+                "category": null,
+                "possibilities": [
+                  "PHYS 0151"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "General Mathematics": []
+  },
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "BIOL 1101": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "BIOL 1102": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BIOL 1121": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "BIOL 1124": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BIOL 2210": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "BIOL 2410": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BIOL 2610": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "BIOL 4231": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1011": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1101": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1102": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 1400": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 1410": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 1610": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 2300": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3000": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3001": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 3200": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3600": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3610": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3700": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 3710": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 4100": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 4200": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 4250": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 5020": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 5030": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 5080": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 5090": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "PHYS 0151": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "STAT 4310": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    }
+  }
+}

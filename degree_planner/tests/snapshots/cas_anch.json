@@ -1,0 +1,1267 @@
+{
+  "short_name": "ANCH",
+  "name": "Ancient History",
+  "requirements": [
+    {
+      "Restriction": {
+        "category": "Writing Seminar",
+        "department": [
+          "WRIT"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Education",
+        "fixed_slots": [
+          {
+            "CourseGroup": {
+              "category": "Core Classes",
+              "number": 2,
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "ANCH 0100"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "ANCH 0101"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "ANCH 0102"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "ANCH 1100"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CLST 1300"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CLST 1500"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Graeco-Roman World",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Graeco-Roman World",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Graeco-Roman World",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Graeco-Roman World",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Topics and Area Groupings",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Topics and Area Groupings",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Topics and Area Groupings",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Topics and Area Groupings",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Topics and Area Groupings",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Topics and Area Groupings",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ANCH"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "CLST"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "GREK"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "LATN"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": null,
+                    "attr": [
+                      "AANP"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "flexible_slots": 12,
+        "constraints": [
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cross-Cultural Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCC"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Quantitative Data Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUQD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cultural Diversity in the U.S.",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Formal Reasoning & Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUFR"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Language (last course)",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - I - Society",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUSO"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - III - Arts and Letters",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUAL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - IV - Humanities & Social Sciences",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - V - Living World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VI - Physical World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUPW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VII - Natural Sciences Across Disciplines",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUNM"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": null,
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    }
+  }
+}

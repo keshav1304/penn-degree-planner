@@ -2,10 +2,13 @@ use std::collections::HashMap;
 
 use crate::Major;
 use crate::Requirement;
+use crate::penn_data::requirement_builders::{any_of, code, restriction, single};
 use crate::schedule_template::{
     insert_fixed_course_hints, scheduled, ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F,
     Y4S,
 };
+
+// --- Shared dept slices ---
 
 const PLANET_SECTOR_DEPTS: &[&str] = &["ASTR", "BIOL", "EESC", "ENVS"];
 
@@ -26,177 +29,96 @@ const GLOBAL_ARTS_SECTOR_DEPTS: &[&str] = &[
 const UNIVERSALITY_SECTOR_DEPTS: &[&str] =
     &["AFRC", "ASAM", "GSWS", "JWST", "LALS", "RELS", "REES", "SAST", "URBS"];
 
-fn depts_vec(depts: &[&str]) -> Vec<String> {
-    depts.iter().map(|s| s.to_string()).collect()
-}
-
-fn nurs_single(category: &str, code: &str) -> Requirement {
-    Requirement::SingleCourse {
-        category: Some(category.to_string()),
-        possibilities: vec![code.to_string()],
-    }
-}
+// --- Domain helpers ---
 
 fn nurs_dept_restriction(label: &str, depts: &[&str], min: i32, max: i32) -> Requirement {
-    Requirement::Restriction {
-        category: Some(label.to_string()),
-        department: Some(depts_vec(depts)),
-        cu: None,
-        level: Some(min),
-        max_level: Some(max),
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category(label)
+        .departments(depts)
+        .level(min)
+        .max_level(max)
+        .into()
 }
 
 fn nurs_dept_sector(label: &str, depts: &[&str], min: i32, max: i32, alternates: &[&str]) -> Requirement {
-    let mut possibilities: Vec<Requirement> = alternates
-        .iter()
-        .map(|code| Requirement::SingleCourse {
-            category: None,
-            possibilities: vec![code.to_string()],
-        })
-        .collect();
+    let mut possibilities: Vec<Requirement> = alternates.iter().map(|c| code(&[*c])).collect();
     possibilities.push(nurs_dept_restriction(label, depts, min, max));
-    Requirement::AnyOf {
-        category: Some(label.to_string()),
-        possibilities,
-    }
+    any_of(label, possibilities)
 }
 
 fn nurs_writing_requirement() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Writing Requirement".to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["AUWR".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["WRIT".to_string()]),
-                cu: None,
-                level: Some(1),
-                max_level: Some(991),
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
+    any_of(
+        "Writing Requirement",
+        vec![
+            restriction(1).attr(&["AUWR"]).into(),
+            restriction(1)
+                .departments(&["WRIT"])
+                .level(1)
+                .max_level(991)
+                .into(),
         ],
-    }
+    )
 }
 
 fn nurs_language_slot(label: &str) -> Requirement {
-    Requirement::AnyOf {
-        category: Some(label.to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["WUFL".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::SingleCourse {
-                category: None,
-                possibilities: vec!["SPAN 0105".to_string(), "SPAN 0205".to_string()],
-            },
+    any_of(
+        label,
+        vec![
+            restriction(1).attr(&["WUFL"]).into(),
+            code(&["SPAN 0105", "SPAN 0205"]),
         ],
-    }
+    )
 }
 
 fn nurs_free_elective_slot(label: &str) -> Requirement {
-    Requirement::Restriction {
-        category: Some(label.to_string()),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1).category(label).into()
 }
 
 fn nurs_exploration_requirement() -> Requirement {
-    Requirement::Restriction {
-        category: Some("Exploration Course Requirement".to_string()),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: Some("NURS".to_string()),
-    }
+    restriction(1)
+        .category("Exploration Course Requirement")
+        .no_school("NURS")
+        .into()
 }
 
 fn nurs_case_study_requirement() -> Requirement {
-    Requirement::Restriction {
-        category: Some("Nursing Case Study".to_string()),
-        department: Some(vec!["NURS".to_string()]),
-        cu: None,
-        level: Some(3510),
-        max_level: Some(3690),
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category("Nursing Case Study")
+        .departments(&["NURS"])
+        .level(3510)
+        .max_level(3690)
+        .into()
 }
 
 fn nurs_health_policy_requirement() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Health Policy Requirement".to_string()),
-        possibilities: vec![
-            nurs_single("Health Policy Requirement", "NURS 3340"),
-            nurs_single("Health Policy Requirement", "NURS 4000"),
-            nurs_single("Health Policy Requirement", "NURS 5400"),
+    any_of(
+        "Health Policy Requirement",
+        vec![
+            single("Health Policy Requirement", &["NURS 3340"]),
+            single("Health Policy Requirement", &["NURS 4000"]),
+            single("Health Policy Requirement", &["NURS 5400"]),
         ],
-    }
+    )
 }
 
 fn nurs_ethics_requirement() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Ethics Requirement".to_string()),
-        possibilities: vec![
-            nurs_single("Ethics Requirement", "NURS 3300"),
-            nurs_single("Ethics Requirement", "PHIL 1342"),
-            nurs_single("Ethics Requirement", "NURS 5250"),
-            nurs_single("Ethics Requirement", "BIOE 4010"),
-            nurs_single("Ethics Requirement", "BIOE 4020"),
+    any_of(
+        "Ethics Requirement",
+        vec![
+            single("Ethics Requirement", &["NURS 3300"]),
+            single("Ethics Requirement", &["PHIL 1342"]),
+            single("Ethics Requirement", &["NURS 5250"]),
+            single("Ethics Requirement", &["BIOE 4010"]),
+            single("Ethics Requirement", &["BIOE 4020"]),
         ],
-    }
+    )
 }
 
 fn nurs_nune_elective_slot(n: u8) -> Requirement {
-    Requirement::Restriction {
-        category: Some(format!("Nutrition Major Elective (NUNE) {n}")),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: Some(vec!["NUNE".to_string()]),
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category(&format!("Nutrition Major Elective (NUNE) {n}"))
+        .attr(&["NUNE"])
+        .into()
 }
 
 fn nurs_duje_sector_requirement() -> Requirement {
@@ -221,15 +143,15 @@ fn build_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashMap<St
 
     scheduled(vec![
         // First Year — Fall (4.00 CU)
-        (Y1F, nurs_single("Science Requirements", "NURS 0061")),
-        (Y1F, nurs_single("Science Requirements", "NURS 0068")),
-        (Y1F, nurs_single("Nursing Foundational Courses", "NURS 1010")),
+        (Y1F, single("Science Requirements", &["NURS 0061"])),
+        (Y1F, single("Science Requirements", &["NURS 0068"])),
+        (Y1F, single("Nursing Foundational Courses", &["NURS 1010"])),
         (Y1F, nurs_writing_requirement()),
         (Y1F, elective_slot(1)),
         // First Year — Spring (5.50 CU)
-        (Y1S, nurs_single("Science Requirements", "NURS 0065")),
-        (Y1S, nurs_single("Science Requirements", "NURS 1630")),
-        (Y1S, nurs_single("Nursing Foundational Courses", "NURS 1020")),
+        (Y1S, single("Science Requirements", &["NURS 0065"])),
+        (Y1S, single("Science Requirements", &["NURS 1630"])),
+        (Y1S, single("Nursing Foundational Courses", &["NURS 1020"])),
         (
             Y1S,
             nurs_dept_sector(
@@ -242,8 +164,8 @@ fn build_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashMap<St
         ),
         (Y1S, elective_slot(2)),
         // Second Year — Fall (4.00 CU)
-        (Y2F, nurs_single("Science Requirements", "NURS 1640")),
-        (Y2F, nurs_single("Nursing Foundational Courses", "NURS 1030")),
+        (Y2F, single("Science Requirements", &["NURS 1640"])),
+        (Y2F, single("Nursing Foundational Courses", &["NURS 1030"])),
         (
             Y2F,
             nurs_dept_sector(
@@ -255,8 +177,8 @@ fn build_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashMap<St
             ),
         ),
         // Second Year — Spring (4.50 CU)
-        (Y2S, nurs_single("Science Requirements", "NURS 1650")),
-        (Y2S, nurs_single("Nursing Clinical Courses", "NURS 2150")),
+        (Y2S, single("Science Requirements", &["NURS 1650"])),
+        (Y2S, single("Nursing Clinical Courses", &["NURS 2150"])),
         (
             Y2S,
             nurs_dept_sector(
@@ -268,17 +190,17 @@ fn build_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashMap<St
             ),
         ),
         // Third Year — Fall (5.00 CU)
-        (Y3F, nurs_single("Nursing Clinical Courses", "NURS 2450")),
-        (Y3F, nurs_single("Nursing Clinical Courses", "NURS 2550")),
+        (Y3F, single("Nursing Clinical Courses", &["NURS 2450"])),
+        (Y3F, single("Nursing Clinical Courses", &["NURS 2550"])),
         (Y3F, nurs_health_policy_requirement()),
-        (Y3F, nurs_single("Non-Clinical Courses", "NURS 2300")),
+        (Y3F, single("Non-Clinical Courses", &["NURS 2300"])),
         // Third Year — Spring (5.00 CU)
-        (Y3S, nurs_single("Nursing Clinical Courses", "NURS 2350")),
-        (Y3S, nurs_single("Nursing Clinical Courses", "NURS 2250")),
+        (Y3S, single("Nursing Clinical Courses", &["NURS 2350"])),
+        (Y3S, single("Nursing Clinical Courses", &["NURS 2250"])),
         (Y3S, nurs_ethics_requirement()),
-        (Y3S, nurs_single("Non-Clinical Courses", "NURS 5470")),
+        (Y3S, single("Non-Clinical Courses", &["NURS 5470"])),
         // Fourth Year — Fall (4.50 CU)
-        (Y4F, nurs_single("Nursing Clinical Courses", "NURS 3820")),
+        (Y4F, single("Nursing Clinical Courses", &["NURS 3820"])),
         (Y4F, nurs_case_study_requirement()),
         (
             Y4F,
@@ -292,8 +214,8 @@ fn build_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashMap<St
         ),
         (Y4F, nurs_exploration_requirement()),
         // Fourth Year — Spring (3.50 CU)
-        (Y4S, nurs_single("Nursing Clinical Courses", "NURS 3900")),
-        (Y4S, nurs_single("Non-Clinical Courses", "NURS 3890")),
+        (Y4S, single("Nursing Clinical Courses", &["NURS 3900"])),
+        (Y4S, single("Non-Clinical Courses", &["NURS 3890"])),
     ])
 }
 
@@ -324,6 +246,8 @@ fn apply_bsn_catalog_fixed_hints(hints: &mut HashMap<String, ScheduleHint>) {
         ],
     );
 }
+
+// --- Majors ---
 
 fn create_bsn_variant(short_name: &str, name: &str, language_required: bool) -> Major {
     let (requirements, mut schedule_hints) = build_bsn_scheduled(language_required);
@@ -361,15 +285,15 @@ fn build_nutr_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashM
 
     scheduled(vec![
         // First Year — Fall (4.00 CU)
-        (Y1F, nurs_single("Science Requirements", "NURS 0061")),
-        (Y1F, nurs_single("Science Requirements", "NURS 0068")),
-        (Y1F, nurs_single("Nursing Foundational Courses", "NURS 1010")),
+        (Y1F, single("Science Requirements", &["NURS 0061"])),
+        (Y1F, single("Science Requirements", &["NURS 0068"])),
+        (Y1F, single("Nursing Foundational Courses", &["NURS 1010"])),
         (Y1F, nurs_writing_requirement()),
         (Y1F, elective_slot(1)),
         // First Year — Spring (5.50 CU)
-        (Y1S, nurs_single("Science Requirements", "NURS 0065")),
-        (Y1S, nurs_single("Science Requirements", "NURS 1630")),
-        (Y1S, nurs_single("Nursing Foundational Courses", "NURS 1020")),
+        (Y1S, single("Science Requirements", &["NURS 0065"])),
+        (Y1S, single("Science Requirements", &["NURS 1630"])),
+        (Y1S, single("Nursing Foundational Courses", &["NURS 1020"])),
         (
             Y1S,
             nurs_dept_sector(
@@ -382,8 +306,8 @@ fn build_nutr_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashM
         ),
         (Y1S, elective_slot(2)),
         // Second Year — Fall (5.00 CU)
-        (Y2F, nurs_single("Science Requirements", "NURS 1640")),
-        (Y2F, nurs_single("Nursing Foundational Courses", "NURS 1030")),
+        (Y2F, single("Science Requirements", &["NURS 1640"])),
+        (Y2F, single("Nursing Foundational Courses", &["NURS 1030"])),
         (
             Y2F,
             nurs_dept_sector(
@@ -396,8 +320,8 @@ fn build_nutr_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashM
         ),
         (Y2F, nurs_nune_elective_slot(1)),
         // Second Year — Spring (5.50 CU)
-        (Y2S, nurs_single("Science Requirements", "NURS 1650")),
-        (Y2S, nurs_single("Nursing Clinical Courses", "NURS 2150")),
+        (Y2S, single("Science Requirements", &["NURS 1650"])),
+        (Y2S, single("Nursing Clinical Courses", &["NURS 2150"])),
         (
             Y2S,
             nurs_dept_sector(
@@ -410,27 +334,27 @@ fn build_nutr_bsn_scheduled(language_required: bool) -> (Vec<Requirement>, HashM
         ),
         (Y2S, nurs_nune_elective_slot(2)),
         // Third Year — Fall (6.00 CU)
-        (Y3F, nurs_single("Nursing Clinical Courses", "NURS 2450")),
-        (Y3F, nurs_single("Nursing Clinical Courses", "NURS 2550")),
+        (Y3F, single("Nursing Clinical Courses", &["NURS 2450"])),
+        (Y3F, single("Nursing Clinical Courses", &["NURS 2550"])),
         (Y3F, nurs_health_policy_requirement()),
-        (Y3F, nurs_single("Non-Clinical Courses", "NURS 2300")),
+        (Y3F, single("Non-Clinical Courses", &["NURS 2300"])),
         (Y3F, nurs_nune_elective_slot(3)),
         // Third Year — Spring (6.00 CU)
-        (Y3S, nurs_single("Nursing Clinical Courses", "NURS 2350")),
-        (Y3S, nurs_single("Nursing Clinical Courses", "NURS 2250")),
+        (Y3S, single("Nursing Clinical Courses", &["NURS 2350"])),
+        (Y3S, single("Nursing Clinical Courses", &["NURS 2250"])),
         (Y3S, nurs_ethics_requirement()),
-        (Y3S, nurs_single("Non-Clinical Courses", "NURS 5470")),
-        (Y3S, nurs_single("Required Nutrition Science Courses", "NURS 5240")),
+        (Y3S, single("Non-Clinical Courses", &["NURS 5470"])),
+        (Y3S, single("Required Nutrition Science Courses", &["NURS 5240"])),
         // Fourth Year — Fall (5.50 CU)
-        (Y4F, nurs_single("Nursing Clinical Courses", "NURS 3820")),
+        (Y4F, single("Nursing Clinical Courses", &["NURS 3820"])),
         (Y4F, nurs_case_study_requirement()),
         (Y4F, nurs_duje_sector_requirement()),
         (Y4F, nurs_exploration_requirement()),
-        (Y4F, nurs_single("Required Nutrition Science Courses", "NURS 5230")),
+        (Y4F, single("Required Nutrition Science Courses", &["NURS 5230"])),
         // Fourth Year — Spring (5.50 CU)
-        (Y4S, nurs_single("Nursing Clinical Courses", "NURS 3900")),
-        (Y4S, nurs_single("Non-Clinical Courses", "NURS 3890")),
-        (Y4S, nurs_single("Required Nutrition Science Courses", "NURS 3120")),
+        (Y4S, single("Nursing Clinical Courses", &["NURS 3900"])),
+        (Y4S, single("Non-Clinical Courses", &["NURS 3890"])),
+        (Y4S, single("Required Nutrition Science Courses", &["NURS 3120"])),
         (Y4S, nurs_nune_elective_slot(4)),
     ])
 }

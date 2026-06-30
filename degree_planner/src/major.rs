@@ -92,7 +92,7 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
     vec![
         SchoolCatalogEntry {
             school_code: "CAS".to_string(),
-            display_name: "College of Arts and Sciences".to_string(),
+            display_name: "School of Arts and Sciences".to_string(),
             majors: college_data::CAS_DEGREE_CATALOG
                 .iter()
                 .map(|entry| MajorCatalogEntry {

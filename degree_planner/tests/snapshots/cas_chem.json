@@ -1,0 +1,640 @@
+{
+  "short_name": "CHEM",
+  "name": "Chemistry",
+  "requirements": [
+    {
+      "Restriction": {
+        "category": "Writing Seminar",
+        "department": [
+          "WRIT"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Education",
+        "fixed_slots": [
+          {
+            "AnyOf": {
+              "category": "General Chemistry",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1011"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1012"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1151"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "General Chemistry",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1021"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1022"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1161"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AllOf": {
+              "category": "General Chemistry Laboratories",
+              "requirements": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1101"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "CHEM 1102"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Organic Chemistry with Laboratories",
+              "possibilities": [
+                "CHEM 2411"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Organic Chemistry with Laboratories",
+              "possibilities": [
+                "CHEM 2421"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Calculus",
+              "possibilities": [
+                "MATH 1400"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Calculus",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 1410"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MATH 1610"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Physics",
+              "possibilities": [
+                "PHYS 0150"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Physics",
+              "possibilities": [
+                "PHYS 0151"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Physical Chemistry and Laboratories",
+              "possibilities": [
+                "CHEM 2210"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Physical Chemistry and Laboratories",
+              "possibilities": [
+                "CHEM 2220"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Physical Chemistry and Laboratories",
+              "possibilities": [
+                "CHEM 2230"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Biological Chemistry",
+              "possibilities": [
+                "CHEM 2510"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Inorganic Chemistry",
+              "possibilities": [
+                "CHEM 2610"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "One Advanced Laboratory",
+              "possibilities": [
+                "CHEM 2460"
+              ]
+            }
+          }
+        ],
+        "flexible_slots": 12,
+        "constraints": [
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cross-Cultural Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCC"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Quantitative Data Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUQD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cultural Diversity in the U.S.",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Formal Reasoning & Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUFR"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Language (last course)",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - I - Society",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUSO"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - II - History and Tradition",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHT"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - III - Arts and Letters",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUAL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - IV - Humanities & Social Sciences",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - V - Living World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VII - Natural Sciences Across Disciplines",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUNM"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": null,
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1011": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1012": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1021": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 1022": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 1101": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1102": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 1151": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 1161": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 2210": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 2220": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 2230": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 2411": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 2421": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 2460": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "CHEM 2510": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "CHEM 2610": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 1400": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 1410": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 1610": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "PHYS 0150": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "PHYS 0151": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    }
+  }
+}

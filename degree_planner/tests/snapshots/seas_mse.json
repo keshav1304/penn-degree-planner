@@ -1,0 +1,877 @@
+{
+  "short_name": "MSE",
+  "name": "Materials Science and Engineering",
+  "requirements": [
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 1010"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 2010"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 2020"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 2150"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 2200"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 2600"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 3010"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 3300"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 3600"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 3930"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 4050"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 4400"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 4600"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 4950"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "MSE 4960"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1400"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1410",
+          "MATH 1610"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 2400",
+          "ESE 2030"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 2410",
+          "ENM 2510"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Math and Natural Science",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUMA"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "PHYS 0140",
+          "MEAM 1100"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "PHYS 0141"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1012"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1101"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1022"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MSE 2210"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Technical Electives",
+        "possibilities": [
+          "ENGR 1050"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives - MSE Elective",
+        "department": [
+          "MSE"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives - MSE Elective",
+        "department": [
+          "MSE"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUNG"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUNG"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "General Electives",
+        "possibilities": [
+          "EAS 2030"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS",
+          "EUTB"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS",
+          "EUTB"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": {
+    "Biomaterials and Biomimetics": [
+      {
+        "SingleCourse": {
+          "category": "Biomaterials and Biomimetics",
+          "possibilities": [
+            "MSE 4300"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomaterials and Biomimetics",
+          "possibilities": [
+            "MSE 5850",
+            "BE 5850"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomaterials and Biomimetics",
+          "possibilities": [
+            "MSE 5180",
+            "MSE 4650",
+            "MSE 5650",
+            "MSE 0099",
+            "CBE 5110",
+            "CBE 5640",
+            "BE 2200",
+            "BE 5120",
+            "PHYS 2280"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomaterials and Biomimetics",
+          "possibilities": [
+            "MSE 5180",
+            "MSE 4650",
+            "MSE 5650",
+            "MSE 0099",
+            "CBE 5110",
+            "CBE 5640",
+            "BE 2200",
+            "BE 5120",
+            "PHYS 2280"
+          ]
+        }
+      }
+    ],
+    "Electronic & Optical Devices and Sensors": [
+      {
+        "SingleCourse": {
+          "category": "Electronic & Optical Devices and Sensors",
+          "possibilities": [
+            "MSE 5360"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Electronic & Optical Devices and Sensors",
+          "possibilities": [
+            "MSE 4650",
+            "MSE 5650"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Electronic & Optical Devices and Sensors",
+          "possibilities": [
+            "MSE 5250",
+            "MSE 6400",
+            "MSE 0099",
+            "ESE 2150",
+            "ESE 2180",
+            "ESE 5100",
+            "ESE 5210",
+            "ESE 5230"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Electronic & Optical Devices and Sensors",
+          "possibilities": [
+            "MSE 5250",
+            "MSE 6400",
+            "MSE 0099",
+            "ESE 2150",
+            "ESE 2180",
+            "ESE 5100",
+            "ESE 5210",
+            "ESE 5230"
+          ]
+        }
+      }
+    ],
+    "Energy and Sustainability": [
+      {
+        "SingleCourse": {
+          "category": "Energy and Sustainability",
+          "possibilities": [
+            "MSE 4550"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Energy and Sustainability",
+          "possibilities": [
+            "MSE 5450"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Energy and Sustainability",
+          "possibilities": [
+            "MSE 5020",
+            "MSE 0099",
+            "CBE 5450",
+            "EAS 3010",
+            "EAS 4010",
+            "EAS 4020",
+            "EAS 4030",
+            "MEAM 5020",
+            "MEAM 5030",
+            "MEAM 5800"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Energy and Sustainability",
+          "possibilities": [
+            "MSE 5020",
+            "MSE 0099",
+            "CBE 5450",
+            "EAS 3010",
+            "EAS 4010",
+            "EAS 4020",
+            "EAS 4030",
+            "MEAM 5020",
+            "MEAM 5030",
+            "MEAM 5800"
+          ]
+        }
+      }
+    ],
+    "Nanotechnology": [
+      {
+        "SingleCourse": {
+          "category": "Nanotechnology",
+          "possibilities": [
+            "MSE 5250"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Nanotechnology",
+          "possibilities": [
+            "MSE 4650",
+            "MSE 5650"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Nanotechnology",
+          "possibilities": [
+            "MSE 0099",
+            "MSE 6100",
+            "MSE 5360",
+            "ESE 3360",
+            "ESE 4230",
+            "ESE 5360",
+            "ESE 6210",
+            "MEAM 5290"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Nanotechnology",
+          "possibilities": [
+            "MSE 0099",
+            "MSE 6100",
+            "MSE 5360",
+            "ESE 3360",
+            "ESE 4230",
+            "ESE 5360",
+            "ESE 6210",
+            "MEAM 5290"
+          ]
+        }
+      }
+    ]
+  },
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "1": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "10": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "11": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "12": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "13": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "14": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "15": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "16": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "17": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "18": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "19": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "2": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "20": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "21": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "22": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "23": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "24": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "25": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "26": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "27": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "28": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "29": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "3": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "30": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "31": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "32": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "33": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "34": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "35": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "36": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "37": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "4": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "5": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "6": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "7": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "8": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "9": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "BE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CBE 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CBE 4590": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4010": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4100": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4110": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "ESE 4500": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "ESE 4510": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MEAM 4450": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MEAM 4460": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MSE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MSE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    }
+  }
+}

@@ -1,0 +1,758 @@
+{
+  "short_name": "MECON",
+  "name": "Mathematical Economics",
+  "requirements": [
+    {
+      "Restriction": {
+        "category": "Writing Seminar",
+        "department": [
+          "WRIT"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Education",
+        "fixed_slots": [
+          {
+            "SingleCourse": {
+              "category": "Introductory Economics",
+              "possibilities": [
+                "ECON 0100"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Introductory Economics",
+              "possibilities": [
+                "ECON 0200"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Intermediate Economics",
+              "possibilities": [
+                "ECON 2100"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Intermediate Economics",
+              "possibilities": [
+                "ECON 2200"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Intermediate Economics",
+              "possibilities": [
+                "ECON 6100"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Stat Core",
+              "possibilities": [
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "ECON 2300"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5460",
+                            "ECON 2310",
+                            "ECON 4310",
+                            "ECON 4320"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "STAT 4300"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "STAT 4310"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "ESE 3010"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "ESE 4020"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "STAT 4300"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "ESE 2310"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "ECON Electives",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "AMAE"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "ECON Electives",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "AMAE"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Math Core",
+              "possibilities": [
+                "MATH 1410",
+                "MATH 1610",
+                "MATH 1080"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Math Core",
+              "possibilities": [
+                "MATH 3000"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Math Core",
+              "possibilities": [
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 3600"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 3610"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "AllOf": {
+                    "category": null,
+                    "requirements": [
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5080"
+                          ]
+                        }
+                      },
+                      {
+                        "SingleCourse": {
+                          "category": null,
+                          "possibilities": [
+                            "MATH 5090"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Math Electives",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "AMAM"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Math Electives",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "AMAM"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Math Electives",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "AMAM"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ],
+        "flexible_slots": 12,
+        "constraints": [
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cross-Cultural Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCC"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Quantitative Data Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUQD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cultural Diversity in the U.S.",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Formal Reasoning & Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUFR"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Language (last course)",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - II - History and Tradition",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHT"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - III - Arts and Letters",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUAL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - IV - Humanities & Social Sciences",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - V - Living World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VI - Physical World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUPW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VII - Natural Sciences Across Disciplines",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUNM"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": null,
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ECON 0100": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ECON 0200": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "ECON 2100": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ECON 2200": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "ECON 2300": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ECON 2310": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "ECON 6100": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ESE 2310": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "ESE 3010": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ESE 4020": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 1080": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 1410": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 1610": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3000": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3600": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 3610": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 5080": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "MATH 5090": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "MATH 5460": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "STAT 4300": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "STAT 4310": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    }
+  }
+}

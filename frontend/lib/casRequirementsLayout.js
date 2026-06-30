@@ -73,7 +73,7 @@ export function buildRequirementTabs(results, degrees, degreeCatalog, minorCatal
                     type: "cas-combined",
                     indices: casIndices,
                     label: majorLabels.join(" + "),
-                    schoolLine: "College of Arts & Sciences",
+                    schoolLine: "School of Arts & Sciences",
                 });
                 casCombinedEmitted = true;
             }

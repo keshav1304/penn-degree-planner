@@ -1,0 +1,843 @@
+{
+  "short_name": "MEAM",
+  "name": "Mechanical Engineering",
+  "requirements": [
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 2020"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 2030"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 2100"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 2110"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 2470"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 2480"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 3470"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 3480"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 4450"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "MEAM Core",
+        "possibilities": [
+          "MEAM 4460"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1400"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1410",
+          "MEAM 1610"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 2400",
+          "ESE 2030",
+          "MEAM 2600",
+          "MEAM 2200"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "ENM 2510",
+          "MATH 2410",
+          "MEAM 2300"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "PHYS 0150"
+              ]
+            }
+          },
+          {
+            "AllOf": {
+              "category": null,
+              "requirements": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MEAM 1100"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MEAM 1470"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "PHYS 0151",
+          "ESE 1120"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1012",
+          "BIOL 1121"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Math and Natural Science",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUMA"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Math and Natural Science",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUMA",
+          "EUNS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Professional Electives",
+        "possibilities": [
+          "ENGR 1050",
+          "CIS 1100",
+          "CIS 1200"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Professional Electives",
+        "department": [
+          "MEAM"
+        ],
+        "cu": null,
+        "level": 5000,
+        "max_level": null,
+        "attr": null,
+        "excluding": [
+          "MEAM 5990"
+        ],
+        "number": 2,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Professional Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUNG"
+        ],
+        "excluding": null,
+        "number": 2,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Professional Electives",
+        "department": null,
+        "cu": null,
+        "level": 2000,
+        "max_level": null,
+        "attr": [
+          "EUNG"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "General Electives",
+        "possibilities": [
+          "EAS 2030"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS"
+        ],
+        "excluding": null,
+        "number": 2,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUSS",
+          "EUHS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUSS",
+          "EUHS",
+          "EUTB"
+        ],
+        "excluding": null,
+        "number": 2,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Concentration",
+        "possibilities": [
+          "MEAM 3020"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Concentration",
+        "possibilities": [
+          "MEAM 3210"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Concentration",
+        "possibilities": [
+          "MEAM 3330"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Concentration",
+        "possibilities": [
+          "MEAM 3540"
+        ]
+      }
+    }
+  ],
+  "concentrations": {
+    "Dynamics, Controls, and Robotics": [
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3200"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3210"
+          ]
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": [
+            "MEAM"
+          ],
+          "cu": null,
+          "level": 3000,
+          "max_level": null,
+          "attr": null,
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": [
+            "MEAM"
+          ],
+          "cu": null,
+          "level": 5000,
+          "max_level": null,
+          "attr": null,
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUNG"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      }
+    ],
+    "Energy, Fluids and Thermal Systems": [
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3020"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3330"
+          ]
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": [
+            "MEAM"
+          ],
+          "cu": null,
+          "level": 3000,
+          "max_level": null,
+          "attr": null,
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": [
+            "MEAM"
+          ],
+          "cu": null,
+          "level": 5000,
+          "max_level": null,
+          "attr": null,
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUNG"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      }
+    ],
+    "General": [
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3020"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3210"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3330"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3540"
+          ]
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": null,
+          "cu": null,
+          "level": 5000,
+          "max_level": null,
+          "attr": [
+            "EUNG"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      }
+    ],
+    "Mechanics of Materials, Structures and Design": [
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3210"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": null,
+          "possibilities": [
+            "MEAM 3540"
+          ]
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": [
+            "MEAM"
+          ],
+          "cu": null,
+          "level": 3000,
+          "max_level": null,
+          "attr": null,
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": [
+            "MEAM"
+          ],
+          "cu": null,
+          "level": 5000,
+          "max_level": null,
+          "attr": null,
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": null,
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUNG"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      }
+    ]
+  },
+  "schedule_hints": {
+    "0": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "1": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "10": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "11": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "12": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "13": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "14": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "15": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "16": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "17": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "18": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "19": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "2": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "20": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "21": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "22": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "23": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "24": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "25": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "26": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "27": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "28": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "29": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "3": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "30": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "31": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "4": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "5": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "6": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "7": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "8": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "9": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "BE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CBE 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CBE 4590": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4010": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4100": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4110": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "ESE 4500": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "ESE 4510": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MEAM 4450": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MEAM 4460": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MSE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MSE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    }
+  }
+}

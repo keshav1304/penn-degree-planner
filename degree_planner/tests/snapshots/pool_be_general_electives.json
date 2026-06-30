@@ -1,0 +1,108 @@
+{
+  "category": "General Electives",
+  "fixed_slots_len": 0,
+  "flexible_slots": 7,
+  "constraints": [
+    {
+      "requirement": {
+        "SingleCourse": {
+          "category": "Engineering Ethics",
+          "possibilities": [
+            "EAS 2030",
+            "HSOC 1330",
+            "HSOC 2457",
+            "LGST 1000",
+            "LGST 2200",
+            "NURS 3300",
+            "NURS 5250",
+            "BIOE 4010",
+            "BIOE 4020",
+            "PHIL 1342",
+            "PHIL 4330"
+          ]
+        }
+      },
+      "count": 1,
+      "consumption_group": "be:ethics"
+    },
+    {
+      "requirement": {
+        "Restriction": {
+          "category": "Social Science",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUSS"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      "count": 2,
+      "consumption_group": "be:distribution"
+    },
+    {
+      "requirement": {
+        "Restriction": {
+          "category": "Humanities",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUHS"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      "count": 2,
+      "consumption_group": "be:distribution"
+    },
+    {
+      "requirement": {
+        "Restriction": {
+          "category": "SSH Elective",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUSS",
+            "EUHS"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      "count": 1,
+      "consumption_group": "be:distribution"
+    },
+    {
+      "requirement": {
+        "Restriction": {
+          "category": "Technology & Business",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "EUHS",
+            "EUSS",
+            "EUTB"
+          ],
+          "excluding": null,
+          "number": 1,
+          "no_school": null
+        }
+      },
+      "count": 2,
+      "consumption_group": "be:distribution"
+    }
+  ]
+}

@@ -1,0 +1,1217 @@
+{
+  "short_name": "CIS",
+  "name": "Computer Science, BSE",
+  "requirements": [
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 1100"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 1200"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 1210"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 2400"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 2620"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 3200"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 4480",
+          "CIS 5480"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 4710",
+          "CIS 5710"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 4000",
+          "CIS 4100"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "CIS 4010",
+          "CIS 4110"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Engineering",
+        "possibilities": [
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "CIS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "NETS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Engineering",
+        "possibilities": [
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "CIS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "NETS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Engineering",
+        "possibilities": [
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "CIS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "NETS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Engineering",
+        "possibilities": [
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "CIS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "CIS Elective",
+              "department": [
+                "NETS"
+              ],
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1400"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1410",
+          "MATH 1610"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 2400",
+          "ESE 2030",
+          "MATH 2600",
+          "MATH 3120",
+          "MATH 3130",
+          "MATH 3140"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Math and Natural Science",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUMA",
+          "EUNS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "PHYS 0151",
+          "PHYS 0171",
+          "ESE 1120"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CIS 1600"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "PHYS 0150"
+              ]
+            }
+          },
+          {
+            "AllOf": {
+              "category": null,
+              "requirements": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MEAM 1100"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "MEAM 1470"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CIS 2610",
+          "ESE 3010",
+          "STAT 4300"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUCU",
+          "EUCR"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUCU"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUCU"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUCU"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUCU"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Technical Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUCU"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "General Electives",
+        "possibilities": [
+          "EAS 2030",
+          "CIS 4230",
+          "CIS 5230",
+          "LAWM 5060"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS",
+          "EUTB"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "General Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUHS",
+          "EUSS",
+          "EUTB"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": {
+    "Artificial Intelligence": [
+      {
+        "SingleCourse": {
+          "category": "Artificial Intelligence",
+          "possibilities": [
+            "CIS 4210",
+            "CIS 5210"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Artificial Intelligence",
+          "possibilities": [
+            "CIS 4190",
+            "CIS 5190",
+            "CIS 5200"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Artificial Intelligence",
+          "possibilities": [
+            "MEAM 5100",
+            "MEAM 5200",
+            "CIS 5220",
+            "CIS 5300",
+            "CIS 5800",
+            "CIS 5810",
+            "NETS 2130"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Artificial Intelligence",
+          "possibilities": [
+            "MEAM 5100",
+            "MEAM 5200",
+            "CIS 5220",
+            "CIS 5300",
+            "CIS 5800",
+            "CIS 5810",
+            "NETS 2130"
+          ]
+        }
+      }
+    ],
+    "Cognitive Science": [
+      {
+        "SingleCourse": {
+          "category": "Cognitive Science",
+          "possibilities": [
+            "COGS 1001",
+            "CIS 1400"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cognitive Science",
+          "possibilities": [
+            "CIS 4210",
+            "CIS 5210",
+            "CIS 5200",
+            "CIS 5300"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cognitive Science",
+          "possibilities": [
+            "LING 0500",
+            "LING 2300",
+            "LING 2500",
+            "LING 2700"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cognitive Science",
+          "possibilities": [
+            "PSYC 1210",
+            "PSYC 1340",
+            "PSYC 1230",
+            "PSYC 1310",
+            "PSYC 2737",
+            "PSYC 2377"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cognitive Science",
+          "possibilities": [
+            "PHIL 1710",
+            "PHIL 2640",
+            "PHIL 4721",
+            "PHIL 4840"
+          ]
+        }
+      }
+    ],
+    "Computational Biology": [
+      {
+        "SingleCourse": {
+          "category": "Computational Biology",
+          "possibilities": [
+            "BIOL 1101",
+            "BIOL 1121"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computational Biology",
+          "possibilities": [
+            "BIOL 2210"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computational Biology",
+          "possibilities": [
+            "ENM 3210",
+            "ESE 4020",
+            "STAT 4310",
+            "BIOL 2510"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computational Biology",
+          "possibilities": [
+            "CIS 5450",
+            "ESE 3050",
+            "CIS 4190",
+            "CIS 5190",
+            "CIS 5200",
+            "ESE 5450",
+            "STAT 4710"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computational Biology",
+          "possibilities": [
+            "BIOL 4231",
+            "BE 5690",
+            "BE 4800",
+            "BE 3060"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computational Biology",
+          "possibilities": [
+            "BIOL 4526",
+            "CIS 4360",
+            "BIOL 5536",
+            "GCB 5360",
+            "BIOL 5571"
+          ]
+        }
+      }
+    ],
+    "Computer Vision": [
+      {
+        "SingleCourse": {
+          "category": "Computer Vision",
+          "possibilities": [
+            "CIS 5800"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computer Vision",
+          "possibilities": [
+            "CIS 5810"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computer Vision",
+          "possibilities": [
+            "CIS 6800"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Computer Vision",
+          "possibilities": [
+            "CIS 5200"
+          ]
+        }
+      }
+    ],
+    "Data Science": [
+      {
+        "SingleCourse": {
+          "category": "Data Science",
+          "possibilities": [
+            "CIS 4190",
+            "CIS 5190",
+            "CIS 5200",
+            "ESE 5450",
+            "STAT 4710"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Data Science",
+          "possibilities": [
+            "CIS 5450",
+            "ESE 3050"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Data Science",
+          "possibilities": [
+            "ENM 3210",
+            "ESE 4020",
+            "STAT 4310"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Data Science",
+          "possibilities": [
+            "CIS 4500",
+            "CIS 5500",
+            "CIS 4550",
+            "CIS 5550",
+            "CIS 4210",
+            "CIS 5210",
+            "CIS 5220",
+            "CIS 5800",
+            "STAT 4350",
+            "STAT 4740",
+            "STAT 4760",
+            "STAT 5200"
+          ]
+        }
+      }
+    ],
+    "Software Foundations": [
+      {
+        "SingleCourse": {
+          "category": "Software Foundations",
+          "possibilities": [
+            "CIS 3410"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Software Foundations",
+          "possibilities": [
+            "CIS 5000"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Software Foundations",
+          "possibilities": [
+            "CIS 3500",
+            "CIS 5400",
+            "CIS 5470",
+            "CIS 5520",
+            "CIS 6730",
+            "CIS 6820"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Software Foundations",
+          "possibilities": [
+            "CIS 3500",
+            "CIS 5400",
+            "CIS 5470",
+            "CIS 5520",
+            "CIS 6730",
+            "CIS 6820"
+          ]
+        }
+      }
+    ],
+    "Systems": [
+      {
+        "SingleCourse": {
+          "category": "Systems",
+          "possibilities": [
+            "NETS 2120",
+            "CIS 3310",
+            "CIS 4510",
+            "CIS 5510",
+            "CIS 4410",
+            "CIS 5410",
+            "CIS 4500",
+            "CIS 5500",
+            "CIS 4550",
+            "CIS 5550",
+            "CIS 5050",
+            "CIS 5530"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems",
+          "possibilities": [
+            "NETS 2120",
+            "CIS 3310",
+            "CIS 4510",
+            "CIS 5510",
+            "CIS 4410",
+            "CIS 5410",
+            "CIS 4500",
+            "CIS 5500",
+            "CIS 4550",
+            "CIS 5550",
+            "CIS 5050",
+            "CIS 5530"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems",
+          "possibilities": [
+            "NETS 2120",
+            "CIS 3310",
+            "CIS 4510",
+            "CIS 5510",
+            "CIS 4410",
+            "CIS 5410",
+            "CIS 4500",
+            "CIS 5500",
+            "CIS 4550",
+            "CIS 5550",
+            "CIS 5050",
+            "CIS 5530"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems",
+          "possibilities": [
+            "NETS 2120",
+            "CIS 3310",
+            "CIS 4510",
+            "CIS 5510",
+            "CIS 4410",
+            "CIS 5410",
+            "CIS 4500",
+            "CIS 5500",
+            "CIS 4550",
+            "CIS 5550",
+            "CIS 5050",
+            "CIS 5530"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems",
+          "possibilities": [
+            "NETS 2120",
+            "CIS 3310",
+            "CIS 4510",
+            "CIS 5510",
+            "CIS 4410",
+            "CIS 5410",
+            "CIS 4500",
+            "CIS 5500",
+            "CIS 4550",
+            "CIS 5550",
+            "CIS 5050",
+            "CIS 5530"
+          ]
+        }
+      }
+    ]
+  },
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "1": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "10": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "11": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "12": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "13": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "14": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "15": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "16": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "17": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "18": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "19": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "2": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "20": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "21": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "22": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "23": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "24": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "25": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "26": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "27": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "28": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "29": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "3": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "30": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "31": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "32": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "33": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "34": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "35": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "4": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "5": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "6": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "7": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "8": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "9": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "BE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CBE 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CBE 4590": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4010": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4100": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4110": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "ESE 4500": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "ESE 4510": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MEAM 4450": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MEAM 4460": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MSE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MSE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    }
+  }
+}

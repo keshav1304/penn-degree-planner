@@ -1,0 +1,790 @@
+{
+  "short_name": "PPE",
+  "name": "Philosophy, Politics, and Economics",
+  "requirements": [
+    {
+      "Restriction": {
+        "category": "Writing Seminar",
+        "department": [
+          "WRIT"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Education",
+        "fixed_slots": [
+          {
+            "SingleCourse": {
+              "category": "Common Foundations",
+              "possibilities": [
+                "PHIL 1433"
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Common Foundations",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "APPF"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Common Foundations",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "APPT"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Common Foundations",
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "APPP"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Common Foundations",
+              "possibilities": [
+                "ECON 0100"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Common Foundations",
+              "possibilities": [
+                "ECON 0200"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Common Foundations",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PSYC 1210"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PSYC 1230"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PSYC 1440"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PSYC 2737"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Common Core",
+              "possibilities": [
+                "PPE 3001"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Common Core",
+              "possibilities": [
+                "PPE 3002"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Common Core",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 3003"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 3004"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Advanced Interdisciplinary Seminar in PPE",
+              "possibilities": [
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4000"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4500"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4600"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4601"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4650"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4700"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4701"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4800"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4802"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4803"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4804"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4900"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4903"
+                    ]
+                  }
+                },
+                {
+                  "SingleCourse": {
+                    "category": null,
+                    "possibilities": [
+                      "PPE 4950"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "Concentration": {
+              "category": "Globalization",
+              "number": 5,
+              "requirements": [
+                {
+                  "Restriction": {
+                    "category": "Globalization",
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "APPG"
+                    ],
+                    "excluding": null,
+                    "number": 4,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": "Globalization",
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "AIRE",
+                      "AIRN",
+                      "APSI",
+                      "AAFS",
+                      "AHAF",
+                      "AHCE",
+                      "AHES",
+                      "AHEA",
+                      "AHLA",
+                      "AEAE",
+                      "ARER",
+                      "AREE",
+                      "AREJ"
+                    ],
+                    "excluding": [
+                      "AUFS"
+                    ],
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "flexible_slots": 12,
+        "constraints": [
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cross-Cultural Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCC"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Quantitative Data Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUQD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cultural Diversity in the U.S.",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Formal Reasoning & Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUFR"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Language (last course)",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - II - History and Tradition",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHT"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - III - Arts and Letters",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUAL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - IV - Humanities & Social Sciences",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - V - Living World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VI - Physical World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUPW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VII - Natural Sciences Across Disciplines",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUNM"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": {
+    "Choice and Behaviour": [
+      {
+        "Restriction": {
+          "category": "Choice and Behaviour",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "APPC"
+          ],
+          "excluding": null,
+          "number": 5,
+          "no_school": null
+        }
+      }
+    ],
+    "Distributive Justice": [
+      {
+        "Restriction": {
+          "category": "Distributive Justice",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "APPJ"
+          ],
+          "excluding": null,
+          "number": 5,
+          "no_school": null
+        }
+      }
+    ],
+    "Globalization": [
+      {
+        "Restriction": {
+          "category": "Globalization",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "APPG"
+          ],
+          "excluding": null,
+          "number": 4,
+          "no_school": null
+        }
+      },
+      {
+        "Restriction": {
+          "category": "Globalization",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "AIRE",
+            "AIRN",
+            "APSI",
+            "AAFS",
+            "AHAF",
+            "AHCE",
+            "AHES",
+            "AHEA",
+            "AHLA",
+            "AEAE",
+            "ARER",
+            "AREE",
+            "AREJ"
+          ],
+          "excluding": [
+            "AUFS"
+          ],
+          "number": 1,
+          "no_school": null
+        }
+      }
+    ],
+    "Public Policy and Governance": [
+      {
+        "Restriction": {
+          "category": "Public Policy and Governance",
+          "department": null,
+          "cu": null,
+          "level": null,
+          "max_level": null,
+          "attr": [
+            "APPU"
+          ],
+          "excluding": null,
+          "number": 5,
+          "no_school": null
+        }
+      }
+    ]
+  },
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ECON 0100": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "ECON 0200": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "PHIL 1433": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "PPE 3001": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "PPE 3002": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "PPE 3003": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "PPE 3004": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    }
+  }
+}

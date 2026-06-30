@@ -1,6 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
+use crate::penn_data::requirement_builders::{
+    all_of, any_of, any_of_opt, attr_pool_constraint, attr_restriction, code,
+    concentration, course_group_from_codes, course_pool, restriction, single,
+    unrestricted_elective,
+};
 use crate::requirement::{PoolConstraint, PoolCoverageInfo};
 use crate::schedule_template::{ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
 use serde::Serialize;
@@ -387,45 +392,24 @@ pub struct CasMajorConfig {
 
 /// Writing is siloed: it may not double-count with any other College requirement.
 fn cas_writing_requirement() -> Requirement {
-    Requirement::Restriction {
-        category: Some("Writing Seminar".to_string()),
-        department: Some(vec!["WRIT".to_string()]),
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category("Writing Seminar")
+        .departments(&["WRIT"])
+        .into()
 }
 
 fn cas_foundational_approach(label: &str, attr: &str) -> Requirement {
-    Requirement::Restriction {
-        category: Some(format!("Foundational Approaches - {label}")),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: Some(vec![attr.to_string()]),
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category(&format!("Foundational Approaches - {label}"))
+        .attr(&[attr])
+        .into()
 }
 
 fn cas_sector_requirement(label: &str, attr: &str) -> Requirement {
-    Requirement::Restriction {
-        category: Some(format!("Sectors of Knowledge - {label}")),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: Some(vec![attr.to_string()]),
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category(&format!("Sectors of Knowledge - {label}"))
+        .attr(&[attr])
+        .into()
 }
 
 /// Coverage constraints: FAs + non-auto-completed Sectors.
@@ -433,20 +417,22 @@ pub fn cas_pool_constraints(auto_completed_sectors: &[String]) -> Vec<PoolConstr
     let mut constraints = Vec::new();
 
     for (label, attr) in FOUNDATIONAL_APPROACHES {
-        constraints.push(PoolConstraint {
-            requirement: cas_foundational_approach(label, attr),
-            count: 1,
-            consumption_group: Some("cas:fa".to_string()),
-        });
+        constraints.push(attr_pool_constraint(
+            &format!("Foundational Approaches - {label}"),
+            attr,
+            1,
+            "cas:fa",
+        ));
     }
 
     for (label, attr) in SECTORS {
         if !auto_completed_sectors.iter().any(|s| s == attr) {
-            constraints.push(PoolConstraint {
-                requirement: cas_sector_requirement(label, attr),
-                count: 1,
-                consumption_group: Some("cas:sector".to_string()),
-            });
+            constraints.push(attr_pool_constraint(
+                &format!("Sectors of Knowledge - {label}"),
+                attr,
+                1,
+                "cas:sector",
+            ));
         }
     }
 
@@ -477,17 +463,7 @@ fn requirement_slot_cu(req: &Requirement) -> i32 {
 }
 
 fn cas_unrestricted_elective() -> Requirement {
-    Requirement::Restriction {
-        category: Some("Unrestricted Electives".to_string()),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    unrestricted_elective("Unrestricted Electives")
 }
 
 /// Assemble a full CAS degree using a shared course pool for major + electives + gen-ed coverage.
@@ -505,12 +481,12 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
 
     let mut requirements = vec![
         cas_writing_requirement(),
-        Requirement::CoursePool {
-            category: Some("General Education".to_string()),
-            fixed_slots: config.major_requirements,
-            flexible_slots: gen_ed_flex,
-            constraints: cas_pool_constraints(&auto_completed_sectors),
-        },
+        course_pool(
+            "General Education",
+            config.major_requirements,
+            gen_ed_flex,
+            cas_pool_constraints(&auto_completed_sectors),
+        ),
     ];
     for _ in 0..unrestricted_count {
         requirements.push(cas_unrestricted_elective());
@@ -1000,33 +976,20 @@ const ANCIENT_HISTORY_DEPTS: &[&str] = &["ANCH", "CLST", "GREK", "LATN"];
 fn ancient_history_pool_slot(category: Option<String>, level: Option<i32>) -> Requirement {
     let mut possibilities: Vec<Requirement> = ANCIENT_HISTORY_DEPTS
         .iter()
-        .map(|dept| Requirement::Restriction {
-            category: None,
-            department: Some(vec![dept.to_string()]),
-            cu: None,
-            level,
-            max_level: None,
-            attr: None,
-            excluding: None,
-            number: 1,
-            no_school: None,
+        .map(|dept| {
+            let mut b = restriction(1).departments(&[dept]);
+            if let Some(l) = level {
+                b = b.level(l);
+            }
+            b.into()
         })
         .collect();
-    possibilities.push(Requirement::Restriction {
-        category: None,
-        department: None,
-        cu: None,
-        level,
-        max_level: None,
-        attr: Some(vec!["AANP".to_string()]),
-        excluding: None,
-        number: 1,
-        no_school: None,
-    });
-    Requirement::AnyOf {
-        category,
-        possibilities,
+    let mut attr_b = restriction(1).attr(&["AANP"]);
+    if let Some(l) = level {
+        attr_b = attr_b.level(l);
     }
+    possibilities.push(attr_b.into());
+    any_of_opt(category, possibilities)
 }
 
 fn ancient_history_pool_slots(
@@ -1048,17 +1011,7 @@ fn anch_major_requirements() -> Vec<Requirement> {
         "CLST 1300",
         "CLST 1500",
     ];
-    let mut requirements = vec![Requirement::CourseGroup {
-        category: Some("Core Classes".to_string()),
-        number: 2,
-        possibilities: core_courses
-            .iter()
-            .map(|code| Requirement::SingleCourse {
-                category: None,
-                possibilities: vec![(*code).to_string()],
-            })
-            .collect(),
-    }];
+    let mut requirements = vec![course_group_from_codes("Core Classes", 2, &core_courses)];
     requirements.extend(ancient_history_pool_slots("Graeco-Roman World", 2, None));
     requirements.extend(ancient_history_pool_slots(
         "Graeco-Roman World",
@@ -1090,127 +1043,47 @@ pub fn create_anch_major() -> Major {
 }
 
 fn econ_major_requirements() -> Vec<Requirement> {
+    let econ_elective: Requirement = restriction(1)
+        .category("ECON Electives")
+        .departments(&["ECON"])
+        .level(4000)
+        .into();
     vec![
-        Requirement::SingleCourse {
-            category: Some("Introductory Economics".to_string()),
-            possibilities: vec!["ECON 0100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Introductory Economics".to_string()),
-            possibilities: vec!["ECON 0200".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Intermediate Economics".to_string()),
-            possibilities: vec!["ECON 2100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Intermediate Economics".to_string()),
-            possibilities: vec!["ECON 2200".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Statistics".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["ECON 2300".to_string()],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["STAT 4300".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["STAT 4310".to_string()],
-                        },
-                    ],
-                },
+        single("Introductory Economics", &["ECON 0100"]),
+        single("Introductory Economics", &["ECON 0200"]),
+        single("Intermediate Economics", &["ECON 2100"]),
+        single("Intermediate Economics", &["ECON 2200"]),
+        any_of(
+            "Statistics",
+            vec![
+                code(&["ECON 2300"]),
+                all_of(
+                    None,
+                    vec![code(&["STAT 4300"]), code(&["STAT 4310"])],
+                ),
             ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Econometrics".to_string()),
-            possibilities: vec!["ECON 2310".to_string()],
-        },
-        Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
-            department: Some(vec!["ECON".to_string()]),
-            cu: None,
-            level: Some(4000),
-            max_level: None,
-            attr: None,
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
-            department: Some(vec!["ECON".to_string()]),
-            cu: None,
-            level: Some(4000),
-            max_level: None,
-            attr: None,
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
-            department: Some(vec!["ECON".to_string()]),
-            cu: None,
-            level: Some(4000),
-            max_level: None,
-            attr: None,
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
-            department: Some(vec!["ECON".to_string()]),
-            cu: None,
-            level: Some(4000),
-            max_level: None,
-            attr: None,
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::AnyOf {
-            category: Some("Mathematics".to_string()),
-            possibilities: vec![
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 1400".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec![
-                                "MATH 1410".to_string(),
-                                "MATH 1610".to_string(),
-                            ],
-                        },
+        ),
+        single("Econometrics", &["ECON 2310"]),
+        econ_elective.clone(),
+        econ_elective.clone(),
+        econ_elective.clone(),
+        econ_elective,
+        any_of(
+            "Mathematics",
+            vec![
+                all_of(
+                    None,
+                    vec![
+                        code(&["MATH 1400"]),
+                        code(&["MATH 1410", "MATH 1610"]),
                     ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 1070".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 1080".to_string()],
-                        },
-                    ],
-                },
+                ),
+                all_of(
+                    None,
+                    vec![code(&["MATH 1070"]), code(&["MATH 1080"])],
+                ),
             ],
-        },
+        ),
     ]
 }
 
@@ -1236,156 +1109,72 @@ pub fn create_econ_major() -> Major {
 }
 
 fn mathecon_major_requirements() -> Vec<Requirement> {
+    let econ_elective: Requirement = restriction(1)
+        .category("ECON Electives")
+        .attr(&["AMAE"])
+        .into();
+    let math_elective: Requirement = restriction(1)
+        .category("Math Electives")
+        .attr(&["AMAM"])
+        .into();
     vec![
-        Requirement::SingleCourse {
-            category: Some("Introductory Economics".to_string()),
-            possibilities: vec!["ECON 0100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Introductory Economics".to_string()),
-            possibilities: vec!["ECON 0200".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Intermediate Economics".to_string()),
-            possibilities: vec!["ECON 2100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Intermediate Economics".to_string()),
-            possibilities: vec!["ECON 2200".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Intermediate Economics".to_string()),
-            possibilities: vec!["ECON 6100".to_string()],
-        },
-
-        
-        Requirement::AnyOf {
-            category: Some("Stat Core".to_string()),
-            possibilities: vec![
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ECON 2300".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 5460".to_string(), "ECON 2310".to_string(), "ECON 4310".to_string(), "ECON 4320".to_string()],
-                        },
+        single("Introductory Economics", &["ECON 0100"]),
+        single("Introductory Economics", &["ECON 0200"]),
+        single("Intermediate Economics", &["ECON 2100"]),
+        single("Intermediate Economics", &["ECON 2200"]),
+        single("Intermediate Economics", &["ECON 6100"]),
+        any_of(
+            "Stat Core",
+            vec![
+                all_of(
+                    None,
+                    vec![
+                        code(&["ECON 2300"]),
+                        code(&[
+                            "MATH 5460",
+                            "ECON 2310",
+                            "ECON 4310",
+                            "ECON 4320",
+                        ]),
                     ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["STAT 4300".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["STAT 4310".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ESE 3010".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ESE 4020".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["STAT 4300".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ESE 2310".to_string()],
-                        },
-                    ],
-                },
+                ),
+                all_of(
+                    None,
+                    vec![code(&["STAT 4300"]), code(&["STAT 4310"])],
+                ),
+                all_of(
+                    None,
+                    vec![code(&["ESE 3010"]), code(&["ESE 4020"])],
+                ),
+                all_of(
+                    None,
+                    vec![code(&["STAT 4300"]), code(&["ESE 2310"])],
+                ),
             ],
-        },
-
-
-        Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["AMAE".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("ECON Electives".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["AMAE".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-
-        Requirement::SingleCourse {
-            category: Some("Math Core".to_string()),
-            possibilities: vec!["MATH 1410".to_string(), "MATH 1610".to_string(), "MATH 1080".to_string()],
-        },
-
-        Requirement::SingleCourse {
-            category: Some("Math Core".to_string()),
-            possibilities: vec!["MATH 3000".to_string()],
-        },
-
-        Requirement::AnyOf {
-            category: Some("Math Core".to_string()),
-            possibilities: vec![
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 3600".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 3610".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 5080".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["MATH 5090".to_string()],
-                        },
-                    ],
-                },
+        ),
+        econ_elective.clone(),
+        econ_elective,
+        single(
+            "Math Core",
+            &["MATH 1410", "MATH 1610", "MATH 1080"],
+        ),
+        single("Math Core", &["MATH 3000"]),
+        any_of(
+            "Math Core",
+            vec![
+                all_of(
+                    None,
+                    vec![code(&["MATH 3600"]), code(&["MATH 3610"])],
+                ),
+                all_of(
+                    None,
+                    vec![code(&["MATH 5080"]), code(&["MATH 5090"])],
+                ),
             ],
-        },
-
-        Requirement::Restriction { category: Some("Math Electives".to_string()), department: None, cu: None, level: None, max_level: None, attr: Some(vec!["AMAM".to_string()]), excluding: None, number: 1, no_school: None },
-        Requirement::Restriction { category: Some("Math Electives".to_string()), department: None, cu: None, level: None, max_level: None, attr: Some(vec!["AMAM".to_string()]), excluding: None, number: 1, no_school: None },
-        Requirement::Restriction { category: Some("Math Electives".to_string()), department: None, cu: None, level: None, max_level: None, attr: Some(vec!["AMAM".to_string()]), excluding: None, number: 1, no_school: None },
+        ),
+        math_elective.clone(),
+        math_elective.clone(),
+        math_elective,
     ]
 }
 
@@ -1448,88 +1237,33 @@ const CIS_PROJECT_ELECTIVES: &[&str] = &[
 ];
 
 fn cis_major_requirements() -> Vec<Requirement> {
-    let project_electives: Vec<String> = CIS_PROJECT_ELECTIVES
-        .iter()
-        .map(|code| code.to_string())
-        .collect();
-
     vec![
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 1100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 1200".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 1600".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 1210".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 2400".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 2620".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Courses".to_string()),
-            possibilities: vec!["CIS 3200".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Project Electives".to_string()),
-            possibilities: project_electives.clone(),
-        },
-        Requirement::SingleCourse {
-            category: Some("Project Electives".to_string()),
-            possibilities: project_electives,
-        },
-        Requirement::AnyOf {
-            category: Some("CIS Elective".to_string()),
-            possibilities: vec![
-                Requirement::Restriction {
-                    category: None,
-                    department: Some(vec!["CIS".to_string(), "NETS".to_string()]),
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: None,
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["ESE 3500".to_string()],
-                },
+        single("Core Courses", &["CIS 1100"]),
+        single("Core Courses", &["CIS 1200"]),
+        single("Core Courses", &["CIS 1600"]),
+        single("Core Courses", &["CIS 1210"]),
+        single("Core Courses", &["CIS 2400"]),
+        single("Core Courses", &["CIS 2620"]),
+        single("Core Courses", &["CIS 3200"]),
+        single("Project Electives", CIS_PROJECT_ELECTIVES),
+        single("Project Electives", CIS_PROJECT_ELECTIVES),
+        any_of(
+            "CIS Elective",
+            vec![
+                restriction(1).departments(&["CIS", "NETS"]).into(),
+                code(&["ESE 3500"]),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("CIS Elective >= 2000".to_string()),
-            possibilities: vec![
-                Requirement::Restriction {
-                    category: None,
-                    department: Some(vec!["CIS".to_string(), "NETS".to_string()]),
-                    cu: None,
-                    level: Some(2000),
-                    max_level: None,
-                    attr: None,
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["ESE 3500".to_string()],
-                },
+        ),
+        any_of(
+            "CIS Elective >= 2000",
+            vec![
+                restriction(1)
+                    .departments(&["CIS", "NETS"])
+                    .level(2000)
+                    .into(),
+                code(&["ESE 3500"]),
             ],
-        },
+        ),
     ]
 }
 
@@ -1557,103 +1291,43 @@ const PPE_GLOBALIZATION_INTERNATIONAL_ATTRS: &[&str] = &[
 
 fn ppe_major_requirements() -> Vec<Requirement> {
     vec![
-        Requirement::SingleCourse {
-            category: Some("Common Foundations".to_string()),
-            possibilities: vec!["PHIL 1433".to_string()],
-        },
-        Requirement::Restriction {
-            category: Some("Common Foundations".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["APPF".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("Common Foundations".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["APPT".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("Common Foundations".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["APPP".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::SingleCourse {
-            category: Some("Common Foundations".to_string()),
-            possibilities: vec!["ECON 0100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Common Foundations".to_string()),
-            possibilities: vec!["ECON 0200".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Common Foundations".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PSYC 1210".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PSYC 1230".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PSYC 1440".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PSYC 2737".to_string()],
-                },
+        single("Common Foundations", &["PHIL 1433"]),
+        restriction(1)
+            .category("Common Foundations")
+            .attr(&["APPF"])
+            .into(),
+        restriction(1)
+            .category("Common Foundations")
+            .attr(&["APPT"])
+            .into(),
+        restriction(1)
+            .category("Common Foundations")
+            .attr(&["APPP"])
+            .into(),
+        single("Common Foundations", &["ECON 0100"]),
+        single("Common Foundations", &["ECON 0200"]),
+        any_of(
+            "Common Foundations",
+            vec![
+                code(&["PSYC 1210"]),
+                code(&["PSYC 1230"]),
+                code(&["PSYC 1440"]),
+                code(&["PSYC 2737"]),
             ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Common Core".to_string()),
-            possibilities: vec!["PPE 3001".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Common Core".to_string()),
-            possibilities: vec!["PPE 3002".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Common Core".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PPE 3003".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PPE 3004".to_string()],
-                },
-            ],
-        },
-        Requirement::AnyOf {
-            category: Some("Advanced Interdisciplinary Seminar in PPE".to_string()),
-            possibilities: PPE_ADVANCED_SEMINARS
+        ),
+        single("Common Core", &["PPE 3001"]),
+        single("Common Core", &["PPE 3002"]),
+        any_of(
+            "Common Core",
+            vec![code(&["PPE 3003"]), code(&["PPE 3004"])],
+        ),
+        any_of(
+            "Advanced Interdisciplinary Seminar in PPE",
+            PPE_ADVANCED_SEMINARS
                 .iter()
-                .map(|code| Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec![(*code).to_string()],
-                })
+                .map(|c| code(&[*c]))
                 .collect(),
-        },
+        ),
     ]
 }
 
@@ -1663,88 +1337,45 @@ fn ppe_concentration_requirement(concentration_name: &str) -> Requirement {
         .unwrap_or_else(|| panic!("unknown PPE concentration: {concentration_name}"))
         .clone();
     let number = requirements.iter().map(requirement_slot_cu).sum();
-    Requirement::Concentration {
-        category: Some(concentration_name.to_string()),
-        number,
-        requirements,
-    }
+    concentration(concentration_name, number, requirements)
 }
 
 fn ppe_concentrations() -> BTreeMap<String, Vec<Requirement>> {
     BTreeMap::from([
         (
             "Choice and Behaviour".to_string(),
-            vec![Requirement::Restriction {
-                category: Some("Choice and Behaviour".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["APPC".to_string()]),
-                excluding: None,
-                number: 5,
-                no_school: None,
-            }],
+            vec![restriction(5)
+                .category("Choice and Behaviour")
+                .attr(&["APPC"])
+                .into()],
         ),
         (
             "Distributive Justice".to_string(),
-            vec![Requirement::Restriction {
-                category: Some("Distributive Justice".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["APPJ".to_string()]),
-                excluding: None,
-                number: 5,
-                no_school: None,
-            }],
+            vec![restriction(5)
+                .category("Distributive Justice")
+                .attr(&["APPJ"])
+                .into()],
         ),
         (
             "Globalization".to_string(),
             vec![
-                Requirement::Restriction {
-                    category: Some("Globalization".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["APPG".to_string()]),
-                    excluding: None,
-                    number: 4,
-                    no_school: None,
-                },
-                Requirement::Restriction {
-                    category: Some("Globalization".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(
-                        PPE_GLOBALIZATION_INTERNATIONAL_ATTRS
-                            .iter()
-                            .map(|a| (*a).to_string())
-                            .collect(),
-                    ),
-                    excluding: Some(vec!["AUFS".to_string()]),
-                    number: 1,
-                    no_school: None,
-                },
+                restriction(4)
+                    .category("Globalization")
+                    .attr(&["APPG"])
+                    .into(),
+                restriction(1)
+                    .category("Globalization")
+                    .attr(PPE_GLOBALIZATION_INTERNATIONAL_ATTRS)
+                    .excluding(&["AUFS"])
+                    .into(),
             ],
         ),
         (
             "Public Policy and Governance".to_string(),
-            vec![Requirement::Restriction {
-                category: Some("Public Policy and Governance".to_string()),
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["APPU".to_string()]),
-                excluding: None,
-                number: 5,
-                no_school: None,
-            }],
+            vec![restriction(5)
+                .category("Public Policy and Governance")
+                .attr(&["APPU"])
+                .into()],
         ),
     ])
 }
@@ -1797,635 +1428,202 @@ pub fn create_cis_cas_major() -> Major {
 
 fn phys_core_requirements() -> Vec<Requirement> {
     vec![
-        Requirement::SingleCourse {
-            category: Some("Calculus".to_string()),
-            possibilities: vec!["MATH 1400".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Calculus".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["MATH 1410".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["MATH 1610".to_string()],
-                },
-            ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Linear Algebra".to_string()),
-            possibilities: vec!["MATH 2200".to_string(), "ESE 2030".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Differential Equations".to_string()),
-            possibilities: vec!["MATH 2300".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Introductory Physics".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PHYS 0150".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PHYS 0170".to_string()],
-                },
-            ],
-        },
-        Requirement::AnyOf {
-            category: Some("Introductory Physics".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PHYS 0151".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["PHYS 0171".to_string()],
-                },
-            ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Intermediate Physics".to_string()),
-            possibilities: vec!["PHYS 1230".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Electromagnetism".to_string()),
-            possibilities: vec!["PHYS 3361".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Electromagnetism".to_string()),
-            possibilities: vec!["PHYS 3362".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Quantum Mechanics".to_string()),
-            possibilities: vec!["PHYS 4411".to_string()],
-        },
+        single("Calculus", &["MATH 1400"]),
+        any_of(
+            "Calculus",
+            vec![code(&["MATH 1410"]), code(&["MATH 1610"])],
+        ),
+        single("Linear Algebra", &["MATH 2200", "ESE 2030"]),
+        single("Differential Equations", &["MATH 2300"]),
+        any_of(
+            "Introductory Physics",
+            vec![code(&["PHYS 0150"]), code(&["PHYS 0170"])],
+        ),
+        any_of(
+            "Introductory Physics",
+            vec![code(&["PHYS 0151"]), code(&["PHYS 0171"])],
+        ),
+        single("Intermediate Physics", &["PHYS 1230"]),
+        single("Electromagnetism", &["PHYS 3361"]),
+        single("Electromagnetism", &["PHYS 3362"]),
+        single("Quantum Mechanics", &["PHYS 4411"]),
     ]
 }
 
+const PHYS_BUSINESS_DEPTS: &[&str] = &["ACCT", "ECON", "FNCE", "MGMT", "STAT"];
+const PHYS_CIS_EXCLUDE: &[&str] = &["CIS 2970", "CIS 2980"];
+
+fn phys_business_tech_elective_slot() -> Requirement {
+    any_of(
+        "Electives in Business and Technology",
+        vec![
+            restriction(1)
+                .departments(PHYS_BUSINESS_DEPTS)
+                .excluding(PHYS_CIS_EXCLUDE)
+                .into(),
+            restriction(1)
+                .attr(&["APHE"])
+                .excluding(PHYS_CIS_EXCLUDE)
+                .into(),
+        ],
+    )
+}
+
+fn phys_cis_elective_slot() -> Requirement {
+    any_of(
+        "Elective in Computer and Information Science",
+        vec![
+            restriction(1).departments(&["CIS"]).level(1000).into(),
+            code(&["ENGR 1050"]),
+            code(&["PHYS 2260"]),
+            code(&["PHYS 3358"]),
+            code(&["PHYS 3359"]),
+        ],
+    )
+}
+
+fn phys_computer_techniques_elective_slot() -> Requirement {
+    any_of(
+        "Computer Techniques Electives",
+        vec![
+            restriction(1)
+                .departments(&["CIS"])
+                .level(1000)
+                .excluding(PHYS_CIS_EXCLUDE)
+                .into(),
+            code(&["ENGR 1050"]),
+        ],
+    )
+}
+
 fn phys_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    let aphl_elective = attr_restriction("Astrophysics Electives", "APHL");
+    let phys_lab_elective = attr_restriction("Physics Laboratory Elective", "APHL");
     BTreeMap::from([
         (
             "Astrophysics".to_string(),
             vec![
-                Requirement::SingleCourse {
-                    category: Some("Modern Physics".to_string()),
-                    possibilities: vec!["PHYS 1250".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Analytical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 3351".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Astrophysics".to_string()),
-                    possibilities: vec!["ASTR 1211".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Astrophysics".to_string()),
-                    possibilities: vec!["ASTR 1212".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 4401".to_string()],
-                },
-                Requirement::Restriction {
-                    category: Some("Astrophysics Electives".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["APHL".to_string()]),
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::Restriction {
-                    category: Some("Astrophysics Electives".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["APHL".to_string()]),
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::Restriction {
-                    category: Some("Astrophysics Electives".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["APHA".to_string()]),
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
+                single("Modern Physics", &["PHYS 1250"]),
+                single("Analytical Mechanics", &["PHYS 3351"]),
+                single("Astrophysics", &["ASTR 1211"]),
+                single("Astrophysics", &["ASTR 1212"]),
+                single("Thermodynamics and Statistical Mechanics", &["PHYS 4401"]),
+                aphl_elective.clone(),
+                aphl_elective.clone(),
+                attr_restriction("Astrophysics Electives", "APHA"),
             ],
         ),
         (
             "Business & Technology".to_string(),
             vec![
-                Requirement::SingleCourse {
-                    category: Some("Modern Physics".to_string()),
-                    possibilities: vec!["PHYS 1250".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Analytical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 3351".to_string()],
-                },
-                Requirement::AnyOf {
-                    category: Some("Laboratory".to_string()),
-                    possibilities: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 3364".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 4414".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Elective in Computer and Information Science".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec!["CIS".to_string()]),
-                            cu: None,
-                            level: Some(1000),
-                            max_level: None,
-                            attr: None,
-                            excluding: None,
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ENGR 1050".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 2260".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 3358".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 3359".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Electives in Business and Technology".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec![
-                                "ACCT".to_string(),
-                                "ECON".to_string(),
-                                "FNCE".to_string(),
-                                "MGMT".to_string(),
-                                "STAT".to_string(),
-                            ]),
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::Restriction {
-                            category: None,
-                            department: None,
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: Some(vec!["APHE".to_string()]),
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Electives in Business and Technology".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec![
-                                "ACCT".to_string(),
-                                "ECON".to_string(),
-                                "FNCE".to_string(),
-                                "MGMT".to_string(),
-                                "STAT".to_string(),
-                            ]),
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::Restriction {
-                            category: None,
-                            department: None,
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: Some(vec!["APHE".to_string()]),
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Electives in Business and Technology".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec![
-                                "ACCT".to_string(),
-                                "ECON".to_string(),
-                                "FNCE".to_string(),
-                                "MGMT".to_string(),
-                                "STAT".to_string(),
-                            ]),
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::Restriction {
-                            category: None,
-                            department: None,
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: Some(vec!["APHE".to_string()]),
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Electives in Business and Technology".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec![
-                                "ACCT".to_string(),
-                                "ECON".to_string(),
-                                "FNCE".to_string(),
-                                "MGMT".to_string(),
-                                "STAT".to_string(),
-                            ]),
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::Restriction {
-                            category: None,
-                            department: None,
-                            cu: None,
-                            level: None,
-                            max_level: None,
-                            attr: Some(vec!["APHE".to_string()]),
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                    ],
-                },
+                single("Modern Physics", &["PHYS 1250"]),
+                single("Analytical Mechanics", &["PHYS 3351"]),
+                any_of(
+                    "Laboratory",
+                    vec![code(&["PHYS 3364"]), code(&["PHYS 4414"])],
+                ),
+                phys_cis_elective_slot(),
+                phys_business_tech_elective_slot(),
+                phys_business_tech_elective_slot(),
+                phys_business_tech_elective_slot(),
+                phys_business_tech_elective_slot(),
             ],
         ),
         (
             "Biological Science".to_string(),
             vec![
-                Requirement::AnyOf {
-                    category: Some("Modern Physics".to_string()),
-                    possibilities: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 1240".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 1250".to_string()],
-                        },
-                    ],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Introductory Biology".to_string()),
-                    possibilities: vec!["BIOL 1121".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Introductory Biology Laboratory".to_string()),
-                    possibilities: vec!["BIOL 1123".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Molecular Biology and Genetics".to_string()),
-                    possibilities: vec!["BIOL 2210".to_string()],
-                },
-                Requirement::AnyOf {
-                    category: Some("Biochemistry / Cell Biology".to_string()),
-                    possibilities: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 2810".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 2010".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Biological Physics".to_string()),
-                    possibilities: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 2280".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["PHYS 5580".to_string()],
-                        },
-                    ],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 4401".to_string()],
-                },
-                Requirement::Restriction {
-                    category: Some("Biology Elective (2000 Level)".to_string()),
-                    department: Some(vec!["BIOL".to_string()]),
-                    cu: None,
-                    level: Some(2000),
-                    max_level: None,
-                    attr: None,
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::Restriction {
-                    category: Some("Biology Elective (3000+ Level)".to_string()),
-                    department: Some(vec!["BIOL".to_string()]),
-                    cu: None,
-                    level: Some(3000),
-                    max_level: None,
-                    attr: None,
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
+                any_of(
+                    "Modern Physics",
+                    vec![code(&["PHYS 1240"]), code(&["PHYS 1250"])],
+                ),
+                single("Introductory Biology", &["BIOL 1121"]),
+                single("Introductory Biology Laboratory", &["BIOL 1123"]),
+                single("Molecular Biology and Genetics", &["BIOL 2210"]),
+                any_of(
+                    "Biochemistry / Cell Biology",
+                    vec![code(&["BIOL 2810"]), code(&["BIOL 2010"])],
+                ),
+                any_of(
+                    "Biological Physics",
+                    vec![code(&["PHYS 2280"]), code(&["PHYS 5580"])],
+                ),
+                single("Thermodynamics and Statistical Mechanics", &["PHYS 4401"]),
+                restriction(1)
+                    .category("Biology Elective (2000 Level)")
+                    .departments(&["BIOL"])
+                    .level(2000)
+                    .into(),
+                restriction(1)
+                    .category("Biology Elective (3000+ Level)")
+                    .departments(&["BIOL"])
+                    .level(3000)
+                    .into(),
             ],
         ),
         (
             "Chemical Principles".to_string(),
             vec![
-                Requirement::SingleCourse {
-                    category: Some("Modern Physics".to_string()),
-                    possibilities: vec!["PHYS 1250".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Analytical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 3351".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 4401".to_string()],
-                },
-                Requirement::AnyOf {
-                    category: Some("Introductory Chemistry I".to_string()),
-                    possibilities: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["CHEM 1011".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["CHEM 1012".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["CHEM 1151".to_string()],
-                        },
+                single("Modern Physics", &["PHYS 1250"]),
+                single("Analytical Mechanics", &["PHYS 3351"]),
+                single("Thermodynamics and Statistical Mechanics", &["PHYS 4401"]),
+                any_of(
+                    "Introductory Chemistry I",
+                    vec![
+                        code(&["CHEM 1011"]),
+                        code(&["CHEM 1012"]),
+                        code(&["CHEM 1151"]),
                     ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Introductory Chemistry II".to_string()),
-                    possibilities: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["CHEM 1021".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["CHEM 1022".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["CHEM 1161".to_string()],
-                        },
+                ),
+                any_of(
+                    "Introductory Chemistry II",
+                    vec![
+                        code(&["CHEM 1021"]),
+                        code(&["CHEM 1022"]),
+                        code(&["CHEM 1161"]),
                     ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Advanced Chemistry".to_string()),
-                    possibilities: vec![
-                        Requirement::AllOf {
-                            category: None,
-                            requirements: vec![
-                                Requirement::SingleCourse {
-                                    category: None,
-                                    possibilities: vec!["CHEM 2210".to_string()],
-                                },
-                                Requirement::SingleCourse {
-                                    category: None,
-                                    possibilities: vec!["CHEM 2220".to_string()],
-                                },
-                            ],
-                        },
-                        Requirement::AllOf {
-                            category: None,
-                            requirements: vec![
-                                Requirement::SingleCourse {
-                                    category: None,
-                                    possibilities: vec!["CHEM 2410".to_string()],
-                                },
-                                Requirement::SingleCourse {
-                                    category: None,
-                                    possibilities: vec!["CHEM 2420".to_string()],
-                                },
-                            ],
-                        },
+                ),
+                any_of(
+                    "Advanced Chemistry",
+                    vec![
+                        all_of(
+                            None,
+                            vec![code(&["CHEM 2210"]), code(&["CHEM 2220"])],
+                        ),
+                        all_of(
+                            None,
+                            vec![code(&["CHEM 2410"]), code(&["CHEM 2420"])],
+                        ),
                     ],
-                },
+                ),
             ],
         ),
         (
             "Computer Techniques".to_string(),
             vec![
-                Requirement::SingleCourse {
-                    category: Some("Modern Physics".to_string()),
-                    possibilities: vec!["PHYS 1250".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Analytical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 3351".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 4401".to_string()],
-                },
-                Requirement::Restriction {
-                    category: Some("Physics Laboratory Elective".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["APHL".to_string()]),
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::AnyOf {
-                    category: Some("Computer Techniques Electives".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec!["CIS".to_string()]),
-                            cu: None,
-                            level: Some(1000),
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ENGR 1050".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Computer Techniques Electives".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec!["CIS".to_string()]),
-                            cu: None,
-                            level: Some(1000),
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ENGR 1050".to_string()],
-                        },
-                    ],
-                },
-                Requirement::AnyOf {
-                    category: Some("Computer Techniques Electives".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec!["CIS".to_string()]),
-                            cu: None,
-                            level: Some(1000),
-                            max_level: None,
-                            attr: None,
-                            excluding: Some(vec!["CIS 2970".to_string(), "CIS 2980".to_string()]),
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["ENGR 1050".to_string()],
-                        },
-                    ],
-                },
+                single("Modern Physics", &["PHYS 1250"]),
+                single("Analytical Mechanics", &["PHYS 3351"]),
+                single("Thermodynamics and Statistical Mechanics", &["PHYS 4401"]),
+                phys_lab_elective,
+                phys_computer_techniques_elective_slot(),
+                phys_computer_techniques_elective_slot(),
+                phys_computer_techniques_elective_slot(),
             ],
         ),
         (
             "Physical Theory and Experimental Technique".to_string(),
             vec![
-                Requirement::SingleCourse {
-                    category: Some("Modern Physics".to_string()),
-                    possibilities: vec!["PHYS 1250".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Analytical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 3351".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Thermodynamics and Statistical Mechanics".to_string()),
-                    possibilities: vec!["PHYS 4401".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: Some("Quantum Mechanics".to_string()),
-                    possibilities: vec!["PHYS 4412".to_string()],
-                },
-                Requirement::Restriction {
-                    category: Some("Physics Laboratory Elective".to_string()),
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["APHL".to_string()]),
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::AnyOf {
-                    category: Some("Advanced Physics / Astrophysics Elective".to_string()),
-                    possibilities: vec![
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec!["ASTR".to_string()]),
-                            cu: None,
-                            level: Some(3000),
-                            max_level: None,
-                            attr: None,
-                            excluding: None,
-                            number: 1,
-                            no_school: None,
-                        },
-                        Requirement::Restriction {
-                            category: None,
-                            department: Some(vec!["PHYS".to_string()]),
-                            cu: None,
-                            level: Some(3000),
-                            max_level: None,
-                            attr: None,
-                            excluding: None,
-                            number: 1,
-                            no_school: None,
-                        },
+                single("Modern Physics", &["PHYS 1250"]),
+                single("Analytical Mechanics", &["PHYS 3351"]),
+                single("Thermodynamics and Statistical Mechanics", &["PHYS 4401"]),
+                single("Quantum Mechanics", &["PHYS 4412"]),
+                attr_restriction("Physics Laboratory Elective", "APHL"),
+                any_of(
+                    "Advanced Physics / Astrophysics Elective",
+                    vec![
+                        restriction(1).departments(&["ASTR"]).level(3000).into(),
+                        restriction(1).departments(&["PHYS"]).level(3000).into(),
                     ],
-                },
+                ),
             ],
         ),
     ])
@@ -2437,11 +1635,11 @@ fn phys_concentration_requirement(concentration_name: &str) -> Requirement {
         .cloned()
         .unwrap_or_default();
     let number = requirements.iter().map(requirement_slot_cu).sum();
-    Requirement::Concentration {
-        category: Some(format!("Concentration - {concentration_name}")),
+    concentration(
+        &format!("Concentration - {concentration_name}"),
         number,
         requirements,
-    }
+    )
 }
 
 pub fn phys_concentration_names() -> Vec<String> {
@@ -2509,272 +1707,104 @@ const NEUR_INTRO_BIO_ELECTIVES: &[&str] = &[
 ];
 
 fn neur_major_requirements() -> Vec<Requirement> {
-    let intro_bio_electives: Vec<String> = NEUR_INTRO_BIO_ELECTIVES
-        .iter()
-        .map(|code| code.to_string())
-        .collect();
-
     vec![
-        Requirement::AnyOf {
-            category: Some("Introductory Chemistry".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1011".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1012".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1151".to_string()],
-                },
+        any_of(
+            "Introductory Chemistry",
+            vec![
+                code(&["CHEM 1011"]),
+                code(&["CHEM 1012"]),
+                code(&["CHEM 1151"]),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("Introductory Chemistry".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1021".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1022".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1161".to_string()],
-                },
+        ),
+        any_of(
+            "Introductory Chemistry",
+            vec![
+                code(&["CHEM 1021"]),
+                code(&["CHEM 1022"]),
+                code(&["CHEM 1161"]),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("Introductory Biology".to_string()),
-            possibilities: vec![
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 1101".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 1102".to_string()],
-                        },
+        ),
+        any_of(
+            "Introductory Biology",
+            vec![
+                all_of(
+                    None,
+                    vec![code(&["BIOL 1101"]), code(&["BIOL 1102"])],
+                ),
+                all_of(
+                    None,
+                    vec![
+                        code(&["BIOL 1121"]),
+                        code(&["BIOL 1123"]),
+                        code(&["BIOL 1124"]),
+                        code(NEUR_INTRO_BIO_ELECTIVES),
                     ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 1121".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 1123".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: vec!["BIOL 1124".to_string()],
-                        },
-                        Requirement::SingleCourse {
-                            category: None,
-                            possibilities: intro_bio_electives,
-                        },
-                    ],
-                },
+                ),
             ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Introduction to Brain & Behavior".to_string()),
-            possibilities: vec!["NRSC 1110".to_string()],
-        },
-        Requirement::Restriction {
-            category: Some("Neural Systems and Behavior".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["ABBS".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("Cellular Neuroscience".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["ABBU".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::AnyOf {
-            category: Some("Neurobiology".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["NRSC 2110".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["BIOL 2110".to_string()],
-                },
+        ),
+        single("Introduction to Brain & Behavior", &["NRSC 1110"]),
+        attr_restriction("Neural Systems and Behavior", "ABBS"),
+        attr_restriction("Cellular Neuroscience", "ABBU"),
+        any_of(
+            "Neurobiology",
+            vec![code(&["NRSC 2110"]), code(&["BIOL 2110"])],
+        ),
+        any_of(
+            "Statistics",
+            vec![
+                code(&["BIOL 2510"]),
+                code(&["STAT 1010"]),
+                code(&["STAT 1110"]),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("Statistics".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["BIOL 2510".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["STAT 1010".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["STAT 1110".to_string()],
-                },
-            ],
-        },
-        Requirement::Restriction {
-            category: Some("Neuroscience Electives".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["ABBE".to_string()]),
-            excluding: None,
-            number: 3,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("Neuroscience Electives".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["ABBE".to_string(), "ABBM".to_string()]),
-            excluding: None,
-            number: 5,
-            no_school: None,
-        },
+        ),
+        restriction(3)
+            .category("Neuroscience Electives")
+            .attr(&["ABBE"])
+            .into(),
+        restriction(5)
+            .category("Neuroscience Electives")
+            .attr(&["ABBE", "ABBM"])
+            .into(),
     ]
 }
 
 fn chem_major_requirements() -> Vec<Requirement> {
     vec![
-        Requirement::AnyOf {
-            category: Some("General Chemistry".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1011".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1012".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1151".to_string()],
-                },
+        any_of(
+            "General Chemistry",
+            vec![
+                code(&["CHEM 1011"]),
+                code(&["CHEM 1012"]),
+                code(&["CHEM 1151"]),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("General Chemistry".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1021".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1022".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1161".to_string()],
-                },
+        ),
+        any_of(
+            "General Chemistry",
+            vec![
+                code(&["CHEM 1021"]),
+                code(&["CHEM 1022"]),
+                code(&["CHEM 1161"]),
             ],
-        },
-        Requirement::AllOf {
-            category: Some("General Chemistry Laboratories".to_string()),
-            requirements: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1101".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["CHEM 1102".to_string()],
-                },
-            ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Organic Chemistry with Laboratories".to_string()),
-            possibilities: vec!["CHEM 2411".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Organic Chemistry with Laboratories".to_string()),
-            possibilities: vec!["CHEM 2421".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Calculus".to_string()),
-            possibilities: vec!["MATH 1400".to_string()],
-        },
-        Requirement::AnyOf {
-            category: Some("Calculus".to_string()),
-            possibilities: vec![
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["MATH 1410".to_string()],
-                },
-                Requirement::SingleCourse {
-                    category: None,
-                    possibilities: vec!["MATH 1610".to_string()],
-                },
-            ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Physics".to_string()),
-            possibilities: vec!["PHYS 0150".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Physics".to_string()),
-            possibilities: vec!["PHYS 0151".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Physical Chemistry and Laboratories".to_string()),
-            possibilities: vec!["CHEM 2210".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Physical Chemistry and Laboratories".to_string()),
-            possibilities: vec!["CHEM 2220".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Physical Chemistry and Laboratories".to_string()),
-            possibilities: vec!["CHEM 2230".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Biological Chemistry".to_string()),
-            possibilities: vec!["CHEM 2510".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Inorganic Chemistry".to_string()),
-            possibilities: vec!["CHEM 2610".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("One Advanced Laboratory".to_string()),
-            possibilities: vec!["CHEM 2460".to_string()],
-        },
+        ),
+        all_of(
+            Some("General Chemistry Laboratories".to_string()),
+            vec![code(&["CHEM 1101"]), code(&["CHEM 1102"])],
+        ),
+        single("Organic Chemistry with Laboratories", &["CHEM 2411"]),
+        single("Organic Chemistry with Laboratories", &["CHEM 2421"]),
+        single("Calculus", &["MATH 1400"]),
+        any_of(
+            "Calculus",
+            vec![code(&["MATH 1410"]), code(&["MATH 1610"])],
+        ),
+        single("Physics", &["PHYS 0150"]),
+        single("Physics", &["PHYS 0151"]),
+        single("Physical Chemistry and Laboratories", &["CHEM 2210"]),
+        single("Physical Chemistry and Laboratories", &["CHEM 2220"]),
+        single("Physical Chemistry and Laboratories", &["CHEM 2230"]),
+        single("Biological Chemistry", &["CHEM 2510"]),
+        single("Inorganic Chemistry", &["CHEM 2610"]),
+        single("One Advanced Laboratory", &["CHEM 2460"]),
     ]
 }
 
@@ -2842,13 +1872,6 @@ pub fn create_neur_major() -> Major {
     })
 }
 
-fn psyc_single_course(code: &str) -> Requirement {
-    Requirement::SingleCourse {
-        category: None,
-        possibilities: vec![code.to_string()],
-    }
-}
-
 const PSYC_APPROVED_STATISTICS: &[&str] = &[
     "ANTH 3454",
     "BIOL 2510",
@@ -2892,195 +1915,110 @@ const PSYC_COGNATE_ELECTIVES: &[&str] = &[
 ];
 
 fn psyc_elective_slot() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Psychology Electives".to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["PSYC".to_string()]),
-                cu: None,
-                level: Some(1000),
-                max_level: Some(4999),
-                attr: None,
-                excluding: Some(vec!["PSYC 4997".to_string()]),
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["APMR".to_string()]),
-                excluding: Some(vec!["PSYC 4997".to_string()]),
-                number: 1,
-                no_school: None,
-            },
+    any_of(
+        "Psychology Electives",
+        vec![
+            restriction(1)
+                .departments(&["PSYC"])
+                .level(1000)
+                .max_level(4999)
+                .excluding(&["PSYC 4997"])
+                .into(),
+            restriction(1)
+                .attr(&["APMR"])
+                .excluding(&["PSYC 4997"])
+                .into(),
         ],
-    }
+    )
 }
 
 fn psyc_elective_cognate_slot() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Psychology Electives".to_string()),
-        possibilities: vec![
-            Requirement::SingleCourse {
-                category: None,
-                possibilities: PSYC_COGNATE_ELECTIVES
-                    .iter()
-                    .map(|code| (*code).to_string())
-                    .collect(),
-            },
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["PSYC".to_string()]),
-                cu: None,
-                level: Some(1000),
-                max_level: Some(4999),
-                attr: None,
-                excluding: Some(vec!["PSYC 4997".to_string()]),
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["APMR".to_string()]),
-                excluding: Some(vec!["PSYC 4997".to_string()]),
-                number: 1,
-                no_school: None,
-            },
+    any_of(
+        "Psychology Electives",
+        vec![
+            code(PSYC_COGNATE_ELECTIVES),
+            restriction(1)
+                .departments(&["PSYC"])
+                .level(1000)
+                .max_level(4999)
+                .excluding(&["PSYC 4997"])
+                .into(),
+            restriction(1)
+                .attr(&["APMR"])
+                .excluding(&["PSYC 4997"])
+                .into(),
         ],
-    }
+    )
 }
 
 fn psyc_major_requirements() -> Vec<Requirement> {
     let statistics_options: Vec<Requirement> = PSYC_APPROVED_STATISTICS
         .iter()
-        .map(|code| psyc_single_course(code))
+        .map(|c| code(&[*c]))
         .collect();
 
+    let psyc_elective: Requirement = restriction(1)
+        .category("Psychology Elective")
+        .departments(&["PSYC"])
+        .level(1000)
+        .max_level(4999)
+        .excluding(&["PSYC 4997"])
+        .into();
+
     let mut requirements = vec![
-        Requirement::AnyOf {
-            category: Some("Introductory Psychology".to_string()),
-            possibilities: vec![
-                psyc_single_course("PSYC 0001"),
-                Requirement::Restriction {
-                    category: None,
-                    department: Some(vec!["PSYC".to_string()]),
-                    cu: None,
-                    level: Some(1000),
-                    max_level: Some(4999),
-                    attr: None,
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
+        any_of(
+            "Introductory Psychology",
+            vec![
+                code(&["PSYC 0001"]),
+                restriction(1)
+                    .departments(&["PSYC"])
+                    .level(1000)
+                    .max_level(4999)
+                    .into(),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("Biological Basis of Behavior".to_string()),
-            possibilities: vec![
-                psyc_single_course("NRSC 1110"),
-                psyc_single_course("PSYC 1210"),
-                psyc_single_course("PSYC 1230"),
+        ),
+        any_of(
+            "Biological Basis of Behavior",
+            vec![
+                code(&["NRSC 1110"]),
+                code(&["PSYC 1210"]),
+                code(&["PSYC 1230"]),
             ],
-        },
-        Requirement::Restriction {
-            category: Some("Biological Basis of Behavior".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["APCI".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::AnyOf {
-            category: Some("Cognitive Basis of Behavior".to_string()),
-            possibilities: vec![
-                psyc_single_course("PSYC 1310"),
-                psyc_single_course("PSYC 1333"),
-                psyc_single_course("PSYC 1340"),
-                psyc_single_course("PSYC 1777"),
+        ),
+        attr_restriction("Biological Basis of Behavior", "APCI"),
+        any_of(
+            "Cognitive Basis of Behavior",
+            vec![
+                code(&["PSYC 1310"]),
+                code(&["PSYC 1333"]),
+                code(&["PSYC 1340"]),
+                code(&["PSYC 1777"]),
             ],
-        },
-        Requirement::Restriction {
-            category: Some("Cognitive Basis of Behavior".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["APCC".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::AnyOf {
-            category: Some("Social Science Bases of Behavior".to_string()),
-            possibilities: vec![
-                psyc_single_course("PSYC 1440"),
-                psyc_single_course("PSYC 1462"),
-                psyc_single_course("PSYC 1777"),
+        ),
+        attr_restriction("Cognitive Basis of Behavior", "APCC"),
+        any_of(
+            "Social Science Bases of Behavior",
+            vec![
+                code(&["PSYC 1440"]),
+                code(&["PSYC 1462"]),
+                code(&["PSYC 1777"]),
             ],
-        },
-        Requirement::Restriction {
-            category: Some("Social Science Bases of Behavior".to_string()),
-            department: None,
-            cu: None,
-            level: None,
-            max_level: None,
-            attr: Some(vec!["APCS".to_string()]),
-            excluding: None,
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("Research Experience".to_string()),
-            department: Some(vec!["PSYC".to_string()]),
-            cu: None,
-            level: Some(4000),
-            max_level: Some(4999),
-            attr: None,
-            excluding: Some(vec!["PSYC 4997".to_string()]),
-            number: 1,
-            no_school: None,
-        },
-        Requirement::AnyOf {
-            category: Some("Statistics".to_string()),
-            possibilities: statistics_options,
-        },
+        ),
+        attr_restriction("Social Science Bases of Behavior", "APCS"),
+        restriction(1)
+            .category("Research Experience")
+            .departments(&["PSYC"])
+            .level(4000)
+            .max_level(4999)
+            .excluding(&["PSYC 4997"])
+            .into(),
+        any_of("Statistics", statistics_options),
     ];
     requirements.extend([
         psyc_elective_cognate_slot(),
         psyc_elective_cognate_slot(),
-        Requirement::Restriction {
-            category: Some("Psychology Elective".to_string()),
-            department: Some(vec!["PSYC".to_string()]),
-            cu: None,
-            level: Some(1000),
-            max_level: Some(4999),
-            attr: None,
-            excluding: Some(vec!["PSYC 4997".to_string()]),
-            number: 1,
-            no_school: None,
-        },
-        Requirement::Restriction {
-            category: Some("Psychology Elective".to_string()),
-            department: Some(vec!["PSYC".to_string()]),
-            cu: None,
-            level: Some(1000),
-            max_level: Some(4999),
-            attr: None,
-            excluding: Some(vec!["PSYC 4997".to_string()]),
-            number: 1,
-            no_school: None,
-        },
+        psyc_elective.clone(),
+        psyc_elective,
     ]);
     requirements
 }
@@ -3128,155 +2066,56 @@ const DSGN_INTEGRATIVE_STUDIOS: &[&str] = &[
 ];
 
 fn dsgn_theory_slot() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Design Theory".to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["DSGN".to_string()]),
-                cu: None,
-                level: Some(3000),
-                max_level: Some(3999),
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["FNAR".to_string()]),
-                cu: None,
-                level: Some(3000),
-                max_level: Some(3999),
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["ADTH".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
+    any_of(
+        "Design Theory",
+        vec![
+            restriction(1)
+                .departments(&["DSGN"])
+                .level(3000)
+                .max_level(3999)
+                .into(),
+            restriction(1)
+                .departments(&["FNAR"])
+                .level(3000)
+                .max_level(3999)
+                .into(),
+            restriction(1).attr(&["ADTH"]).into(),
         ],
-    }
+    )
 }
 
 fn dsgn_art_design_elective_slot() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Art and Design Elective".to_string()),
-        possibilities: vec![
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["DSGN".to_string()]),
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: Some(vec!["FNAR".to_string()]),
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: None,
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
-            Requirement::Restriction {
-                category: None,
-                department: None,
-                cu: None,
-                level: None,
-                max_level: None,
-                attr: Some(vec!["ADEL".to_string()]),
-                excluding: None,
-                number: 1,
-                no_school: None,
-            },
+    any_of(
+        "Art and Design Elective",
+        vec![
+            restriction(1).departments(&["DSGN"]).into(),
+            restriction(1).departments(&["FNAR"]).into(),
+            restriction(1).attr(&["ADEL"]).into(),
         ],
-    }
+    )
 }
 
 fn dsgn_major_requirements() -> Vec<Requirement> {
     vec![
-        Requirement::SingleCourse {
-            category: Some("Core Studio".to_string()),
-            possibilities: vec!["DSGN 0010".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Core Studio".to_string()),
-            possibilities: vec!["DSGN 0020".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Integrative Design Studio".to_string()),
-            possibilities: DSGN_INTEGRATIVE_STUDIOS
-                .iter()
-                .map(|code| (*code).to_string())
-                .collect(),
-        },
-        Requirement::SingleCourse {
-            category: Some("Integrative Design Studio".to_string()),
-            possibilities: DSGN_INTEGRATIVE_STUDIOS
-                .iter()
-                .map(|code| (*code).to_string())
-                .collect(),
-        },
-        Requirement::SingleCourse {
-            category: Some("Integrative Design Studio".to_string()),
-            possibilities: DSGN_INTEGRATIVE_STUDIOS
-                .iter()
-                .map(|code| (*code).to_string())
-                .collect(),
-        },
-        Requirement::AnyOf {
-            category: Some("Art History".to_string()),
-            possibilities: vec![
-                Requirement::Restriction {
-                    category: None,
-                    department: Some(vec!["ARTH".to_string()]),
-                    cu: None,
-                    level: None,
-                    max_level: Some(4999),
-                    attr: None,
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
-                Requirement::Restriction {
-                    category: None,
-                    department: None,
-                    cu: None,
-                    level: None,
-                    max_level: None,
-                    attr: Some(vec!["ADAH".to_string()]),
-                    excluding: None,
-                    number: 1,
-                    no_school: None,
-                },
+        single("Core Studio", &["DSGN 0010"]),
+        single("Core Studio", &["DSGN 0020"]),
+        single("Integrative Design Studio", DSGN_INTEGRATIVE_STUDIOS),
+        single("Integrative Design Studio", DSGN_INTEGRATIVE_STUDIOS),
+        single("Integrative Design Studio", DSGN_INTEGRATIVE_STUDIOS),
+        any_of(
+            "Art History",
+            vec![
+                restriction(1)
+                    .departments(&["ARTH"])
+                    .max_level(4999)
+                    .into(),
+                restriction(1).attr(&["ADAH"]).into(),
             ],
-        },
+        ),
         dsgn_theory_slot(),
         dsgn_theory_slot(),
-        Requirement::SingleCourse {
-            category: Some("Design Senior Seminar".to_string()),
-            possibilities: vec!["DSGN 4020".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Design Senior Seminar".to_string()),
-            possibilities: vec!["DSGN 4030".to_string()],
-        },
+        single("Design Senior Seminar", &["DSGN 4020"]),
+        single("Design Senior Seminar", &["DSGN 4030"]),
         dsgn_art_design_elective_slot(),
         dsgn_art_design_elective_slot(),
         dsgn_art_design_elective_slot(),
@@ -3301,203 +2140,133 @@ pub fn create_dsgn_major() -> Major {
     })
 }
 
-fn math_single_course(code: &str) -> Requirement {
-    Requirement::SingleCourse {
-        category: None,
-        possibilities: vec![code.to_string()],
-    }
-}
-
 const MATH_BIO_ELECTIVE_COURSES: &[&str] = &["BIOL 2210", "BIOL 2410", "BIOL 2610"];
 const MATH_BIO_ADVANCED_COURSES: &[&str] = &["BIOL 4517", "BIOL 4231", "BIOL 4536", "BIOL 5536"];
 
 fn math_bio_additional_science() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Biological Mathematics".to_string()),
-        possibilities: vec![
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    math_single_course("CHEM 1011"),
-                    math_single_course("CHEM 1101"),
-                ],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    math_single_course("CHEM 1011"),
-                    math_single_course("CHEM 1102"),
-                ],
-            },
-            math_single_course("CHEM 1151"),
-            math_single_course("PHYS 0151"),
+    any_of(
+        "Biological Mathematics",
+        vec![
+            all_of(
+                None,
+                vec![code(&["CHEM 1011"]), code(&["CHEM 1101"])],
+            ),
+            all_of(
+                None,
+                vec![code(&["CHEM 1011"]), code(&["CHEM 1102"])],
+            ),
+            code(&["CHEM 1151"]),
+            code(&["PHYS 0151"]),
         ],
-    }
+    )
 }
 
 fn math_biological_mathematics_requirements() -> Vec<Requirement> {
+    let advanced_bio = single("Advanced Biology", MATH_BIO_ADVANCED_COURSES);
     vec![
-        Requirement::AnyOf {
-            category: Some("Biological Mathematics".to_string()),
-            possibilities: vec![
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        math_single_course("BIOL 1121"),
-                        math_single_course("BIOL 1124"),
-                        Requirement::SingleCourse {
-                            category: Some("Advanced Biology".to_string()),
-                            possibilities: MATH_BIO_ADVANCED_COURSES
-                                .iter()
-                                .map(|c| (*c).to_string())
-                                .collect(),
-                        },
-                        Requirement::SingleCourse {
-                            category: Some("Advanced Biology".to_string()),
-                            possibilities: MATH_BIO_ADVANCED_COURSES
-                                .iter()
-                                .map(|c| (*c).to_string())
-                                .collect(),
-                        },
-                        Requirement::SingleCourse {
-                            category: Some("Advanced Biology".to_string()),
-                            possibilities: MATH_BIO_ADVANCED_COURSES
-                                .iter()
-                                .map(|c| (*c).to_string())
-                                .collect(),
-                        },
+        any_of(
+            "Biological Mathematics",
+            vec![
+                all_of(
+                    None,
+                    vec![
+                        code(&["BIOL 1121"]),
+                        code(&["BIOL 1124"]),
+                        advanced_bio.clone(),
+                        advanced_bio.clone(),
+                        advanced_bio,
                     ],
-                },
-                Requirement::AllOf {
-                    category: None,
-                    requirements: vec![
-                        math_single_course("BIOL 1101"),
-                        math_single_course("BIOL 1102"),
-                        math_single_course("BIOL 4231"),
+                ),
+                all_of(
+                    None,
+                    vec![
+                        code(&["BIOL 1101"]),
+                        code(&["BIOL 1102"]),
+                        code(&["BIOL 4231"]),
                     ],
-                },
+                ),
             ],
-        },
-        Requirement::SingleCourse {
-            category: Some("Biological Mathematics".to_string()),
-            possibilities: MATH_BIO_ELECTIVE_COURSES
-                .iter()
-                .map(|c| (*c).to_string())
-                .collect(),
-        },
-        Requirement::SingleCourse {
-            category: Some("Biological Mathematics".to_string()),
-            possibilities: MATH_BIO_ELECTIVE_COURSES
-                .iter()
-                .map(|c| (*c).to_string())
-                .collect(),
-        },
+        ),
+        single("Biological Mathematics", MATH_BIO_ELECTIVE_COURSES),
+        single("Biological Mathematics", MATH_BIO_ELECTIVE_COURSES),
         math_bio_additional_science(),
     ]
 }
 
 fn math_calculus_1400() -> Requirement {
-    Requirement::SingleCourse {
-        category: Some("Calculus".to_string()),
-        possibilities: vec!["MATH 1400".to_string()],
-    }
+    single("Calculus", &["MATH 1400"])
 }
 
 fn math_calculus_1410_or_1610() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Calculus".to_string()),
-        possibilities: vec![
-            math_single_course("MATH 1410"),
-            math_single_course("MATH 1610"),
-        ],
-    }
+    any_of(
+        "Calculus",
+        vec![code(&["MATH 1410"]), code(&["MATH 1610"])],
+    )
 }
 
 fn math_algebra_requirement() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Algebra".to_string()),
-        possibilities: vec![
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    math_single_course("MATH 3700"),
-                    math_single_course("MATH 3710"),
-                ],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    math_single_course("MATH 5020"),
-                    math_single_course("MATH 5030"),
-                ],
-            },
+    any_of(
+        "Algebra",
+        vec![
+            all_of(
+                None,
+                vec![code(&["MATH 3700"]), code(&["MATH 3710"])],
+            ),
+            all_of(
+                None,
+                vec![code(&["MATH 5020"]), code(&["MATH 5030"])],
+            ),
         ],
-    }
+    )
 }
 
 fn math_analysis_requirement() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Analysis".to_string()),
-        possibilities: vec![
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    math_single_course("MATH 3600"),
-                    math_single_course("MATH 3610"),
-                ],
-            },
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    math_single_course("MATH 5080"),
-                    math_single_course("MATH 5090"),
-                ],
-            },
+    any_of(
+        "Analysis",
+        vec![
+            all_of(
+                None,
+                vec![code(&["MATH 3600"]), code(&["MATH 3610"])],
+            ),
+            all_of(
+                None,
+                vec![code(&["MATH 5080"]), code(&["MATH 5090"])],
+            ),
         ],
-    }
+    )
 }
 
 fn math_differential_equations_requirement() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Differential Equations".to_string()),
-        possibilities: vec![
-            math_single_course("MATH 2300"),
-            math_single_course("MATH 4200"),
-            math_single_course("MATH 4250"),
+    any_of(
+        "Differential Equations",
+        vec![
+            code(&["MATH 2300"]),
+            code(&["MATH 4200"]),
+            code(&["MATH 4250"]),
         ],
-    }
+    )
 }
 
-fn math_elective_restriction(department: Option<Vec<String>>, attr: Option<Vec<String>>) -> Requirement {
-    let level = department.as_ref().map(|_| 3000);
-    Requirement::Restriction {
-        category: None,
-        department,
-        cu: None,
-        level,
-        max_level: None,
-        attr,
-        excluding: None,
-        number: 1,
-        no_school: None,
+fn math_elective_restriction(departments: Option<&[&str]>, attrs: Option<&[&str]>) -> Requirement {
+    let mut b = restriction(1);
+    if let Some(depts) = departments {
+        b = b.departments(depts).level(3000);
     }
+    if let Some(a) = attrs {
+        b = b.attr(a);
+    }
+    b.into()
 }
 
 fn math_elective_slot(allow_cognate: bool) -> Requirement {
     let mut possibilities = vec![
-        math_elective_restriction(Some(vec!["MATH".to_string()]), None),
-        math_elective_restriction(None, Some(vec!["AMMR".to_string()])),
+        math_elective_restriction(Some(&["MATH"]), None),
+        math_elective_restriction(None, Some(&["AMMR"])),
     ];
     if allow_cognate {
-        possibilities.push(math_elective_restriction(
-            None,
-            Some(vec!["AMOR".to_string()]),
-        ));
+        possibilities.push(math_elective_restriction(None, Some(&["AMOR"])));
     }
-    Requirement::AnyOf {
-        category: Some("Mathematics Electives".to_string()),
-        possibilities,
-    }
+    any_of("Mathematics Electives", possibilities)
 }
 
 fn math_general_elective_slots(count: i32) -> Vec<Requirement> {
@@ -3510,18 +2279,9 @@ fn math_general_mathematics_requirements() -> Vec<Requirement> {
     let mut requirements = vec![
         math_calculus_1400(),
         math_calculus_1410_or_1610(),
-        Requirement::SingleCourse {
-            category: Some("Complex Analysis".to_string()),
-            possibilities: vec!["MATH 4100".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Advanced Linear Algebra".to_string()),
-            possibilities: vec!["MATH 3000".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Advanced Linear Algebra".to_string()),
-            possibilities: vec!["MATH 3001".to_string()],
-        },
+        single("Complex Analysis", &["MATH 4100"]),
+        single("Advanced Linear Algebra", &["MATH 3000"]),
+        single("Advanced Linear Algebra", &["MATH 3001"]),
         math_differential_equations_requirement(),
         math_algebra_requirement(),
         math_analysis_requirement(),
@@ -3534,24 +2294,12 @@ fn math_biological_mathematics_math_requirements() -> Vec<Requirement> {
     vec![
         math_calculus_1400(),
         math_calculus_1410_or_1610(),
-        Requirement::SingleCourse {
-            category: Some("Advanced Linear Algebra".to_string()),
-            possibilities: vec!["MATH 3000".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Advanced Linear Algebra".to_string()),
-            possibilities: vec!["MATH 3001".to_string()],
-        },
+        single("Advanced Linear Algebra", &["MATH 3000"]),
+        single("Advanced Linear Algebra", &["MATH 3001"]),
         math_analysis_requirement(),
         math_algebra_requirement(),
-        Requirement::SingleCourse {
-            category: Some("Statistics".to_string()),
-            possibilities: vec!["MATH 3200".to_string()],
-        },
-        Requirement::SingleCourse {
-            category: Some("Statistics".to_string()),
-            possibilities: vec!["STAT 4310".to_string()],
-        },
+        single("Statistics", &["MATH 3200"]),
+        single("Statistics", &["STAT 4310"]),
         math_differential_equations_requirement(),
     ]
 }
@@ -3575,11 +2323,7 @@ fn math_concentration_requirement(concentration_name: &str) -> Option<Requiremen
         return None;
     }
     let number = requirements.iter().map(requirement_slot_cu).sum();
-    Some(Requirement::Concentration {
-        category: Some(concentration_name.to_string()),
-        number,
-        requirements,
-    })
+    Some(concentration(concentration_name, number, requirements))
 }
 
 pub fn math_concentration_names() -> Vec<String> {
@@ -3640,101 +2384,75 @@ pub fn create_math_major(concentration_name: String) -> Major {
 
 fn math_minor_calculus_requirements() -> Vec<Requirement> {
     vec![
-        Requirement::AnyOf {
-            category: Some("Calculus".to_string()),
-            possibilities: vec![
-                math_single_course("MATH 1400"),
-                math_single_course("MATH 1070"),
+        any_of(
+            "Calculus",
+            vec![code(&["MATH 1400"]), code(&["MATH 1070"])],
+        ),
+        any_of(
+            "Calculus",
+            vec![
+                code(&["MATH 1410"]),
+                code(&["MATH 1080"]),
+                code(&["MATH 1610"]),
             ],
-        },
-        Requirement::AnyOf {
-            category: Some("Calculus".to_string()),
-            possibilities: vec![
-                math_single_course("MATH 1410"),
-                math_single_course("MATH 1080"),
-                math_single_course("MATH 1610"),
-            ],
-        },
+        ),
     ]
 }
 
 fn math_minor_linear_algebra_and_proofs() -> Requirement {
-    Requirement::AnyOf {
-        category: Some("Linear Algebra and Intro to Proofs".to_string()),
-        possibilities: vec![
-            math_single_course("MATH 3000"),
-            Requirement::AllOf {
-                category: None,
-                requirements: vec![
-                    Requirement::SingleCourse {
-                        category: Some("Linear Algebra".to_string()),
-                        possibilities: vec![
-                            "MATH 2200".to_string(),
-                            "ESE 2030".to_string(),
-                            "CIS 5150".to_string(),
-                        ],
-                    },
-                    Requirement::SingleCourse {
-                        category: Some("Introduction to Proofs".to_string()),
-                        possibilities: vec![
-                            "MATH 2030".to_string(),
-                            "MATH 1610".to_string(),
-                            "CIS 1600".to_string(),
-                        ],
-                    },
+    any_of(
+        "Linear Algebra and Intro to Proofs",
+        vec![
+            code(&["MATH 3000"]),
+            all_of(
+                None,
+                vec![
+                    single(
+                        "Linear Algebra",
+                        &["MATH 2200", "ESE 2030", "CIS 5150"],
+                    ),
+                    single(
+                        "Introduction to Proofs",
+                        &["MATH 2030", "MATH 1610", "CIS 1600"],
+                    ),
                 ],
-            },
+            ),
         ],
-    }
+    )
 }
 
 fn math_minor_proof_based() -> Requirement {
-    Requirement::Restriction {
-        category: Some("Proof Based Math".to_string()),
-        department: Some(vec!["MATH".to_string()]),
-        cu: None,
-        level: Some(3000),
-        max_level: Some(5999),
-        attr: None,
-        excluding: None,
-        number: 1,
-        no_school: None,
-    }
+    restriction(1)
+        .category("Proof Based Math")
+        .departments(&["MATH"])
+        .level(3000)
+        .max_level(5999)
+        .into()
 }
 
 fn math_minor_elective_restriction(
-    department: Option<Vec<String>>,
-    attr: Option<Vec<String>>,
+    departments: Option<&[&str]>,
+    attrs: Option<&[&str]>,
 ) -> Requirement {
-    let level = department.as_ref().map(|_| 2000);
-    Requirement::Restriction {
-        category: None,
-        department,
-        cu: None,
-        level,
-        max_level: None,
-        attr,
-        excluding: None,
-        number: 1,
-        no_school: None,
+    let mut b = restriction(1);
+    if let Some(depts) = departments {
+        b = b.departments(depts).level(2000);
     }
+    if let Some(a) = attrs {
+        b = b.attr(a);
+    }
+    b.into()
 }
 
 fn math_minor_elective_slot(allow_amor: bool) -> Requirement {
     let mut possibilities = vec![
-        math_minor_elective_restriction(Some(vec!["MATH".to_string()]), None),
-        math_minor_elective_restriction(None, Some(vec!["AMMR".to_string()])),
+        math_minor_elective_restriction(Some(&["MATH"]), None),
+        math_minor_elective_restriction(None, Some(&["AMMR"])),
     ];
     if allow_amor {
-        possibilities.push(math_minor_elective_restriction(
-            None,
-            Some(vec!["AMOR".to_string()]),
-        ));
+        possibilities.push(math_minor_elective_restriction(None, Some(&["AMOR"])));
     }
-    Requirement::AnyOf {
-        category: Some("Mathematics Electives".to_string()),
-        possibilities,
-    }
+    any_of("Mathematics Electives", possibilities)
 }
 
 fn math_minor_elective_slots(count: i32) -> Vec<Requirement> {

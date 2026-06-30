@@ -1,0 +1,829 @@
+{
+  "short_name": "DSGN",
+  "name": "Design",
+  "requirements": [
+    {
+      "Restriction": {
+        "category": "Writing Seminar",
+        "department": [
+          "WRIT"
+        ],
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Education",
+        "fixed_slots": [
+          {
+            "SingleCourse": {
+              "category": "Core Studio",
+              "possibilities": [
+                "DSGN 0010"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Core Studio",
+              "possibilities": [
+                "DSGN 0020"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Integrative Design Studio",
+              "possibilities": [
+                "DSGN 1011",
+                "DSGN 1020",
+                "DSGN 1070",
+                "DSGN 1200",
+                "DSGN 2040",
+                "DSGN 2070",
+                "DSGN 2220",
+                "DSGN 2230",
+                "DSGN 2260",
+                "DSGN 2510",
+                "DSGN 2530",
+                "DSGN 2550",
+                "DSGN 2570",
+                "DSGN 2580"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Integrative Design Studio",
+              "possibilities": [
+                "DSGN 1011",
+                "DSGN 1020",
+                "DSGN 1070",
+                "DSGN 1200",
+                "DSGN 2040",
+                "DSGN 2070",
+                "DSGN 2220",
+                "DSGN 2230",
+                "DSGN 2260",
+                "DSGN 2510",
+                "DSGN 2530",
+                "DSGN 2550",
+                "DSGN 2570",
+                "DSGN 2580"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Integrative Design Studio",
+              "possibilities": [
+                "DSGN 1011",
+                "DSGN 1020",
+                "DSGN 1070",
+                "DSGN 1200",
+                "DSGN 2040",
+                "DSGN 2070",
+                "DSGN 2220",
+                "DSGN 2230",
+                "DSGN 2260",
+                "DSGN 2510",
+                "DSGN 2530",
+                "DSGN 2550",
+                "DSGN 2570",
+                "DSGN 2580"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Art History",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "ARTH"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": 4999,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADAH"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Design Theory",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "DSGN"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": 3999,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "FNAR"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": 3999,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADTH"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Design Theory",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "DSGN"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": 3999,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "FNAR"
+                    ],
+                    "cu": null,
+                    "level": 3000,
+                    "max_level": 3999,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADTH"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Design Senior Seminar",
+              "possibilities": [
+                "DSGN 4020"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Design Senior Seminar",
+              "possibilities": [
+                "DSGN 4030"
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Art and Design Elective",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "DSGN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "FNAR"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADEL"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Art and Design Elective",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "DSGN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "FNAR"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADEL"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Art and Design Elective",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "DSGN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "FNAR"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADEL"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "AnyOf": {
+              "category": "Art and Design Elective",
+              "possibilities": [
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "DSGN"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": [
+                      "FNAR"
+                    ],
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": null,
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                },
+                {
+                  "Restriction": {
+                    "category": null,
+                    "department": null,
+                    "cu": null,
+                    "level": null,
+                    "max_level": null,
+                    "attr": [
+                      "ADEL"
+                    ],
+                    "excluding": null,
+                    "number": 1,
+                    "no_school": null
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "flexible_slots": 12,
+        "constraints": [
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cross-Cultural Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCC"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Quantitative Data Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUQD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Cultural Diversity in the U.S.",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUCD"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Formal Reasoning & Analysis",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUFR"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Foundational Approaches - Language (last course)",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:fa"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - I - Society",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUSO"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - II - History and Tradition",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUHT"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - III - Arts and Letters",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUAL"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - V - Living World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AULW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VI - Physical World",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUPW"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Sectors of Knowledge - VII - Natural Sciences Across Disciplines",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "AUNM"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "cas:sector"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Unrestricted Electives",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": null,
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "DSGN 0010": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "DSGN 0020": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "DSGN 4020": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "DSGN 4030": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    }
+  }
+}

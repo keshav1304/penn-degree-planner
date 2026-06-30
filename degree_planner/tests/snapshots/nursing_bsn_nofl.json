@@ -1,0 +1,802 @@
+{
+  "short_name": "BSN_NOFL",
+  "name": "Nursing, BSN (Language Exempt)",
+  "requirements": [
+    {
+      "SingleCourse": {
+        "category": "Science Requirements",
+        "possibilities": [
+          "NURS 0061"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Science Requirements",
+        "possibilities": [
+          "NURS 0068"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Foundational Courses",
+        "possibilities": [
+          "NURS 1010"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Writing Requirement",
+        "possibilities": [
+          {
+            "Restriction": {
+              "category": null,
+              "department": null,
+              "cu": null,
+              "level": null,
+              "max_level": null,
+              "attr": [
+                "AUWR"
+              ],
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          },
+          {
+            "Restriction": {
+              "category": null,
+              "department": [
+                "WRIT"
+              ],
+              "cu": null,
+              "level": 1,
+              "max_level": 991,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective 1",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Science Requirements",
+        "possibilities": [
+          "NURS 0065"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Science Requirements",
+        "possibilities": [
+          "NURS 1630"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Foundational Courses",
+        "possibilities": [
+          "NURS 1020"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "The Planet & Our Climate",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "NURS 3520"
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "The Planet & Our Climate",
+              "department": [
+                "ASTR",
+                "BIOL",
+                "EESC",
+                "ENVS"
+              ],
+              "cu": null,
+              "level": 1,
+              "max_level": 4999,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective 2",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Science Requirements",
+        "possibilities": [
+          "NURS 1640"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Foundational Courses",
+        "possibilities": [
+          "NURS 1030"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Societies, Histories, and Traditions",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "NURS 3060"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "NURS 3130"
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Societies, Histories, and Traditions",
+              "department": [
+                "ANCH",
+                "ANEL",
+                "ANTH",
+                "ARTH",
+                "CLST",
+                "COMM",
+                "CRIM",
+                "EALC",
+                "ECON",
+                "EDUC",
+                "HIST",
+                "MMES",
+                "NELC",
+                "PPE",
+                "PSCI",
+                "PSYC",
+                "SOCI"
+              ],
+              "cu": null,
+              "level": 1,
+              "max_level": 4999,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Science Requirements",
+        "possibilities": [
+          "NURS 1650"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 2150"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Global Arts, Letters, & Cultures",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "NURS 3050"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "NURS 3160"
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Global Arts, Letters, & Cultures",
+              "department": [
+                "ASLD",
+                "AMHR",
+                "ARAB",
+                "ARCH",
+                "ARTH",
+                "ALAN",
+                "BENG",
+                "BCS",
+                "CHIC",
+                "CHIN",
+                "CIMS",
+                "COML",
+                "CZCH",
+                "DTCH",
+                "ENGL",
+                "FILP",
+                "FNAR",
+                "FREN",
+                "GRMN",
+                "GREK",
+                "GUJR",
+                "HEBR",
+                "HIND",
+                "HUNG",
+                "IGBO",
+                "INDO",
+                "IRIS",
+                "ITAL",
+                "JPAN",
+                "KAND",
+                "KORN",
+                "LATN",
+                "LING",
+                "MALG",
+                "MLYM",
+                "MRTI",
+                "MUSC",
+                "PASH",
+                "PERS",
+                "PLSH",
+                "PRTG",
+                "PUNJ",
+                "QUEC",
+                "RUSS",
+                "SKRT",
+                "SPAN",
+                "SARB",
+                "SWAH",
+                "SWED",
+                "TAML",
+                "TELU",
+                "THAI",
+                "THAR",
+                "TIBT",
+                "TIGR",
+                "TURK",
+                "TWI",
+                "UKRN",
+                "URDU",
+                "VIET",
+                "VLST",
+                "WOLF",
+                "YDSH",
+                "YORB",
+                "ZULU"
+              ],
+              "cu": null,
+              "level": 100,
+              "max_level": 4999,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 2450"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 2550"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Health Policy Requirement",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": "Health Policy Requirement",
+              "possibilities": [
+                "NURS 3340"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Health Policy Requirement",
+              "possibilities": [
+                "NURS 4000"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Health Policy Requirement",
+              "possibilities": [
+                "NURS 5400"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Non-Clinical Courses",
+        "possibilities": [
+          "NURS 2300"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 2350"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 2250"
+        ]
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Ethics Requirement",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": "Ethics Requirement",
+              "possibilities": [
+                "NURS 3300"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Ethics Requirement",
+              "possibilities": [
+                "PHIL 1342"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Ethics Requirement",
+              "possibilities": [
+                "NURS 5250"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Ethics Requirement",
+              "possibilities": [
+                "BIOE 4010"
+              ]
+            }
+          },
+          {
+            "SingleCourse": {
+              "category": "Ethics Requirement",
+              "possibilities": [
+                "BIOE 4020"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Non-Clinical Courses",
+        "possibilities": [
+          "NURS 5470"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 3820"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Nursing Case Study",
+        "department": [
+          "NURS"
+        ],
+        "cu": null,
+        "level": 3510,
+        "max_level": 3690,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "AnyOf": {
+        "category": "Universality in Thought and Action",
+        "possibilities": [
+          {
+            "SingleCourse": {
+              "category": null,
+              "possibilities": [
+                "NURS 3160"
+              ]
+            }
+          },
+          {
+            "Restriction": {
+              "category": "Universality in Thought and Action",
+              "department": [
+                "AFRC",
+                "ASAM",
+                "GSWS",
+                "JWST",
+                "LALS",
+                "RELS",
+                "REES",
+                "SAST",
+                "URBS"
+              ],
+              "cu": null,
+              "level": 1,
+              "max_level": 4999,
+              "attr": null,
+              "excluding": null,
+              "number": 1,
+              "no_school": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Exploration Course Requirement",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": "NURS"
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Nursing Clinical Courses",
+        "possibilities": [
+          "NURS 3900"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Non-Clinical Courses",
+        "possibilities": [
+          "NURS 3890"
+        ]
+      }
+    }
+  ],
+  "concentrations": null,
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "1": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "10": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "11": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "12": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "13": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "14": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "15": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "16": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "17": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "18": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "19": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "2": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "20": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "21": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "22": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "23": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "24": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "25": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "26": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "27": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "28": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "29": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "3": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "4": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "5": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "6": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "7": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "8": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "9": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "NURS 0061": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 0065": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 0068": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 1010": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 1020": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 1030": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 1630": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 1640": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 1650": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 2150": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 2250": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 2300": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 2350": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 2450": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 2550": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 3820": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "NURS 3890": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 3900": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "NURS 5470": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Fixed"
+    }
+  }
+}

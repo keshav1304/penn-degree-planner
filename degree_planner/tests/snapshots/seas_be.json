@@ -1,0 +1,1336 @@
+{
+  "short_name": "BE",
+  "name": "Bioengineering",
+  "requirements": [
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 1000"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "ENGR 1050"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 2000"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 2200"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 2700"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 3010"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 3060"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 3090"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 3100"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 3500"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 4950"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Engineering",
+        "possibilities": [
+          "BE 4960"
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "BE Elective (4000 or 5000 level)",
+        "department": [
+          "BE"
+        ],
+        "cu": null,
+        "level": 4000,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "BE Elective (4000 or 5000 level)",
+        "department": [
+          "BE"
+        ],
+        "cu": null,
+        "level": 4000,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Engineering Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUNG"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Engineering Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": [
+          "EUNG"
+        ],
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1400"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "MATH 1410"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "ESE 2030",
+          "ENM 2400",
+          "MATH 2400",
+          "ENM 2030"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "ENM 3750",
+          "ENGR 3440"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "PHYS 0140"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "PHYS 0141"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1012",
+          "CHEM 1151"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1101"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1102"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "CHEM 1022",
+          "CHEM 1161"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "BIOL 1121"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "BIOL 1123"
+        ]
+      }
+    },
+    {
+      "SingleCourse": {
+        "category": "Math and Natural Science",
+        "possibilities": [
+          "BIOL 3310"
+        ]
+      }
+    },
+    {
+      "CoursePool": {
+        "category": "General Electives",
+        "fixed_slots": [],
+        "flexible_slots": 7,
+        "constraints": [
+          {
+            "requirement": {
+              "SingleCourse": {
+                "category": "Engineering Ethics",
+                "possibilities": [
+                  "EAS 2030",
+                  "HSOC 1330",
+                  "HSOC 2457",
+                  "LGST 1000",
+                  "LGST 2200",
+                  "NURS 3300",
+                  "NURS 5250",
+                  "BIOE 4010",
+                  "BIOE 4020",
+                  "PHIL 1342",
+                  "PHIL 4330"
+                ]
+              }
+            },
+            "count": 1,
+            "consumption_group": "be:ethics"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Social Science",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "EUSS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 2,
+            "consumption_group": "be:distribution"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Humanities",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "EUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 2,
+            "consumption_group": "be:distribution"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "SSH Elective",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "EUSS",
+                  "EUHS"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 1,
+            "consumption_group": "be:distribution"
+          },
+          {
+            "requirement": {
+              "Restriction": {
+                "category": "Technology & Business",
+                "department": null,
+                "cu": null,
+                "level": null,
+                "max_level": null,
+                "attr": [
+                  "EUHS",
+                  "EUSS",
+                  "EUTB"
+                ],
+                "excluding": null,
+                "number": 1,
+                "no_school": null
+              }
+            },
+            "count": 2,
+            "consumption_group": "be:distribution"
+          }
+        ]
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    },
+    {
+      "Restriction": {
+        "category": "Free Elective",
+        "department": null,
+        "cu": null,
+        "level": null,
+        "max_level": null,
+        "attr": null,
+        "excluding": null,
+        "number": 1,
+        "no_school": null
+      }
+    }
+  ],
+  "concentrations": {
+    "Biomedical Data Science and Computational Medicine": [
+      {
+        "SingleCourse": {
+          "category": "Biomedical Data Science and Computational Medicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5040",
+            "BE 5210",
+            "BE 5300",
+            "BE 5590",
+            "BE 5660"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Data Science and Computational Medicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5040",
+            "BE 5210",
+            "BE 5300",
+            "BE 5590",
+            "BE 5660"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Data Science and Computational Medicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5040",
+            "BE 5210",
+            "BE 5300",
+            "BE 5590",
+            "BE 5660",
+            "CIS 5210",
+            "CIS 4500",
+            "CIS 5200",
+            "CIS 5450",
+            "CIS 5350",
+            "CIS 5360",
+            "CBE 5250",
+            "ESE 3050",
+            "ESE 5420",
+            "BIOM 5350",
+            "MTR 5350",
+            "BIOL 4511",
+            "BIOL 5536",
+            "GCB 5360",
+            "GCB 5370",
+            "STAT 9915"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Data Science and Computational Medicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5040",
+            "BE 5210",
+            "BE 5300",
+            "BE 5590",
+            "BE 5660",
+            "CIS 5210",
+            "CIS 4500",
+            "CIS 5200",
+            "CIS 5450",
+            "CIS 5350",
+            "CIS 5360",
+            "CBE 5250",
+            "ESE 3050",
+            "ESE 5420",
+            "BIOM 5350",
+            "MTR 5350",
+            "BIOL 4511",
+            "BIOL 5536",
+            "GCB 5360",
+            "GCB 5370",
+            "STAT 9915"
+          ]
+        }
+      }
+    ],
+    "Biomedical Devices": [
+      {
+        "SingleCourse": {
+          "category": "Biomedical Devices",
+          "possibilities": [
+            "BE 4700",
+            "BE 4720",
+            "BE 4900",
+            "BE 5020",
+            "BE 5140",
+            "BE 5180",
+            "BE 5210",
+            "BE 5280",
+            "BE 5290",
+            "BE 5510",
+            "BE 5560",
+            "BE 5700"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Devices",
+          "possibilities": [
+            "BE 4700",
+            "BE 4720",
+            "BE 4900",
+            "BE 5020",
+            "BE 5140",
+            "BE 5180",
+            "BE 5210",
+            "BE 5280",
+            "BE 5290",
+            "BE 5510",
+            "BE 5560",
+            "BE 5700"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Devices",
+          "possibilities": [
+            "BE 4700",
+            "BE 4720",
+            "BE 4900",
+            "BE 5020",
+            "BE 5140",
+            "BE 5180",
+            "BE 5210",
+            "BE 5280",
+            "BE 5290",
+            "BE 5510",
+            "BE 5560",
+            "BE 5700",
+            "ESE 2150",
+            "ESE 5050",
+            "MEAM 5130",
+            "ESE 5290",
+            "MEAM 1010",
+            "MEAM 2010",
+            "MEAM 5100",
+            "MEAM 4150",
+            "OIDD 4150",
+            "MEAM 5140",
+            "MEAM 5200"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Devices",
+          "possibilities": [
+            "BE 4700",
+            "BE 4720",
+            "BE 4900",
+            "BE 5020",
+            "BE 5140",
+            "BE 5180",
+            "BE 5210",
+            "BE 5280",
+            "BE 5290",
+            "BE 5510",
+            "BE 5560",
+            "BE 5700",
+            "ESE 2150",
+            "ESE 5050",
+            "MEAM 5130",
+            "ESE 5290",
+            "MEAM 1010",
+            "MEAM 2010",
+            "MEAM 5100",
+            "MEAM 4150",
+            "OIDD 4150",
+            "MEAM 5140",
+            "MEAM 5200"
+          ]
+        }
+      }
+    ],
+    "Biomedical Imaging and Radiation Physics": [
+      {
+        "SingleCourse": {
+          "category": "Biomedical Imaging and Radiation Physics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5180",
+            "BE 5370",
+            "BE 5470",
+            "BE 5810",
+            "BE 5830",
+            "BE 6500"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Imaging and Radiation Physics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5180",
+            "BE 5370",
+            "BE 5470",
+            "BE 5810",
+            "BE 5830",
+            "BE 6500"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Imaging and Radiation Physics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5180",
+            "BE 5370",
+            "BE 5470",
+            "BE 5810",
+            "BE 5830",
+            "BE 6500",
+            "MPHY 6030",
+            "MPHY 6070",
+            "PHYS 4421"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Biomedical Imaging and Radiation Physics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5180",
+            "BE 5370",
+            "BE 5470",
+            "BE 5810",
+            "BE 5830",
+            "BE 6500",
+            "MPHY 6030",
+            "MPHY 6070",
+            "PHYS 4421"
+          ]
+        }
+      }
+    ],
+    "Cellular/Tissue Engineering and Biomaterials": [
+      {
+        "SingleCourse": {
+          "category": "Cellular/Tissue Engineering and Biomaterials",
+          "possibilities": [
+            "BE 3300",
+            "BE 4900",
+            "BE 5120",
+            "BE 5400",
+            "BE 5530",
+            "BE 5580",
+            "BE 5650",
+            "BE 5690",
+            "BE 5780"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cellular/Tissue Engineering and Biomaterials",
+          "possibilities": [
+            "BE 3300",
+            "BE 4900",
+            "BE 5120",
+            "BE 5400",
+            "BE 5530",
+            "BE 5580",
+            "BE 5650",
+            "BE 5690",
+            "BE 5780"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cellular/Tissue Engineering and Biomaterials",
+          "possibilities": [
+            "BE 3300",
+            "BE 4900",
+            "BE 5120",
+            "BE 5400",
+            "BE 5530",
+            "BE 5580",
+            "BE 5650",
+            "BE 5690",
+            "BE 5780",
+            "CBE 4300",
+            "MSE 4300",
+            "CBE 5570",
+            "MEAM 5140",
+            "MSE 5850",
+            "BE 5850",
+            "MSE 5180"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Cellular/Tissue Engineering and Biomaterials",
+          "possibilities": [
+            "BE 3300",
+            "BE 4900",
+            "BE 5120",
+            "BE 5400",
+            "BE 5530",
+            "BE 5580",
+            "BE 5650",
+            "BE 5690",
+            "BE 5780",
+            "CBE 4300",
+            "MSE 4300",
+            "CBE 5570",
+            "MEAM 5140",
+            "MSE 5850",
+            "BE 5850",
+            "MSE 5180"
+          ]
+        }
+      }
+    ],
+    "Immune Engineering": [
+      {
+        "SingleCourse": {
+          "category": "Immune Engineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5120",
+            "BE 4260",
+            "BE 5260",
+            "BIOL 4004",
+            "BE 5270",
+            "BE 5570"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Immune Engineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5120",
+            "BE 4260",
+            "BE 5260",
+            "BIOL 4004",
+            "BE 5270",
+            "BE 5570"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Immune Engineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5120",
+            "BE 4260",
+            "BE 5260",
+            "BIOL 4004",
+            "BE 5270",
+            "BE 5570",
+            "ENGR 4500",
+            "IMUN 5060",
+            "IMUN 5070",
+            "IMUN 6090",
+            "CAMB 6090",
+            "REG 6180"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Immune Engineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5120",
+            "BE 4260",
+            "BE 5260",
+            "BIOL 4004",
+            "BE 5270",
+            "BE 5570",
+            "ENGR 4500",
+            "IMUN 5060",
+            "IMUN 5070",
+            "IMUN 6090",
+            "CAMB 6090",
+            "REG 6180"
+          ]
+        }
+      }
+    ],
+    "Multiscale Biomechanics": [
+      {
+        "SingleCourse": {
+          "category": "Multiscale Biomechanics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5100",
+            "BE 5140",
+            "BE 5500",
+            "BE 5700",
+            "BE 5610"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Multiscale Biomechanics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5100",
+            "BE 5140",
+            "BE 5500",
+            "BE 5700",
+            "BE 5610"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Multiscale Biomechanics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5100",
+            "BE 5140",
+            "BE 5500",
+            "BE 5700",
+            "BE 5610"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Multiscale Biomechanics",
+          "possibilities": [
+            "BE 4900",
+            "BE 5100",
+            "BE 5140",
+            "BE 5500",
+            "BE 5700",
+            "BE 5610"
+          ]
+        }
+      }
+    ],
+    "Neuroengineering": [
+      {
+        "SingleCourse": {
+          "category": "Neuroengineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5060",
+            "BE 5210",
+            "BE 5300",
+            "BE 5660",
+            "BE 5850",
+            "BE 5950",
+            "BE 6100"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Neuroengineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5060",
+            "BE 5210",
+            "BE 5300",
+            "BE 5660",
+            "BE 5850",
+            "BE 5950",
+            "BE 6100"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Neuroengineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5060",
+            "BE 5210",
+            "BE 5300",
+            "BE 5660",
+            "BE 5850",
+            "BE 5950",
+            "BE 6100",
+            "NRSC 2249",
+            "PSYC 1230",
+            "NRSC 2110",
+            "BIOL 2110",
+            "BIOL 4110",
+            "BIOL 5110",
+            "BIOL 4142",
+            "NRSC 2205",
+            "NRSC 3334",
+            "NGG 5720",
+            "NGG 5730"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Neuroengineering",
+          "possibilities": [
+            "BE 4900",
+            "BE 5060",
+            "BE 5210",
+            "BE 5300",
+            "BE 5660",
+            "BE 5850",
+            "BE 5950",
+            "BE 6100",
+            "NRSC 2249",
+            "PSYC 1230",
+            "NRSC 2110",
+            "BIOL 2110",
+            "BIOL 4110",
+            "BIOL 5110",
+            "BIOL 4142",
+            "NRSC 2205",
+            "NRSC 3334",
+            "NGG 5720",
+            "NGG 5730"
+          ]
+        }
+      }
+    ],
+    "Systems and Synthetic Biology": [
+      {
+        "SingleCourse": {
+          "category": "Systems and Synthetic Biology",
+          "possibilities": [
+            "BE 4900",
+            "BE 5270",
+            "BE 5400",
+            "BE 5580",
+            "BE 5590",
+            "BE 5650",
+            "BE 5690"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems and Synthetic Biology",
+          "possibilities": [
+            "BE 4900",
+            "BE 5270",
+            "BE 5400",
+            "BE 5580",
+            "BE 5590",
+            "BE 5650",
+            "BE 5690"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems and Synthetic Biology",
+          "possibilities": [
+            "BE 4900",
+            "BE 5270",
+            "BE 5400",
+            "BE 5580",
+            "BE 5590",
+            "BE 5650",
+            "BE 5690",
+            "CBE 4790",
+            "CBE 4800",
+            "CBE 5170",
+            "CBE 5270",
+            "CBE 5540",
+            "CBE 5570",
+            "MEAM 6630",
+            "BIOL 5262"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Systems and Synthetic Biology",
+          "possibilities": [
+            "BE 4900",
+            "BE 5270",
+            "BE 5400",
+            "BE 5580",
+            "BE 5590",
+            "BE 5650",
+            "BE 5690",
+            "CBE 4790",
+            "CBE 4800",
+            "CBE 5170",
+            "CBE 5270",
+            "CBE 5540",
+            "CBE 5570",
+            "MEAM 6630",
+            "BIOL 5262"
+          ]
+        }
+      }
+    ],
+    "Therapeutics, Drug Delivery & Nanomedicine": [
+      {
+        "SingleCourse": {
+          "category": "Therapeutics, Drug Delivery & Nanomedicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5550",
+            "CBE 5550",
+            "MEAM 5550",
+            "BE 5570",
+            "BE 5620",
+            "BE 5780"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Therapeutics, Drug Delivery & Nanomedicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5550",
+            "CBE 5550",
+            "MEAM 5550",
+            "BE 5570",
+            "BE 5620",
+            "BE 5780"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Therapeutics, Drug Delivery & Nanomedicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5550",
+            "CBE 5550",
+            "MEAM 5550",
+            "BE 5570",
+            "BE 5620",
+            "BE 5780",
+            "BIOL 4810",
+            "CBE 5570",
+            "CBE 5640"
+          ]
+        }
+      },
+      {
+        "SingleCourse": {
+          "category": "Therapeutics, Drug Delivery & Nanomedicine",
+          "possibilities": [
+            "BE 4900",
+            "BE 5550",
+            "CBE 5550",
+            "MEAM 5550",
+            "BE 5570",
+            "BE 5620",
+            "BE 5780",
+            "BIOL 4810",
+            "CBE 5570",
+            "CBE 5640"
+          ]
+        }
+      }
+    ]
+  },
+  "schedule_hints": {
+    "0": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "1": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "10": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "11": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "12": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "13": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "14": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "15": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "16": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "17": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "18": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "19": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "2": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "20": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "21": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "22": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "23": {
+      "year": 1,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "24": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "25": {
+      "year": 1,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "26": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "27": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "28": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "29": {
+      "year": 2,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "3": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "30": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "31": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "32": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "4": {
+      "year": 2,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "5": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "6": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "7": {
+      "year": 3,
+      "semester": "Fall",
+      "mode": "Flexible"
+    },
+    "8": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "9": {
+      "year": 3,
+      "semester": "Spring",
+      "mode": "Flexible"
+    },
+    "BE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "BE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CBE 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CBE 4590": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4000": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4010": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "CIS 4100": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "CIS 4110": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "ESE 4500": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "ESE 4510": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MEAM 4450": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MEAM 4460": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    },
+    "MSE 4950": {
+      "year": 4,
+      "semester": "Fall",
+      "mode": "Fixed"
+    },
+    "MSE 4960": {
+      "year": 4,
+      "semester": "Spring",
+      "mode": "Fixed"
+    }
+  }
+}
