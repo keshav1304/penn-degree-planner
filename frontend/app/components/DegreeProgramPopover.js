@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { API_BASE } from "@/lib/api";
 import {
     formatConcentrationDropdownLabel,
@@ -43,6 +44,11 @@ export default function DegreeProgramPopover({
     const [concentrations, setConcentrations] = useState([]);
     const [concentrationsLoading, setConcentrationsLoading] = useState(false);
     const [listOpen, setListOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const selectableSchools = useMemo(
         () => (kind === "minor" ? implementedSchoolsForMinors(catalog) : implementedSchools(catalog)),
@@ -184,14 +190,14 @@ export default function DegreeProgramPopover({
         fetch(`${API_BASE}/concentrations?${params}`).catch(() => {});
     };
 
-    if (!open) return null;
+    if (!open || !mounted) return null;
 
     const anchorRect = anchorRef?.current?.getBoundingClientRect();
     const style = anchorRect
         ? { top: anchorRect.bottom + 6, left: Math.max(8, anchorRect.left) }
         : {};
 
-    return (
+    return createPortal(
         <div className="degree-popover-backdrop" aria-hidden>
             <div
                 ref={popoverRef}
@@ -361,6 +367,7 @@ export default function DegreeProgramPopover({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

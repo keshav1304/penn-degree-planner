@@ -662,13 +662,13 @@ select {
 .degree-popover-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 5000;
   pointer-events: none;
 }
 
 .degree-popover {
   position: fixed;
-  z-index: 1001;
+  z-index: 5001;
   width: min(300px, calc(100vw - 16px));
   padding: 14px;
   background: var(--bg-card);
