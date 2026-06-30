@@ -8,6 +8,7 @@ import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
+import { perfLog } from "@/lib/perfLog";
 import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, undergradScheduleYears } from "@/lib/semesterOptions";
 import {
   isValidCourseCode,
@@ -81,6 +82,11 @@ export default function Home() {
 
   // Load data on mount
   useEffect(() => {
+    const bootstrapStart = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsed = () => (
+        typeof performance !== "undefined" ? performance.now() : Date.now()
+    ) - bootstrapStart;
+
     const saved = loadSavedState();
     if (saved) {
       setDegrees(saved.degrees || []);
@@ -90,26 +96,51 @@ export default function Home() {
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
     }
+    perfLog("bootstrap.localStorage", elapsed());
 
-    fetch(`${API_BASE}/all_courses`)
-      .then(r => r.json())
-      .then(data => { setAllCourses(data); setCoursesLoading(false); })
-      .catch(() => setCoursesLoading(false));
+    const trackFetch = (step, url, onData) => {
+      const start = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const sinceStart = () => (
+        typeof performance !== "undefined" ? performance.now() : Date.now()
+      ) - start;
+      return fetch(url)
+        .then((r) => {
+          perfLog(`${step}.headers`, sinceStart(), { ok: r.ok, status: r.status });
+          const parseStart = typeof performance !== "undefined" ? performance.now() : Date.now();
+          return r.json().then((data) => {
+            perfLog(`${step}.json`, (
+              typeof performance !== "undefined" ? performance.now() : Date.now()
+            ) - parseStart);
+            onData(data);
+            perfLog(`${step}.total`, sinceStart(), { url });
+          });
+        })
+        .catch((err) => {
+          perfLog(`${step}.error`, sinceStart(), { url, message: err?.message });
+          onData(null);
+        });
+    };
 
-    fetch(`${API_BASE}/degree_catalog`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setDegreeCatalog(Array.isArray(data) ? data : []))
-      .catch(() => setDegreeCatalog([]));
+    trackFetch("bootstrap.all_courses", `${API_BASE}/all_courses`, (data) => {
+      setAllCourses(data || []);
+      setCoursesLoading(false);
+    });
 
-    fetch(`${API_BASE}/minor_catalog`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setMinorCatalog(Array.isArray(data) ? data : []))
-      .catch(() => setMinorCatalog([]));
+    trackFetch("bootstrap.degree_catalog", `${API_BASE}/degree_catalog`, (data) => {
+      setDegreeCatalog(Array.isArray(data) ? data : []);
+    });
 
-    fetch(`${API_BASE}/all_concentrations`)
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => setConcentrationCatalog(data && typeof data === "object" ? data : {}))
-      .catch(() => setConcentrationCatalog({}));
+    trackFetch("bootstrap.minor_catalog", `${API_BASE}/minor_catalog`, (data) => {
+      setMinorCatalog(Array.isArray(data) ? data : []);
+    });
+
+    trackFetch("bootstrap.all_concentrations", `${API_BASE}/all_concentrations`, (data) => {
+      const catalog = data && typeof data === "object" ? data : {};
+      setConcentrationCatalog(catalog);
+      perfLog("bootstrap.all_concentrations.keys", elapsed(), {
+        count: Object.keys(catalog).length,
+      });
+    });
   }, []);
 
   const maxScheduleYear = useMemo(

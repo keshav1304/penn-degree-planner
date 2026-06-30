@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE } from "@/lib/api";
 import {
     concentrationsFromCatalog,
+    concentrationCatalogKey,
     formatConcentrationDropdownLabel,
     implementedMajorsForSchool,
     implementedMinorsForSchool,
@@ -12,6 +13,7 @@ import {
     implementedSchoolsForMinors,
     normalizeConcentrations,
 } from "@/lib/degreeDisplay";
+import { perfLog, perfMark } from "@/lib/perfLog";
 
 /**
  * @param {{
@@ -44,14 +46,24 @@ export default function DegreeProgramPopover({
     const [selectedMajorCode, setSelectedMajorCode] = useState("");
     const [selectedConcentration, setSelectedConcentration] = useState("");
     const [selectedConcentration2, setSelectedConcentration2] = useState("");
-    const [concentrations, setConcentrations] = useState([]);
+    const [fetchedConcentrations, setFetchedConcentrations] = useState(null);
     const [concentrationsLoading, setConcentrationsLoading] = useState(false);
     const [listOpen, setListOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const popoverOpenMark = useRef(null);
+    const concentrationsVisibleLogged = useRef("");
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (open) {
+            popoverOpenMark.current = typeof performance !== "undefined" ? performance.now() : Date.now();
+            concentrationsVisibleLogged.current = "";
+            perfLog("popover.open", 0);
+        }
+    }, [open]);
 
     const selectableSchools = useMemo(
         () => (kind === "minor" ? implementedSchoolsForMinors(catalog) : implementedSchools(catalog)),
@@ -86,16 +98,16 @@ export default function DegreeProgramPopover({
     );
 
     const schoolCode = selectedSchoolEntry?.school_code ?? "";
-    const majorCode = selectedMajorEntry?.api_code ?? highlightedMajorCode ?? "";
+    const majorCode = selectedMajorEntry?.api_code ?? "";
     const isWharton = schoolCode === "WH";
 
-    const applyConcentrationList = useCallback((list) => {
-        setConcentrations(list);
-        if (mode === "add" || !initial?.concentrations?.length) {
-            setSelectedConcentration(list[0] ?? "");
-            setSelectedConcentration2("");
-        }
-    }, [mode, initial?.concentrations]);
+    const catalogConcentrations = useMemo(
+        () => concentrationsFromCatalog(concentrationCatalog, schoolCode, majorCode),
+        [concentrationCatalog, schoolCode, majorCode],
+    );
+
+    const concentrations = catalogConcentrations ?? fetchedConcentrations ?? [];
+    const catalogReady = Object.keys(concentrationCatalog).length > 0;
 
     useEffect(() => {
         if (!open) return;
@@ -110,47 +122,68 @@ export default function DegreeProgramPopover({
         setSelectedConcentration(concs[0] ?? "");
         setSelectedConcentration2(concs[1] ?? "");
         setListOpen(false);
+        setFetchedConcentrations(null);
     }, [open, initial, selectableSchools]);
 
     useEffect(() => {
         if (!schoolCode || !majorCode) {
-            setConcentrations([]);
-            if (!open) return;
-            setSelectedConcentration("");
-            setSelectedConcentration2("");
+            setFetchedConcentrations(null);
+            setConcentrationsLoading(false);
             return;
         }
 
-        const cached = concentrationsFromCatalog(concentrationCatalog, schoolCode, majorCode);
-        if (cached) {
+        if (catalogConcentrations) {
+            setFetchedConcentrations(null);
             setConcentrationsLoading(false);
-            applyConcentrationList(cached);
+            if (popoverOpenMark.current != null) {
+                perfLog("popover.concentrations.catalog_hit", (
+                    typeof performance !== "undefined" ? performance.now() : Date.now()
+                ) - popoverOpenMark.current, {
+                    key: concentrationCatalogKey(schoolCode, majorCode),
+                    count: catalogConcentrations.length,
+                });
+            }
             return;
+        }
+
+        if (catalogReady) {
+            perfLog("popover.concentrations.catalog_miss", 0, {
+                key: concentrationCatalogKey(schoolCode, majorCode),
+            });
+        } else {
+            perfLog("popover.concentrations.catalog_not_ready", 0, {
+                key: concentrationCatalogKey(schoolCode, majorCode),
+            });
         }
 
         const controller = new AbortController();
         setConcentrationsLoading(true);
+        const end = perfMark("popover.concentrations.fetch");
         const params = new URLSearchParams({ school: schoolCode, major: majorCode, kind });
 
         fetch(`${API_BASE}/concentrations?${params}`, { signal: controller.signal })
             .then((r) => r.json())
             .then((data) => {
-                applyConcentrationList(data.concentrations || []);
+                const list = data.concentrations || [];
+                setFetchedConcentrations(list);
+                end({ key: concentrationCatalogKey(schoolCode, majorCode), count: list.length });
             })
             .catch((err) => {
-                if (err.name !== "AbortError") setConcentrations([]);
+                if (err.name !== "AbortError") {
+                    setFetchedConcentrations([]);
+                    end({ error: err.message });
+                }
             })
             .finally(() => setConcentrationsLoading(false));
 
         return () => controller.abort();
-    }, [
-        schoolCode,
-        majorCode,
-        kind,
-        open,
-        concentrationCatalog,
-        applyConcentrationList,
-    ]);
+    }, [schoolCode, majorCode, kind, catalogConcentrations, catalogReady]);
+
+    useEffect(() => {
+        if (!concentrations.length) return;
+        if (mode !== "add" && initial?.concentrations?.length) return;
+        setSelectedConcentration((prev) => prev || concentrations[0] || "");
+    }, [concentrations, majorCode, mode, initial?.concentrations]);
 
     useEffect(() => {
         if (!open) return;
@@ -174,16 +207,31 @@ export default function DegreeProgramPopover({
         };
     }, [open, onClose, anchorRef]);
 
-    const buildConcentrationsList = useCallback(() => {
+    const showConcentrationStep = selectedMajorCode && concentrations.length > 1;
+
+    const buildConcentrationsList = () => {
         if (concentrations.length === 0) return [];
         const c1 = selectedConcentration || concentrations[0];
         if (!isWharton || !selectedConcentration2 || selectedConcentration2 === c1) {
             return normalizeConcentrations([c1]);
         }
         return normalizeConcentrations([c1, selectedConcentration2]);
-    }, [concentrations, selectedConcentration, selectedConcentration2, isWharton]);
+    };
 
-    const showConcentrationStep = concentrations.length > 1;
+    useEffect(() => {
+        if (!concentrations.length || !selectedMajorCode) return;
+        const logKey = `${selectedMajorCode}:${concentrations.length}:${catalogConcentrations ? "catalog" : "fetch"}`;
+        if (concentrationsVisibleLogged.current === logKey) return;
+        concentrationsVisibleLogged.current = logKey;
+        if (popoverOpenMark.current == null) return;
+        perfLog("popover.concentrations.visible", (
+            typeof performance !== "undefined" ? performance.now() : Date.now()
+        ) - popoverOpenMark.current, {
+            major: selectedMajorCode,
+            source: catalogConcentrations ? "catalog" : "fetch",
+            count: concentrations.length,
+        });
+    }, [concentrations, selectedMajorCode, catalogConcentrations]);
     const effectiveConc = selectedConcentration || concentrations[0] || "";
     const secondConcOptions = concentrations.filter((c) => c !== effectiveConc);
 
@@ -285,11 +333,13 @@ export default function DegreeProgramPopover({
                                                     setHighlightedMajorCode(m.api_code);
                                                 }}
                                                 onClick={() => {
+                                                    const end = perfMark("popover.major_select_to_click");
                                                     setSelectedMajorCode(m.api_code);
                                                     setMajorQuery(m.display_name);
                                                     setListOpen(false);
                                                     setSelectedConcentration("");
                                                     setSelectedConcentration2("");
+                                                    end({ major: m.api_code });
                                                 }}
                                             >
                                                 {m.display_name}
@@ -302,7 +352,16 @@ export default function DegreeProgramPopover({
                     </label>
                 )}
 
-                {showConcentrationStep && selectedMajorEntry && (
+                {selectedMajorCode && concentrationsLoading && concentrations.length === 0 && (
+                    <div className="degree-popover-field">
+                        <span className="degree-popover-label">Concentration</span>
+                        <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                            Loading concentrations…
+                        </span>
+                    </div>
+                )}
+
+                {showConcentrationStep && (
                     <label className="degree-popover-field">
                         <span className="degree-popover-label">Concentration</span>
                         {concentrations.length === 2 ? (
@@ -348,7 +407,7 @@ export default function DegreeProgramPopover({
                     </label>
                 )}
 
-                {isWharton && concentrations.length > 0 && selectedMajorEntry && (
+                {isWharton && selectedMajorCode && concentrations.length > 0 && (
                     <label className="degree-popover-field">
                         <span className="degree-popover-label">2nd concentration (optional)</span>
                         <select
