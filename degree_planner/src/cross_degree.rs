@@ -280,6 +280,30 @@ impl CrossDegreeState {
     }
 }
 
+/// Whether a course may count toward an undergraduate minor.
+///
+/// Allowed: shared with an undergrad major, minor-exclusive (no major claim), or
+/// undergrad + graduate major(s) + minor together.
+/// Disallowed: graduate major(s) + minor with no undergrad major.
+pub fn course_may_count_toward_minor(
+    course: &str,
+    major_claims: &HashMap<String, HashSet<usize>>,
+    major_degree_schools: &[String],
+) -> bool {
+    if !course::is_valid_course_code(course) {
+        return true;
+    }
+    let Some(indices) = major_claims.get(course) else {
+        return true;
+    };
+    if indices.is_empty() {
+        return true;
+    }
+    indices
+        .iter()
+        .any(|&i| !is_graduate_degree(&major_degree_schools[i]))
+}
+
 pub fn crosses_undergrad_grad(
     _course: &str,
     degree_indices: &HashSet<usize>,

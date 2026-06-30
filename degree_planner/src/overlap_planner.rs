@@ -38,7 +38,7 @@ impl CatalogIndex {
 
         let mut courses_by_dept: HashMap<String, HashSet<String>> = HashMap::new();
         let mut all_courses = Vec::new();
-        for c in courses_data::all_courses() {
+        for c in courses_data::courses() {
             if !course::is_valid_course_code(&c.course_code) {
                 continue;
             }
@@ -678,21 +678,26 @@ fn format_opportunity_explanation(slots: &[OverlapSlotRef]) -> String {
 pub fn extract_open_slots(
     per_degree: &[DegreeValidationResult],
     majors: &[&Major],
+    major_per_degree_indices: Option<&[usize]>,
 ) -> Vec<OpenSlot> {
+    let identity: Vec<usize> = (0..majors.len()).collect();
+    let indices = major_per_degree_indices.unwrap_or(&identity);
     let mut slots = Vec::new();
 
-    for (degree_index, validation) in per_degree.iter().enumerate() {
+    for (compact_index, _major) in majors.iter().enumerate() {
+        let resolved_index = indices[compact_index];
+        let validation = &per_degree[resolved_index];
         for mapped in &validation.unfulfilled {
-            push_open_from_mapped(&mut slots, degree_index, mapped);
+            push_open_from_mapped(&mut slots, compact_index, mapped);
         }
         for mapped in validation.fulfilled.iter().filter(|m| m.partial) {
-            push_open_from_mapped(&mut slots, degree_index, mapped);
+            push_open_from_mapped(&mut slots, compact_index, mapped);
         }
 
         for pool in &validation.pool_coverage_info {
             for pi in 0..(pool.flexible_slots_total - pool.flexible_slots_filled).max(0) as usize {
                 slots.push(OpenSlot {
-                    degree_index,
+                    degree_index: compact_index,
                     slot_key: format!("{}:p{}", pool.pool_index, pi),
                     label: format!("1 CU from {}", pool.category),
                     matcher: CourseMatcher::Unrestricted,
@@ -701,15 +706,14 @@ pub fn extract_open_slots(
                 });
             }
         }
-
-        let _ = &majors[degree_index];
     }
 
-    for (degree_index, major) in majors.iter().enumerate() {
+    for (compact_index, major) in majors.iter().enumerate() {
+        let resolved_index = indices[compact_index];
         for (pool_idx, pool_req) in major.requirements.iter().enumerate() {
             if let Requirement::CoursePool { constraints, .. } = pool_req {
                 let units = crate::requirement::pool_constraint_units(constraints);
-                let validation = &per_degree[degree_index];
+                let validation = &per_degree[resolved_index];
                 let pool_info = validation
                     .pool_coverage_info
                     .iter()
@@ -725,11 +729,11 @@ pub fn extract_open_slots(
                     let slot_key = format!("{pool_idx}:c{ci}");
                     if slots
                         .iter()
-                        .any(|s| s.degree_index == degree_index && s.slot_key == slot_key)
+                        .any(|s| s.degree_index == compact_index && s.slot_key == slot_key)
                     {
                         if let Some(slot) = slots
                             .iter_mut()
-                            .find(|s| s.degree_index == degree_index && s.slot_key == slot_key)
+                            .find(|s| s.degree_index == compact_index && s.slot_key == slot_key)
                         {
                             slot.matcher = compile_matcher(&req, None);
                             slot.consumption_group = Some(group);
@@ -738,7 +742,7 @@ pub fn extract_open_slots(
                         }
                     } else {
                         slots.push(OpenSlot {
-                            degree_index,
+                            degree_index: compact_index,
                             slot_key,
                             label: slot_label(&req),
                             matcher: compile_matcher(&req, None),
@@ -752,6 +756,46 @@ pub fn extract_open_slots(
     }
 
     slots
+}
+
+/// Remap compact major indices (aligned with `degree_schools`) to `per_degree` indices.
+pub fn remap_overlap_plan_degree_indices(plan: &mut OverlapPlan, compact_to_resolved: &[usize]) {
+    let remap = |compact: usize| compact_to_resolved.get(compact).copied().unwrap_or(compact);
+
+    for pair in &mut plan.pairs {
+        for slot in &mut pair.slots {
+            slot.degree_index = remap(slot.degree_index);
+        }
+    }
+    for opp in &mut plan.opportunities {
+        for slot in &mut opp.slots {
+            slot.degree_index = remap(slot.degree_index);
+        }
+    }
+
+    let remap_hint_keys = |map: HashMap<String, Vec<String>>| -> HashMap<String, Vec<String>> {
+        map.into_iter()
+            .map(|(key, value)| {
+                let (idx, rest) = key.split_once(':').unwrap_or((&key, ""));
+                let compact = idx.parse::<usize>().unwrap_or(0);
+                (format!("{}:{rest}", remap(compact)), value)
+            })
+            .collect()
+    };
+    plan.hints_by_slot = remap_hint_keys(std::mem::take(&mut plan.hints_by_slot));
+
+    let remap_explanation_keys =
+        |map: HashMap<String, String>| -> HashMap<String, String> {
+            map.into_iter()
+                .map(|(key, value)| {
+                    let (idx, rest) = key.split_once(':').unwrap_or((&key, ""));
+                    let compact = idx.parse::<usize>().unwrap_or(0);
+                    (format!("{}:{rest}", remap(compact)), value)
+                })
+                .collect()
+        };
+    plan.slot_explanations =
+        remap_explanation_keys(std::mem::take(&mut plan.slot_explanations));
 }
 
 fn slots_share_consumption_group(slots: &[&OpenSlot]) -> bool {
@@ -990,13 +1034,14 @@ pub fn compute_overlap_plan(
     taken: &HashSet<String>,
     cross_state: &CrossDegreeState,
     cu_map: &HashMap<String, f64>,
+    major_per_degree_indices: Option<&[usize]>,
 ) -> OverlapPlan {
     if !overlap_plan_applicable(degree_schools) {
         return OverlapPlan::empty();
     }
 
     let index = CatalogIndex::build();
-    let open_slots = extract_open_slots(per_degree, majors);
+    let open_slots = extract_open_slots(per_degree, majors, major_per_degree_indices);
     if open_slots.len() < 2 {
         return OverlapPlan::empty();
     }

@@ -42,11 +42,8 @@ use crate::scheduler::{
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-fn catalog_cu_map() -> HashMap<String, f64> {
-    courses_data::all_courses()
-        .iter()
-        .map(|c| (c.course_code.clone(), c.cu))
-        .collect()
+fn catalog_cu_map() -> &'static HashMap<String, f64> {
+    courses_data::cu_map()
 }
 
 fn sample_cu_map() -> HashMap<String, f64> {
@@ -887,7 +884,7 @@ mod catalog {
         assert_eq!(
             expanded.len(),
             6,
-            "EENT Standard: 5450 + 5460/5490 choice + 4 electives"
+            "EENT Standard: 5450 + 5460/5490 choice + 4 elective slots"
         );
 
         let fellows = major::resolve_minor("SEAS", "EENT", &["Fellows".to_string()])
@@ -896,7 +893,122 @@ mod catalog {
         assert_eq!(
             fellows_expanded.len(),
             6,
-            "EENT Fellows: 5410 + 5430 + 4 electives"
+            "EENT Fellows: 5410 + 5430 + 4 elective slots"
+        );
+    }
+
+    #[test]
+    fn eent_single_half_cu_does_not_satisfy_electives() {
+        let minor = major::resolve_minor("SEAS", "EENT", &["Standard".to_string()])
+            .expect("EENT minor resolves");
+        let cu_map = courses_data::cu_map().clone();
+        let taken = vec![
+            "EAS 5450".into(),
+            "EAS 5460".into(),
+            "MGMT 2670".into(),
+        ];
+        let validation =
+            requirement::validate_courses_for_degree(minor.requirements.clone(), &taken, &cu_map);
+        assert!(
+            !validation
+                .fulfilled
+                .iter()
+                .any(|m| m.requirement.get_category() == "EENT Electives"),
+            "one 0.5 CU elective cannot satisfy a 1 CU elective slot"
+        );
+        let elective_fulfilled = validation
+            .fulfilled
+            .iter()
+            .filter(|m| m.requirement.get_category() == "EENT Electives")
+            .count();
+        assert_eq!(
+            elective_fulfilled, 0,
+            "half-credit alone should not fulfill any elective slot"
+        );
+    }
+
+    #[test]
+    fn eent_half_cu_pairs_accumulate_toward_four_cu_electives() {
+        let minor = major::resolve_minor("SEAS", "EENT", &["Standard".to_string()])
+            .expect("EENT minor resolves");
+        let cu_map = courses_data::cu_map().clone();
+        let taken = vec![
+            "EAS 5450".into(),
+            "EAS 5460".into(),
+            "MGMT 2670".into(),
+            "MKTG 2270".into(),
+            "FNCE 2500".into(),
+            "NETS 1120".into(),
+            "EAS 5070".into(),
+        ];
+        let validation =
+            requirement::validate_courses_for_degree(minor.requirements.clone(), &taken, &cu_map);
+        let elective_fulfilled: Vec<_> = validation
+            .fulfilled
+            .iter()
+            .filter(|m| m.requirement.get_category() == "EENT Electives")
+            .collect();
+        assert_eq!(
+            elective_fulfilled.len(),
+            4,
+            "four 1 CU elective slots should be fulfilled"
+        );
+        assert!(
+            elective_fulfilled.iter().any(|m| {
+                m.course_ids.contains(&"MGMT 2670".to_string())
+                    && m.course_ids.contains(&"MKTG 2270".to_string())
+            }),
+            "paired 0.5 CU courses should count as 1 CU in one elective slot"
+        );
+        assert_eq!(
+            validation.unfulfilled.len(),
+            0,
+            "EENT minor should be fully satisfied"
+        );
+    }
+
+    #[test]
+    fn math_minor_double_counts_with_cas_major() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![
+                "MATH 1400".into(),
+                "MATH 1410".into(),
+                "MATH 1040".into(),
+            ],
+            degrees: vec![
+                DegreeInput {
+                    major: "ECON".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "MATH".into(),
+                    school: "CAS".into(),
+                    kind: "minor".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(false),
+            semester_cu_limits: None,
+        });
+
+        assert_eq!(output.degree_results.len(), 2);
+        let minor = output
+            .degree_results
+            .iter()
+            .find(|r| r.kind == "minor")
+            .expect("minor result");
+        assert_eq!(minor.major, "MATH");
+        assert!(
+            minor
+                .fulfilled_requirements
+                .iter()
+                .any(|m| m.course_ids.iter().any(|c| c == "MATH 1400")),
+            "calculus should count on math minor when shared with CAS major plan"
         );
     }
 
@@ -942,6 +1054,96 @@ mod catalog {
                 .iter()
                 .any(|m| m.course_ids.iter().any(|c| c == "EAS 5450")),
             "EENT core should count on minor even when shared with major plan"
+        );
+    }
+
+    #[test]
+    fn minor_blocks_grad_only_double_count() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec!["EAS 5450".into()],
+            degrees: vec![
+                DegreeInput {
+                    major: "MS_CIS".into(),
+                    school: "SEAS_MS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "EENT".into(),
+                    school: "SEAS".into(),
+                    kind: "minor".into(),
+                    concentrations: vec!["Standard".into()],
+                    concentration: Some("Standard".into()),
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(false),
+            semester_cu_limits: None,
+        });
+
+        let minor = output
+            .degree_results
+            .iter()
+            .find(|r| r.kind == "minor")
+            .expect("minor result");
+        assert!(
+            !minor
+                .fulfilled_requirements
+                .iter()
+                .any(|m| m.course_ids.iter().any(|c| c == "EAS 5450")),
+            "graduate-only overlap must not count toward the minor"
+        );
+    }
+
+    #[test]
+    fn minor_allows_undergrad_grad_and_minor_overlap() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![
+                "MATH 1400".into(),
+                "MATH 1410".into(),
+                "EAS 5450".into(),
+                "CIS 5190".into(),
+            ],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "SEAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "MS_CIS".into(),
+                    school: "SEAS_MS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "EENT".into(),
+                    school: "SEAS".into(),
+                    kind: "minor".into(),
+                    concentrations: vec!["Standard".into()],
+                    concentration: Some("Standard".into()),
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(false),
+            semester_cu_limits: None,
+        });
+
+        let minor = output
+            .degree_results
+            .iter()
+            .find(|r| r.kind == "minor")
+            .expect("minor result");
+        assert!(
+            minor
+                .fulfilled_requirements
+                .iter()
+                .any(|m| m.course_ids.iter().any(|c| c == "EAS 5450")),
+            "undergrad + masters + minor may share EENT core courses"
         );
     }
 
@@ -2230,6 +2432,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
         assert!(!plan.opportunities.is_empty());
         assert!(!plan.hints_by_slot.is_empty());
@@ -2259,6 +2462,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
         for opp in &plan.opportunities {
             let degrees: HashSet<_> = opp.slots.iter().map(|s| s.degree_index).collect();
@@ -2287,6 +2491,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
 
         let all_suggested: Vec<&String> = plan
@@ -2779,6 +2984,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
         for course in ["BEPP 2500", "FNCE 1010"] {
             assert!(
@@ -2813,6 +3019,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
         for course in ["BEPP 2500", "FNCE 1010"] {
             assert!(
@@ -2847,6 +3054,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
         assert!(
             overlap_plan_has_writ_opportunity(&plan),
@@ -2884,6 +3092,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
         assert!(
             plan.pairs.iter().any(|pair| {
@@ -2922,6 +3131,7 @@ mod overlap {
             &HashSet::new(),
             &cross,
             &cu_map,
+            None,
         );
 
         fn cas_gened_side(label: &str) -> bool {
@@ -3585,6 +3795,7 @@ mod dual_degree_properties {
             &taken,
             &state,
             &cu,
+            None,
         );
         assert!(
             !overlap_plan_has_writ_opportunity(&plan),
@@ -3989,7 +4200,7 @@ mod property_invariants {
 
     #[test]
     fn valid_catalog_courses_have_non_negative_cu() {
-        for c in courses_data::all_courses() {
+        for c in courses_data::courses() {
             if course::is_valid_course_code(&c.course_code) {
                 assert!(
                     c.cu >= 0.0,

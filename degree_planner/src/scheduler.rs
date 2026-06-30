@@ -516,11 +516,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let mut ms_schedule_items: HashSet<String> = HashSet::new();
     let mut ms_grad_schedule_items: HashSet<String> = HashSet::new();
 
-    // Build a CU lookup map from all courses
-    let all_courses = courses_data::all_courses();
-    let cu_map: HashMap<String, f64> = all_courses.iter()
-        .map(|c| (c.course_code.clone(), c.cu))
-        .collect();
+    let cu_map = courses_data::cu_map();
 
     struct ResolvedDegree {
         input: DegreeInput,
@@ -656,8 +652,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &cu_map,
         );
     }
+    let major_resolved_indices: Vec<usize> = resolved_degrees
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| !r.is_minor)
+        .map(|(i, _)| i)
+        .collect();
     let mut overlap_plan = if cross_degree::overlap_plan_applicable(&degree_schools) {
-        Some(overlap_planner::compute_overlap_plan(
+        let mut plan = overlap_planner::compute_overlap_plan(
             &per_degree_validation,
             &major_refs,
             &degree_schools,
@@ -665,7 +667,12 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &courses_for_validation.iter().cloned().collect(),
             &cross_state,
             &cu_map,
-        ))
+            Some(&major_resolved_indices),
+        );
+        if major_resolved_indices.len() != resolved_degrees.len() {
+            overlap_planner::remap_overlap_plan_degree_indices(&mut plan, &major_resolved_indices);
+        }
+        Some(plan)
     } else {
         None
     };
@@ -1860,11 +1867,31 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }
     }
 
-    let cross_degree_summary = if degree_schools.len() > 1 {
+    if degree_schools.len() > 1 {
         cross_degree::enforce_claim_rules(&mut cross_state, &cu_map);
+    }
 
-        if degree_schools.len() > 1 {
-            for (degree_idx, result) in degree_results.iter_mut().enumerate() {
+    if degree_schools.len() > 1 || !minor_degree_indices.is_empty() {
+        for (degree_idx, result) in degree_results.iter_mut().enumerate() {
+            if minor_degree_indices.contains(&degree_idx) {
+                requirement::filter_minor_mapped_requirements(
+                    &mut result.fulfilled_requirements,
+                    &cross_state.claims,
+                    &degree_schools,
+                );
+                requirement::filter_minor_mapped_requirements(
+                    &mut result.suggested_for_unfulfilled,
+                    &cross_state.claims,
+                    &degree_schools,
+                );
+                requirement::filter_minor_mapped_requirements(
+                    &mut result.unfulfilled_requirements,
+                    &cross_state.claims,
+                    &degree_schools,
+                );
+                continue;
+            }
+            if degree_schools.len() > 1 {
                 requirement::filter_mapped_requirements_by_allocation(
                     &mut result.fulfilled_requirements,
                     degree_idx,
@@ -1887,7 +1914,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 );
             }
         }
+    }
 
+    let cross_degree_summary = if degree_schools.len() > 1 {
         let mut summary = cross_state.to_summary();
         summary.violations = cross_degree::detect_violations(
             &cross_state.claims,

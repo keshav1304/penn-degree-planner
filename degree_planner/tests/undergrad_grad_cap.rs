@@ -16,11 +16,8 @@ use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
 const CU_EPS: f64 = 0.001;
 
-fn catalog_cu_map() -> HashMap<String, f64> {
-    courses_data::all_courses()
-        .iter()
-        .map(|c| (c.course_code.clone(), c.cu))
-        .collect()
+fn catalog_cu_map() -> &'static HashMap<String, f64> {
+    courses_data::cu_map()
 }
 
 fn unit_cu(courses: &[&str], cu: f64) -> HashMap<String, f64> {
@@ -339,6 +336,7 @@ fn overlap_plan_caps_undergrad_masters_pairs() {
         &taken.iter().cloned().collect(),
         &cross,
         &cu_map,
+        None,
     );
 
     assert!(

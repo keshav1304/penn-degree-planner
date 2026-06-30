@@ -2863,6 +2863,38 @@ pub fn filter_mapped_requirements_by_allocation(
     }
 }
 
+/// Drop courses from minor fulfillment that are allocated to graduate degree(s) only.
+pub fn filter_minor_mapped_requirements(
+    mapped_list: &mut [MappedRequirement],
+    major_claims: &HashMap<String, HashSet<usize>>,
+    major_degree_schools: &[String],
+) {
+    for mapped in mapped_list {
+        mapped.course_ids.retain(|course_id| {
+            cross_degree::course_may_count_toward_minor(
+                course_id,
+                major_claims,
+                major_degree_schools,
+            )
+        });
+        if let Some(ref mut attr_rows) = mapped.attribute_fulfillment {
+            for row in attr_rows.iter_mut() {
+                row.course_ids.retain(|course_id| {
+                    cross_degree::course_may_count_toward_minor(
+                        course_id,
+                        major_claims,
+                        major_degree_schools,
+                    )
+                });
+            }
+            attr_rows.retain(|row| !row.course_ids.is_empty());
+            if attr_rows.is_empty() {
+                mapped.attribute_fulfillment = None;
+            }
+        }
+    }
+}
+
 const CONCENTRATION_PRIORITY_WEIGHT: usize = 100;
 
 #[derive(Debug, Clone)]

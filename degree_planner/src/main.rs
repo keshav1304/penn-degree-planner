@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use axum::{
     debug_handler,
@@ -80,15 +80,11 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
     let concentrations: Vec<String> = payload.concentration.clone().into_iter().collect();
 
     if let Some(major_req_unwrapped) = resolve_major(&school, &major, &concentrations) {
-        let all_courses = degree_planner::penn_data::courses_data::all_courses();
-        let cu_map: HashMap<String, f64> = all_courses
-            .iter()
-            .map(|c| (c.course_code.clone(), c.cu))
-            .collect();
+        let cu_map = degree_planner::penn_data::courses_data::cu_map();
         let validation = requirement::validate_courses_for_degree(
             major_req_unwrapped.requirements.clone(),
             &taken,
-            &cu_map,
+            cu_map,
         );
         let mut fulfilled_requirements = validation.fulfilled;
         let unfulfilled_requirements = validation.unfulfilled;
@@ -98,7 +94,7 @@ async fn root_post(Json(payload): Json<RootPostInput>) -> Json<RootPostOutput> {
         let suggested_for_unfulfilled = requirement::suggest_courses_for_requirements(
             &unfulfilled_requirements,
             &taken,
-            &cu_map,
+            cu_map,
             None,
             None,
         );
@@ -174,8 +170,8 @@ async fn all_concentrations_get() -> Json<BTreeMap<String, Vec<String>>> {
 }
 
 #[debug_handler]
-async fn all_courses_get() -> Json<Vec<Course>> {
-    Json(degree_planner::penn_data::courses_data::all_courses())
+async fn all_courses_get() -> Json<&'static [Course]> {
+    Json(degree_planner::penn_data::courses_data::courses())
 }
 
 #[derive(Debug, Deserialize)]

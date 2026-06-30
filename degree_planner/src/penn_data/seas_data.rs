@@ -427,9 +427,9 @@ pub fn create_meam_major(concentration_name: String) -> Major {
             
             // Math and Natural Science
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1400".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1410".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 2400".to_string(), "ESE 2030".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["ENM 2510".to_string(), "MATH 2410".to_string()] },
+            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1410".to_string(), "MEAM 1610".to_string()] },
+            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 2400".to_string(), "ESE 2030".to_string(), "MEAM 2600".to_string(), "MEAM 2200".to_string()] },
+            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["ENM 2510".to_string(), "MATH 2410".to_string(), "MEAM 2300".to_string()] },
             Requirement::AnyOf { category: Some("Math and Natural Science".to_string()), possibilities: vec![
                 Requirement::SingleCourse { category: None, possibilities: vec!["PHYS 0150".to_string()] },
                 Requirement::AllOf { category: None, requirements: vec![
@@ -1477,7 +1477,7 @@ fn be_attr_constraint(label: &str, attrs: &[&str], count: i32, group: &str) -> P
 fn be_ethics_constraint() -> PoolConstraint {
     PoolConstraint {
         requirement: Requirement::SingleCourse {
-            category: Some("Ethics".to_string()),
+            category: Some("Engineering Ethics".to_string()),
             possibilities: vec![
                 "EAS 2030".to_string(),
                 "HSOC 1330".to_string(),
@@ -1738,6 +1738,29 @@ pub fn eent_concentration_names() -> Vec<String> {
     vec!["Standard".to_string(), "Fellows".to_string()]
 }
 
+fn eent_elective_slot() -> Requirement {
+    Requirement::Restriction {
+        category: Some("EENT Electives".to_string()),
+        department: None,
+        cu: Some(10),
+        level: None,
+        max_level: None,
+        attr: Some(vec!["EUNP".to_string()]),
+        excluding: Some(
+            EENT_CORE_EXCLUSIONS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
+        number: 1,
+        no_school: None,
+    }
+}
+
+fn eent_elective_slots() -> Vec<Requirement> {
+    (0..4).map(|_| eent_elective_slot()).collect()
+}
+
 /// Engineering Entrepreneurship minor (6 CU) per Penn catalog.
 pub fn create_eent_minor(concentration: &str) -> Major {
     let core = if concentration == "Fellows" {
@@ -1773,27 +1796,10 @@ pub fn create_eent_minor(concentration: &str) -> Major {
         ]
     };
 
-    let electives = Requirement::Restriction {
-        category: Some("EENT Electives".to_string()),
-        department: None,
-        cu: None,
-        level: None,
-        max_level: None,
-        attr: Some(vec!["EUNP".to_string()]),
-        excluding: Some(
-            EENT_CORE_EXCLUSIONS
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-        ),
-        number: 4,
-        no_school: None,
-    };
-
     Major {
         short_name: "EENT".to_string(),
         name: "Engineering Entrepreneurship".to_string(),
-        requirements: core.into_iter().chain(std::iter::once(electives)).collect(),
+        requirements: core.into_iter().chain(eent_elective_slots()).collect(),
         concentrations: None,
         schedule_hints: HashMap::new(),
     }
