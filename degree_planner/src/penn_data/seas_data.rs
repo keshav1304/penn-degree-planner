@@ -428,7 +428,7 @@ pub fn create_meam_major(concentration_name: String) -> Major {
             // Math and Natural Science
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1400".to_string()] },
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 1410".to_string()] },
-            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 2400".to_string()] },
+            Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["MATH 2400".to_string(), "ESE 2030".to_string()] },
             Requirement::SingleCourse { category: Some("Math and Natural Science".to_string()), possibilities: vec!["ENM 2510".to_string(), "MATH 2410".to_string()] },
             Requirement::AnyOf { category: Some("Math and Natural Science".to_string()), possibilities: vec![
                 Requirement::SingleCourse { category: None, possibilities: vec!["PHYS 0150".to_string()] },
