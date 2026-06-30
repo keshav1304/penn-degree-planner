@@ -9,8 +9,7 @@ use axum::{
 };
 use degree_planner::course::{self, Course};
 use degree_planner::major::{
-    all_concentrations, all_majors, concentrations_for, degree_catalog, minor_catalog,
-    resolve_major,
+    all_concentrations, all_majors, concentrations_for, degree_catalog, resolve_major,
 };
 use degree_planner::requirement::{self, MappedRequirement, PoolCoverageInfo};
 use degree_planner::scheduler::{generate_schedule, ScheduleInput, ScheduleOutput};
@@ -31,7 +30,6 @@ async fn main() {
         .route("/course", get(course_get))
         .route("/all_majors", get(all_majors_get))
         .route("/degree_catalog", get(degree_catalog_get))
-        .route("/minor_catalog", get(minor_catalog_get))
         .route("/concentrations", get(concentrations_get))
         .route("/all_concentrations", get(all_concentrations_get))
         .route("/generate_schedule", post(generate_schedule_post))
@@ -141,11 +139,6 @@ async fn all_majors_get() -> Json<BTreeMap<String, Vec<String>>> {
 #[debug_handler]
 async fn degree_catalog_get() -> Json<Vec<degree_planner::major::SchoolCatalogEntry>> {
     Json(degree_catalog())
-}
-
-#[debug_handler]
-async fn minor_catalog_get() -> Json<Vec<degree_planner::major::SchoolCatalogEntry>> {
-    Json(minor_catalog())
 }
 
 #[derive(Debug, Deserialize)]

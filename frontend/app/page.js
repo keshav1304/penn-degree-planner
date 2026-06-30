@@ -55,7 +55,6 @@ function saveState(state) {
 export default function Home() {
   const [allCourses, setAllCourses] = useState([]);
   const [degreeCatalog, setDegreeCatalog] = useState([]);
-  const [minorCatalog, setMinorCatalog] = useState([]);
   const [degrees, setDegrees] = useState([]);
   const [takenCourses, setTakenCourses] = useState([]);
   const [frozenCourses, setFrozenCourses] = useState([]);
@@ -82,7 +81,7 @@ export default function Home() {
   useEffect(() => {
     const saved = loadSavedState();
     if (saved) {
-      setDegrees(saved.degrees || []);
+      setDegrees((saved.degrees || []).filter((d) => d.kind !== "minor"));
       setTakenCourses(filterValidCourseCodes(saved.takenCourses || []));
       setFrozenCourses(filterFrozenPlacements(saved.frozenCourses || []));
       setAssignedCourses(filterValidPlacements(saved.assignedCourses || []));
@@ -99,11 +98,6 @@ export default function Home() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setDegreeCatalog(Array.isArray(data) ? data : []))
       .catch(() => setDegreeCatalog([]));
-
-    fetch(`${API_BASE}/minor_catalog`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setMinorCatalog(Array.isArray(data) ? data : []))
-      .catch(() => setMinorCatalog([]));
   }, []);
 
   const maxScheduleYear = useMemo(
@@ -163,7 +157,6 @@ export default function Home() {
                 : []
             ).filter(Boolean);
             return {
-              kind: d.kind || "major",
               major: d.majorCode,
               school: d.schoolCode,
               concentrations,
@@ -627,7 +620,6 @@ export default function Home() {
 
         <DegreeSelector
           degreeCatalog={degreeCatalog}
-          minorCatalog={minorCatalog}
           degrees={degrees}
           setDegrees={setDegrees}
         />
@@ -698,7 +690,6 @@ export default function Home() {
                 courseConcentrationMap={courseConcentrationMap}
                 allCourses={allCourses}
                 degreeCatalog={degreeCatalog}
-                minorCatalog={minorCatalog}
                 semesterCuLimits={semesterCuLimits}
                 onSemesterCuLimitChange={(key, value) => {
                   setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
@@ -728,7 +719,6 @@ export default function Home() {
                   scheduleData={scheduleData}
                   degrees={degrees}
                   degreeCatalog={degreeCatalog}
-                  minorCatalog={minorCatalog}
                   frozenCourses={frozenCourses}
                   assignedCourses={assignedCourses}
                   takenCourses={takenCourses}

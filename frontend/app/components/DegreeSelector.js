@@ -7,28 +7,20 @@ import {
 } from "@/lib/degreeDisplay";
 import DegreeProgramPopover from "./DegreeProgramPopover";
 
-function isMinor(degree) {
-    return degree?.kind === "minor";
-}
-
 function programKey(d) {
     const concList = normalizeConcentrations(
         d.concentrations || (d.concentration ? [d.concentration] : []),
     );
-    return `${d.kind || "major"}:${d.schoolCode}:${d.majorCode}:${JSON.stringify(concList)}`;
+    return `${d.schoolCode}:${d.majorCode}:${JSON.stringify(concList)}`;
 }
 
 export default function DegreeSelector({
     degreeCatalog,
-    minorCatalog = [],
     degrees,
     setDegrees,
 }) {
     const [popover, setPopover] = useState(null);
     const anchorRef = useRef(null);
-
-    const majors = degrees.filter((d) => !isMinor(d));
-    const minors = degrees.filter((d) => isMinor(d));
 
     const openPopover = (config, anchorEl) => {
         anchorRef.current = anchorEl;
@@ -55,14 +47,10 @@ export default function DegreeSelector({
         setDegrees((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const renderChip = (d, globalIndex, isMinorChip) => {
-        const catalog = isMinorChip ? minorCatalog : degreeCatalog;
-        const { major, schoolLine } = formatDegreeDisplay(d, null, catalog);
+    const renderChip = (d, index) => {
+        const { major, schoolLine } = formatDegreeDisplay(d, null, degreeCatalog);
         return (
-            <div
-                key={globalIndex}
-                className={`degree-chip fade-in${isMinorChip ? " degree-chip-minor" : ""}`}
-            >
+            <div key={index} className="degree-chip fade-in">
                 <button
                     type="button"
                     className="degree-chip-body"
@@ -70,8 +58,7 @@ export default function DegreeSelector({
                         openPopover(
                             {
                                 mode: "edit",
-                                kind: isMinorChip ? "minor" : "major",
-                                editIndex: globalIndex,
+                                editIndex: index,
                                 initial: {
                                     schoolCode: d.schoolCode,
                                     majorCode: d.majorCode,
@@ -90,7 +77,7 @@ export default function DegreeSelector({
                     type="button"
                     className="remove-btn"
                     aria-label={`Remove ${major}`}
-                    onClick={() => removeAt(globalIndex)}
+                    onClick={() => removeAt(index)}
                 >
                     ✕
                 </button>
@@ -108,51 +95,28 @@ export default function DegreeSelector({
         );
     }
 
-    const labelStyle = {
-        fontSize: "0.82rem",
-        fontWeight: 700,
-        color: "var(--text-secondary)",
-        whiteSpace: "nowrap",
-    };
-
     return (
         <div className="degree-bar degree-selector-row">
             <div className="degree-bar-section">
-                <span style={labelStyle}>Degrees:</span>
+                <span
+                    style={{
+                        fontSize: "0.82rem",
+                        fontWeight: 700,
+                        color: "var(--text-secondary)",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    Degrees:
+                </span>
 
-                {majors.map((d) => {
-                    const globalIndex = degrees.indexOf(d);
-                    return renderChip(d, globalIndex, false);
-                })}
+                {degrees.map((d, index) => renderChip(d, index))}
 
                 <button
                     type="button"
                     className="degree-add-btn"
                     aria-label="Add degree"
                     onClick={(e) =>
-                        openPopover({ mode: "add", kind: "major" }, e.currentTarget)
-                    }
-                >
-                    +
-                </button>
-            </div>
-
-            <div className="degree-bar-section degree-bar-section-minors">
-                <span style={labelStyle}>Minors:</span>
-
-                {minors.map((d) => {
-                    const globalIndex = degrees.indexOf(d);
-                    return renderChip(d, globalIndex, true);
-                })}
-
-                <button
-                    type="button"
-                    className="degree-add-btn"
-                    aria-label="Add minor"
-                    disabled={majors.length === 0}
-                    title={majors.length === 0 ? "Add a degree first" : "Add minor"}
-                    onClick={(e) =>
-                        openPopover({ mode: "add", kind: "minor" }, e.currentTarget)
+                        openPopover({ mode: "add" }, e.currentTarget)
                     }
                 >
                     +
@@ -163,8 +127,7 @@ export default function DegreeSelector({
                 <DegreeProgramPopover
                     open
                     mode={popover.mode}
-                    kind={popover.kind}
-                    catalog={popover.kind === "minor" ? minorCatalog : degreeCatalog}
+                    catalog={degreeCatalog}
                     anchorRef={anchorRef}
                     initial={popover.initial}
                     onClose={closePopover}

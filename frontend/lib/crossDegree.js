@@ -19,7 +19,7 @@ export function isCasCollegeSharedScheduleSlot(slotId) {
 
 export function casDegreeLabelsFromResults(degreeResults = []) {
     return degreeResults
-        .filter((r) => r?.school === "CAS" && r?.kind !== "minor")
+        .filter((r) => r?.school === "CAS")
         .map((r) => `${r.school}-${r.major}`);
 }
 
@@ -117,27 +117,6 @@ function buildCourseMapFromDegreeResults(degreeResults = []) {
     return degMap;
 }
 
-/** Re-apply fulfillment from every program after allocation merge (minors always double-count). */
-function ensureFulfillmentLabels(degMap, degreeResults = []) {
-    degreeResults.forEach((result) => {
-        if (!result) return;
-        const degreeLabel = labelForDegreeResult(result);
-        const addCourse = (id) => {
-            if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
-        };
-        const processMapped = (mapped) => mapped.course_ids?.forEach(addCourse);
-        result.fulfilled_requirements?.forEach(processMapped);
-        result.suggested_for_unfulfilled?.forEach(processMapped);
-        result.unfulfilled_requirements?.forEach((mapped) => {
-            if (mapped.partial) processMapped(mapped);
-        });
-        result.concentration_info?.forEach((ci) => {
-            if (ci.is_core) return;
-            (ci.matched_courses || []).flat().forEach(addCourse);
-        });
-    });
-}
-
 export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
     // Always seed from degree_results (fulfilled + suggested). Required for multi-degree
     // plans without the cross-degree overlap optimizer (e.g. undergrad + SEAS_MS), where
@@ -148,17 +127,12 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
     if (summary?.course_allocations) {
         Object.entries(summary.course_allocations).forEach(([courseId, allocs]) => {
             if (!isValidCourseCode(courseId)) return;
-            const allocLabels = [];
+            const labels = [];
             allocs.forEach((alloc) => {
                 const label = labelForAllocation(alloc, degreeResults);
-                if (label && !allocLabels.includes(label)) allocLabels.push(label);
+                if (label && !labels.includes(label)) labels.push(label);
             });
-            if (!allocLabels.length) return;
-            const merged = [...(degMap[courseId] || [])];
-            allocLabels.forEach((label) => {
-                if (!merged.includes(label)) merged.push(label);
-            });
-            degMap[courseId] = merged;
+            if (labels.length) degMap[courseId] = labels;
         });
     }
 
@@ -180,8 +154,6 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
         result.fulfilled_requirements?.forEach(addSlots);
         result.suggested_for_unfulfilled?.forEach(addSlots);
     });
-
-    ensureFulfillmentLabels(degMap, degreeResults);
 
     return degMap;
 }

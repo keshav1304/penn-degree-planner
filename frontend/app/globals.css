@@ -600,21 +600,6 @@ select {
   min-width: 0;
 }
 
-.degree-bar-section-minors {
-  border-left: 1px solid var(--border-glass);
-  padding-left: 20px;
-}
-
-@media (max-width: 768px) {
-  .degree-bar-section-minors {
-    border-left: none;
-    padding-left: 0;
-    border-top: 1px solid var(--border-glass);
-    padding-top: 12px;
-    flex-basis: 100%;
-  }
-}
-
 .degree-add-btn {
   width: 28px;
   height: 28px;
@@ -653,10 +638,6 @@ select {
   padding: 0;
   cursor: pointer;
   text-align: left;
-}
-
-.degree-chip-minor {
-  border-style: dashed;
 }
 
 .degree-popover-backdrop {
@@ -773,19 +754,6 @@ select {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
-}
-
-.req-minors-section {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--border-glass);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.req-minor-group .req-group-name {
-  font-style: italic;
 }
 
 @media (max-width: 640px) {

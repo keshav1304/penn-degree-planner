@@ -8,36 +8,28 @@ export function isGraduateSchool(schoolCode) {
     return schoolCode === "SEAS_MS";
 }
 
-/** Degrees only — excludes minors from CU / dual-degree policy. */
-export function majorDegreesOnly(degrees) {
-    return (degrees || []).filter((d) => d.kind !== "minor");
-}
-
 /** Two or more undergrad degrees with no MS programs. */
 export function isDualUndergradOnly(degrees) {
-    const majors = majorDegreesOnly(degrees);
     return (
-        majors.length >= 2
-        && majors.every((d) => !isGraduateSchool(d.schoolCode))
+        degrees?.length >= 2
+        && degrees.every((d) => !isGraduateSchool(d.schoolCode))
     );
 }
 
 /** Two or more undergraduate degrees (grad programs may also be present). */
 export function hasDualUndergrad(degrees) {
-    const ug = majorDegreesOnly(degrees).filter((d) => !isGraduateSchool(d.schoolCode));
-    return ug.length >= 2;
+    return (degrees || []).filter((d) => !isGraduateSchool(d.schoolCode)).length >= 2;
 }
 
 /** Every undergraduate degree is in CAS (dual-college rule). */
 export function allUndergradCasCollege(degrees) {
-    const ug = majorDegreesOnly(degrees).filter((d) => !isGraduateSchool(d.schoolCode));
+    const ug = (degrees || []).filter((d) => !isGraduateSchool(d.schoolCode));
     return ug.length >= 2 && ug.every((d) => d.schoolCode === "CAS");
 }
 
 /** Every selected degree is in the College (CAS). */
 export function isAllCasCollege(degrees) {
-    const majors = majorDegreesOnly(degrees);
-    return majors.length > 0 && majors.every((d) => d.schoolCode === "CAS");
+    return degrees?.length > 0 && degrees.every((d) => d.schoolCode === "CAS");
 }
 
 /**
@@ -87,14 +79,14 @@ export function buildSemesterCuLimitsMap(degrees, maxYear, allowSummer = true, u
 
 /** Stable key for when CU policy should reset (school mix / degree count). */
 export function degreeCuPolicyKey(degrees = []) {
-    return majorDegreesOnly(degrees)
+    return degrees
         .map((d) => d.schoolCode || "")
         .sort()
         .join("|");
 }
 
 export function undergradScheduleYears(degrees) {
-    const schools = majorDegreesOnly(degrees).map((d) => d.schoolCode);
+    const schools = (degrees || []).map((d) => d.schoolCode);
     if (schools.length < 2) return 4;
     if (schools.every((s) => s === "CAS")) return 4;
     if (hasDualUndergrad(degrees) && !allUndergradCasCollege(degrees)) return 5;

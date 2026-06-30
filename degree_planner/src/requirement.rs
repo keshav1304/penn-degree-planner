@@ -3032,13 +3032,9 @@ fn ug_concentration_priority(
 
 pub fn build_allocations_from_fulfilled(
     per_degree: &[DegreeValidationResult],
-    excluded_degree_indices: Option<&HashSet<usize>>,
 ) -> HashMap<String, HashSet<usize>> {
     let mut allocations: HashMap<String, HashSet<usize>> = HashMap::new();
     for (degree_idx, validation) in per_degree.iter().enumerate() {
-        if excluded_degree_indices.is_some_and(|ex| ex.contains(&degree_idx)) {
-            continue;
-        }
         let mut record = |course: &String| {
             if course::is_valid_course_code(course) {
                 allocations
@@ -3070,10 +3066,8 @@ pub fn resolve_cross_degree_conflicts(
     cu_map: &HashMap<String, f64>,
     conc_contexts: Option<&[DegreeConcentrationContext]>,
     taken: Option<&[String]>,
-    excluded_degree_indices: Option<&HashSet<usize>>,
 ) -> CrossDegreeSummary {
-    let mut allocations =
-        build_allocations_from_fulfilled(per_degree, excluded_degree_indices);
+    let mut allocations = build_allocations_from_fulfilled(per_degree);
     if let (Some(contexts), Some(taken)) = (conc_contexts, taken) {
         merge_concentration_into_allocations(
             &mut allocations,
@@ -3223,7 +3217,7 @@ pub fn resolve_cross_degree_conflicts(
         if !changed {
             break;
         }
-        allocations = build_allocations_from_fulfilled(per_degree, excluded_degree_indices);
+        allocations = build_allocations_from_fulfilled(per_degree);
         if let (Some(contexts), Some(taken)) = (conc_contexts, taken) {
             merge_concentration_into_allocations(
                 &mut allocations,

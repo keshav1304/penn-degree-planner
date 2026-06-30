@@ -3,7 +3,7 @@ import {
     isPoolFlexibleSlotInstanceId,
 } from "@/lib/courseUtils";
 import { courseCountsForDegree, filterAttributeFulfillmentForDegree } from "@/lib/crossDegree";
-import { formatDegreeDisplay, isMinorProgram, catalogForProgram } from "@/lib/degreeDisplay";
+import { formatDegreeDisplay } from "@/lib/degreeDisplay";
 import { attributeFulfillmentMap } from "@/lib/requirementNav";
 import { getRequirementInstanceId } from "@/lib/requirementText";
 
@@ -16,72 +16,58 @@ export function isCasSchool(school) {
 
 export function casDegreeIndices(results) {
     return results
-        .map((r, i) => (isCasSchool(r?.school) && r?.kind !== "minor" ? i : -1))
+        .map((r, i) => (isCasSchool(r?.school) ? i : -1))
         .filter((i) => i >= 0);
 }
 
 /** Tab descriptors for the requirements panel. */
-export function buildRequirementTabs(results, degrees, degreeCatalog, minorCatalog = []) {
-    const entries = degrees
-        .map((degree, index) => ({ degree, index, result: results[index] }))
-        .filter(({ result }) => result);
-
-    const majorEntries = entries.filter(
-        ({ degree, result }) => !isMinorProgram(degree, result),
-    );
-    const casIndices = majorEntries
-        .filter(({ result }) => isCasSchool(result.school))
-        .map(({ index }) => index);
-    const dualCas = casIndices.length >= 2;
-    let casCombinedEmitted = false;
-
-    const makeTab = (entry, type) => {
-        const { major, schoolLine } = formatDegreeDisplay(
-            entry.degree,
-            entry.result,
-            catalogForProgram(entry.degree, entry.result, degreeCatalog, minorCatalog),
-        );
-        return {
-            id: `deg-${entry.index}`,
-            type,
-            index: entry.index,
-            label: major,
-            schoolLine,
-        };
-    };
-
+export function buildRequirementTabs(results, degrees, degreeCatalog) {
+    const casIndices = casDegreeIndices(results);
     const tabs = [];
 
-    for (const entry of entries) {
-        const { degree, result } = entry;
-        const isMinor = isMinorProgram(degree, result);
-        const isCasMajor = !isMinor && isCasSchool(result.school);
-
-        if (isMinor) {
-            tabs.push(makeTab(entry, "degree"));
-            continue;
-        }
-
-        if (dualCas && isCasMajor) {
-            if (!casCombinedEmitted) {
-                const majorLabels = casIndices.map((i) => {
-                    const { major } = formatDegreeDisplay(degrees[i], results[i], degreeCatalog);
-                    return major;
-                });
+    if (casIndices.length >= 2) {
+        const majorLabels = casIndices.map((i) => {
+            const { major } = formatDegreeDisplay(degrees[i], results[i], degreeCatalog);
+            return major;
+        });
+        tabs.push({
+            id: "cas-combined",
+            type: "cas-combined",
+            indices: casIndices,
+            label: majorLabels.join(" + "),
+            schoolLine: "College of Arts & Sciences",
+        });
+        results.forEach((r, i) => {
+            if (!isCasSchool(r.school)) {
+                const { major, schoolLine } = formatDegreeDisplay(
+                    degrees[i],
+                    r,
+                    degreeCatalog,
+                );
                 tabs.push({
-                    id: "cas-combined",
-                    type: "cas-combined",
-                    indices: casIndices,
-                    label: majorLabels.join(" + "),
-                    schoolLine: "College of Arts & Sciences",
+                    id: `deg-${i}`,
+                    type: "degree",
+                    index: i,
+                    label: major,
+                    schoolLine,
                 });
-                casCombinedEmitted = true;
             }
-            continue;
-        }
-
-        const type = isCasMajor ? "cas-single" : "degree";
-        tabs.push(makeTab(entry, type));
+        });
+    } else {
+        results.forEach((r, i) => {
+            const { major, schoolLine } = formatDegreeDisplay(
+                degrees[i],
+                r,
+                degreeCatalog,
+            );
+            tabs.push({
+                id: `deg-${i}`,
+                type: isCasSchool(r.school) ? "cas-single" : "degree",
+                index: i,
+                label: major,
+                schoolLine,
+            });
+        });
     }
 
     return tabs;

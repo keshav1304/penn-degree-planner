@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::course;
 use crate::cross_degree::{self, is_graduate_degree, CrossDegreeSummary};
-use crate::major::{self, Major, resolve_major, resolve_minor};
+use crate::major::{self, Major, resolve_major};
 use crate::overlap_planner::{
     self, OverlapOpportunity, OverlapPair, OverlapPlan, OverlapScheduleGroup, OverlapSlotRef,
 };
@@ -113,22 +113,12 @@ pub fn undergrad_schedule_years(schools: &[String]) -> i32 {
 pub struct DegreeInput {
     pub major: String,
     pub school: String,
-    #[serde(default = "default_degree_kind")]
-    pub kind: String,
     #[serde(default)]
     pub concentrations: Vec<String>,
     pub concentration: Option<String>,
 }
 
-fn default_degree_kind() -> String {
-    "major".to_string()
-}
-
 impl DegreeInput {
-    pub fn is_minor(&self) -> bool {
-        self.kind == "minor"
-    }
-
     fn effective_concentrations(&self) -> Vec<String> {
         if !self.concentrations.is_empty() {
             return major::normalize_degree_concentrations(&self.school, &self.concentrations);
@@ -165,8 +155,6 @@ pub struct SemesterPlan {
 
 #[derive(Serialize)]
 pub struct DegreeResult {
-    #[serde(default = "default_degree_kind")]
-    pub kind: String,
     pub school: String,
     pub major: String,
     pub fulfilled_requirements: Vec<MappedRequirement>,
@@ -526,7 +514,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         input: DegreeInput,
         major_data: Major,
         concs: Vec<String>,
-        is_minor: bool,
     }
 
     let mut resolved_degrees: Vec<ResolvedDegree> = Vec::new();
@@ -536,12 +523,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     for degree in &payload.degrees {
         let concs = degree.effective_concentrations();
-        let major_data = if degree.is_minor() {
-            resolve_minor(&degree.school, &degree.major, &concs)
-        } else {
-            resolve_major(&degree.school, &degree.major, &concs)
-        };
-        if let Some(major_data) = major_data {
+        if let Some(major_data) = resolve_major(&degree.school, &degree.major, &concs) {
             let mut validation = requirement::validate_courses_for_degree(
                 major_data.requirements.clone(),
                 &courses_for_validation,
@@ -556,20 +538,15 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 .sort_by_key(|r| r.requirement.get_category());
 
             per_degree_validation.push(validation);
-            if !degree.is_minor() {
-                degree_schools.push(degree.school.clone());
-                degree_majors.push(degree.major.clone());
-            }
+            degree_schools.push(degree.school.clone());
+            degree_majors.push(degree.major.clone());
             resolved_degrees.push(ResolvedDegree {
                 input: degree.clone(),
                 major_data,
                 concs,
-                is_minor: degree.is_minor(),
             });
         } else {
-            let label = if degree.is_minor() { "Minor" } else { "Major" };
             degree_results.push(DegreeResult {
-                kind: degree.kind.clone(),
                 school: degree.school.clone(),
                 major: degree.major.clone(),
                 fulfilled_requirements: vec![],
@@ -583,17 +560,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 category_order: vec![],
                 cas_gen_ed: None,
                 error: Some(format!(
-                    "{label} '{}' in school '{}' is not implemented yet.",
+                    "Major '{}' in school '{}' is not implemented yet.",
                     degree.major, degree.school
                 )),
             });
         }
     }
 
-    let major_resolved: Vec<&ResolvedDegree> =
-        resolved_degrees.iter().filter(|r| !r.is_minor).collect();
-
-    let conc_contexts: Vec<requirement::DegreeConcentrationContext> = major_resolved
+    let conc_contexts: Vec<requirement::DegreeConcentrationContext> = resolved_degrees
         .iter()
         .map(|resolved| {
             requirement::degree_concentration_context_from_major(
@@ -604,13 +578,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         })
         .collect();
 
-    let minor_degree_indices: HashSet<usize> = resolved_degrees
-        .iter()
-        .enumerate()
-        .filter(|(_, r)| r.is_minor)
-        .map(|(i, _)| i)
-        .collect();
-
     if !per_degree_validation.is_empty() {
         requirement::resolve_cross_degree_conflicts(
             &mut per_degree_validation,
@@ -619,7 +586,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &cu_map,
             Some(&conc_contexts),
             Some(&courses_for_validation),
-            Some(&minor_degree_indices),
         );
     }
 
@@ -637,16 +603,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     );
     if !per_degree_validation.is_empty() {
         let mut fulfilled_allocations =
-            requirement::build_allocations_from_fulfilled(
-                &per_degree_validation,
-                Some(&minor_degree_indices),
-            );
+            requirement::build_allocations_from_fulfilled(&per_degree_validation);
         requirement::merge_concentration_claims_into(&mut fulfilled_allocations, &ug_conc_claims);
         cross_state.rebuild_from_allocations(&fulfilled_allocations, &cu_map);
         cross_state.ug_concentration_courses = ug_conc_claims;
     }
 
-    let major_refs: Vec<&Major> = major_resolved
+    let major_refs: Vec<&Major> = resolved_degrees
         .iter()
         .map(|r| &r.major_data)
         .collect();
@@ -734,7 +697,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let degree = &resolved.input;
         let major_data = &resolved.major_data;
         let concs = &resolved.concs;
-        let is_minor = resolved.is_minor;
         per_degree_validation[degree_idx]
             .refresh_pool_coverage_info(&major_data.requirements, &cu_map);
         let validation = &mut per_degree_validation[degree_idx];
@@ -745,30 +707,27 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let fulfilled = validation.fulfilled.clone();
         let unfulfilled = validation.unfulfilled.clone();
         let pool_coverage = validation.pool_coverage_info.clone();
-        let is_secondary_cas_major = !is_minor
-            && primary_cas_degree_index.is_some_and(|primary| {
-                degree_idx != primary && degree.school == "CAS"
-            });
-
-        let cross_degree_active = !is_minor && (cross_degree_optimizer || overlap_active);
+        let is_secondary_cas_major = primary_cas_degree_index.is_some_and(|primary| {
+            degree_idx != primary && degree.school == "CAS"
+        });
 
         let mut suggested = requirement::suggest_courses_for_requirements(
             &unfulfilled,
             &courses_for_validation,
             &cu_map,
-            if cross_degree_active {
+            if cross_degree_optimizer || overlap_active {
                 Some(&cross_state)
             } else {
                 None
             },
-            if cross_degree_active {
+            if cross_degree_optimizer || overlap_active {
                 Some(degree_idx)
             } else {
                 None
             },
         );
 
-        if cross_degree_active {
+        if cross_degree_optimizer || overlap_active {
             for mapped in &mut suggested {
                 let Some(instance_id) = mapped.instance_id.clone() else {
                     continue;
@@ -789,7 +748,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             }
         }
 
-        if cross_degree_active {
+        if cross_degree_optimizer || overlap_active {
             for mapped in &suggested {
                 for course_id in &mapped.course_ids {
                     if course::is_valid_course_code(course_id)
@@ -853,7 +812,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     ) {
                         continue;
                     }
-                    let allocated_to_degree = if cross_degree_active {
+                    let allocated_to_degree = if cross_degree_optimizer || overlap_active {
                         cross_state
                             .claims
                             .get(course_id)
@@ -941,7 +900,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 req.collect_category_order(&mut category_order);
             }
 
-            let cas_gen_ed = if !is_minor && degree.school == "CAS" {
+            let cas_gen_ed = if degree.school == "CAS" {
                 pool_coverage
                     .iter()
                     .find(|p| p.category == "General Education")
@@ -976,11 +935,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             }
 
             degree_results.push(DegreeResult {
-                kind: if is_minor {
-                    "minor".to_string()
-                } else {
-                    degree.kind.clone()
-                },
                 school: degree.school.clone(),
                 major: degree.major.clone(),
                 fulfilled_requirements: fulfilled,
