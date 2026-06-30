@@ -585,6 +585,221 @@ select {
   min-width: 160px;
 }
 
+.degree-selector-row {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.degree-bar-section {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.degree-bar-section-minors {
+  border-left: 1px solid var(--border-glass);
+  padding-left: 20px;
+}
+
+@media (max-width: 768px) {
+  .degree-bar-section-minors {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border-glass);
+    padding-top: 12px;
+    flex-basis: 100%;
+  }
+}
+
+.degree-add-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-glass);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+
+.degree-add-btn:hover:not(:disabled) {
+  border-color: var(--accent-red-light);
+  color: var(--accent-red-light);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.degree-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.degree-chip-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.degree-chip-minor {
+  border-style: dashed;
+}
+
+.degree-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.degree-popover {
+  position: fixed;
+  z-index: 1001;
+  width: min(300px, calc(100vw - 16px));
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 12px 40px rgba(0, 0, 0, 0.18));
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.degree-popover-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.degree-popover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.degree-popover-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.degree-popover-field select,
+.degree-combobox input {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.degree-combobox {
+  position: relative;
+}
+
+.degree-combobox-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+
+.degree-combobox-option {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.degree-combobox-option:hover,
+.degree-combobox-option.active {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.degree-segmented {
+  display: flex;
+  gap: 6px;
+}
+
+.degree-segment {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  background: var(--bg-glass);
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.degree-segment.active {
+  border-color: var(--accent-red-light);
+  color: var(--accent-red-light);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.degree-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.req-minors-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-glass);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.req-minor-group .req-group-name {
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .degree-popover {
+    left: 8px !important;
+    right: 8px;
+    width: auto;
+    bottom: 0;
+    top: auto !important;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
 /* ============ COURSE SEARCH ============ */
 .search-box {
   position: relative;

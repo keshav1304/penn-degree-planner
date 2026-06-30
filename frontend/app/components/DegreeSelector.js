@@ -1,231 +1,176 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { API_BASE } from "@/lib/api";
+import { useState, useRef } from "react";
 import {
     formatDegreeDisplay,
-    formatConcentrationDropdownLabel,
-    implementedMajorsForSchool,
-    implementedSchools,
     normalizeConcentrations,
 } from "@/lib/degreeDisplay";
+import DegreeProgramPopover from "./DegreeProgramPopover";
 
-export default function DegreeSelector({ degreeCatalog, degrees, setDegrees }) {
-    const [selectedSchool, setSelectedSchool] = useState("");
-    const [selectedMajor, setSelectedMajor] = useState("");
-    const [selectedConcentration, setSelectedConcentration] = useState("");
-    const [selectedConcentration2, setSelectedConcentration2] = useState("");
-    const [concentrations, setConcentrations] = useState([]);
-    const [concentrationsLoading, setConcentrationsLoading] = useState(false);
+function isMinor(degree) {
+    return degree?.kind === "minor";
+}
 
-    const selectableSchools = useMemo(
-        () => implementedSchools(degreeCatalog),
-        [degreeCatalog],
+function programKey(d) {
+    const concList = normalizeConcentrations(
+        d.concentrations || (d.concentration ? [d.concentration] : []),
     );
+    return `${d.kind || "major"}:${d.schoolCode}:${d.majorCode}:${JSON.stringify(concList)}`;
+}
 
-    const selectedSchoolEntry = useMemo(
-        () => selectableSchools.find((s) => s.display_name === selectedSchool),
-        [selectableSchools, selectedSchool]
-    );
+export default function DegreeSelector({
+    degreeCatalog,
+    minorCatalog = [],
+    degrees,
+    setDegrees,
+}) {
+    const [popover, setPopover] = useState(null);
+    const anchorRef = useRef(null);
 
-    const selectableMajors = useMemo(
-        () => implementedMajorsForSchool(selectedSchoolEntry),
-        [selectedSchoolEntry],
-    );
+    const majors = degrees.filter((d) => !isMinor(d));
+    const minors = degrees.filter((d) => isMinor(d));
 
-    const selectedMajorEntry = useMemo(
-        () => selectableMajors.find((m) => m.display_name === selectedMajor),
-        [selectableMajors, selectedMajor]
-    );
+    const openPopover = (config, anchorEl) => {
+        anchorRef.current = anchorEl;
+        setPopover(config);
+    };
 
-    const schoolCode = selectedSchoolEntry?.school_code ?? "";
-    const majorCode = selectedMajorEntry?.api_code ?? "";
-    const isWharton = schoolCode === "WH";
+    const closePopover = () => setPopover(null);
 
-    useEffect(() => {
-        if (!schoolCode || !majorCode) {
-            setConcentrations([]);
-            setSelectedConcentration("");
-            setSelectedConcentration2("");
+    const handleSave = (entry) => {
+        if (popover?.mode === "edit" && popover.editIndex != null) {
+            setDegrees((prev) =>
+                prev.map((d, i) => (i === popover.editIndex ? { ...d, ...entry } : d)),
+            );
             return;
         }
 
-        const controller = new AbortController();
-        setConcentrationsLoading(true);
-
-        const params = new URLSearchParams({ school: schoolCode, major: majorCode });
-
-        fetch(`${API_BASE}/concentrations?${params}`, { signal: controller.signal })
-            .then((r) => r.json())
-            .then((data) => {
-                setConcentrations(data.concentrations || []);
-                setSelectedConcentration("");
-                setSelectedConcentration2("");
-            })
-            .catch((err) => {
-                if (err.name !== "AbortError") setConcentrations([]);
-            })
-            .finally(() => setConcentrationsLoading(false));
-
-        return () => controller.abort();
-    }, [schoolCode, majorCode]);
-
-    const buildConcentrationsList = () => {
-        if (concentrations.length === 0) return [];
-        const c1 = selectedConcentration || concentrations[0];
-        if (!isWharton || !selectedConcentration2 || selectedConcentration2 === c1) {
-            return normalizeConcentrations([c1]);
-        }
-        return normalizeConcentrations([c1, selectedConcentration2]);
-    };
-
-    const addDegree = () => {
-        if (!selectedSchoolEntry || !selectedMajorEntry) return;
-        const concList = buildConcentrationsList();
-        const concLegacy = concList[0] ?? null;
-
-        const isDup = degrees.some(
-            (d) =>
-                d.schoolCode === schoolCode &&
-                d.majorCode === majorCode &&
-                JSON.stringify(normalizeConcentrations(d.concentrations || (d.concentration ? [d.concentration] : []))) ===
-                    JSON.stringify(concList)
-        );
+        const isDup = degrees.some((d) => programKey(d) === programKey(entry));
         if (isDup) return;
 
-        setDegrees((prev) => [
-            ...prev,
-            {
-                schoolCode,
-                majorCode,
-                concentrations: concList,
-                concentration: concLegacy,
-                displaySchool: selectedSchoolEntry.display_name,
-                displayMajor: selectedMajorEntry.display_name,
-            },
-        ]);
-
-        setSelectedMajor("");
-        setSelectedConcentration("");
-        setSelectedConcentration2("");
+        setDegrees((prev) => [...prev, entry]);
     };
 
-    const removeDegree = (index) => {
+    const removeAt = (index) => {
         setDegrees((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const secondConcOptions = concentrations.filter(
-        (c) => c !== (selectedConcentration || concentrations[0])
-    );
+    const renderChip = (d, globalIndex, isMinorChip) => {
+        const catalog = isMinorChip ? minorCatalog : degreeCatalog;
+        const { major, schoolLine } = formatDegreeDisplay(d, null, catalog);
+        return (
+            <div
+                key={globalIndex}
+                className={`degree-chip fade-in${isMinorChip ? " degree-chip-minor" : ""}`}
+            >
+                <button
+                    type="button"
+                    className="degree-chip-body"
+                    onClick={(e) =>
+                        openPopover(
+                            {
+                                mode: "edit",
+                                kind: isMinorChip ? "minor" : "major",
+                                editIndex: globalIndex,
+                                initial: {
+                                    schoolCode: d.schoolCode,
+                                    majorCode: d.majorCode,
+                                    concentrations: d.concentrations
+                                        || (d.concentration ? [d.concentration] : []),
+                                },
+                            },
+                            e.currentTarget.closest(".degree-chip"),
+                        )
+                    }
+                >
+                    <div className="degree-chip-label">{major}</div>
+                    {schoolLine && <div className="degree-chip-sub">{schoolLine}</div>}
+                </button>
+                <button
+                    type="button"
+                    className="remove-btn"
+                    aria-label={`Remove ${major}`}
+                    onClick={() => removeAt(globalIndex)}
+                >
+                    ✕
+                </button>
+            </div>
+        );
+    };
 
     if (!degreeCatalog?.length) {
         return (
             <div className="degree-bar">
-                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>Loading schools…</span>
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                    Loading schools…
+                </span>
             </div>
         );
     }
 
+    const labelStyle = {
+        fontSize: "0.82rem",
+        fontWeight: 700,
+        color: "var(--text-secondary)",
+        whiteSpace: "nowrap",
+    };
+
     return (
-        <div className="degree-bar">
-            <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
-                Degrees:
-            </span>
+        <div className="degree-bar degree-selector-row">
+            <div className="degree-bar-section">
+                <span style={labelStyle}>Degrees:</span>
 
-            {degrees.map((d, i) => {
-                const { major, schoolLine } = formatDegreeDisplay(d, null, degreeCatalog);
-                return (
-                    <div key={i} className="degree-chip fade-in">
-                        <div>
-                            <div className="degree-chip-label">{major}</div>
-                            {schoolLine && (
-                                <div className="degree-chip-sub">{schoolLine}</div>
-                            )}
-                        </div>
-                        <button className="remove-btn" onClick={() => removeDegree(i)}>✕</button>
-                    </div>
-                );
-            })}
-
-            <div className="degree-form">
-                <select
-                    value={selectedSchool}
-                    onChange={(e) => {
-                        setSelectedSchool(e.target.value);
-                        setSelectedMajor("");
-                        setSelectedConcentration("");
-                        setSelectedConcentration2("");
-                    }}
-                >
-                    <option value="">School…</option>
-                    {selectableSchools.map((school) => (
-                        <option key={school.school_code} value={school.display_name}>
-                            {school.display_name}
-                        </option>
-                    ))}
-                </select>
-
-                {selectedSchool && (
-                    <select
-                        value={selectedMajor}
-                        onChange={(e) => {
-                            setSelectedMajor(e.target.value);
-                            setSelectedConcentration("");
-                            setSelectedConcentration2("");
-                        }}
-                    >
-                        <option value="">Major…</option>
-                        {selectableMajors.map((m) => (
-                            <option key={m.api_code} value={m.display_name}>
-                                {m.display_name}
-                            </option>
-                        ))}
-                    </select>
-                )}
-
-                {concentrations.length > 0 && selectedMajor && (
-                    <select
-                        value={selectedConcentration || concentrations[0]}
-                        onChange={(e) => {
-                            setSelectedConcentration(e.target.value);
-                            if (e.target.value === selectedConcentration2) {
-                                setSelectedConcentration2("");
-                            }
-                        }}
-                        disabled={concentrationsLoading}
-                    >
-                        {concentrations.map((c) => (
-                            <option key={c} value={c}>
-                                {formatConcentrationDropdownLabel(c, schoolCode)}
-                            </option>
-                        ))}
-                    </select>
-                )}
-
-                {isWharton && concentrations.length > 0 && selectedMajor && (
-                    <select
-                        value={selectedConcentration2}
-                        onChange={(e) => setSelectedConcentration2(e.target.value)}
-                        disabled={concentrationsLoading}
-                        title="Optional second concentration (double concentration)"
-                    >
-                        <option value="">2nd concentration (optional)…</option>
-                        {secondConcOptions.map((c) => (
-                            <option key={c} value={c}>
-                                {formatConcentrationDropdownLabel(c, schoolCode)}
-                            </option>
-                        ))}
-                    </select>
-                )}
+                {majors.map((d) => {
+                    const globalIndex = degrees.indexOf(d);
+                    return renderChip(d, globalIndex, false);
+                })}
 
                 <button
-                    className="btn btn-primary btn-sm"
-                    onClick={addDegree}
-                    disabled={!selectedSchool || !selectedMajor || concentrationsLoading}
+                    type="button"
+                    className="degree-add-btn"
+                    aria-label="Add degree"
+                    onClick={(e) =>
+                        openPopover({ mode: "add", kind: "major" }, e.currentTarget)
+                    }
                 >
-                    + Add
+                    +
                 </button>
             </div>
+
+            <div className="degree-bar-section degree-bar-section-minors">
+                <span style={labelStyle}>Minors:</span>
+
+                {minors.map((d) => {
+                    const globalIndex = degrees.indexOf(d);
+                    return renderChip(d, globalIndex, true);
+                })}
+
+                <button
+                    type="button"
+                    className="degree-add-btn"
+                    aria-label="Add minor"
+                    disabled={majors.length === 0}
+                    title={majors.length === 0 ? "Add a degree first" : "Add minor"}
+                    onClick={(e) =>
+                        openPopover({ mode: "add", kind: "minor" }, e.currentTarget)
+                    }
+                >
+                    +
+                </button>
+            </div>
+
+            {popover && (
+                <DegreeProgramPopover
+                    open
+                    mode={popover.mode}
+                    kind={popover.kind}
+                    catalog={popover.kind === "minor" ? minorCatalog : degreeCatalog}
+                    anchorRef={anchorRef}
+                    initial={popover.initial}
+                    onClose={closePopover}
+                    onSave={handleSave}
+                />
+            )}
         </div>
     );
 }

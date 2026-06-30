@@ -5,6 +5,7 @@ use serde::Serialize;
 use crate::Requirement;
 use crate::schedule_template::ScheduleHint;
 use crate::penn_data::college_data;
+use crate::penn_data::minor_data;
 use crate::penn_data::nursing_data;
 use crate::penn_data::seas_data;
 use crate::penn_data::seas_grad_data;
@@ -229,6 +230,52 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
     .collect()
 }
 
+/// Canonical school/minor list for the UI (`/minor_catalog`).
+pub fn minor_catalog() -> Vec<SchoolCatalogEntry> {
+    vec![SchoolCatalogEntry {
+        school_code: "SEAS".to_string(),
+        display_name: "School of Engineering and Applied Science".to_string(),
+        majors: vec![MajorCatalogEntry {
+            display_name: "Engineering Entrepreneurship".to_string(),
+            api_code: "EENT".to_string(),
+        }],
+    }]
+    .into_iter()
+    .map(|mut school| {
+        school
+            .majors
+            .retain(|m| minor_is_implemented(&school.school_code, &m.api_code));
+        school
+    })
+    .filter(|school| !school.majors.is_empty())
+    .collect()
+}
+
+pub fn minor_is_implemented(school: &str, api_code: &str) -> bool {
+    resolve_minor(school, api_code, &[]).is_some()
+}
+
+pub fn minor_concentrations_for(school: &str, minor: &str) -> Vec<String> {
+    match (school, minor) {
+        ("SEAS", "EENT") => minor_data::eent_concentration_names(),
+        _ => vec![],
+    }
+}
+
+pub fn resolve_minor(school: &str, minor: &str, concentrations: &[String]) -> Option<Major> {
+    let major = match (school, minor) {
+        ("SEAS", "EENT") => {
+            let conc = concentrations
+                .first()
+                .cloned()
+                .unwrap_or_else(|| "Standard".to_string());
+            Some(minor_data::create_eent_minor(&conc))
+        }
+        _ => None,
+    };
+    major.map(normalize_major)
+}
+
 pub fn all_majors() -> BTreeMap<String, Vec<String>> {
     degree_catalog()
         .into_iter()
@@ -252,6 +299,10 @@ pub fn normalize_degree_concentrations(school: &str, concentrations: &[String]) 
 
 /// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".
 pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
+    if minor_is_implemented(school, major) {
+        return minor_concentrations_for(school, major);
+    }
+
     let optional_overlay = school == "SEAS" && matches!(major, "EE" | "MSE" | "CIS" | "CMPE" | "BE");
 
     let mut names = match school {

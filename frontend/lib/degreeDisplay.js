@@ -88,6 +88,20 @@ export function implementedSchools(degreeCatalog) {
     );
 }
 
+/** Minors the UI should offer for a school entry. */
+export function implementedMinorsForSchool(schoolEntry) {
+    return (schoolEntry?.majors || []).filter(
+        (m) => m.api_code && m.api_code !== "NA",
+    );
+}
+
+/** Schools that have at least one selectable minor. */
+export function implementedSchoolsForMinors(minorCatalog) {
+    return (minorCatalog || []).filter(
+        (school) => implementedMinorsForSchool(school).length > 0,
+    );
+}
+
 /**
  * SEAS Masters layout: full major on line 1, full school name on line 2.
  * Undergraduate-style concentration suffix when concentrations are set.

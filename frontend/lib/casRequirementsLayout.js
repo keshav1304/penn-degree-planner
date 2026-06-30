@@ -22,7 +22,13 @@ export function casDegreeIndices(results) {
 
 /** Tab descriptors for the requirements panel. */
 export function buildRequirementTabs(results, degrees, degreeCatalog) {
-    const casIndices = casDegreeIndices(results);
+    const majorEntries = degrees
+        .map((degree, index) => ({ degree, index, result: results[index] }))
+        .filter(({ degree }) => degree?.kind !== "minor");
+
+    const casIndices = majorEntries
+        .filter(({ result }) => isCasSchool(result?.school))
+        .map(({ index }) => index);
     const tabs = [];
 
     if (casIndices.length >= 2) {
@@ -37,33 +43,33 @@ export function buildRequirementTabs(results, degrees, degreeCatalog) {
             label: majorLabels.join(" + "),
             schoolLine: "College of Arts & Sciences",
         });
-        results.forEach((r, i) => {
-            if (!isCasSchool(r.school)) {
+        majorEntries.forEach(({ index, result }) => {
+            if (!result || isCasSchool(result.school)) return;
                 const { major, schoolLine } = formatDegreeDisplay(
-                    degrees[i],
-                    r,
+                    degrees[index],
+                    result,
                     degreeCatalog,
                 );
                 tabs.push({
-                    id: `deg-${i}`,
+                    id: `deg-${index}`,
                     type: "degree",
-                    index: i,
+                    index,
                     label: major,
                     schoolLine,
                 });
-            }
         });
     } else {
-        results.forEach((r, i) => {
+        majorEntries.forEach(({ index, result }) => {
+            if (!result) return;
             const { major, schoolLine } = formatDegreeDisplay(
-                degrees[i],
-                r,
+                degrees[index],
+                result,
                 degreeCatalog,
             );
             tabs.push({
-                id: `deg-${i}`,
-                type: isCasSchool(r.school) ? "cas-single" : "degree",
-                index: i,
+                id: `deg-${index}`,
+                type: isCasSchool(result.school) ? "cas-single" : "degree",
+                index,
                 label: major,
                 schoolLine,
             });
@@ -71,6 +77,20 @@ export function buildRequirementTabs(results, degrees, degreeCatalog) {
     }
 
     return tabs;
+}
+
+/** Pairs each minor degree with its schedule result. */
+export function minorEntries(results, degrees, degreeCatalog, minorCatalog = []) {
+    const catalog = minorCatalog?.length ? minorCatalog : degreeCatalog;
+    return degrees
+        .map((degree, index) => ({ degree, index, result: results[index] }))
+        .filter(({ degree }) => degree?.kind === "minor")
+        .map(({ degree, index, result }) => ({
+            index,
+            degree,
+            result,
+            label: formatDegreeDisplay(degree, result, catalog).major,
+        }));
 }
 
 export function resolveActiveTabIndex(tabs, activeTab, navTarget) {
