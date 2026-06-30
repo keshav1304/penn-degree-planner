@@ -586,9 +586,10 @@ select {
 }
 
 .degree-selector-row {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 12px 20px;
+  width: 100%;
 }
 
 .degree-bar-section {
@@ -596,22 +597,37 @@ select {
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  flex: 1 1 280px;
   min-width: 0;
 }
 
+.degree-selector-row > .degree-bar-section:first-child {
+  flex: 0 0 65%;
+  max-width: 65%;
+}
+
 .degree-bar-section-minors {
+  flex: 0 0 35%;
+  max-width: 35%;
   border-left: 1px solid var(--border-glass);
   padding-left: 20px;
 }
 
 @media (max-width: 768px) {
+  .degree-selector-row {
+    flex-wrap: wrap;
+  }
+
+  .degree-selector-row > .degree-bar-section:first-child,
+  .degree-bar-section-minors {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+
   .degree-bar-section-minors {
     border-left: none;
     padding-left: 0;
     border-top: 1px solid var(--border-glass);
     padding-top: 12px;
-    flex-basis: 100%;
   }
 }
 
