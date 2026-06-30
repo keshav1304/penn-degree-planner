@@ -11,19 +11,19 @@ use std::collections::{HashMap, HashSet};
 
 use proptest::prelude::*;
 
-use crate::course;
-use crate::cross_degree::{
+use degree_planner::course;
+use degree_planner::cross_degree::{
     self, crosses_undergrad_grad, cross_degree_optimizer_applicable, enforce_claim_rules,
     is_graduate_degree, overlap_plan_applicable,
     CrossDegreeState, CrossDegreeViolationKind, UNDERGRAD_GRAD_CU_LIMIT,
 };
-use crate::major::{self, resolve_major};
-use crate::overlap_planner::{
+use degree_planner::major::{self, resolve_major};
+use degree_planner::overlap_planner::{
     self, compute_overlap_plan, is_overlap_schedule_group_id, overlap_group_schedule_id,
     OverlapSlotRef,
 };
-use crate::penn_data::{attributes_data, college_data, courses_data};
-use crate::requirement::{
+use degree_planner::penn_data::{attributes_data, college_data, courses_data};
+use degree_planner::requirement::{
     self, course_matches_restriction, evaluate_pool_constraints, expand_restriction_slots,
     extract_concentration_info, is_pool_constraint_slot_id, is_requirement_slot_id,
     is_schedulable_requirement_slot_id, validate_courses_for_degree,
@@ -31,11 +31,11 @@ use crate::requirement::{
     requirement_explicitly_lists_course,
     Requirement,
 };
-use crate::schedule_template::{
+use degree_planner::schedule_template::{
     later_semesters, placement_semesters, scheduled, semester_order, ScheduleHint,
     ScheduleHintMode, Y1F, Y1S, Y2F, Y2S, Y3F, Y4F,
 };
-use crate::scheduler::{
+use degree_planner::scheduler::{
     self, default_semester_cu_limit, generate_schedule, undergrad_schedule_years, CU_EPS,
     DegreeInput, ScheduleInput,
 };
@@ -393,7 +393,7 @@ mod catalog {
 
     #[test]
     fn math_major_resolves_with_concentrations() {
-        use crate::Requirement;
+        use degree_planner::Requirement;
 
         fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             if pred(req) {
@@ -415,7 +415,7 @@ mod catalog {
             }
         }
 
-        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+        fn major_contains(major: &degree_planner::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             major
                 .requirements
                 .iter()
@@ -519,7 +519,7 @@ mod catalog {
 
     #[test]
     fn psyc_major_resolves_with_distribution_and_electives() {
-        use crate::Requirement;
+        use degree_planner::Requirement;
 
         fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             if pred(req) {
@@ -541,7 +541,7 @@ mod catalog {
             }
         }
 
-        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+        fn major_contains(major: &degree_planner::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             major
                 .requirements
                 .iter()
@@ -603,7 +603,7 @@ mod catalog {
 
     #[test]
     fn bsn_major_resolves_with_requirements() {
-        use crate::Requirement;
+        use degree_planner::Requirement;
 
         fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             if pred(req) {
@@ -625,7 +625,7 @@ mod catalog {
             }
         }
 
-        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+        fn major_contains(major: &degree_planner::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             major
                 .requirements
                 .iter()
@@ -716,7 +716,7 @@ mod catalog {
 
     #[test]
     fn nutr_bsn_major_resolves_with_nutrition_requirements() {
-        use crate::Requirement;
+        use degree_planner::Requirement;
 
         fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             if pred(req) {
@@ -738,7 +738,7 @@ mod catalog {
             }
         }
 
-        fn major_contains(major: &crate::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+        fn major_contains(major: &degree_planner::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
             major
                 .requirements
                 .iter()
@@ -1291,7 +1291,7 @@ mod catalog {
 
     #[test]
     fn be_major_general_electives_use_course_pool() {
-        use crate::Requirement;
+        use degree_planner::Requirement;
 
         let be = resolve_major("SEAS", "BE", &[]).expect("BE");
         assert_eq!(be.short_name, "BE");
@@ -1514,7 +1514,7 @@ mod catalog {
 
     #[test]
     fn phys_major_resolves_with_concentrations() {
-        use crate::penn_data::college_data::phys_concentration_names;
+        use degree_planner::penn_data::college_data::phys_concentration_names;
 
         assert_eq!(phys_concentration_names().len(), 6);
         let astro = resolve_major("CAS", "PHYS", &["Astrophysics".into()]).expect("PHYS");
@@ -1537,7 +1537,7 @@ mod catalog {
 
     #[test]
     fn econ_gen_ed_marks_society_sector_completed_by_major() {
-        use crate::penn_data::college_data::{build_cas_gen_ed_info, cas_auto_completed_sectors_for, create_econ_major, SECTOR_SOCIETY};
+        use degree_planner::penn_data::college_data::{build_cas_gen_ed_info, cas_auto_completed_sectors_for, create_econ_major, SECTOR_SOCIETY};
 
         let major = create_econ_major();
         let cu_map = HashMap::from([("WRIT 0100".to_string(), 1.0)]);
@@ -1564,7 +1564,7 @@ mod catalog {
 
     #[test]
     fn neur_gen_ed_marks_living_and_physical_world_completed_by_major() {
-        use crate::penn_data::college_data::{
+        use degree_planner::penn_data::college_data::{
             build_cas_gen_ed_info, cas_auto_completed_sectors_for, SECTOR_LIVING_WORLD,
             SECTOR_PHYSICAL_WORLD,
         };
@@ -1594,7 +1594,7 @@ mod catalog {
 
     #[test]
     fn anth_medical_concentration_completes_hum_soc_sci_sector() {
-        use crate::penn_data::college_data::{cas_auto_completed_sectors_for, SECTOR_HUM_SOC_SCI};
+        use degree_planner::penn_data::college_data::{cas_auto_completed_sectors_for, SECTOR_HUM_SOC_SCI};
 
         let sectors = cas_auto_completed_sectors_for(
             "ANTH",
@@ -1840,7 +1840,7 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_fl_mt_pool_blocks_cc_ssh_double_count_in_same_group() {
-        use crate::penn_data::wharton_data::create_wh_fl_mt_major;
+        use degree_planner::penn_data::wharton_data::create_wh_fl_mt_major;
 
         let major = create_wh_fl_mt_major(vec!["FNCE".into()]);
         let pool_req = major
@@ -1875,7 +1875,7 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_nofl_mt_has_no_course_pool() {
-        use crate::penn_data::wharton_data::create_wh_nofl_mt_major;
+        use degree_planner::penn_data::wharton_data::create_wh_nofl_mt_major;
 
         let major = create_wh_nofl_mt_major(vec!["STAT".into()]);
         assert!(
@@ -1889,7 +1889,7 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_concentration_names_are_short_codes_and_exclude_oidd() {
-        use crate::penn_data::wharton_data::{
+        use degree_planner::penn_data::wharton_data::{
             concentration_names, create_wh_concentrations, resolve_wh_concentration_key,
         };
 
@@ -1938,8 +1938,8 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_oidd_information_systems_concentration_requires_four_electives() {
-        use crate::Requirement;
-        use crate::penn_data::wharton_data::create_wh_concentrations;
+        use degree_planner::Requirement;
+        use degree_planner::penn_data::wharton_data::create_wh_concentrations;
 
         let catalog = create_wh_concentrations();
         let is = catalog.get("ODIS").expect("ODIS concentration");
@@ -1955,8 +1955,8 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_oidd_operations_management_concentration_requires_core_and_three_electives() {
-        use crate::Requirement;
-        use crate::penn_data::wharton_data::create_wh_concentrations;
+        use degree_planner::Requirement;
+        use degree_planner::penn_data::wharton_data::create_wh_concentrations;
 
         let catalog = create_wh_concentrations();
         let om = catalog.get("ODOM").expect("ODOM concentration");
@@ -1977,8 +1977,8 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_oidd_general_concentration_requires_four_wuod_courses() {
-        use crate::Requirement;
-        use crate::penn_data::wharton_data::create_wh_concentrations;
+        use degree_planner::Requirement;
+        use degree_planner::penn_data::wharton_data::create_wh_concentrations;
 
         let catalog = create_wh_concentrations();
         let general = catalog.get("ODGN").expect("ODGN concentration");
@@ -1995,8 +1995,8 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_oidd_decision_processes_concentration_requires_core_and_two_electives() {
-        use crate::Requirement;
-        use crate::penn_data::wharton_data::create_wh_concentrations;
+        use degree_planner::Requirement;
+        use degree_planner::penn_data::wharton_data::create_wh_concentrations;
 
         let catalog = create_wh_concentrations();
         let dp = catalog.get("ODDP").expect("ODDP concentration");
@@ -2022,8 +2022,8 @@ mod pools_and_concentrations {
 
     #[test]
     fn wh_hcmg_concentration_requires_1010_and_three_electives() {
-        use crate::Requirement;
-        use crate::penn_data::wharton_data::create_wh_concentrations;
+        use degree_planner::Requirement;
+        use degree_planner::penn_data::wharton_data::create_wh_concentrations;
 
         let catalog = create_wh_concentrations();
         let hc = catalog.get("HCMG").expect("HCMG concentration");
@@ -2085,7 +2085,7 @@ mod cross_degree_sharing {
 
     #[test]
     fn business_breadth_slot_label_matches_scoped_id() {
-        use crate::penn_data::wharton_data;
+        use degree_planner::penn_data::wharton_data;
         let major = wharton_data::create_wh_nofl_major(vec!["FNCE".into()]);
         let validation = validate_courses_for_degree(
             major.requirements.clone(),
@@ -2214,8 +2214,8 @@ mod cross_degree_sharing {
 
     #[test]
     fn overlap_plan_applies_to_undergrad_plus_grad() {
-        use crate::overlap_planner::is_overlap_schedule_group_id;
-        use crate::scheduler::{dual_undergrad_only, generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::overlap_planner::is_overlap_schedule_group_id;
+        use degree_planner::scheduler::{dual_undergrad_only, generate_schedule, DegreeInput, ScheduleInput};
 
         let schools = vec!["SEAS".into(), "SEAS_MS".into()];
         assert!(!dual_undergrad_only(&schools));
@@ -2283,8 +2283,8 @@ mod cross_degree_sharing {
 
     #[test]
     fn schedule_undergrad_grad_overlap_respects_three_cu_cap() {
-        use crate::cross_degree::is_graduate_degree;
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::cross_degree::is_graduate_degree;
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -2383,7 +2383,7 @@ mod cross_degree_sharing {
 
     #[test]
     fn schedule_undergrad_grad_cap_with_taken_overlapping_courses() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![
@@ -2464,7 +2464,7 @@ mod cross_degree_sharing {
 
     #[test]
     fn ee_wh_nofl_mt_with_ms_robo_still_surfaces_undergrad_overlaps() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -2711,7 +2711,7 @@ mod overlap {
 
     #[test]
     fn ee_robotics_wh_nofl_mt_surfaces_key_overlaps_on_schedule() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -2835,7 +2835,7 @@ mod overlap {
 
     #[test]
     fn ee_wh_schedules_one_shared_stats_fundamental_not_both() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -2880,7 +2880,7 @@ mod overlap {
 
     #[test]
     fn ee_wh_mgmt2370_fills_professional_electives_not_ese4000() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -3745,16 +3745,16 @@ mod dual_degree_properties {
 
     #[test]
     fn cas_single_econ_gen_ed_capped_at_twelve_with_unrestricted_electives() {
-        use crate::penn_data::college_data::{
+        use degree_planner::penn_data::college_data::{
             cas_gened_pool, cas_major_pool_major_cu, create_econ_major, CAS_DEGREE_CU,
         };
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let major = create_econ_major();
         let major_cu = cas_major_pool_major_cu(&major);
         let (pool_idx, _) = cas_gened_pool(&major).expect("gen-ed pool");
         let gen_ed_flex = match &major.requirements[pool_idx] {
-            crate::requirement::Requirement::CoursePool { flexible_slots, .. } => *flexible_slots,
+            degree_planner::requirement::Requirement::CoursePool { flexible_slots, .. } => *flexible_slots,
             _ => panic!("expected pool"),
         };
         let unrestricted: i32 = major
@@ -4231,7 +4231,7 @@ mod schedule_templates {
 
     #[test]
     fn seas_senior_design_courses_are_fixed_y4f_and_y4s() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -4252,7 +4252,7 @@ mod schedule_templates {
 
     #[test]
     fn ee_robotics_wh_places_fixed_courses_in_mandatory_semesters() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -4285,7 +4285,7 @@ mod schedule_templates {
 
     #[test]
     fn wh_nofl_places_wh1010_in_y1_fall() {
-        use crate::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+        use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let output = generate_schedule(ScheduleInput {
             taken: vec![],
@@ -4305,8 +4305,8 @@ mod schedule_templates {
 
     #[test]
     fn wh_fl_mt_fixed_hints_include_wh1010_and_oidd2340() {
-        use crate::major::resolve_major;
-        use crate::schedule_template::ScheduleHintMode;
+        use degree_planner::major::resolve_major;
+        use degree_planner::schedule_template::ScheduleHintMode;
 
         let major = resolve_major("WH", "WH_FL_MT", &["FNCE".into()]).expect("WH_FL_MT");
         for (course, year, semester) in [

@@ -10,7 +10,3 @@ pub mod scheduler;
 pub use course::Course;
 pub use major::Major;
 pub use requirement::Requirement;
-
-#[cfg(test)]
-#[path = "test_suite.rs"]
-mod test_suite;
