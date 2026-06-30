@@ -840,6 +840,33 @@ mod catalog {
     }
 
     #[test]
+    fn minor_catalog_includes_cas_math() {
+        let catalog = major::minor_catalog();
+        let cas = catalog
+            .iter()
+            .find(|s| s.school_code == "CAS")
+            .expect("CAS in minor catalog");
+        assert!(
+            cas.majors.iter().any(|m| m.api_code == "MATH"),
+            "Mathematics minor should be selectable"
+        );
+    }
+
+    #[test]
+    fn math_minor_resolves_seven_cu_minimum() {
+        let minor = major::resolve_minor("CAS", "MATH", &[])
+            .expect("CAS Mathematics minor resolves");
+        assert_eq!(minor.short_name, "MATH");
+
+        let expanded = requirement::expand_restriction_slots(minor.requirements.clone());
+        assert_eq!(
+            expanded.len(),
+            7,
+            "MATH minor: 2 calculus + lin alg/proofs + proof-based + 3 electives"
+        );
+    }
+
+    #[test]
     fn degree_catalog_excludes_minors() {
         let catalog = major::degree_catalog();
         for school in &catalog {

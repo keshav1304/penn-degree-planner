@@ -39,7 +39,6 @@ import {
     buildRequirementTabs,
     casGenEdProgress,
     getCategory,
-    minorEntries,
     normalizeCategory,
     poolGroupStats,
     poolProgressLabel,
@@ -66,7 +65,7 @@ export default function RequirementsPanel({
 
     useEffect(() => {
         if (!navTarget || !scheduleData?.degree_results) return;
-        const tabs = buildRequirementTabs(scheduleData.degree_results, degrees, degreeCatalog);
+        const tabs = buildRequirementTabs(scheduleData.degree_results, degrees, degreeCatalog, minorCatalog);
         const resolvedTab = resolveActiveTabIndex(tabs, activeTab, navTarget);
         const { degreeIndex, instanceId, category } = navTarget;
         const rowId = reqRowDomId(degreeIndex ?? 0, instanceId);
@@ -84,7 +83,7 @@ export default function RequirementsPanel({
             onNavTargetConsumed?.();
         }, 80);
         return () => window.clearTimeout(timer);
-    }, [navTarget, onNavTargetConsumed, scheduleData, degrees, degreeCatalog, activeTab]);
+    }, [navTarget, onNavTargetConsumed, scheduleData, degrees, degreeCatalog, minorCatalog, activeTab]);
 
     if (!degrees || degrees.length === 0) {
         return (
@@ -105,7 +104,7 @@ export default function RequirementsPanel({
 
     const results = scheduleData.degree_results;
     const degreeColorMap = buildDegreeColorMap(scheduleData);
-    const tabs = buildRequirementTabs(results, degrees, degreeCatalog);
+    const tabs = buildRequirementTabs(results, degrees, degreeCatalog, minorCatalog);
     const tabIndex = resolveActiveTabIndex(tabs, activeTab, navTarget);
     const activeTabDef = tabs[tabIndex];
     if (!activeTabDef) return null;
@@ -247,10 +246,6 @@ export default function RequirementsPanel({
     const fulfilledPct = totalCount > 0 ? (fulfilledCount / totalCount) * 100 : 0;
     const plannedPct = totalCount > 0 ? (plannedCount / totalCount) * 100 : 0;
     const pct = totalCount > 0 ? Math.round(((fulfilledCount + plannedCount) / totalCount) * 100) : 0;
-
-    const minorsForPanel = tabIndex === 0
-        ? minorEntries(results, degrees, degreeCatalog, minorCatalog)
-        : [];
 
     return (
         <div className="req-panel">
@@ -417,19 +412,6 @@ export default function RequirementsPanel({
                 {totalCount === 0 && !errors.length && (
                     <div className="req-empty-state"><div className="req-empty-text">No requirement data available</div></div>
                 )}
-
-                {minorsForPanel.length > 0 && renderMinorSections({
-                    minors: minorsForPanel,
-                    collapsedGroups,
-                    setCollapsedGroups,
-                    assignedIds,
-                    frozenIds,
-                    takenIds,
-                    crossDegreeViolationsByCourse,
-                    crossDegreeChipTitle,
-                    courseDegreesMap,
-                    flashRowId,
-                })}
             </div>
         </div>
     );
@@ -462,113 +444,6 @@ function mapRequirementForDegreeLabel(mapped, degreeLabel, courseDegreesMap, { f
     };
 }
 
-function buildMinorRequirementItems(result, degreeLabel, courseDegreesMap) {
-    const items = [];
-    const pushIfSchedulable = (mapped, opts) => {
-        if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
-        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
-        items.push(mapRequirementForDegreeLabel(mapped, degreeLabel, courseDegreesMap, opts));
-    };
-    (result?.fulfilled_requirements || []).forEach((mapped) => {
-        pushIfSchedulable(mapped, { fulfilledDefault: true, partialDefault: false });
-    });
-    (result?.unfulfilled_requirements || []).forEach((mapped, rowIdx) => {
-        const req = mapped?.requirement ?? mapped;
-        if (isPoolConstraintInstanceId(getRequirementInstanceId(mapped))) return;
-        if (isPoolFlexibleSlotInstanceId(getRequirementInstanceId(mapped))) return;
-        const item = mapRequirementForDegreeLabel(
-            { ...mapped, requirement: req },
-            degreeLabel,
-            courseDegreesMap,
-            { fulfilledDefault: false, partialDefault: Boolean(mapped.partial) },
-        );
-        items.push({
-            ...item,
-            instanceId: item.instanceId ?? `u-${rowIdx}`,
-        });
-    });
-    return items;
-}
-
-function renderMinorSections({
-    minors,
-    collapsedGroups,
-    setCollapsedGroups,
-    assignedIds,
-    frozenIds,
-    takenIds,
-    crossDegreeViolationsByCourse,
-    crossDegreeChipTitle,
-    courseDegreesMap,
-    flashRowId,
-}) {
-    return (
-        <div className="req-minors-section">
-            {minors.map((minor) => {
-                const degreeLabel = `${minor.result?.school}-${minor.result?.major}`;
-                const items = buildMinorRequirementItems(
-                    minor.result,
-                    degreeLabel,
-                    courseDegreesMap,
-                );
-                const groupTone = computeGroupTone(items, null, frozenIds);
-                const sectionKey = `minor-${minor.index}`;
-                const isCollapsed = collapsedGroups[sectionKey] ?? true;
-                const scheduleCtx = {
-                    assignedIds,
-                    frozenIds,
-                    takenIds,
-                    crossDegreeViolationsByCourse,
-                    crossDegreeChipTitle,
-                    degreeIndex: minor.index,
-                };
-
-                return (
-                    <div key={sectionKey} className={`req-group req-minor-group ${groupClassForTone(groupTone)}`}>
-                        <div
-                            className="req-group-header"
-                            onClick={() => setCollapsedGroups((p) => ({
-                                ...p,
-                                [sectionKey]: !(p[sectionKey] ?? true),
-                            }))}
-                        >
-                            <span className={`req-group-badge ${badgeClassForGroupTone(groupTone)}`}>
-                                {groupBadgeIcon(groupTone)}
-                            </span>
-                            <span className="req-group-name" title={minor.label}>
-                                Minor: {minor.label}
-                            </span>
-                            <span className={`req-group-pill ${pillClassForGroupTone(groupTone)}`}>
-                                {formatCategoryProgress(items)}
-                            </span>
-                            <span
-                                className={`req-group-chevron${isCollapsed ? "" : " req-group-chevron-open"}`}
-                                aria-hidden
-                            >
-                                ▶
-                            </span>
-                        </div>
-                        {!isCollapsed && (
-                            <div className="req-group-body">
-                                {minor.result?.error && (
-                                    <div className="req-error-banner">⚠️ {minor.result.error}</div>
-                                )}
-                                {items.map((item, rowIdx) => renderRequirementItem(
-                                    item,
-                                    item.instanceId ?? String(rowIdx),
-                                    scheduleCtx,
-                                    rowIdx === 0,
-                                    minor.index,
-                                    flashRowId,
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
 
 function casCollapseKeysForNav(navTarget, results) {
     const keys = {};

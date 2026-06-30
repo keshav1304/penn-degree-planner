@@ -21,76 +21,72 @@ export function casDegreeIndices(results) {
 }
 
 /** Tab descriptors for the requirements panel. */
-export function buildRequirementTabs(results, degrees, degreeCatalog) {
-    const majorEntries = degrees
-        .map((degree, index) => ({ degree, index, result: results[index] }))
-        .filter(({ degree }) => degree?.kind !== "minor");
+export function buildRequirementTabs(results, degrees, degreeCatalog, minorCatalog = []) {
+    const catalogFor = (degree) => (
+        degree?.kind === "minor" && minorCatalog?.length ? minorCatalog : degreeCatalog
+    );
 
+    const entries = degrees
+        .map((degree, index) => ({ degree, index, result: results[index] }))
+        .filter(({ result }) => result);
+
+    const majorEntries = entries.filter(({ degree }) => degree?.kind !== "minor");
     const casIndices = majorEntries
-        .filter(({ result }) => isCasSchool(result?.school))
+        .filter(({ result }) => isCasSchool(result.school))
         .map(({ index }) => index);
+    const dualCas = casIndices.length >= 2;
+    let casCombinedEmitted = false;
+
+    const makeTab = (entry, type) => {
+        const { major, schoolLine } = formatDegreeDisplay(
+            entry.degree,
+            entry.result,
+            catalogFor(entry.degree),
+        );
+        return {
+            id: `deg-${entry.index}`,
+            type,
+            index: entry.index,
+            label: major,
+            schoolLine,
+        };
+    };
+
     const tabs = [];
 
-    if (casIndices.length >= 2) {
-        const majorLabels = casIndices.map((i) => {
-            const { major } = formatDegreeDisplay(degrees[i], results[i], degreeCatalog);
-            return major;
-        });
-        tabs.push({
-            id: "cas-combined",
-            type: "cas-combined",
-            indices: casIndices,
-            label: majorLabels.join(" + "),
-            schoolLine: "College of Arts & Sciences",
-        });
-        majorEntries.forEach(({ index, result }) => {
-            if (!result || isCasSchool(result.school)) return;
-                const { major, schoolLine } = formatDegreeDisplay(
-                    degrees[index],
-                    result,
-                    degreeCatalog,
-                );
-                tabs.push({
-                    id: `deg-${index}`,
-                    type: "degree",
-                    index,
-                    label: major,
-                    schoolLine,
+    for (const entry of entries) {
+        const { degree, result } = entry;
+        const isMinor = degree?.kind === "minor";
+        const isCasMajor = !isMinor && isCasSchool(result.school);
+
+        if (isMinor) {
+            tabs.push(makeTab(entry, "degree"));
+            continue;
+        }
+
+        if (dualCas && isCasMajor) {
+            if (!casCombinedEmitted) {
+                const majorLabels = casIndices.map((i) => {
+                    const { major } = formatDegreeDisplay(degrees[i], results[i], degreeCatalog);
+                    return major;
                 });
-        });
-    } else {
-        majorEntries.forEach(({ index, result }) => {
-            if (!result) return;
-            const { major, schoolLine } = formatDegreeDisplay(
-                degrees[index],
-                result,
-                degreeCatalog,
-            );
-            tabs.push({
-                id: `deg-${index}`,
-                type: isCasSchool(result.school) ? "cas-single" : "degree",
-                index,
-                label: major,
-                schoolLine,
-            });
-        });
+                tabs.push({
+                    id: "cas-combined",
+                    type: "cas-combined",
+                    indices: casIndices,
+                    label: majorLabels.join(" + "),
+                    schoolLine: "College of Arts & Sciences",
+                });
+                casCombinedEmitted = true;
+            }
+            continue;
+        }
+
+        const type = isCasMajor ? "cas-single" : "degree";
+        tabs.push(makeTab(entry, type));
     }
 
     return tabs;
-}
-
-/** Pairs each minor degree with its schedule result. */
-export function minorEntries(results, degrees, degreeCatalog, minorCatalog = []) {
-    const catalog = minorCatalog?.length ? minorCatalog : degreeCatalog;
-    return degrees
-        .map((degree, index) => ({ degree, index, result: results[index] }))
-        .filter(({ degree }) => degree?.kind === "minor")
-        .map(({ degree, index, result }) => ({
-            index,
-            degree,
-            result,
-            label: formatDegreeDisplay(degree, result, catalog).major,
-        }));
 }
 
 export function resolveActiveTabIndex(tabs, activeTab, navTarget) {

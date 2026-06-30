@@ -117,6 +117,27 @@ function buildCourseMapFromDegreeResults(degreeResults = []) {
     return degMap;
 }
 
+/** Minors always double-count with UG degrees — merge fulfilled courses into the map. */
+function applyMinorDoubleCounts(degMap, degreeResults = []) {
+    degreeResults.forEach((result) => {
+        if (result?.kind !== "minor") return;
+        const degreeLabel = labelForDegreeResult(result);
+        const addCourse = (id) => {
+            if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
+        };
+        const processMapped = (mapped) => mapped.course_ids?.forEach(addCourse);
+        result.fulfilled_requirements?.forEach(processMapped);
+        result.suggested_for_unfulfilled?.forEach(processMapped);
+        result.unfulfilled_requirements?.forEach((mapped) => {
+            if (mapped.partial) processMapped(mapped);
+        });
+        result.concentration_info?.forEach((ci) => {
+            if (ci.is_core) return;
+            (ci.matched_courses || []).flat().forEach(addCourse);
+        });
+    });
+}
+
 export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
     // Always seed from degree_results (fulfilled + suggested). Required for multi-degree
     // plans without the cross-degree overlap optimizer (e.g. undergrad + SEAS_MS), where
@@ -154,6 +175,8 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
         result.fulfilled_requirements?.forEach(addSlots);
         result.suggested_for_unfulfilled?.forEach(addSlots);
     });
+
+    applyMinorDoubleCounts(degMap, degreeResults);
 
     return degMap;
 }

@@ -231,14 +231,24 @@ pub fn degree_catalog() -> Vec<SchoolCatalogEntry> {
 
 /// Canonical school/minor list for the UI (`/minor_catalog`).
 pub fn minor_catalog() -> Vec<SchoolCatalogEntry> {
-    vec![SchoolCatalogEntry {
-        school_code: "SEAS".to_string(),
-        display_name: "School of Engineering and Applied Science".to_string(),
-        majors: vec![MajorCatalogEntry {
-            display_name: "Engineering Entrepreneurship".to_string(),
-            api_code: "EENT".to_string(),
-        }],
-    }]
+    vec![
+        SchoolCatalogEntry {
+            school_code: "SEAS".to_string(),
+            display_name: "School of Engineering and Applied Science".to_string(),
+            majors: vec![MajorCatalogEntry {
+                display_name: "Engineering Entrepreneurship".to_string(),
+                api_code: "EENT".to_string(),
+            }],
+        },
+        SchoolCatalogEntry {
+            school_code: "CAS".to_string(),
+            display_name: "School of Arts & Sciences".to_string(),
+            majors: vec![MajorCatalogEntry {
+                display_name: "Mathematics".to_string(),
+                api_code: "MATH".to_string(),
+            }],
+        },
+    ]
     .into_iter()
     .map(|mut school| {
         school
@@ -270,6 +280,7 @@ pub fn resolve_minor(school: &str, minor: &str, concentrations: &[String]) -> Op
                 .unwrap_or_else(|| "Standard".to_string());
             Some(seas_data::create_eent_minor(&conc))
         }
+        ("CAS", "MATH") => Some(college_data::create_math_minor()),
         _ => None,
     };
     major.map(normalize_major)
@@ -298,7 +309,7 @@ pub fn normalize_degree_concentrations(school: &str, concentrations: &[String]) 
 
 /// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".
 pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
-    if minor_is_implemented(school, major) {
+    if !major_is_implemented(school, major) && minor_is_implemented(school, major) {
         return minor_concentrations_for(school, major);
     }
 
