@@ -6,7 +6,9 @@ import { API_BASE } from "@/lib/api";
 import {
     formatConcentrationDropdownLabel,
     implementedMajorsForSchool,
+    implementedMinorsForSchool,
     implementedSchools,
+    implementedSchoolsForMinors,
     normalizeConcentrations,
 } from "@/lib/degreeDisplay";
 
@@ -14,6 +16,7 @@ import {
  * @param {{
  *   open: boolean,
  *   mode: "add" | "edit",
+ *   kind: "major" | "minor",
  *   catalog: Array,
  *   anchorRef: React.RefObject<HTMLElement | null>,
  *   initial?: { schoolCode?: string, majorCode?: string, concentrations?: string[] },
@@ -24,6 +27,7 @@ import {
 export default function DegreeProgramPopover({
     open,
     mode,
+    kind,
     catalog,
     anchorRef,
     initial,
@@ -47,8 +51,8 @@ export default function DegreeProgramPopover({
     }, []);
 
     const selectableSchools = useMemo(
-        () => implementedSchools(catalog),
-        [catalog],
+        () => (kind === "minor" ? implementedSchoolsForMinors(catalog) : implementedSchools(catalog)),
+        [catalog, kind],
     );
 
     const selectedSchoolEntry = useMemo(
@@ -56,10 +60,12 @@ export default function DegreeProgramPopover({
         [selectableSchools, selectedSchool],
     );
 
-    const selectablePrograms = useMemo(
-        () => implementedMajorsForSchool(selectedSchoolEntry),
-        [selectedSchoolEntry],
-    );
+    const selectablePrograms = useMemo(() => {
+        if (kind === "minor") {
+            return implementedMinorsForSchool(selectedSchoolEntry);
+        }
+        return implementedMajorsForSchool(selectedSchoolEntry);
+    }, [selectedSchoolEntry, kind]);
 
     const filteredPrograms = useMemo(() => {
         const q = majorQuery.trim().toLowerCase();
@@ -167,6 +173,7 @@ export default function DegreeProgramPopover({
         if (!canSave) return;
         const concList = buildConcentrationsList();
         onSave({
+            kind,
             schoolCode,
             majorCode: selectedMajorEntry.api_code,
             concentrations: concList,
@@ -200,7 +207,8 @@ export default function DegreeProgramPopover({
                 aria-label={mode === "edit" ? "Edit program" : "Add program"}
             >
                 <div className="degree-popover-title">
-                    {mode === "edit" ? "Edit" : "Add"} Degree
+                    {mode === "edit" ? "Edit" : "Add"}{" "}
+                    {kind === "minor" ? "Minor" : "Degree"}
                 </div>
 
                 <label className="degree-popover-field">
@@ -228,7 +236,9 @@ export default function DegreeProgramPopover({
 
                 {selectedSchool && (
                     <label className="degree-popover-field">
-                        <span className="degree-popover-label">Major</span>
+                        <span className="degree-popover-label">
+                            {kind === "minor" ? "Minor" : "Major"}
+                        </span>
                         <div className="degree-combobox">
                             <input
                                 type="text"

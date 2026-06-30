@@ -28,6 +28,17 @@ export function normalizeConcentrations(list) {
     return [...new Set((list || []).filter((c) => c && c !== "None"))];
 }
 
+/** True when a program is an undergraduate minor (frontend state or API result). */
+export function isMinorProgram(degree, result) {
+    return degree?.kind === "minor" || result?.kind === "minor";
+}
+
+export function catalogForProgram(degree, result, degreeCatalog, minorCatalog = []) {
+    return isMinorProgram(degree, result) && minorCatalog?.length
+        ? minorCatalog
+        : degreeCatalog;
+}
+
 export function getDegreeConcentrations(degree) {
     if (!degree) return [];
     return normalizeConcentrations(
@@ -85,6 +96,20 @@ export function implementedMajorsForSchool(schoolEntry) {
 export function implementedSchools(degreeCatalog) {
     return (degreeCatalog || []).filter(
         (school) => implementedMajorsForSchool(school).length > 0,
+    );
+}
+
+/** Minors the UI should offer for a school entry. */
+export function implementedMinorsForSchool(schoolEntry) {
+    return (schoolEntry?.majors || []).filter(
+        (m) => m.api_code && m.api_code !== "NA",
+    );
+}
+
+/** Schools that have at least one selectable minor. */
+export function implementedSchoolsForMinors(minorCatalog) {
+    return (minorCatalog || []).filter(
+        (school) => implementedMinorsForSchool(school).length > 0,
     );
 }
 

@@ -94,12 +94,14 @@ fn cis_ms_schedule_input(taken: Vec<String>) -> ScheduleInput {
             DegreeInput {
                 major: "CIS".into(),
                 school: "SEAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             },
             DegreeInput {
                 major: "MS_ROBO".into(),
                 school: "SEAS_MS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             },
@@ -280,6 +282,7 @@ fn resolve_cross_degree_conflicts_trims_validation() {
         &cu_map,
         None,
         None,
+        None,
     );
 
     let shared = shared_undergrad_grad_cu_from_summary(&summary, &schools, &cu_map);
@@ -396,18 +399,21 @@ fn schedule_triple_degree_caps_ug_ms_overlap_blocks() {
             DegreeInput {
                 major: "EE".into(),
                 school: "SEAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec!["Robotics".into()],
                 concentration: None,
             },
             DegreeInput {
                 major: "WH_NOFL_MT".into(),
                 school: "WH".into(),
+                kind: "major".to_string(),
                 concentrations: vec!["FNCE".into()],
                 concentration: None,
             },
             DegreeInput {
                 major: "MS_ROBO".into(),
                 school: "SEAS_MS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             },

@@ -96,12 +96,14 @@ fn dual_degree_input(
             DegreeInput {
                 major: major1.to_string(),
                 school: school1.to_string(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             },
             DegreeInput {
                 major: major2.to_string(),
                 school: school2.to_string(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: wh_conc,
             },
@@ -126,12 +128,14 @@ fn dual_degree_input_with_conc(
             DegreeInput {
                 major: major1.to_string(),
                 school: school1.to_string(),
+                kind: "major".to_string(),
                 concentrations: conc1.map(str::to_string).into_iter().collect(),
                 concentration: conc1.map(str::to_string),
             },
             DegreeInput {
                 major: major2.to_string(),
                 school: school2.to_string(),
+                kind: "major".to_string(),
                 concentrations: conc2.map(str::to_string).into_iter().collect(),
                 concentration: conc2.map(str::to_string),
             },
@@ -823,6 +827,125 @@ mod catalog {
     }
 
     #[test]
+    fn minor_catalog_includes_eent() {
+        let catalog = major::minor_catalog();
+        let seas = catalog
+            .iter()
+            .find(|s| s.school_code == "SEAS")
+            .expect("SEAS in minor catalog");
+        assert!(
+            seas.majors.iter().any(|m| m.api_code == "EENT"),
+            "Engineering Entrepreneurship minor should be selectable"
+        );
+    }
+
+    #[test]
+    fn minor_catalog_includes_cas_math() {
+        let catalog = major::minor_catalog();
+        let cas = catalog
+            .iter()
+            .find(|s| s.school_code == "CAS")
+            .expect("CAS in minor catalog");
+        assert!(
+            cas.majors.iter().any(|m| m.api_code == "MATH"),
+            "Mathematics minor should be selectable"
+        );
+    }
+
+    #[test]
+    fn math_minor_resolves_seven_cu_minimum() {
+        let minor = major::resolve_minor("CAS", "MATH", &[])
+            .expect("CAS Mathematics minor resolves");
+        assert_eq!(minor.short_name, "MATH");
+
+        let expanded = requirement::expand_restriction_slots(minor.requirements.clone());
+        assert_eq!(
+            expanded.len(),
+            7,
+            "MATH minor: 2 calculus + lin alg/proofs + proof-based + 3 electives"
+        );
+    }
+
+    #[test]
+    fn degree_catalog_excludes_minors() {
+        let catalog = major::degree_catalog();
+        for school in &catalog {
+            assert!(
+                !school.majors.iter().any(|m| m.api_code == "EENT"),
+                "minors should not appear in degree catalog"
+            );
+        }
+    }
+
+    #[test]
+    fn eent_minor_resolves_six_cu() {
+        let minor = major::resolve_minor("SEAS", "EENT", &["Standard".to_string()])
+            .expect("EENT minor resolves");
+        assert_eq!(minor.short_name, "EENT");
+
+        let expanded = requirement::expand_restriction_slots(minor.requirements.clone());
+        assert_eq!(
+            expanded.len(),
+            6,
+            "EENT Standard: 5450 + 5460/5490 choice + 4 electives"
+        );
+
+        let fellows = major::resolve_minor("SEAS", "EENT", &["Fellows".to_string()])
+            .expect("EENT Fellows resolves");
+        let fellows_expanded = requirement::expand_restriction_slots(fellows.requirements.clone());
+        assert_eq!(
+            fellows_expanded.len(),
+            6,
+            "EENT Fellows: 5410 + 5430 + 4 electives"
+        );
+    }
+
+    #[test]
+    fn minor_double_counts_with_major_schedule() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![
+                "MATH 1400".into(),
+                "MATH 1410".into(),
+                "EAS 5450".into(),
+            ],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "SEAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "EENT".into(),
+                    school: "SEAS".into(),
+                    kind: "minor".into(),
+                    concentrations: vec!["Standard".into()],
+                    concentration: Some("Standard".into()),
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(false),
+            semester_cu_limits: None,
+        });
+
+        assert_eq!(output.degree_results.len(), 2);
+        let minor = output
+            .degree_results
+            .iter()
+            .find(|r| r.kind == "minor")
+            .expect("minor result");
+        assert_eq!(minor.major, "EENT");
+        assert!(
+            minor
+                .fulfilled_requirements
+                .iter()
+                .any(|m| m.course_ids.iter().any(|c| c == "EAS 5450")),
+            "EENT core should count on minor even when shared with major plan"
+        );
+    }
+
+    #[test]
     fn degree_catalog_excludes_unimplemented_majors() {
         let catalog = major::degree_catalog();
         let cas = catalog
@@ -969,6 +1092,7 @@ mod catalog {
             degrees: vec![DegreeInput {
                 major: "BE".into(),
                 school: "SEAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -998,6 +1122,7 @@ mod catalog {
             degrees: vec![DegreeInput {
                 major: "BE".into(),
                 school: "SEAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -1030,12 +1155,14 @@ mod catalog {
                 DegreeInput {
                     major: "BE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
@@ -1631,6 +1758,7 @@ mod cross_degree_sharing {
             degrees: vec![DegreeInput {
                 major: "WH_NOFL".into(),
                 school: "WH".into(),
+                kind: "major".to_string(),
                 concentrations: vec!["FNCE".into()],
                 concentration: None,
             }],
@@ -1734,12 +1862,14 @@ mod cross_degree_sharing {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "MS_EE".into(),
                     school: "SEAS_MS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
@@ -1796,18 +1926,21 @@ mod cross_degree_sharing {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["Robotics".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "MS_ROBO".into(),
                     school: "SEAS_MS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
@@ -1897,12 +2030,14 @@ mod cross_degree_sharing {
                 DegreeInput {
                     major: "CIS".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "MS_ROBO".into(),
                     school: "SEAS_MS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
@@ -1971,18 +2106,21 @@ mod cross_degree_sharing {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["Robotics".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "MS_ROBO".into(),
                     school: "SEAS_MS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
@@ -2212,12 +2350,14 @@ mod overlap {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["Robotics".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
@@ -2334,12 +2474,14 @@ mod overlap {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
@@ -2377,12 +2519,14 @@ mod overlap {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["Robotics".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
@@ -2469,12 +2613,14 @@ mod overlap {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
@@ -2504,6 +2650,7 @@ mod overlap {
             &cu_map,
             None,
             Some(&taken),
+            None,
         );
         for course in ["BEPP 2500", "FNCE 1010"] {
             assert!(
@@ -2540,6 +2687,7 @@ mod overlap {
             &cu_map,
             None,
             Some(&taken),
+            None,
         );
         assert!(
             per_degree[0]
@@ -3025,6 +3173,7 @@ mod scheduling {
             degrees: vec![DegreeInput {
                 major: "CIS".into(),
                 school: "SEAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -3043,6 +3192,7 @@ mod scheduling {
             degrees: vec![DegreeInput {
                 major: "BSN".into(),
                 school: "NURS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -3062,6 +3212,7 @@ mod scheduling {
             degrees: vec![DegreeInput {
                 major: "NUTR_BSN".into(),
                 school: "NURS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -3254,6 +3405,7 @@ mod dual_degree_properties {
             degrees: vec![DegreeInput {
                 major: "ECON".into(),
                 school: "CAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -3484,6 +3636,7 @@ mod dual_degree_properties {
             &cu_map,
             None,
             Some(&taken),
+            None,
         );
         for (idx, validation) in per_degree.iter().enumerate() {
             let fulfilled = validation
@@ -3507,12 +3660,14 @@ mod dual_degree_properties {
                 DegreeInput {
                     major: "NEUR".into(),
                     school: "CAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec![],
                     concentration: Some("FNCE".into()),
                 },
@@ -3708,6 +3863,7 @@ mod schedule_templates {
             degrees: vec![DegreeInput {
                 major: "CIS".into(),
                 school: "SEAS".into(),
+                kind: "major".to_string(),
                 concentrations: vec![],
                 concentration: None,
             }],
@@ -3729,12 +3885,14 @@ mod schedule_templates {
                 DegreeInput {
                     major: "EE".into(),
                     school: "SEAS".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["Robotics".into()],
                     concentration: None,
                 },
                 DegreeInput {
                     major: "WH_NOFL_MT".into(),
                     school: "WH".into(),
+                    kind: "major".to_string(),
                     concentrations: vec!["FNCE".into()],
                     concentration: None,
                 },
@@ -3759,6 +3917,7 @@ mod schedule_templates {
             degrees: vec![DegreeInput {
                 major: "WH_NOFL".into(),
                 school: "WH".into(),
+                kind: "major".to_string(),
                 concentrations: vec!["FNCE".into()],
                 concentration: None,
             }],

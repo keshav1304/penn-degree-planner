@@ -32,8 +32,9 @@ import {
     filterCoursesForDegree,
     courseCountsForDegree,
 } from "@/lib/crossDegree";
-import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { reqRowDomId, attributeFulfillmentMap, poolConstraintInstanceId } from "@/lib/requirementNav";
+import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
+import { isMinorProgram } from "@/lib/degreeDisplay";
 import {
     buildCasSuperSections,
     buildRequirementTabs,
@@ -50,6 +51,7 @@ export default function RequirementsPanel({
     scheduleData,
     degrees,
     degreeCatalog = [],
+    minorCatalog = [],
     frozenCourses = [],
     assignedCourses = [],
     takenCourses = [],
@@ -64,7 +66,7 @@ export default function RequirementsPanel({
 
     useEffect(() => {
         if (!navTarget || !scheduleData?.degree_results) return;
-        const tabs = buildRequirementTabs(scheduleData.degree_results, degrees, degreeCatalog);
+        const tabs = buildRequirementTabs(scheduleData.degree_results, degrees, degreeCatalog, minorCatalog);
         const resolvedTab = resolveActiveTabIndex(tabs, activeTab, navTarget);
         const { degreeIndex, instanceId, category } = navTarget;
         const rowId = reqRowDomId(degreeIndex ?? 0, instanceId);
@@ -82,7 +84,7 @@ export default function RequirementsPanel({
             onNavTargetConsumed?.();
         }, 80);
         return () => window.clearTimeout(timer);
-    }, [navTarget, onNavTargetConsumed, scheduleData, degrees, degreeCatalog, activeTab]);
+    }, [navTarget, onNavTargetConsumed, scheduleData, degrees, degreeCatalog, minorCatalog, activeTab]);
 
     if (!degrees || degrees.length === 0) {
         return (
@@ -103,8 +105,11 @@ export default function RequirementsPanel({
 
     const results = scheduleData.degree_results;
     const degreeColorMap = buildDegreeColorMap(scheduleData);
-    const tabs = buildRequirementTabs(results, degrees, degreeCatalog);
-    const tabIndex = resolveActiveTabIndex(tabs, activeTab, navTarget);
+    const tabs = buildRequirementTabs(results, degrees, degreeCatalog, minorCatalog);
+    const tabIndex = Math.min(
+        resolveActiveTabIndex(tabs, activeTab, navTarget),
+        Math.max(0, tabs.length - 1),
+    );
     const activeTabDef = tabs[tabIndex];
     if (!activeTabDef) return null;
 
@@ -165,33 +170,18 @@ export default function RequirementsPanel({
     } else {
         current = results[activeTabDef.index];
         degreeLabel = `${current.school}-${current.major}`;
+        const trustBackendCourses = isMinorProgram(
+            degrees[activeTabDef.index],
+            current,
+        );
 
-        const mapRequirementForDegree = (mapped, { fulfilledDefault, partialDefault }) => {
-            const fulfilledCourses = filterCoursesForDegree(
-                mapped.course_ids || [],
+        const mapRequirementForDegree = (mapped, opts) =>
+            mapRequirementForDegreeLabel(
+                mapped,
                 degreeLabel,
                 courseDegreesMap,
+                { ...opts, trustBackendCourses },
             );
-            const attributeFulfillment = filterAttributeFulfillmentForDegree(
-                attributeFulfillmentMap(mapped),
-                degreeLabel,
-                courseDegreesMap,
-            );
-            const hasAllocatedFulfillment =
-                fulfilledCourses.length > 0
-                || (attributeFulfillment
-                    && [...attributeFulfillment.values()].some((ids) => ids.length > 0));
-            return {
-                category: normalizeCategory(getCategory(mapped.requirement)),
-                fulfilled: fulfilledDefault && hasAllocatedFulfillment,
-                partial: partialDefault && hasAllocatedFulfillment,
-                committedAnyofBranch: mapped.committed_anyof_branch ?? null,
-                fulfilledCourses,
-                requirement: mapped.requirement,
-                instanceId: getRequirementInstanceId(mapped),
-                attributeFulfillment,
-            };
-        };
 
         allReqs = [];
         const pushIfSchedulable = (mapped, opts) => {
@@ -439,6 +429,37 @@ export default function RequirementsPanel({
         </div>
     );
 }
+
+function mapRequirementForDegreeLabel(
+    mapped,
+    degreeLabel,
+    courseDegreesMap,
+    { fulfilledDefault, partialDefault, trustBackendCourses = false },
+) {
+    const rawCourseIds = (mapped.course_ids || []).filter(isValidCourseCode);
+    const fulfilledCourses = trustBackendCourses
+        ? rawCourseIds
+        : filterCoursesForDegree(mapped.course_ids || [], degreeLabel, courseDegreesMap);
+    const attrMap = attributeFulfillmentMap(mapped);
+    const attributeFulfillment = trustBackendCourses
+        ? attrMap
+        : filterAttributeFulfillmentForDegree(attrMap, degreeLabel, courseDegreesMap);
+    const hasAllocatedFulfillment =
+        fulfilledCourses.length > 0
+        || (attributeFulfillment
+            && [...attributeFulfillment.values()].some((ids) => ids.length > 0));
+    return {
+        category: normalizeCategory(getCategory(mapped.requirement)),
+        fulfilled: fulfilledDefault && hasAllocatedFulfillment,
+        partial: partialDefault && hasAllocatedFulfillment,
+        committedAnyofBranch: mapped.committed_anyof_branch ?? null,
+        fulfilledCourses,
+        requirement: mapped.requirement,
+        instanceId: getRequirementInstanceId(mapped),
+        attributeFulfillment,
+    };
+}
+
 
 function casCollapseKeysForNav(navTarget, results) {
     const keys = {};
