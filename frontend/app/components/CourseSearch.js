@@ -99,11 +99,6 @@ export default function CourseSearch({
 
             {showResults && (
                 <div className="course-list">
-                    {searching && (
-                        <div style={{ padding: 12, fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                            Searching…
-                        </div>
-                    )}
                     {!searching && results.length === 0 && (
                         <div style={{ padding: 12, fontSize: "0.8rem", color: "var(--text-muted)" }}>
                             No courses found
