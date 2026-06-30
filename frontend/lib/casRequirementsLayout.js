@@ -3,7 +3,7 @@ import {
     isPoolFlexibleSlotInstanceId,
 } from "@/lib/courseUtils";
 import { courseCountsForDegree, filterAttributeFulfillmentForDegree } from "@/lib/crossDegree";
-import { formatDegreeDisplay } from "@/lib/degreeDisplay";
+import { formatDegreeDisplay, isMinorProgram, catalogForProgram } from "@/lib/degreeDisplay";
 import { attributeFulfillmentMap } from "@/lib/requirementNav";
 import { getRequirementInstanceId } from "@/lib/requirementText";
 
@@ -16,21 +16,19 @@ export function isCasSchool(school) {
 
 export function casDegreeIndices(results) {
     return results
-        .map((r, i) => (isCasSchool(r?.school) ? i : -1))
+        .map((r, i) => (isCasSchool(r?.school) && r?.kind !== "minor" ? i : -1))
         .filter((i) => i >= 0);
 }
 
 /** Tab descriptors for the requirements panel. */
 export function buildRequirementTabs(results, degrees, degreeCatalog, minorCatalog = []) {
-    const catalogFor = (degree) => (
-        degree?.kind === "minor" && minorCatalog?.length ? minorCatalog : degreeCatalog
-    );
-
     const entries = degrees
         .map((degree, index) => ({ degree, index, result: results[index] }))
         .filter(({ result }) => result);
 
-    const majorEntries = entries.filter(({ degree }) => degree?.kind !== "minor");
+    const majorEntries = entries.filter(
+        ({ degree, result }) => !isMinorProgram(degree, result),
+    );
     const casIndices = majorEntries
         .filter(({ result }) => isCasSchool(result.school))
         .map(({ index }) => index);
@@ -41,7 +39,7 @@ export function buildRequirementTabs(results, degrees, degreeCatalog, minorCatal
         const { major, schoolLine } = formatDegreeDisplay(
             entry.degree,
             entry.result,
-            catalogFor(entry.degree),
+            catalogForProgram(entry.degree, entry.result, degreeCatalog, minorCatalog),
         );
         return {
             id: `deg-${entry.index}`,
@@ -56,7 +54,7 @@ export function buildRequirementTabs(results, degrees, degreeCatalog, minorCatal
 
     for (const entry of entries) {
         const { degree, result } = entry;
-        const isMinor = degree?.kind === "minor";
+        const isMinor = isMinorProgram(degree, result);
         const isCasMajor = !isMinor && isCasSchool(result.school);
 
         if (isMinor) {

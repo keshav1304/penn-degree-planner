@@ -901,6 +901,51 @@ mod catalog {
     }
 
     #[test]
+    fn minor_double_counts_with_major_schedule() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![
+                "MATH 1400".into(),
+                "MATH 1410".into(),
+                "EAS 5450".into(),
+            ],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "SEAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "EENT".into(),
+                    school: "SEAS".into(),
+                    kind: "minor".into(),
+                    concentrations: vec!["Standard".into()],
+                    concentration: Some("Standard".into()),
+                },
+            ],
+            frozen: vec![],
+            allow_summer: Some(false),
+            semester_cu_limits: None,
+        });
+
+        assert_eq!(output.degree_results.len(), 2);
+        let minor = output
+            .degree_results
+            .iter()
+            .find(|r| r.kind == "minor")
+            .expect("minor result");
+        assert_eq!(minor.major, "EENT");
+        assert!(
+            minor
+                .fulfilled_requirements
+                .iter()
+                .any(|m| m.course_ids.iter().any(|c| c == "EAS 5450")),
+            "EENT core should count on minor even when shared with major plan"
+        );
+    }
+
+    #[test]
     fn degree_catalog_excludes_unimplemented_majors() {
         let catalog = major::degree_catalog();
         let cas = catalog

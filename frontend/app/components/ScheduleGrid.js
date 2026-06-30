@@ -6,7 +6,7 @@ import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId, isOverlapScheduleGroupId } from "@/lib/courseUtils";
 import { resolveSemesterCuLimit } from "@/lib/semesterOptions";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
-import { formatDegreeApiLabel } from "@/lib/degreeDisplay";
+import { formatDegreeApiLabel, catalogForProgram } from "@/lib/degreeDisplay";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { formatOverlapMemberLabel } from "@/lib/requirementText";
 
@@ -21,6 +21,7 @@ export default function ScheduleGrid({
     concentrationData, courseConcentrationMap,
     allCourses,
     degreeCatalog = [],
+    minorCatalog = [],
     semesterCuLimits, onSemesterCuLimitChange,
 }) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
@@ -168,12 +169,13 @@ export default function ScheduleGrid({
     const degreeDisplayLabels = {};
     const degreeOrder = buildDegreeOrder(scheduleData);
     if (scheduleData?.degree_results) {
-        scheduleData.degree_results.forEach((result) => {
+        scheduleData.degree_results.forEach((result, index) => {
             const key = `${result.school}-${result.major}`;
+            const degree = degrees[index];
             degreeDisplayLabels[key] = formatDegreeApiLabel(
                 result.school,
                 result.major,
-                degreeCatalog,
+                catalogForProgram(degree, result, degreeCatalog, minorCatalog),
             );
         });
     }

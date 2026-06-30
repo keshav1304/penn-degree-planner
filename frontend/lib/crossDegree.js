@@ -19,7 +19,7 @@ export function isCasCollegeSharedScheduleSlot(slotId) {
 
 export function casDegreeLabelsFromResults(degreeResults = []) {
     return degreeResults
-        .filter((r) => r?.school === "CAS")
+        .filter((r) => r?.school === "CAS" && r?.kind !== "minor")
         .map((r) => `${r.school}-${r.major}`);
 }
 
@@ -117,10 +117,10 @@ function buildCourseMapFromDegreeResults(degreeResults = []) {
     return degMap;
 }
 
-/** Minors always double-count with UG degrees — merge fulfilled courses into the map. */
-function applyMinorDoubleCounts(degMap, degreeResults = []) {
+/** Re-apply fulfillment from every program after allocation merge (minors always double-count). */
+function ensureFulfillmentLabels(degMap, degreeResults = []) {
     degreeResults.forEach((result) => {
-        if (result?.kind !== "minor") return;
+        if (!result) return;
         const degreeLabel = labelForDegreeResult(result);
         const addCourse = (id) => {
             if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
@@ -148,12 +148,17 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
     if (summary?.course_allocations) {
         Object.entries(summary.course_allocations).forEach(([courseId, allocs]) => {
             if (!isValidCourseCode(courseId)) return;
-            const labels = [];
+            const allocLabels = [];
             allocs.forEach((alloc) => {
                 const label = labelForAllocation(alloc, degreeResults);
-                if (label && !labels.includes(label)) labels.push(label);
+                if (label && !allocLabels.includes(label)) allocLabels.push(label);
             });
-            if (labels.length) degMap[courseId] = labels;
+            if (!allocLabels.length) return;
+            const merged = [...(degMap[courseId] || [])];
+            allocLabels.forEach((label) => {
+                if (!merged.includes(label)) merged.push(label);
+            });
+            degMap[courseId] = merged;
         });
     }
 
@@ -176,7 +181,7 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
         result.suggested_for_unfulfilled?.forEach(addSlots);
     });
 
-    applyMinorDoubleCounts(degMap, degreeResults);
+    ensureFulfillmentLabels(degMap, degreeResults);
 
     return degMap;
 }

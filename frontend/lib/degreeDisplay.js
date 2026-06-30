@@ -28,6 +28,17 @@ export function normalizeConcentrations(list) {
     return [...new Set((list || []).filter((c) => c && c !== "None"))];
 }
 
+/** True when a program is an undergraduate minor (frontend state or API result). */
+export function isMinorProgram(degree, result) {
+    return degree?.kind === "minor" || result?.kind === "minor";
+}
+
+export function catalogForProgram(degree, result, degreeCatalog, minorCatalog = []) {
+    return isMinorProgram(degree, result) && minorCatalog?.length
+        ? minorCatalog
+        : degreeCatalog;
+}
+
 export function getDegreeConcentrations(degree) {
     if (!degree) return [];
     return normalizeConcentrations(

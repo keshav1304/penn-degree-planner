@@ -32,8 +32,9 @@ import {
     filterCoursesForDegree,
     courseCountsForDegree,
 } from "@/lib/crossDegree";
-import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { reqRowDomId, attributeFulfillmentMap, poolConstraintInstanceId } from "@/lib/requirementNav";
+import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
+import { isMinorProgram } from "@/lib/degreeDisplay";
 import {
     buildCasSuperSections,
     buildRequirementTabs,
@@ -105,7 +106,10 @@ export default function RequirementsPanel({
     const results = scheduleData.degree_results;
     const degreeColorMap = buildDegreeColorMap(scheduleData);
     const tabs = buildRequirementTabs(results, degrees, degreeCatalog, minorCatalog);
-    const tabIndex = resolveActiveTabIndex(tabs, activeTab, navTarget);
+    const tabIndex = Math.min(
+        resolveActiveTabIndex(tabs, activeTab, navTarget),
+        Math.max(0, tabs.length - 1),
+    );
     const activeTabDef = tabs[tabIndex];
     if (!activeTabDef) return null;
 
@@ -166,9 +170,18 @@ export default function RequirementsPanel({
     } else {
         current = results[activeTabDef.index];
         degreeLabel = `${current.school}-${current.major}`;
+        const trustBackendCourses = isMinorProgram(
+            degrees[activeTabDef.index],
+            current,
+        );
 
         const mapRequirementForDegree = (mapped, opts) =>
-            mapRequirementForDegreeLabel(mapped, degreeLabel, courseDegreesMap, opts);
+            mapRequirementForDegreeLabel(
+                mapped,
+                degreeLabel,
+                courseDegreesMap,
+                { ...opts, trustBackendCourses },
+            );
 
         allReqs = [];
         const pushIfSchedulable = (mapped, opts) => {
@@ -417,17 +430,20 @@ export default function RequirementsPanel({
     );
 }
 
-function mapRequirementForDegreeLabel(mapped, degreeLabel, courseDegreesMap, { fulfilledDefault, partialDefault }) {
-    const fulfilledCourses = filterCoursesForDegree(
-        mapped.course_ids || [],
-        degreeLabel,
-        courseDegreesMap,
-    );
-    const attributeFulfillment = filterAttributeFulfillmentForDegree(
-        attributeFulfillmentMap(mapped),
-        degreeLabel,
-        courseDegreesMap,
-    );
+function mapRequirementForDegreeLabel(
+    mapped,
+    degreeLabel,
+    courseDegreesMap,
+    { fulfilledDefault, partialDefault, trustBackendCourses = false },
+) {
+    const rawCourseIds = (mapped.course_ids || []).filter(isValidCourseCode);
+    const fulfilledCourses = trustBackendCourses
+        ? rawCourseIds
+        : filterCoursesForDegree(mapped.course_ids || [], degreeLabel, courseDegreesMap);
+    const attrMap = attributeFulfillmentMap(mapped);
+    const attributeFulfillment = trustBackendCourses
+        ? attrMap
+        : filterAttributeFulfillmentForDegree(attrMap, degreeLabel, courseDegreesMap);
     const hasAllocatedFulfillment =
         fulfilledCourses.length > 0
         || (attributeFulfillment

@@ -698,6 +698,7 @@ export default function Home() {
                 courseConcentrationMap={courseConcentrationMap}
                 allCourses={allCourses}
                 degreeCatalog={degreeCatalog}
+                minorCatalog={minorCatalog}
                 semesterCuLimits={semesterCuLimits}
                 onSemesterCuLimitChange={(key, value) => {
                   setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
