@@ -54,7 +54,7 @@ function saveState(state) {
 }
 
 export default function Home() {
-  const [allCourses, setAllCourses] = useState([]);
+    const [courseCuMap, setCourseCuMap] = useState({});
   const [degreeCatalog, setDegreeCatalog] = useState([]);
   const [minorCatalog, setMinorCatalog] = useState([]);
   const [concentrationCatalog, setConcentrationCatalog] = useState({});
@@ -63,8 +63,7 @@ export default function Home() {
   const [frozenCourses, setFrozenCourses] = useState([]);
   const [assignedCourses, setAssignedCourses] = useState([]);
   const [scheduleData, setScheduleData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [coursesLoading, setCoursesLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
   const [activeDragId, setActiveDragId] = useState(null);
   const [reqNavTarget, setReqNavTarget] = useState(null);
   const [requirementsOpen, setRequirementsOpen] = useState(true);
@@ -121,9 +120,8 @@ export default function Home() {
         });
     };
 
-    trackFetch("bootstrap.all_courses", `${API_BASE}/all_courses`, (data) => {
-      setAllCourses(data || []);
-      setCoursesLoading(false);
+    trackFetch("bootstrap.course_cu_map", `${API_BASE}/course_cu_map`, (data) => {
+      setCourseCuMap(data && typeof data === "object" ? data : {});
     });
 
     trackFetch("bootstrap.degree_catalog", `${API_BASE}/degree_catalog`, (data) => {
@@ -676,13 +674,9 @@ export default function Home() {
           <div className="panel panel-courses">
             <div className="panel-header">
               <h2>📚 Courses</h2>
-              <div className="panel-header-actions">
-                {coursesLoading && <div className="loading-spinner" />}
-              </div>
             </div>
             <div className="panel-body">
               <CourseSearch
-                allCourses={allCourses}
                 takenCourses={takenCourses}
                 assignedCourses={assignedCourses}
                 frozenCourses={frozenCourses}
@@ -734,7 +728,7 @@ export default function Home() {
                 allowSummer={allowSummer}
                 concentrationData={concentrationData}
                 courseConcentrationMap={courseConcentrationMap}
-                allCourses={allCourses}
+                courseCuMap={courseCuMap}
                 degreeCatalog={degreeCatalog}
                 minorCatalog={minorCatalog}
                 semesterCuLimits={semesterCuLimits}

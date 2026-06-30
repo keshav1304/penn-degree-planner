@@ -19,7 +19,7 @@ export default function ScheduleGrid({
     crossDegreeViolationsByCourse = {},
     onNavigateToRequirement, allowSummer,
     concentrationData, courseConcentrationMap,
-    allCourses,
+    courseCuMap = {},
     degreeCatalog = [],
     minorCatalog = [],
     semesterCuLimits, onSemesterCuLimitChange,
@@ -27,10 +27,7 @@ export default function ScheduleGrid({
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [reqNavCycle, setReqNavCycle] = useState({});
 
-    // Build CU lookup from allCourses
-    const cuMap = {};
-    (allCourses || []).forEach(c => { cuMap[c.course_code] = c.cu; });
-    const getCu = (courseId) => cuMap[courseId] ?? 1.0;
+    const getCu = (courseId) => courseCuMap[courseId] ?? 1.0;
 
     if (!degrees || degrees.length === 0) {
         return (

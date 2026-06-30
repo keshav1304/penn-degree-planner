@@ -352,7 +352,7 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
         }
         let concs = concentrations_for("CAS", entry.api_code);
         if !concs.is_empty() {
-            map.insert(format!("CAS:{}", entry.api_code), concs);
+            map.insert(format!("CAS:{}:major", entry.api_code), concs);
         }
     }
 
@@ -364,8 +364,18 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
         for major in majors {
             let concs = concentrations_for(school, major);
             if !concs.is_empty() {
-                map.insert(format!("{school}:{major}"), concs);
+                map.insert(format!("{school}:{major}:major"), concs);
             }
+        }
+    }
+
+    for school in minor_catalog() {
+        for minor in &school.majors {
+            let concs = concentrations_for_program(&school.school_code, &minor.api_code, "minor");
+            map.insert(
+                format!("{}:{}:minor", school.school_code, minor.api_code),
+                concs,
+            );
         }
     }
 

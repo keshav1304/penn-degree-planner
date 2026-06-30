@@ -102,8 +102,8 @@ export default function DegreeProgramPopover({
     const isWharton = schoolCode === "WH";
 
     const catalogConcentrations = useMemo(
-        () => concentrationsFromCatalog(concentrationCatalog, schoolCode, majorCode),
-        [concentrationCatalog, schoolCode, majorCode],
+        () => concentrationsFromCatalog(concentrationCatalog, schoolCode, majorCode, kind),
+        [concentrationCatalog, schoolCode, majorCode, kind],
     );
 
     const concentrations = catalogConcentrations ?? fetchedConcentrations ?? [];
@@ -139,7 +139,7 @@ export default function DegreeProgramPopover({
                 perfLog("popover.concentrations.catalog_hit", (
                     typeof performance !== "undefined" ? performance.now() : Date.now()
                 ) - popoverOpenMark.current, {
-                    key: concentrationCatalogKey(schoolCode, majorCode),
+                    key: concentrationCatalogKey(schoolCode, majorCode, kind),
                     count: catalogConcentrations.length,
                 });
             }
@@ -148,11 +148,11 @@ export default function DegreeProgramPopover({
 
         if (catalogReady) {
             perfLog("popover.concentrations.catalog_miss", 0, {
-                key: concentrationCatalogKey(schoolCode, majorCode),
+                key: concentrationCatalogKey(schoolCode, majorCode, kind),
             });
         } else {
             perfLog("popover.concentrations.catalog_not_ready", 0, {
-                key: concentrationCatalogKey(schoolCode, majorCode),
+                key: concentrationCatalogKey(schoolCode, majorCode, kind),
             });
         }
 
@@ -166,7 +166,7 @@ export default function DegreeProgramPopover({
             .then((data) => {
                 const list = data.concentrations || [];
                 setFetchedConcentrations(list);
-                end({ key: concentrationCatalogKey(schoolCode, majorCode), count: list.length });
+                end({ key: concentrationCatalogKey(schoolCode, majorCode, kind), count: list.length });
             })
             .catch((err) => {
                 if (err.name !== "AbortError") {

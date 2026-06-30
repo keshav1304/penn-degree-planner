@@ -32,16 +32,18 @@ export function normalizeConcentrations(list) {
     return [...new Set((list || []).filter((c) => c && c !== "None"))];
 }
 
-/** Key for `/all_concentrations` lookup (`school:major`). */
-export function concentrationCatalogKey(schoolCode, majorCode) {
+/** Key for `/all_concentrations` lookup (`school:program:kind`). */
+export function concentrationCatalogKey(schoolCode, majorCode, kind = "major") {
     if (!schoolCode || !majorCode) return "";
-    return `${schoolCode}:${majorCode}`;
+    return `${schoolCode}:${majorCode}:${kind}`;
 }
 
 /** Concentration codes from preloaded catalog, or `null` if not cached. */
-export function concentrationsFromCatalog(catalog, schoolCode, majorCode) {
-    const key = concentrationCatalogKey(schoolCode, majorCode);
-    if (!key || !catalog) return null;
+export function concentrationsFromCatalog(catalog, schoolCode, majorCode, kind = "major") {
+    const key = concentrationCatalogKey(schoolCode, majorCode, kind);
+    if (!key || !catalog || !Object.prototype.hasOwnProperty.call(catalog, key)) {
+        return null;
+    }
     const list = catalog[key];
     return Array.isArray(list) ? list : null;
 }

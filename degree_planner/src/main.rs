@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use axum::{
     debug_handler,
@@ -7,7 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use degree_planner::course::{self, Course};
+use degree_planner::course::{self, search_courses, Course, CourseSearchHit};
 use degree_planner::major::{
     all_concentrations, all_majors, concentrations_for_program, degree_catalog, minor_catalog,
     resolve_major,
@@ -28,6 +28,8 @@ async fn main() {
         .route("/", get(root_get))
         .route("/", post(root_post))
         .route("/all_courses", get(all_courses_get))
+        .route("/search_courses", get(search_courses_get))
+        .route("/course_cu_map", get(course_cu_map_get))
         .route("/course", get(course_get))
         .route("/all_majors", get(all_majors_get))
         .route("/degree_catalog", get(degree_catalog_get))
@@ -175,6 +177,31 @@ async fn all_concentrations_get() -> Json<BTreeMap<String, Vec<String>>> {
 #[debug_handler]
 async fn all_courses_get() -> Json<&'static [Course]> {
     Json(degree_planner::penn_data::courses_data::courses())
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchCoursesParams {
+    q: String,
+    limit: Option<usize>,
+}
+
+#[derive(Serialize)]
+struct SearchCoursesResponse {
+    courses: Vec<CourseSearchHit>,
+}
+
+#[debug_handler]
+async fn search_courses_get(
+    Query(params): Query<SearchCoursesParams>,
+) -> Json<SearchCoursesResponse> {
+    Json(SearchCoursesResponse {
+        courses: search_courses(&params.q, params.limit),
+    })
+}
+
+#[debug_handler]
+async fn course_cu_map_get() -> Json<&'static HashMap<String, f64>> {
+    Json(degree_planner::penn_data::courses_data::cu_map())
 }
 
 #[derive(Debug, Deserialize)]

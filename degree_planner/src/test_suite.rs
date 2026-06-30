@@ -850,6 +850,23 @@ mod catalog {
     }
 
     #[test]
+    fn all_concentrations_separates_math_major_and_minor() {
+        let map = major::all_concentrations();
+        let major_concs = map
+            .get("CAS:MATH:major")
+            .expect("CAS Mathematics major concentrations");
+        assert!(major_concs.contains(&"Biological Mathematics".to_string()));
+        let minor_concs = map
+            .get("CAS:MATH:minor")
+            .expect("CAS Mathematics minor entry");
+        assert!(
+            minor_concs.is_empty(),
+            "Mathematics minor has no concentrations: {:?}",
+            minor_concs
+        );
+    }
+
+    #[test]
     fn math_minor_has_no_concentrations() {
         let concs = major::concentrations_for_program("CAS", "MATH", "minor");
         assert!(

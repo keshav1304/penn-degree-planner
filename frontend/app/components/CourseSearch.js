@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import DraggableCourse from "./DraggableCourse";
+import { API_BASE } from "@/lib/api";
 import { buildSemesterOptions } from "@/lib/semesterOptions";
 import { filterValidCourseCodes } from "@/lib/courseUtils";
 import { sortCourseCodesBySemester } from "@/lib/courseOrdering";
 
+const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_LIMIT = 50;
+
 export default function CourseSearch({
-    allCourses, takenCourses, assignedCourses, frozenCourses = [],
+    takenCourses, assignedCourses, frozenCourses = [],
     onAdd, onRemove, onAssign,
     maxScheduleYear = 4, allowSummer = true,
 }) {
     const [search, setSearch] = useState("");
+    const [results, setResults] = useState([]);
+    const [searching, setSearching] = useState(false);
+    const abortRef = useRef(null);
 
     const semesterOptions = useMemo(
         () => buildSemesterOptions(maxScheduleYear, allowSummer),
@@ -28,17 +35,39 @@ export default function CourseSearch({
         [takenCourses, assignedCourses, frozenCourses, semesterOptions]
     );
 
-    const filteredCourses = useMemo(() => {
-        if (!search.trim()) return [];
-        const q = search.toLowerCase().trim();
-        return allCourses
-            .filter(c =>
-                c.course_code?.toLowerCase().includes(q) ||
-                c.title?.toLowerCase().includes(q) ||
-                c.dept_code?.toLowerCase().includes(q)
-            )
-            .slice(0, 50);
-    }, [search, allCourses]);
+    useEffect(() => {
+        const q = search.trim();
+        if (!q) {
+            setResults([]);
+            setSearching(false);
+            return undefined;
+        }
+
+        const timer = setTimeout(() => {
+            abortRef.current?.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+            setSearching(true);
+
+            const params = new URLSearchParams({ q, limit: String(SEARCH_LIMIT) });
+            fetch(`${API_BASE}/search_courses?${params}`, { signal: controller.signal })
+                .then((r) => r.json())
+                .then((data) => {
+                    setResults(Array.isArray(data?.courses) ? data.courses : []);
+                })
+                .catch((err) => {
+                    if (err.name !== "AbortError") setResults([]);
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) setSearching(false);
+                });
+        }, SEARCH_DEBOUNCE_MS);
+
+        return () => {
+            clearTimeout(timer);
+            abortRef.current?.abort();
+        };
+    }, [search]);
 
     const getAssignment = (courseId) => {
         const a = assignedCourses?.find(ac => ac.courseId === courseId);
@@ -54,6 +83,8 @@ export default function CourseSearch({
         onAssign(courseId, parseInt(yearStr), semester);
     };
 
+    const showResults = search.trim().length > 0;
+
     return (
         <>
             <div className="search-box">
@@ -66,14 +97,19 @@ export default function CourseSearch({
                 />
             </div>
 
-            {search.trim() && (
+            {showResults && (
                 <div className="course-list">
-                    {filteredCourses.length === 0 && (
+                    {searching && (
+                        <div style={{ padding: 12, fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                            Searching…
+                        </div>
+                    )}
+                    {!searching && results.length === 0 && (
                         <div style={{ padding: 12, fontSize: "0.8rem", color: "var(--text-muted)" }}>
                             No courses found
                         </div>
                     )}
-                    {filteredCourses.map(course => {
+                    {results.map(course => {
                         const inCart = takenCourses.includes(course.course_code);
                         return (
                             <DraggableCourse
