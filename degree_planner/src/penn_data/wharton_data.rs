@@ -126,6 +126,10 @@ pub fn resolve_wh_concentration_key(input: &str) -> Option<String> {
         "Marketing" => Some("MKTG"),
         "Statistics and Data Science" => Some("STAT"),
         "Health Care Management" => Some("HCMG"),
+        "OIDD: Decision Processes" => Some("ODDP"),
+        "OIDD: General" => Some("ODGN"),
+        "OIDD: Information Systems" => Some("ODIS"),
+        "OIDD: Operations Management" => Some("ODOM"),
         _ => None,
     };
     legacy
@@ -182,6 +186,78 @@ fn wh_hcmg_concentration_requirements() -> Vec<Requirement> {
     let mut reqs = vec![single(category, &["HCMG 1010"])];
     reqs.extend(repeat_req(&elective, 3));
     reqs
+}
+
+fn wh_oidd_decision_processes_requirements() -> Vec<Requirement> {
+    let category = "Concentration - ODDP";
+    let electives = &[
+        "OIDD 2000",
+        "OIDD 2210",
+        "OIDD 2610",
+        "OIDD 2920",
+        "OIDD 2990",
+        "OIDD 3190",
+        "OIDD 4690",
+        "BEPP 2840",
+        "MGMT 2380",
+        "MGMT 2950",
+        "FNCE 2390",
+        "MKTG 2110",
+        "MKTG 2370",
+        "MKTG 2380",
+        "PSYC 2737",
+        "PSYC 2750",
+    ];
+    vec![
+        single(category, &["OIDD 2900"]),
+        single(category, &["OIDD 2910"]),
+        single(category, electives),
+        single(category, electives),
+    ]
+}
+
+fn wh_oidd_general_requirements() -> Vec<Requirement> {
+    vec![restriction(4)
+        .category("Concentration - ODGN")
+        .attr(&["WUOD"])
+        .into()]
+}
+
+fn wh_oidd_information_systems_requirements() -> Vec<Requirement> {
+    let category = "Concentration - ODIS";
+    let electives = &[
+        "OIDD 1050",
+        "OIDD 2550",
+        "OIDD 2900",
+        "OIDD 3140",
+        "OIDD 3150",
+        "OIDD 3190",
+        "OIDD 4690",
+    ];
+    vec![
+        single(category, electives),
+        single(category, electives),
+        single(category, electives),
+        single(category, electives),
+    ]
+}
+
+fn wh_oidd_operations_management_requirements() -> Vec<Requirement> {
+    let category = "Concentration - ODOM";
+    let electives = &[
+        "OIDD 2200",
+        "OIDD 2210",
+        "OIDD 2360",
+        "OIDD 3800",
+        "OIDD 4150",
+        "OIDD 6970",
+    ];
+    vec![
+        single(category, &["OIDD 2200", "OIDD 2210"]),
+        single(category, electives),
+        single(category, electives),
+        single(category, electives),
+    ]
 }
 
 pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
@@ -244,6 +320,22 @@ pub fn create_wh_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             "HCMG".to_string(),
             wh_hcmg_concentration_requirements(),
         ),
+        (
+            "ODDP".to_string(),
+            wh_oidd_decision_processes_requirements(),
+        ),
+        (
+            "ODGN".to_string(),
+            wh_oidd_general_requirements(),
+        ),
+        (
+            "ODIS".to_string(),
+            wh_oidd_information_systems_requirements(),
+        ),
+        (
+            "ODOM".to_string(),
+            wh_oidd_operations_management_requirements(),
+        ),
     ])
 }
 
@@ -288,6 +380,9 @@ fn bb_excluded_departments(concentrations: &[String]) -> Vec<String> {
             "MAOM" => {
                 excluded.push("OIDD".to_string());
                 excluded.push("MKTG".to_string());
+            }
+            "ODDP" | "ODGN" | "ODIS" | "ODOM" => {
+                excluded.push("OIDD".to_string());
             }
             dept => excluded.push(dept.to_string()),
         }

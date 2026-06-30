@@ -1879,13 +1879,17 @@ mod pools_and_concentrations {
         let catalog = create_wh_concentrations();
         assert!(!catalog.contains_key("OIDD"));
         assert!(catalog.contains_key("MAOM"));
-        assert_eq!(catalog.len(), 9);
+        assert_eq!(catalog.len(), 13);
 
         let names = concentration_names();
         assert!(names.contains(&"FNCE".to_string()));
         assert!(names.contains(&"STAT".to_string()));
         assert!(names.contains(&"MAOM".to_string()));
         assert!(names.contains(&"HCMG".to_string()));
+        assert!(names.contains(&"ODDP".to_string()));
+        assert!(names.contains(&"ODGN".to_string()));
+        assert!(names.contains(&"ODIS".to_string()));
+        assert!(names.contains(&"ODOM".to_string()));
         assert!(!names.iter().any(|n| n == "OIDD"));
 
         assert_eq!(
@@ -1896,7 +1900,107 @@ mod pools_and_concentrations {
             resolve_wh_concentration_key("Health Care Management"),
             Some("HCMG".to_string())
         );
+        assert_eq!(
+            resolve_wh_concentration_key("Decision Processes"),
+            Some("ODDP".to_string())
+        );
+        assert_eq!(
+            resolve_wh_concentration_key("General"),
+            Some("ODGN".to_string())
+        );
+        assert_eq!(
+            resolve_wh_concentration_key("Information Systems"),
+            Some("ODIS".to_string())
+        );
+        assert_eq!(
+            resolve_wh_concentration_key("Operations Management"),
+            Some("ODOM".to_string())
+        );
         assert_eq!(resolve_wh_concentration_key("OIDD"), None);
+    }
+
+    #[test]
+    fn wh_oidd_information_systems_concentration_requires_four_electives() {
+        use crate::Requirement;
+        use crate::penn_data::wharton_data::create_wh_concentrations;
+
+        let catalog = create_wh_concentrations();
+        let is = catalog.get("ODIS").expect("ODIS concentration");
+        assert_eq!(is.len(), 4);
+        for slot in is {
+            assert!(matches!(
+                slot,
+                Requirement::SingleCourse { possibilities, .. }
+                    if possibilities.len() == 7
+            ));
+        }
+    }
+
+    #[test]
+    fn wh_oidd_operations_management_concentration_requires_core_and_three_electives() {
+        use crate::Requirement;
+        use crate::penn_data::wharton_data::create_wh_concentrations;
+
+        let catalog = create_wh_concentrations();
+        let om = catalog.get("ODOM").expect("ODOM concentration");
+        assert_eq!(om.len(), 4);
+        assert!(matches!(
+            &om[0],
+            Requirement::SingleCourse { possibilities, .. }
+                if possibilities == &vec!["OIDD 2200".to_string(), "OIDD 2210".to_string()]
+        ));
+        for slot in &om[1..] {
+            assert!(matches!(
+                slot,
+                Requirement::SingleCourse { possibilities, .. }
+                    if possibilities.len() == 6
+            ));
+        }
+    }
+
+    #[test]
+    fn wh_oidd_general_concentration_requires_four_wuod_courses() {
+        use crate::Requirement;
+        use crate::penn_data::wharton_data::create_wh_concentrations;
+
+        let catalog = create_wh_concentrations();
+        let general = catalog.get("ODGN").expect("ODGN concentration");
+        assert_eq!(general.len(), 1);
+        assert!(matches!(
+            &general[0],
+            Requirement::Restriction {
+                number: 4,
+                attr: Some(attrs),
+                ..
+            } if attrs == &vec!["WUOD".to_string()]
+        ));
+    }
+
+    #[test]
+    fn wh_oidd_decision_processes_concentration_requires_core_and_two_electives() {
+        use crate::Requirement;
+        use crate::penn_data::wharton_data::create_wh_concentrations;
+
+        let catalog = create_wh_concentrations();
+        let dp = catalog.get("ODDP").expect("ODDP concentration");
+        assert_eq!(dp.len(), 4);
+        assert!(matches!(
+            &dp[0],
+            Requirement::SingleCourse { possibilities, .. }
+                if possibilities == &vec!["OIDD 2900".to_string()]
+        ));
+        assert!(matches!(
+            &dp[1],
+            Requirement::SingleCourse { possibilities, .. }
+                if possibilities == &vec!["OIDD 2910".to_string()]
+        ));
+        for slot in &dp[2..] {
+            assert!(matches!(
+                slot,
+                Requirement::SingleCourse { possibilities, .. }
+                    if possibilities.len() == 16
+            ));
+        }
     }
 
     #[test]

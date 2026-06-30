@@ -10,6 +10,10 @@ const WH_CONCENTRATION_DROPDOWN_LABELS = {
     MKTG: "Marketing",
     STAT: "Statistics and Data Science",
     HCMG: "Health Care Management",
+    ODDP: "Decision Processes",
+    ODGN: "General",
+    ODIS: "Information Systems",
+    ODOM: "Operations Management",
 };
 
 /** Wharton concentration picker only: "Finance (FNCE)". */
