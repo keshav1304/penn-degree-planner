@@ -1078,11 +1078,41 @@ mod catalog {
 
     #[test]
     fn ms_be_major_resolves_with_ten_cu() {
-        let ms_be = resolve_major("SEAS_MS", "MS_BE", &[]).expect("MS_BE");
-        assert_eq!(ms_be.short_name, "MS_BE");
-        assert_eq!(ms_be.name, "Bioengineering, MSE");
-        assert_eq!(ms_be.requirements.len(), 9);
-        assert!(ms_be.concentrations.is_none());
+        let thesis = resolve_major("SEAS_MS", "MS_BE", &[]).expect("MS_BE thesis default");
+        assert_eq!(thesis.short_name, "MS_BE");
+        assert_eq!(thesis.name, "Bioengineering, MSE");
+        assert_eq!(thesis.requirements.len(), 10);
+        assert!(thesis.concentrations.is_some());
+        assert!(
+            thesis
+                .requirements
+                .iter()
+                .filter(|r| matches!(
+                    r,
+                    Requirement::SingleCourse {
+                        possibilities,
+                        ..
+                    } if possibilities == &["BE 9990".to_string()]
+                ))
+                .count() == 2,
+            "thesis track should require 2 CU of BE 9990"
+        );
+
+        let non_thesis =
+            resolve_major("SEAS_MS", "MS_BE", &["Non-thesis".into()]).expect("MS_BE non-thesis");
+        assert_eq!(non_thesis.requirements.len(), 10);
+        assert!(
+            !non_thesis.requirements.iter().any(|r| matches!(
+                r,
+                Requirement::SingleCourse { possibilities, .. }
+                    if possibilities.contains(&"BE 9990".to_string())
+            )),
+            "non-thesis track should not require BE 9990"
+        );
+        assert_eq!(
+            major::concentrations_for("SEAS_MS", "MS_BE"),
+            vec!["Thesis", "Non-thesis"]
+        );
     }
 
     #[test]

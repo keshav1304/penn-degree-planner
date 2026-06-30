@@ -262,6 +262,7 @@ pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
         "CAS" if college_data::cas_catalog_entry(major).is_some() => {
             college_data::cas_concentration_names(major)
         }
+        "SEAS_MS" if major == "MS_BE" => seas_grad_data::ms_be_concentration_names(),
         _ => vec![],
     };
 
@@ -287,6 +288,7 @@ pub fn all_concentrations() -> BTreeMap<String, Vec<String>> {
 
     for (school, majors) in [
         ("SEAS", vec!["EE", "MEAM", "MSE", "CIS", "AI", "CMPE", "BE", "DMD"]),
+        ("SEAS_MS", vec!["MS_BE"]),
         ("WH", vec!["WH_FL", "WH_NOFL", "WH_NOFL_MT", "WH_FL_MT"]),
     ] {
         for major in majors {
@@ -327,7 +329,13 @@ pub fn resolve_major(school: &str, major: &str, concentrations: &[String]) -> Op
                 "MS_ROBO" => Some(seas_grad_data::create_ms_robo_major()),
                 "MS_MEAM" => Some(seas_grad_data::create_ms_meam_major()),
                 "MS_CIS" => Some(seas_grad_data::create_ms_cis_major()),
-                "MS_BE" => Some(seas_grad_data::create_ms_be_major()),
+                "MS_BE" => {
+                    let conc = concentrations
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "Thesis".to_string());
+                    Some(seas_grad_data::create_ms_be_major(conc))
+                }
                 "MS_MSE" => Some(seas_grad_data::create_ms_mse_major()),
                 "MCIT" => Some(seas_grad_data::create_mcit_major()),
                 _ => None,

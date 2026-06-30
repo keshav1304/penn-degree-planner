@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::Major;
 use crate::Requirement;
@@ -347,16 +347,28 @@ pub fn create_ms_mse_major() -> Major {
     placeholder_ms_major("MS_MSE", "Materials Science and Engineering, MSE")
 }
 
-pub fn create_ms_be_major() -> Major {
-    let bio_science: Requirement = restriction(1)
+fn ms_be_bio_science_slot() -> Requirement {
+    restriction(1)
         .category("Biological Science")
         .level(5000)
         .attr(&["EMBS", "EPBS"])
-        .into();
-    let seas_grad: Requirement = restriction(1)
-        .departments(MS_BE_SEAS_DEPTS)
-        .level(5000)
-        .into();
+        .into()
+}
+
+fn ms_be_seas_or_bio_slot(category: &str) -> Requirement {
+    any_of(
+        category,
+        vec![
+            restriction(1)
+                .departments(MS_BE_SEAS_DEPTS)
+                .level(5000)
+                .into(),
+            ms_be_bio_science_slot(),
+        ],
+    )
+}
+
+fn ms_be_base_requirements() -> Vec<Requirement> {
     let be_elective: Requirement = restriction(1)
         .category("Bioengineering Elective")
         .departments(&["BE"])
@@ -368,34 +380,60 @@ pub fn create_ms_be_major() -> Major {
         .attr(&["EMBM", "EPBM"])
         .into();
 
+    [
+        repeat_req(&math, 2),
+        repeat_req(&ms_be_bio_science_slot(), 2),
+        repeat_req(&be_elective, 2),
+        vec![
+            ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
+            restriction(1)
+                .category("General Elective")
+                .level(5000)
+                .into(),
+        ],
+    ]
+    .concat()
+}
+
+fn ms_be_thesis_track_requirements() -> Vec<Requirement> {
+    vec![
+        single("Master's Thesis", &["BE 9990"]),
+        single("Master's Thesis", &["BE 9990"]),
+    ]
+}
+
+fn ms_be_non_thesis_track_requirements() -> Vec<Requirement> {
+    repeat_req(
+        &ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
+        2,
+    )
+}
+
+pub fn ms_be_concentration_names() -> Vec<String> {
+    vec!["Thesis".to_string(), "Non-thesis".to_string()]
+}
+
+/// Fall 2026+ curriculum: 8 shared CU + 2 CU thesis or non-thesis track.
+pub fn create_ms_be_major(concentration_name: String) -> Major {
+    let track = match concentration_name.as_str() {
+        "Non-thesis" => ms_be_non_thesis_track_requirements(),
+        _ => ms_be_thesis_track_requirements(),
+    };
+    let mut requirements = ms_be_base_requirements();
+    requirements.extend(track);
+
     Major {
         short_name: "MS_BE".to_string(),
         name: "Bioengineering, MSE".to_string(),
-        requirements: [
-            repeat_req(&math, 2),
-            repeat_req(&bio_science, 2),
-            repeat_req(&be_elective, 2),
-            vec![
-                any_of(
-                    "Bioengineering Elective",
-                    vec![seas_grad.clone(), bio_science.clone()],
-                ),
-                restriction(1)
-                    .category("General Elective")
-                    .level(5000)
-                    .into(),
-                any_of(
-                    "Bioengineering Elective",
-                    vec![seas_grad.clone(), bio_science.clone()],
-                ),
-            ],
-        ]
-        .concat(),
+        requirements,
         schedule_hints: schedule_hints(
-            &[Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S],
+            &[Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S],
             &[("BE 9990", Y2F)],
         ),
-        concentrations: None,
+        concentrations: Some(BTreeMap::from([
+            ("Thesis".to_string(), ms_be_thesis_track_requirements()),
+            ("Non-thesis".to_string(), ms_be_non_thesis_track_requirements()),
+        ])),
     }
 }
 
