@@ -671,7 +671,7 @@ select {
   z-index: 5001;
   width: min(300px, calc(100vw - 16px));
   padding: 14px;
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg, 0 12px 40px rgba(0, 0, 0, 0.18));
@@ -721,7 +721,7 @@ select {
   margin: 4px 0 0;
   padding: 4px;
   list-style: none;
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius);
   box-shadow: var(--shadow);

@@ -21,6 +21,7 @@ function programKey(d) {
 export default function DegreeSelector({
     degreeCatalog,
     minorCatalog = [],
+    concentrationCatalog = {},
     degrees,
     setDegrees,
 }) {
@@ -165,6 +166,7 @@ export default function DegreeSelector({
                     mode={popover.mode}
                     kind={popover.kind}
                     catalog={popover.kind === "minor" ? minorCatalog : degreeCatalog}
+                    concentrationCatalog={concentrationCatalog}
                     anchorRef={anchorRef}
                     initial={popover.initial}
                     onClose={closePopover}

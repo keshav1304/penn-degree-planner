@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE } from "@/lib/api";
 import {
+    concentrationsFromCatalog,
     formatConcentrationDropdownLabel,
     implementedMajorsForSchool,
     implementedMinorsForSchool,
@@ -18,6 +19,7 @@ import {
  *   mode: "add" | "edit",
  *   kind: "major" | "minor",
  *   catalog: Array,
+ *   concentrationCatalog?: Record<string, string[]>,
  *   anchorRef: React.RefObject<HTMLElement | null>,
  *   initial?: { schoolCode?: string, majorCode?: string, concentrations?: string[] },
  *   onClose: () => void,
@@ -29,6 +31,7 @@ export default function DegreeProgramPopover({
     mode,
     kind,
     catalog,
+    concentrationCatalog = {},
     anchorRef,
     initial,
     onClose,
@@ -86,6 +89,14 @@ export default function DegreeProgramPopover({
     const majorCode = selectedMajorEntry?.api_code ?? highlightedMajorCode ?? "";
     const isWharton = schoolCode === "WH";
 
+    const applyConcentrationList = useCallback((list) => {
+        setConcentrations(list);
+        if (mode === "add" || !initial?.concentrations?.length) {
+            setSelectedConcentration(list[0] ?? "");
+            setSelectedConcentration2("");
+        }
+    }, [mode, initial?.concentrations]);
+
     useEffect(() => {
         if (!open) return;
         const schoolEntry = selectableSchools.find(
@@ -110,6 +121,13 @@ export default function DegreeProgramPopover({
             return;
         }
 
+        const cached = concentrationsFromCatalog(concentrationCatalog, schoolCode, majorCode);
+        if (cached) {
+            setConcentrationsLoading(false);
+            applyConcentrationList(cached);
+            return;
+        }
+
         const controller = new AbortController();
         setConcentrationsLoading(true);
         const params = new URLSearchParams({ school: schoolCode, major: majorCode, kind });
@@ -117,12 +135,7 @@ export default function DegreeProgramPopover({
         fetch(`${API_BASE}/concentrations?${params}`, { signal: controller.signal })
             .then((r) => r.json())
             .then((data) => {
-                const list = data.concentrations || [];
-                setConcentrations(list);
-                if (mode === "add" || !initial?.concentrations?.length) {
-                    setSelectedConcentration(list[0] ?? "");
-                    setSelectedConcentration2("");
-                }
+                applyConcentrationList(data.concentrations || []);
             })
             .catch((err) => {
                 if (err.name !== "AbortError") setConcentrations([]);
@@ -130,7 +143,14 @@ export default function DegreeProgramPopover({
             .finally(() => setConcentrationsLoading(false));
 
         return () => controller.abort();
-    }, [schoolCode, majorCode, kind, open, mode, initial?.concentrations]);
+    }, [
+        schoolCode,
+        majorCode,
+        kind,
+        open,
+        concentrationCatalog,
+        applyConcentrationList,
+    ]);
 
     useEffect(() => {
         if (!open) return;
@@ -182,12 +202,6 @@ export default function DegreeProgramPopover({
             displayMajor: selectedMajorEntry.display_name,
         });
         onClose();
-    };
-
-    const prefetchConcentrations = (code) => {
-        if (!schoolCode || !code) return;
-        const params = new URLSearchParams({ school: schoolCode, major: code, kind });
-        fetch(`${API_BASE}/concentrations?${params}`).catch(() => {});
     };
 
     if (!open || !mounted) return null;
@@ -269,7 +283,6 @@ export default function DegreeProgramPopover({
                                                 }
                                                 onMouseEnter={() => {
                                                     setHighlightedMajorCode(m.api_code);
-                                                    prefetchConcentrations(m.api_code);
                                                 }}
                                                 onClick={() => {
                                                     setSelectedMajorCode(m.api_code);

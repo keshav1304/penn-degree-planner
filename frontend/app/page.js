@@ -56,6 +56,7 @@ export default function Home() {
   const [allCourses, setAllCourses] = useState([]);
   const [degreeCatalog, setDegreeCatalog] = useState([]);
   const [minorCatalog, setMinorCatalog] = useState([]);
+  const [concentrationCatalog, setConcentrationCatalog] = useState({});
   const [degrees, setDegrees] = useState([]);
   const [takenCourses, setTakenCourses] = useState([]);
   const [frozenCourses, setFrozenCourses] = useState([]);
@@ -104,6 +105,11 @@ export default function Home() {
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setMinorCatalog(Array.isArray(data) ? data : []))
       .catch(() => setMinorCatalog([]));
+
+    fetch(`${API_BASE}/all_concentrations`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => setConcentrationCatalog(data && typeof data === "object" ? data : {}))
+      .catch(() => setConcentrationCatalog({}));
   }, []);
 
   const maxScheduleYear = useMemo(
@@ -628,6 +634,7 @@ export default function Home() {
         <DegreeSelector
           degreeCatalog={degreeCatalog}
           minorCatalog={minorCatalog}
+          concentrationCatalog={concentrationCatalog}
           degrees={degrees}
           setDegrees={setDegrees}
         />

@@ -32,6 +32,20 @@ export function normalizeConcentrations(list) {
     return [...new Set((list || []).filter((c) => c && c !== "None"))];
 }
 
+/** Key for `/all_concentrations` lookup (`school:major`). */
+export function concentrationCatalogKey(schoolCode, majorCode) {
+    if (!schoolCode || !majorCode) return "";
+    return `${schoolCode}:${majorCode}`;
+}
+
+/** Concentration codes from preloaded catalog, or `null` if not cached. */
+export function concentrationsFromCatalog(catalog, schoolCode, majorCode) {
+    const key = concentrationCatalogKey(schoolCode, majorCode);
+    if (!key || !catalog) return null;
+    const list = catalog[key];
+    return Array.isArray(list) ? list : null;
+}
+
 /** True when a program is an undergraduate minor (frontend state or API result). */
 export function isMinorProgram(degree, result) {
     return degree?.kind === "minor" || result?.kind === "minor";
