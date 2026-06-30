@@ -1901,19 +1901,19 @@ mod pools_and_concentrations {
             Some("HCMG".to_string())
         );
         assert_eq!(
-            resolve_wh_concentration_key("Decision Processes"),
+            resolve_wh_concentration_key("OIDD: Decision Processes"),
             Some("ODDP".to_string())
         );
         assert_eq!(
-            resolve_wh_concentration_key("General"),
+            resolve_wh_concentration_key("OIDD: General"),
             Some("ODGN".to_string())
         );
         assert_eq!(
-            resolve_wh_concentration_key("Information Systems"),
+            resolve_wh_concentration_key("OIDD: Information Systems"),
             Some("ODIS".to_string())
         );
         assert_eq!(
-            resolve_wh_concentration_key("Operations Management"),
+            resolve_wh_concentration_key("OIDD: Operations Management"),
             Some("ODOM".to_string())
         );
         assert_eq!(resolve_wh_concentration_key("OIDD"), None);

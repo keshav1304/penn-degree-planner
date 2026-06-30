@@ -10,10 +10,10 @@ const WH_CONCENTRATION_DROPDOWN_LABELS = {
     MKTG: "Marketing",
     STAT: "Statistics and Data Science",
     HCMG: "Health Care Management",
-    ODDP: "Decision Processes",
-    ODGN: "General",
-    ODIS: "Information Systems",
-    ODOM: "Operations Management",
+    ODDP: "OIDD: Decision Processes",
+    ODGN: "OIDD: General",
+    ODIS: "OIDD: Information Systems",
+    ODOM: "OIDD: Operations Management",
 };
 
 /** Wharton concentration picker only: "Finance (FNCE)". */
@@ -50,9 +50,14 @@ export function getDegreeConcentrations(degree) {
     );
 }
 
-export function formatConcentrationLabel(concList) {
+export function formatConcentrationLabel(concList, schoolCode) {
     const normalized = normalizeConcentrations(concList);
     if (!normalized.length) return null;
+    if (schoolCode === "WH") {
+        return normalized
+            .map((c) => WH_CONCENTRATION_DROPDOWN_LABELS[c] || c)
+            .join(" + ");
+    }
     return normalized.join(" + ");
 }
 
@@ -135,7 +140,7 @@ export function formatDegreeDisplay(degree, result, degreeCatalog) {
     const isMinor = isMinorProgram(degree, result);
     const concLabel = isMinor
         ? null
-        : formatConcentrationLabel(getDegreeConcentrations(degree));
+        : formatConcentrationLabel(getDegreeConcentrations(degree), schoolCode);
     const schoolLine = concLabel ? `${school} · Conc: ${concLabel}` : school;
 
     return { major, school, schoolLine, concLabel };
