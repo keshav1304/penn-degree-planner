@@ -282,6 +282,7 @@ fn resolve_cross_degree_conflicts_trims_validation() {
         &cu_map,
         None,
         None,
+        None,
     );
 
     let shared = shared_undergrad_grad_cu_from_summary(&summary, &schools, &cu_map);

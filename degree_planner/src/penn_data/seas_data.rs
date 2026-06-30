@@ -1729,3 +1729,72 @@ pub fn create_be_major() -> Major {
         concentrations: Some(be_concentrations()),
     }
 }
+
+const EENT_CORE_EXCLUSIONS: &[&str] = &[
+    "EAS 5450", "EAS 5460", "EAS 5490", "EAS 5410", "EAS 5430",
+];
+
+pub fn eent_concentration_names() -> Vec<String> {
+    vec!["Standard".to_string(), "Fellows".to_string()]
+}
+
+/// Engineering Entrepreneurship minor (6 CU) per Penn catalog.
+pub fn create_eent_minor(concentration: &str) -> Major {
+    let core = if concentration == "Fellows" {
+        vec![
+            Requirement::SingleCourse {
+                category: Some("EENT Core".to_string()),
+                possibilities: vec!["EAS 5410".to_string()],
+            },
+            Requirement::SingleCourse {
+                category: Some("EENT Core".to_string()),
+                possibilities: vec!["EAS 5430".to_string()],
+            },
+        ]
+    } else {
+        vec![
+            Requirement::SingleCourse {
+                category: Some("EENT Core".to_string()),
+                possibilities: vec!["EAS 5450".to_string()],
+            },
+            Requirement::AnyOf {
+                category: Some("EENT Core".to_string()),
+                possibilities: vec![
+                    Requirement::SingleCourse {
+                        category: Some("EENT Core".to_string()),
+                        possibilities: vec!["EAS 5460".to_string()],
+                    },
+                    Requirement::SingleCourse {
+                        category: Some("EENT Core".to_string()),
+                        possibilities: vec!["EAS 5490".to_string()],
+                    },
+                ],
+            },
+        ]
+    };
+
+    let electives = Requirement::Restriction {
+        category: Some("EENT Electives".to_string()),
+        department: None,
+        cu: None,
+        level: None,
+        max_level: None,
+        attr: Some(vec!["EUNP".to_string()]),
+        excluding: Some(
+            EENT_CORE_EXCLUSIONS
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        ),
+        number: 4,
+        no_school: None,
+    };
+
+    Major {
+        short_name: "EENT".to_string(),
+        name: "Engineering Entrepreneurship".to_string(),
+        requirements: core.into_iter().chain(std::iter::once(electives)).collect(),
+        concentrations: None,
+        schedule_hints: HashMap::new(),
+    }
+}

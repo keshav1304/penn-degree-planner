@@ -604,6 +604,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         })
         .collect();
 
+    let minor_degree_indices: HashSet<usize> = resolved_degrees
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.is_minor)
+        .map(|(i, _)| i)
+        .collect();
+
     if !per_degree_validation.is_empty() {
         requirement::resolve_cross_degree_conflicts(
             &mut per_degree_validation,
@@ -612,6 +619,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &cu_map,
             Some(&conc_contexts),
             Some(&courses_for_validation),
+            Some(&minor_degree_indices),
         );
     }
 
@@ -629,7 +637,10 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     );
     if !per_degree_validation.is_empty() {
         let mut fulfilled_allocations =
-            requirement::build_allocations_from_fulfilled(&per_degree_validation);
+            requirement::build_allocations_from_fulfilled(
+                &per_degree_validation,
+                Some(&minor_degree_indices),
+            );
         requirement::merge_concentration_claims_into(&mut fulfilled_allocations, &ug_conc_claims);
         cross_state.rebuild_from_allocations(&fulfilled_allocations, &cu_map);
         cross_state.ug_concentration_courses = ug_conc_claims;

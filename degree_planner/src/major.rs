@@ -5,7 +5,6 @@ use serde::Serialize;
 use crate::Requirement;
 use crate::schedule_template::ScheduleHint;
 use crate::penn_data::college_data;
-use crate::penn_data::minor_data;
 use crate::penn_data::nursing_data;
 use crate::penn_data::seas_data;
 use crate::penn_data::seas_grad_data;
@@ -257,7 +256,7 @@ pub fn minor_is_implemented(school: &str, api_code: &str) -> bool {
 
 pub fn minor_concentrations_for(school: &str, minor: &str) -> Vec<String> {
     match (school, minor) {
-        ("SEAS", "EENT") => minor_data::eent_concentration_names(),
+        ("SEAS", "EENT") => seas_data::eent_concentration_names(),
         _ => vec![],
     }
 }
@@ -269,7 +268,7 @@ pub fn resolve_minor(school: &str, minor: &str, concentrations: &[String]) -> Op
                 .first()
                 .cloned()
                 .unwrap_or_else(|| "Standard".to_string());
-            Some(minor_data::create_eent_minor(&conc))
+            Some(seas_data::create_eent_minor(&conc))
         }
         _ => None,
     };

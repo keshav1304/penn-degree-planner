@@ -2578,6 +2578,7 @@ mod overlap {
             &cu_map,
             None,
             Some(&taken),
+            None,
         );
         for course in ["BEPP 2500", "FNCE 1010"] {
             assert!(
@@ -2614,6 +2615,7 @@ mod overlap {
             &cu_map,
             None,
             Some(&taken),
+            None,
         );
         assert!(
             per_degree[0]
@@ -3562,6 +3564,7 @@ mod dual_degree_properties {
             &cu_map,
             None,
             Some(&taken),
+            None,
         );
         for (idx, validation) in per_degree.iter().enumerate() {
             let fulfilled = validation
