@@ -226,28 +226,36 @@ pub fn create_ms_mse_major() -> Major {
     placeholder_ms_major("MS_MSE", "Materials Science and Engineering, MSE")
 }
 
-fn ms_be_bio_science_slot() -> Requirement {
-    restriction(1)
-        .category("Biological Science")
-        .level(5000)
-        .attr(&["EMBS", "EPBS"])
-        .into()
+/// Fall 2026+ curriculum: 8 shared CU + 2 CU thesis or non-thesis track.
+pub fn ms_be_concentration_names() -> Vec<String> {
+    vec!["Thesis".to_string(), "Non-thesis".to_string()]
 }
 
-fn ms_be_seas_or_bio_slot(category: &str) -> Requirement {
-    any_of(
-        category,
-        vec![
-            restriction(1)
-                .departments(MS_BE_SEAS_DEPTS)
-                .level(5000)
-                .into(),
-            ms_be_bio_science_slot(),
-        ],
-    )
-}
+pub fn create_ms_be_major(concentration_name: String) -> Major {
+    // Helper for Biological Science slot
+    let ms_be_bio_science_slot = || {
+        restriction(1)
+            .category("Biological Science")
+            .level(5000)
+            .attr(&["EMBS", "EPBS"])
+            .into()
+    };
 
-fn ms_be_base_requirements() -> Vec<Requirement> {
+    // Helper for SEAS or Biological Science slot
+    let ms_be_seas_or_bio_slot = |category: &str| {
+        any_of(
+            category,
+            vec![
+                restriction(1)
+                    .departments(MS_BE_SEAS_DEPTS)
+                    .level(5000)
+                    .into(),
+                ms_be_bio_science_slot(),
+            ],
+        )
+    };
+
+    // Helpers for shared & elective requirements
     let be_elective: Requirement = restriction(1)
         .category("Bioengineering Elective")
         .departments(&["BE"])
@@ -259,7 +267,8 @@ fn ms_be_base_requirements() -> Vec<Requirement> {
         .attr(&["EMBM", "EPBM"])
         .into();
 
-    [
+    // Build base requirements (8 CU)
+    let mut requirements = [
         repeat_req(&math, 2),
         repeat_req(&ms_be_bio_science_slot(), 2),
         repeat_req(&be_elective, 2),
@@ -271,34 +280,54 @@ fn ms_be_base_requirements() -> Vec<Requirement> {
                 .into(),
         ],
     ]
-    .concat()
-}
+    .concat();
 
-fn ms_be_thesis_track_requirements() -> Vec<Requirement> {
-    vec![
-        single("Master's Thesis", &["BE 9990"]),
-        single("Master's Thesis", &["BE 9990"]),
-    ]
-}
+    // Determine track requirements (2 CU)
+    let (track, concentrations): (Vec<Requirement>, Option<BTreeMap<String, Vec<Requirement>>>) =
+        match concentration_name.as_str() {
+            "Non-thesis" => {
+                let non_thesis = repeat_req(
+                    &ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
+                    2,
+                );
+                (
+                    non_thesis.clone(),
+                    Some(BTreeMap::from([
+                        (
+                            "Thesis".to_string(),
+                            vec![
+                                single("Master's Thesis", &["BE 9990"]),
+                                single("Master's Thesis", &["BE 9990"]),
+                            ],
+                        ),
+                        ("Non-thesis".to_string(), non_thesis),
+                    ])),
+                )
+            }
+            _ => {
+                let thesis = vec![
+                    single("Master's Thesis", &["BE 9990"]),
+                    single("Master's Thesis", &["BE 9990"]),
+                ];
+                (
+                    thesis.clone(),
+                    Some(BTreeMap::from([
+                        (
+                            "Thesis".to_string(),
+                            thesis,
+                        ),
+                        (
+                            "Non-thesis".to_string(),
+                            repeat_req(
+                                &ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
+                                2,
+                            ),
+                        ),
+                    ])),
+                )
+            }
+        };
 
-fn ms_be_non_thesis_track_requirements() -> Vec<Requirement> {
-    repeat_req(
-        &ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
-        2,
-    )
-}
-
-pub fn ms_be_concentration_names() -> Vec<String> {
-    vec!["Thesis".to_string(), "Non-thesis".to_string()]
-}
-
-/// Fall 2026+ curriculum: 8 shared CU + 2 CU thesis or non-thesis track.
-pub fn create_ms_be_major(concentration_name: String) -> Major {
-    let track = match concentration_name.as_str() {
-        "Non-thesis" => ms_be_non_thesis_track_requirements(),
-        _ => ms_be_thesis_track_requirements(),
-    };
-    let mut requirements = ms_be_base_requirements();
     requirements.extend(track);
 
     Major {
@@ -309,10 +338,7 @@ pub fn create_ms_be_major(concentration_name: String) -> Major {
             &[Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S],
             &[("BE 9990", Y2F)],
         ),
-        concentrations: Some(BTreeMap::from([
-            ("Thesis".to_string(), ms_be_thesis_track_requirements()),
-            ("Non-thesis".to_string(), ms_be_non_thesis_track_requirements()),
-        ])),
+        concentrations,
     }
 }
 

@@ -3,7 +3,7 @@ use crate::Major;
 use crate::Requirement;
 use crate::penn_data::requirement_builders::{
     all_of, any_of, any_of_opt, attr_pool_constraint, attr_restriction, code,
-    concentration, course_group_from_codes, course_pool, restriction, single,
+    concentration, course_group_from_codes, course_pool, repeat_req, restriction, single,
     unrestricted_elective,
 };
 use crate::requirement::{PoolConstraint, PoolCoverageInfo};
@@ -2136,6 +2136,204 @@ pub fn create_dsgn_major() -> Major {
         major_requirements: dsgn_major_requirements(),
         auto_completed_sectors: vec![],
         concentrations: None,
+        schedule_hints,
+    })
+}
+
+fn hsoc_hsoc_stsc_elective_slot() -> Requirement {
+    any_of(
+        "HSOC or STSC Electives",
+        vec![
+            restriction(1).departments(&["HSOC"]).into(),
+            restriction(1).departments(&["STSC"]).into(),
+            restriction(1).attr(&["AHSM"]).into(),
+        ],
+    )
+}
+
+fn hsoc_ahsm_elective_slot() -> Requirement {
+    attr_restriction("HSOC or STSC Electives", "AHSM")
+}
+
+fn hsoc_elective_slot_for(concentration_name: &str) -> Requirement {
+    match concentration_name {
+        "Bioethics and Society" | "Global Health" => hsoc_hsoc_stsc_elective_slot(),
+        _ => hsoc_ahsm_elective_slot(),
+    }
+}
+
+fn hsoc_capstone_slot() -> Requirement {
+    any_of(
+        "Capstone Research Requirement",
+        vec![
+            restriction(1).departments(&["HSOC"]).level(4000).into(),
+            restriction(1).departments(&["STSC"]).level(4000).into(),
+        ],
+    )
+}
+
+fn hsoc_major_requirements(concentration_name: &str) -> Vec<Requirement> {
+    let mut requirements = vec![
+        single("Foundation Requirement", &["HSOC 0480", "HSOC 0490"]),
+        single(
+            "Quantitative Methods",
+            &["HSOC 2002", "SOCI 2000", "HSOC 2202", "SOCI 2220"],
+        ),
+        single(
+            "Core Discipline",
+            &["HSOC 0400", "HSOC 1411", "HSOC 1401"],
+        ),
+        single("Core Discipline", &["HSOC 1382", "HSOC 1222"]),
+    ];
+    requirements.extend(repeat_req(
+        &hsoc_elective_slot_for(concentration_name),
+        3,
+    ));
+    requirements.push(hsoc_capstone_slot());
+    requirements
+}
+
+fn hsoc_bioethics_concentration_requirements() -> Vec<Requirement> {
+    vec![
+        attr_restriction("Bioethics & Society - Core Discipline", "AHSB"),
+        attr_restriction("Bioethics & Society - Core Course", "AHSI"),
+        attr_restriction("Bioethics & Society - Philosophical & Religious Foundations", "AHSP"),
+        attr_restriction("Bioethics & Society - Social & Institutional Contexts", "AHSS"),
+        attr_restriction(
+            "Bioethics & Society - Technologies, Practices & Practitioners",
+            "AHST",
+        ),
+        attr_restriction("Bioethics & Society - Law, Politics & Public Policy", "AHSL"),
+    ]
+}
+
+fn hsoc_disease_culture_concentration_requirements() -> Vec<Requirement> {
+    vec![restriction(6)
+        .category("Disease & Culture")
+        .attr(&["AHSD"])
+        .into()]
+}
+
+fn hsoc_global_health_concentration_requirements() -> Vec<Requirement> {
+    vec![
+        attr_restriction("Global Health - Core Course on World Health", "AHSW"),
+        attr_restriction("Global Health - Regional Course", "AHSR"),
+        restriction(4)
+            .category("Global Health - Concentration Electives")
+            .attr(&["AHSG"])
+            .into(),
+    ]
+}
+
+fn hsoc_health_care_markets_finance_concentration_requirements() -> Vec<Requirement> {
+    vec![
+        attr_restriction("Health Care Markets & Finance - Core Course", "AHFC"),
+        restriction(5)
+            .category("Health Care Markets & Finance")
+            .attr(&["AHFI"])
+            .into(),
+    ]
+}
+
+fn hsoc_health_policy_law_concentration_requirements() -> Vec<Requirement> {
+    vec![
+        attr_restriction("Health Policy & Law - Political Economy", "AHSO"),
+        attr_restriction("Health Policy & Law - Health Policy", "AHSC"),
+        attr_restriction("Health Policy & Law - Law & Society", "AHSA"),
+        attr_restriction("Health Policy & Law - Philosophical/Ethical", "AHSH"),
+        restriction(2)
+            .category("Health Policy & Law - Concentration Electives")
+            .attr(&["AHSE"])
+            .into(),
+    ]
+}
+
+fn hsoc_public_health_concentration_requirements() -> Vec<Requirement> {
+    vec![
+        attr_restriction("Public Health - Core Course", "AHPH"),
+        restriction(5)
+            .category("Public Health Electives")
+            .attr(&["AHPE"])
+            .into(),
+    ]
+}
+
+fn hsoc_race_gender_health_concentration_requirements() -> Vec<Requirement> {
+    vec![restriction(6)
+        .category("Race, Gender and Health")
+        .attr(&["AHSN"])
+        .into()]
+}
+
+fn hsoc_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    BTreeMap::from([
+        (
+            "Bioethics and Society".to_string(),
+            hsoc_bioethics_concentration_requirements(),
+        ),
+        (
+            "Disease and Culture".to_string(),
+            hsoc_disease_culture_concentration_requirements(),
+        ),
+        (
+            "Global Health".to_string(),
+            hsoc_global_health_concentration_requirements(),
+        ),
+        (
+            "Health Care Markets & Finance".to_string(),
+            hsoc_health_care_markets_finance_concentration_requirements(),
+        ),
+        (
+            "Health Policy & Law".to_string(),
+            hsoc_health_policy_law_concentration_requirements(),
+        ),
+        (
+            "Public Health".to_string(),
+            hsoc_public_health_concentration_requirements(),
+        ),
+        (
+            "Race, Gender and Health".to_string(),
+            hsoc_race_gender_health_concentration_requirements(),
+        ),
+    ])
+}
+
+fn hsoc_concentration_requirement(concentration_name: &str) -> Option<Requirement> {
+    let requirements = hsoc_concentrations()
+        .get(concentration_name)
+        .unwrap_or_else(|| panic!("unknown HSOC concentration: {concentration_name}"))
+        .clone();
+    if requirements.is_empty() {
+        return None;
+    }
+    let number = requirements.iter().map(requirement_slot_cu).sum();
+    Some(concentration(concentration_name, number, requirements))
+}
+
+pub fn hsoc_concentration_names() -> Vec<String> {
+    cas_concentration_names("HSOC")
+}
+
+pub fn create_hsoc_major(concentration_name: String) -> Major {
+    let schedule_hints = HashMap::from([
+        ("HSOC 0480".to_string(), Y1F.into()),
+        ("HSOC 0490".to_string(), Y1F.into()),
+        ("HSOC 0400".to_string(), Y2F.into()),
+        ("HSOC 1382".to_string(), Y2F.into()),
+        ("HSOC 1222".to_string(), Y2F.into()),
+        ("HSOC 2002".to_string(), Y3F.into()),
+        ("HSOC 2202".to_string(), Y3F.into()),
+    ]);
+    let mut major_requirements = hsoc_major_requirements(&concentration_name);
+    if let Some(conc) = hsoc_concentration_requirement(&concentration_name) {
+        major_requirements.push(conc);
+    }
+    create_cas_major(CasMajorConfig {
+        short_name: "HSOC".to_string(),
+        name: "Health and Societies".to_string(),
+        major_requirements,
+        auto_completed_sectors: vec![],
+        concentrations: Some(hsoc_concentrations()),
         schedule_hints,
     })
 }

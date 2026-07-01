@@ -150,25 +150,40 @@ fn wh_marketing_operations_management_requirements() -> Vec<Requirement> {
     let category = "Concentration - MAOM";
     vec![
         single(category, &["OIDD 2200"]),
-        any_of(
+        single(
             category,
-            vec![code(&["OIDD 2360"]), code(&["OIDD 3140"]), code(&["OIDD 4110"]), code(&["OIDD 4150"]), code(&["OIDD 6590"])],
+            &["OIDD 2360", "OIDD 3140", "OIDD 4110", "OIDD 4150", "OIDD 6590"],
         ),
-        course_group(
+        single(
             category,
-            2,
-            vec![
-                code(&["MKTG 2250"]),
-                code(&["MKTG 2270"]),
-                code(&["MKTG 2340"]),
-                code(&["MKTG 2470"]),
-                code(&["MKTG 2540"]),
-                code(&["MKTG 2680"]),
-                code(&["MKTG 2770"]),
-                code(&["MKTG 2790"]),
-                code(&["MKTG 2880"]),
-                code(&["MKTG 4760"]),
-                code(&["MKTG 4710"]),
+            &[
+                "MKTG 2250",
+                "MKTG 2270",
+                "MKTG 2340",
+                "MKTG 2470",
+                "MKTG 2540",
+                "MKTG 2680",
+                "MKTG 2770",
+                "MKTG 2790",
+                "MKTG 2880",
+                "MKTG 4760",
+                "MKTG 4710",
+            ],
+        ),
+        single(
+            category,
+            &[
+                "MKTG 2250",
+                "MKTG 2270",
+                "MKTG 2340",
+                "MKTG 2470",
+                "MKTG 2540",
+                "MKTG 2680",
+                "MKTG 2770",
+                "MKTG 2790",
+                "MKTG 2880",
+                "MKTG 4760",
+                "MKTG 4710",
             ],
         ),
     ]

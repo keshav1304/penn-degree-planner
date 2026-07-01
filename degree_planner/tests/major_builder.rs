@@ -92,7 +92,7 @@ fn normalize_like_resolve(mut major: Major) -> Major {
 fn default_concentrations(school: &str, code: &str) -> Vec<String> {
     match (school, code) {
         ("WH", _) => vec!["FNCE".into()],
-        ("CAS", "PPE" | "PHYS" | "MATH") => college_data::cas_concentration_names(code)
+        ("CAS", "PPE" | "PHYS" | "MATH" | "HSOC") => college_data::cas_concentration_names(code)
             .into_iter()
             .next()
             .into_iter()
@@ -354,7 +354,7 @@ mod cas_builder {
 
     #[test]
     fn cas_concentration_majors_build_from_catalog_names() {
-        for code in ["PPE", "PHYS", "MATH"] {
+        for code in ["PPE", "PHYS", "MATH", "HSOC"] {
             for conc in college_data::cas_concentration_names(code) {
                 let concs = vec![conc.clone()];
                 let major = resolve_major("CAS", code, &concs)
