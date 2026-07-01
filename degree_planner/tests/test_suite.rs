@@ -37,7 +37,7 @@ use degree_planner::schedule_template::{
 };
 use degree_planner::scheduler::{
     self, default_semester_cu_limit, generate_schedule, undergrad_schedule_years, CU_EPS,
-    DegreeInput, ScheduleInput,
+    DegreeInput, FrozenCourse, ScheduleInput,
 };
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -3803,6 +3803,136 @@ mod dual_degree_properties {
         assert!(
             gen_ed_slots <= 12,
             "single CAS ECON should schedule at most 12 gen-ed slots, got {gen_ed_slots}"
+        );
+    }
+
+    #[test]
+    fn cas_anch_non_gened_courses_allocate_to_unrestricted_not_pool_flex() {
+
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "ANCH".into(),
+                school: "CAS".into(),
+                kind: "major".to_string(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![
+                FrozenCourse {
+                    course_id: "AFRC 1100".into(),
+                    year: 1,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "AFRC 0527".into(),
+                    year: 1,
+                    semester: "Spring".into(),
+                },
+            ],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let dr = &output.degree_results[0];
+        let gen_ed_flex: Vec<_> = dr
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| m.instance_id.as_deref().is_some_and(|id| id.starts_with("1:p")))
+            .collect();
+        assert!(
+            gen_ed_flex.is_empty(),
+            "non-gen-ed courses should not fill pool flex slots: {:?}",
+            gen_ed_flex
+                .iter()
+                .map(|m| (&m.instance_id, &m.course_ids))
+                .collect::<Vec<_>>()
+        );
+
+        let unrestricted: Vec<_> = dr
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| {
+                m.requirement.get_category() == "Unrestricted Electives"
+                    && m.course_ids.iter().any(|c| c.starts_with("AFRC"))
+            })
+            .collect();
+        assert_eq!(
+            unrestricted.len(),
+            2,
+            "expected both AFRC courses as unrestricted electives, got {:?}",
+            unrestricted
+                .iter()
+                .map(|m| (&m.instance_id, &m.course_ids))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn cas_anch_redundant_gened_course_goes_unrestricted_after_sector_covered() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "ANCH".into(),
+                school: "CAS".into(),
+                kind: "major".to_string(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![
+                FrozenCourse {
+                    course_id: "ANTH 0040".into(),
+                    year: 1,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "ANTH 1238".into(),
+                    year: 1,
+                    semester: "Spring".into(),
+                },
+            ],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let dr = &output.degree_results[0];
+        let pool_flex_with_anth: Vec<_> = dr
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| {
+                m.instance_id.as_deref().is_some_and(|id| id.starts_with("1:p"))
+                    && m.course_ids.iter().any(|c| c == "ANTH 0040")
+            })
+            .collect();
+        assert_eq!(
+            pool_flex_with_anth.len(),
+            1,
+            "ANTH 0040 should fill one unmet gen-ed constraint in the pool"
+        );
+
+        let anth_in_pool: Vec<_> = dr
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| {
+                m.instance_id.as_deref().is_some_and(|id| id.starts_with("1:p"))
+                    && m.course_ids.iter().any(|c| c == "ANTH 1238")
+            })
+            .collect();
+        assert!(
+            anth_in_pool.is_empty(),
+            "second Hum/Soc Sci course should not enter pool when that sector is already covered: {:?}",
+            anth_in_pool
+        );
+
+        let anth_unrestricted = dr.fulfilled_requirements.iter().any(|m| {
+            m.requirement.get_category() == "Unrestricted Electives"
+                && m.course_ids.iter().any(|c| c == "ANTH 1238")
+        });
+        assert!(
+            anth_unrestricted,
+            "redundant sector course should count as unrestricted elective"
         );
     }
 

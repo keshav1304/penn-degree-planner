@@ -2112,8 +2112,10 @@ pub fn validate_courses_for_degree(
                 for pi in 0..flexible_slots.max(0) as usize {
                     let flex_req = pool_flexible_slot_requirement(&pool_cat, pi);
                     let child_id = Some(format!("{}:p{}", orig_idx, pi));
-                    let courses = try_fulfill_or_partial_base(
+                    let courses = try_fulfill_pool_flexible_slot(
                         &flex_req,
+                        &constraints,
+                        &pool_courses,
                         &mut taken_mut,
                         &attributes,
                         cu_map,
@@ -2431,6 +2433,71 @@ fn try_fulfill_or_partial_base(
         branch,
     ));
     courses
+}
+
+fn course_fills_unmet_pool_need(
+    course: &str,
+    pool_courses: &[String],
+    constraints: &[PoolConstraint],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> bool {
+    let fulfilled_before = evaluate_pool_constraints(pool_courses, constraints, attributes, cu_map)
+        .iter()
+        .filter(|e| e.fulfilled)
+        .count();
+    let mut with_course = pool_courses.to_vec();
+    with_course.push(course.to_string());
+    let fulfilled_after = evaluate_pool_constraints(&with_course, constraints, attributes, cu_map)
+        .iter()
+        .filter(|e| e.fulfilled)
+        .count();
+    fulfilled_after > fulfilled_before
+}
+
+/// Pool flexible slots only absorb courses that satisfy an unmet pool coverage need.
+/// Other courses remain for unrestricted electives outside the pool.
+fn try_fulfill_pool_flexible_slot(
+    flex_req: &Requirement,
+    constraints: &[PoolConstraint],
+    pool_courses: &[String],
+    taken: &mut Vec<String>,
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+    child_id: Option<String>,
+    fulfilled: &mut Vec<MappedRequirement>,
+    unfulfilled: &mut Vec<MappedRequirement>,
+) -> Vec<String> {
+    if constraints.is_empty() {
+        unfulfilled.push(new_mapped_requirement(
+            flex_req.clone(),
+            vec![],
+            child_id,
+            attributes,
+        ));
+        return vec![];
+    }
+
+    if let Some(course_idx) = taken.iter().position(|c| {
+        course_fills_unmet_pool_need(c, pool_courses, constraints, attributes, cu_map)
+    }) {
+        let course = taken.remove(course_idx);
+        fulfilled.push(new_mapped_requirement(
+            flex_req.clone(),
+            vec![course.clone()],
+            child_id,
+            attributes,
+        ));
+        return vec![course];
+    }
+
+    unfulfilled.push(new_mapped_requirement(
+        flex_req.clone(),
+        vec![],
+        child_id,
+        attributes,
+    ));
+    vec![]
 }
 
 #[derive(Debug, Clone, Serialize)]
