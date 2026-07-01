@@ -116,7 +116,7 @@ export default function CourseSearch({
                                     className={`course-item ${inCart ? "in-cart" : ""}`}
                                     onClick={() => inCart ? onRemove(course.course_code) : onAdd(course.course_code)}
                                 >
-                                    <div>
+                                    <div className="course-item-main">
                                         <div className="course-code">
                                             {course.course_code}
                                             {inCart && <span className="course-in-cart-mark">✓</span>}

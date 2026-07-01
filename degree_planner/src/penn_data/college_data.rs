@@ -703,7 +703,7 @@ pub const CAS_DEGREE_CATALOG: &[CasMajorCatalogEntry] = &[
             "Health Care Markets & Finance",
             "Health Policy & Law",
             "Public Health",
-            "Race, Gender and Health",
+            "Race, Gender, and Health",
         ],
     },
     CasMajorCatalogEntry {
@@ -2246,7 +2246,7 @@ fn hsoc_public_health_concentration_requirements() -> Vec<Requirement> {
 
 fn hsoc_race_gender_health_concentration_requirements() -> Vec<Requirement> {
     vec![restriction(6)
-        .category("Race, Gender and Health")
+        .category("Race, Gender, and Health")
         .attr(&["AHSN"])
         .into()]
 }
@@ -2278,7 +2278,7 @@ fn hsoc_concentrations() -> BTreeMap<String, Vec<Requirement>> {
             hsoc_public_health_concentration_requirements(),
         ),
         (
-            "Race, Gender and Health".to_string(),
+            "Race, Gender, and Health".to_string(),
             hsoc_race_gender_health_concentration_requirements(),
         ),
     ])

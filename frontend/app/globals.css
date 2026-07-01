@@ -840,19 +840,36 @@ select {
   flex-direction: column;
   gap: 6px;
   max-height: 300px;
+  overflow-x: hidden;
   overflow-y: auto;
+  min-width: 0;
+}
+
+.course-list > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .course-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 8px 10px;
   background: var(--bg-glass);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition);
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.course-item-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .course-item:hover {
@@ -869,6 +886,9 @@ select {
   font-size: var(--sidebar-font-emphasis);
   font-weight: 700;
   color: var(--accent-teal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .course-in-cart-mark {
@@ -890,6 +910,7 @@ select {
   font-size: var(--sidebar-font-meta);
   color: var(--text-muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ============ CART ============ */
