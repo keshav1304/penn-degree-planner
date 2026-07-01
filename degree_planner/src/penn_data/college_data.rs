@@ -2151,17 +2151,6 @@ fn hsoc_hsoc_stsc_elective_slot() -> Requirement {
     )
 }
 
-fn hsoc_ahsm_elective_slot() -> Requirement {
-    attr_restriction("HSOC or STSC Electives", "AHSM")
-}
-
-fn hsoc_elective_slot_for(concentration_name: &str) -> Requirement {
-    match concentration_name {
-        "Bioethics and Society" | "Global Health" => hsoc_hsoc_stsc_elective_slot(),
-        _ => hsoc_ahsm_elective_slot(),
-    }
-}
-
 fn hsoc_capstone_slot() -> Requirement {
     any_of(
         "Capstone Research Requirement",
@@ -2172,7 +2161,7 @@ fn hsoc_capstone_slot() -> Requirement {
     )
 }
 
-fn hsoc_major_requirements(concentration_name: &str) -> Vec<Requirement> {
+fn hsoc_major_requirements() -> Vec<Requirement> {
     let mut requirements = vec![
         single("Foundation Requirement", &["HSOC 0480", "HSOC 0490"]),
         single(
@@ -2185,10 +2174,7 @@ fn hsoc_major_requirements(concentration_name: &str) -> Vec<Requirement> {
         ),
         single("Core Discipline", &["HSOC 1382", "HSOC 1222"]),
     ];
-    requirements.extend(repeat_req(
-        &hsoc_elective_slot_for(concentration_name),
-        3,
-    ));
+    requirements.extend(repeat_req(&hsoc_hsoc_stsc_elective_slot(), 3));
     requirements.push(hsoc_capstone_slot());
     requirements
 }
@@ -2324,7 +2310,7 @@ pub fn create_hsoc_major(concentration_name: String) -> Major {
         ("HSOC 2002".to_string(), Y3F.into()),
         ("HSOC 2202".to_string(), Y3F.into()),
     ]);
-    let mut major_requirements = hsoc_major_requirements(&concentration_name);
+    let mut major_requirements = hsoc_major_requirements();
     if let Some(conc) = hsoc_concentration_requirement(&concentration_name) {
         major_requirements.push(conc);
     }
