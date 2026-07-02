@@ -1938,6 +1938,16 @@ select {
   border-radius: 3px;
 }
 
+.req-item-line:has(.req-chips-scroll-wrap) {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.req-item-line:has(.req-chips-scroll-wrap) .req-stem-text {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 /* ── Course chips ── */
 .req-chips {
   display: flex;
@@ -1948,19 +1958,19 @@ select {
 
 .req-chips-scroll-wrap {
   position: relative;
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
+  display: flex;
+  flex: 1 1 0;
   min-width: 0;
-  max-width: 100%;
-  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .req-chips--scrollable {
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  max-width: min(100%, 15.5rem);
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
