@@ -25,7 +25,7 @@ fn ms_ee_alone_has_five_core_slots() {
 }
 
 #[test]
-fn format_schedule_single_course_label_truncates_after_three() {
+fn format_schedule_single_course_label_truncates_after_two() {
     let label = requirement::format_schedule_single_course_label(&[
         "ESE 5090".into(),
         "ESE 5100".into(),
@@ -33,7 +33,7 @@ fn format_schedule_single_course_label_truncates_after_three() {
         "ESE 5210".into(),
         "ESE 5230".into(),
     ]);
-    assert_eq!(label, "1 CU from ESE 5090, ESE 5100, ESE 5130 (+2)");
+    assert_eq!(label, "1 CU from ESE 5090, ESE 5100 (+3)");
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn ee_plus_ms_ee_schedules_five_distinct_ms_core_placeholders() {
         .map(String::as_str)
         .unwrap_or("");
     assert!(
-        sample_label.starts_with("1 CU from ESE 5090, ESE 5100, ESE 5130 (+"),
+        sample_label.starts_with("1 CU from ESE 5090, ESE 5100 (+"),
         "unexpected schedule label: {sample_label}"
     );
 }

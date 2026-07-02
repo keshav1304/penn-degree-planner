@@ -131,7 +131,7 @@ pub struct PoolConstraint {
 }
 
 const MAX_LISTED_COURSES: usize = 4;
-const MAX_SCHEDULE_LISTED_COURSES: usize = 3;
+const MAX_SCHEDULE_LISTED_COURSES: usize = 2;
 
 /// Max coverage constraints a single pool course may satisfy (double-count limit).
 const POOL_MAX_CONSTRAINT_USES_PER_COURSE: usize = 2;

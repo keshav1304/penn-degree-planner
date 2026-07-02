@@ -27,7 +27,7 @@ export function restrictionRequiredCu(number, cuField) {
 }
 
 const MAX_LISTED_COURSES = 4;
-const MAX_SCHEDULE_LISTED_COURSES = 3;
+const MAX_SCHEDULE_LISTED_COURSES = 2;
 const CU_EPS = 0.001;
 
 /** Must stay in sync with Rust `format_restriction_description` CU prefix. */
