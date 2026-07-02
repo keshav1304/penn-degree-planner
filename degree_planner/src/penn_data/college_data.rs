@@ -3,7 +3,7 @@ use crate::Major;
 use crate::Requirement;
 use crate::penn_data::requirement_builders::{
     all_of, any_of, any_of_opt, attr_pool_constraint, attr_restriction, code,
-    concentration, course_group_from_codes, course_pool, repeat_req, restriction, single,
+    concentration, course_pool, repeat_req, restriction, single,
     unrestricted_elective,
 };
 use crate::requirement::{PoolConstraint, PoolCoverageInfo};
@@ -1011,7 +1011,8 @@ fn anch_major_requirements() -> Vec<Requirement> {
         "CLST 1300",
         "CLST 1500",
     ];
-    let mut requirements = vec![course_group_from_codes("Core Classes", 2, &core_courses)];
+    let core_class = single("Core Classes", &core_courses);
+    let mut requirements = repeat_req(&core_class, 2);
     requirements.extend(ancient_history_pool_slots("Graeco-Roman World", 2, None));
     requirements.extend(ancient_history_pool_slots(
         "Graeco-Roman World",

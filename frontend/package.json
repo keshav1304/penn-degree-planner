@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "generate:catalog": "node scripts/generate-course-index.mjs",
+    "prebuild": "npm run generate:catalog",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

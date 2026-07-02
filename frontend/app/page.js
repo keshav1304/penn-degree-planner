@@ -9,6 +9,7 @@ import ScheduleGrid from "./components/ScheduleGrid";
 import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
 import { perfLog } from "@/lib/perfLog";
+import { prepareCourseCatalog, cuMapFromCatalog } from "@/lib/courseCatalog";
 import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, undergradScheduleYears } from "@/lib/semesterOptions";
 import {
   isValidCourseCode,
@@ -55,6 +56,7 @@ function saveState(state) {
 
 export default function Home() {
     const [courseCuMap, setCourseCuMap] = useState({});
+  const [courseCatalog, setCourseCatalog] = useState(null);
   const [degreeCatalog, setDegreeCatalog] = useState([]);
   const [minorCatalog, setMinorCatalog] = useState([]);
   const [concentrationCatalog, setConcentrationCatalog] = useState({});
@@ -120,8 +122,12 @@ export default function Home() {
         });
     };
 
-    trackFetch("bootstrap.course_cu_map", `${API_BASE}/course_cu_map`, (data) => {
-      setCourseCuMap(data && typeof data === "object" ? data : {});
+    trackFetch("bootstrap.course_index", "/course_index.json", (data) => {
+      const rows = Array.isArray(data) ? data : [];
+      const catalog = prepareCourseCatalog(rows);
+      setCourseCatalog(catalog);
+      setCourseCuMap(cuMapFromCatalog(catalog));
+      perfLog("bootstrap.course_index.rows", elapsed(), { count: catalog.length });
     });
 
     trackFetch("bootstrap.degree_catalog", `${API_BASE}/degree_catalog`, (data) => {
@@ -677,6 +683,7 @@ export default function Home() {
             </div>
             <div className="panel-body">
               <CourseSearch
+                courseCatalog={courseCatalog}
                 takenCourses={takenCourses}
                 assignedCourses={assignedCourses}
                 frozenCourses={frozenCourses}
