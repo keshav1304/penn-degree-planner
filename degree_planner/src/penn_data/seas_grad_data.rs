@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use crate::Major;
 use crate::Requirement;
 use crate::penn_data::requirement_builders::{
-    any_of, course_group, course_group_from_codes, repeat_req, required_slots, restriction,
+    any_of, course_group, repeat_req, required_slots, restriction,
     schedule_hints, single,
 };
 use crate::schedule_template::{Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
@@ -85,26 +85,28 @@ const MCIT_REQUIRED_COURSES: &[&str] = &[
 // --- Majors ---
 
 pub fn create_ms_ee_major() -> Major {
+    let ee_core = single("Electrical Engineering Core", MS_EE_CORE_COURSES);
+    let mut requirements = repeat_req(&ee_core, 5);
+    requirements.extend([
+        restriction(2)
+            .category("Electrical Engineering Electives")
+            .departments(&["ESE"])
+            .level(5000)
+            .into(),
+        restriction(1)
+            .category("SEAS Elective")
+            .departments(SEAS_ELECTIVE_DEPTS)
+            .level(5000)
+            .into(),
+        restriction(2)
+            .category("Open Electives")
+            .level(5000)
+            .into(),
+    ]);
     Major {
         short_name: "MS_EE".to_string(),
         name: "Electrical Engineering, MSE".to_string(),
-        requirements: vec![
-            course_group_from_codes("Electrical Engineering Core", 5, MS_EE_CORE_COURSES),
-            restriction(2)
-                .category("Electrical Engineering Electives")
-                .departments(&["ESE"])
-                .level(5000)
-                .into(),
-            restriction(1)
-                .category("SEAS Elective")
-                .departments(SEAS_ELECTIVE_DEPTS)
-                .level(5000)
-                .into(),
-            restriction(2)
-                .category("Open Electives")
-                .level(5000)
-                .into(),
-        ],
+        requirements,
         schedule_hints: HashMap::new(),
         concentrations: None,
     }

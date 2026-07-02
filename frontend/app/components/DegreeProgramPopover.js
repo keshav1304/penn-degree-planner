@@ -352,15 +352,6 @@ export default function DegreeProgramPopover({
                     </label>
                 )}
 
-                {selectedMajorCode && concentrationsLoading && concentrations.length === 0 && (
-                    <div className="degree-popover-field">
-                        <span className="degree-popover-label">Concentration</span>
-                        <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                            Loading concentrations…
-                        </span>
-                    </div>
-                )}
-
                 {showConcentrationStep && (
                     <label className="degree-popover-field">
                         <span className="degree-popover-label">Concentration</span>
