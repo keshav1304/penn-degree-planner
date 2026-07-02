@@ -131,6 +131,7 @@ pub struct PoolConstraint {
 }
 
 const MAX_LISTED_COURSES: usize = 4;
+const MAX_SCHEDULE_LISTED_COURSES: usize = 3;
 
 /// Max coverage constraints a single pool course may satisfy (double-count limit).
 const POOL_MAX_CONSTRAINT_USES_PER_COURSE: usize = 2;
@@ -148,6 +149,49 @@ fn format_truncated_list(items: &[String], prefix: &str) -> String {
     let shown: Vec<String> = items.iter().take(MAX_LISTED_COURSES).cloned().collect();
     let more = items.len() - MAX_LISTED_COURSES;
     format!("{}{} (+{} more)", prefix, shown.join(", "), more)
+}
+
+/// Schedule grid label for a multi-option SingleCourse dashed requirement block.
+pub fn format_schedule_single_course_label(possibilities: &[String]) -> String {
+    if possibilities.is_empty() {
+        return "1 CU from (options not specified)".to_string();
+    }
+    if possibilities.len() == 1 {
+        return possibilities[0].clone();
+    }
+    if possibilities.len() <= MAX_SCHEDULE_LISTED_COURSES {
+        return format!("1 CU from {}", possibilities.join(", "));
+    }
+    let shown: Vec<String> = possibilities
+        .iter()
+        .take(MAX_SCHEDULE_LISTED_COURSES)
+        .cloned()
+        .collect();
+    let more = possibilities.len() - MAX_SCHEDULE_LISTED_COURSES;
+    format!("1 CU from {} (+{more})", shown.join(", "))
+}
+
+/// SingleCourse on the schedule: one possibility → concrete course; many → scoped placeholder slot.
+pub fn normalize_suggested_schedule_ids(mapped: &mut MappedRequirement) {
+    let Requirement::SingleCourse { possibilities, .. } = &mapped.requirement else {
+        return;
+    };
+    match possibilities.len() {
+        0 => {}
+        1 => {
+            mapped.course_ids = vec![possibilities[0].clone()];
+        }
+        _ => {
+            if let Some(instance_id) = mapped.instance_id.as_deref() {
+                if let Some(slot_id) = mapped
+                    .requirement
+                    .schedulable_placeholder_id(Some(instance_id))
+                {
+                    mapped.course_ids = vec![slot_id];
+                }
+            }
+        }
+    }
 }
 
 const CU_EPS: f64 = 0.001;
@@ -966,6 +1010,22 @@ impl Requirement {
                     return self.requirement_slot_id(Some(scope)).as_deref() == Some(slot_id);
                 }
             }
+            if let Some((scope, _fp)) = rest.split_once(":S:") {
+                if !scope.is_empty() {
+                    return self
+                        .schedulable_placeholder_id(Some(scope))
+                        .as_deref()
+                        == Some(slot_id);
+                }
+            }
+            if let Some((scope, _fp)) = rest.split_once(":A:") {
+                if !scope.is_empty() {
+                    return self
+                        .schedulable_placeholder_id(Some(scope))
+                        .as_deref()
+                        == Some(slot_id);
+                }
+            }
         }
         self.schedulable_placeholder_id(None).as_deref() == Some(slot_id)
     }
@@ -1058,9 +1118,15 @@ impl Requirement {
         if let Some(label) = self.business_breadth_label_for_slot(slot_id) {
             return label;
         }
-        self.find_for_slot_id(slot_id)
-            .map(|r| r.create_requirement_description())
-            .unwrap_or_else(|| "Open requirement".to_string())
+        if let Some(matched) = self.find_for_slot_id(slot_id) {
+            if let Requirement::SingleCourse { possibilities, .. } = matched {
+                if possibilities.len() > 1 {
+                    return format_schedule_single_course_label(possibilities);
+                }
+            }
+            return matched.create_requirement_description();
+        }
+        "Open requirement".to_string()
     }
 
     pub fn requirement_slot_id(&self, scope: Option<&str>) -> Option<String> {

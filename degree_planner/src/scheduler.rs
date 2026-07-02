@@ -775,6 +775,10 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             },
         );
 
+        for mapped in &mut suggested {
+            requirement::normalize_suggested_schedule_ids(mapped);
+        }
+
         if cross_degree_active {
             for mapped in &mut suggested {
                 let Some(instance_id) = mapped.instance_id.clone() else {
@@ -793,6 +797,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 {
                     mapped.course_ids = vec![slot_id];
                 }
+            }
+            for mapped in &mut suggested {
+                requirement::normalize_suggested_schedule_ids(mapped);
             }
         }
 

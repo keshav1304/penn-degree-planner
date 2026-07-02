@@ -27,6 +27,7 @@ export function restrictionRequiredCu(number, cuField) {
 }
 
 const MAX_LISTED_COURSES = 4;
+const MAX_SCHEDULE_LISTED_COURSES = 3;
 const CU_EPS = 0.001;
 
 /** Must stay in sync with Rust `format_restriction_description` CU prefix. */
@@ -53,6 +54,23 @@ export function formatTruncatedList(items, prefix = "") {
   const shown = list.slice(0, MAX_LISTED_COURSES);
   const more = list.length - MAX_LISTED_COURSES;
   return `${prefix}${shown.join(", ")} (+${more} more)`;
+}
+
+/** Must stay in sync with Rust `format_schedule_single_course_label`. */
+export function formatScheduleSingleCourseLabel(possibilities) {
+  const list = (possibilities || []).filter((item) => item != null && item !== "");
+  if (list.length === 0) {
+    return "1 CU from (options not specified)";
+  }
+  if (list.length === 1) {
+    return list[0];
+  }
+  if (list.length <= MAX_SCHEDULE_LISTED_COURSES) {
+    return `1 CU from ${list.join(", ")}`;
+  }
+  const shown = list.slice(0, MAX_SCHEDULE_LISTED_COURSES);
+  const more = list.length - MAX_SCHEDULE_LISTED_COURSES;
+  return `1 CU from ${shown.join(", ")} (+${more})`;
 }
 
 /** Must stay in sync with Rust `format_restriction_description`. */
@@ -653,7 +671,13 @@ export function getSlotLabel(req, slotId, apiLabels = {}) {
     return apiLabel;
   }
   const matched = findRequirementForSlotId(req, slotId);
-  if (matched) return createRequirementDescription(matched);
+  if (matched) {
+    const { type, data } = parseRequirement(matched);
+    if (type === "SingleCourse" && (data.possibilities?.length ?? 0) > 1) {
+      return formatScheduleSingleCourseLabel(data.possibilities);
+    }
+    return createRequirementDescription(matched);
+  }
   if (typeof apiLabel === "string") return apiLabel;
   return "Open requirement";
 }
