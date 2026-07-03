@@ -142,7 +142,7 @@ export default function RequirementsPanel({
             combined: activeTabDef.type === "cas-combined",
         });
         allReqs = superSections.flatMap((sec) => {
-            if (sec.kind === "writing") return sec.items || [];
+            if (sec.kind === "writing" || sec.kind === "unrestricted") return sec.items || [];
             if (sec.kind === "major") {
                 return (sec.orderedCategories || []).flatMap(
                     (cat) => sec.categoryMap[cat] || [],
@@ -476,6 +476,8 @@ function casCollapseKeysForNav(navTarget, results) {
         || cat === "General Education"
     ) {
         keys["cas-gened"] = false;
+    } else if (cat === "Unrestricted Electives") {
+        keys["cas-unrestricted"] = false;
     } else if (cat) {
         keys[`cas-major-${degreeIndex}`] = false;
     }
@@ -606,6 +608,34 @@ function renderCasSuperSections({
                                     )}
                                 </>
                             )}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        if (section.kind === "unrestricted") {
+            const items = section.items || [];
+            const groupStatusTone = computeGroupTone(items, null, frozenIds);
+            return (
+                <div key={section.id} className={groupClassForTone(groupStatusTone)}>
+                    {renderSuperGroupHeader(
+                        section.title,
+                        groupStatusTone,
+                        isCollapsed,
+                        toggle,
+                        formatCategoryProgress(items),
+                    )}
+                    {!isCollapsed && (
+                        <div className="req-group-body">
+                            {items.map((item, rowIdx) => renderRequirementItem(
+                                item,
+                                item.instanceId ?? String(rowIdx),
+                                { ...scheduleCtx, degreeIndex: section.degreeIndex },
+                                rowIdx === 0,
+                                section.degreeIndex,
+                                flashRowId,
+                            ))}
                         </div>
                     )}
                 </div>

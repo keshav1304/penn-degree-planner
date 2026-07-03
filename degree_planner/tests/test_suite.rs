@@ -4150,6 +4150,63 @@ mod dual_degree_properties {
     }
 
     #[test]
+    fn cas_double_major_unrestricted_computed_from_combined_major_cu() {
+        use degree_planner::penn_data::college_data::{
+            cas_effective_combined_major_cu, cas_major_pool_major_cu,
+            cas_shared_unrestricted_elective_count, CAS_DEGREE_CU,
+            CAS_UNRESTRICTED_ELECTIVES_CATEGORY,
+        };
+
+        let neur = resolve_major("CAS", "NEUR", &[]).expect("NEUR");
+        let econ = resolve_major("CAS", "ECON", &[]).expect("ECON");
+        let cas_majors = vec![&neur, &econ];
+        let combined = cas_effective_combined_major_cu(&cas_majors, 0);
+        let shared_unrestricted = cas_shared_unrestricted_elective_count(combined);
+        let gen_ed_flex = college_data::cas_shared_gened_flex_slots(combined);
+        assert_eq!(
+            1 + combined + gen_ed_flex + shared_unrestricted,
+            CAS_DEGREE_CU,
+            "shared CAS degree components should total {CAS_DEGREE_CU} CU"
+        );
+
+        let output = generate_schedule(dual_degree_input("CAS", "NEUR", "CAS", "ECON"));
+        assert!(output.error.is_none(), "{:?}", output.error);
+        assert_eq!(output.degree_results.len(), 2);
+
+        let primary = &output.degree_results[0];
+        let secondary = &output.degree_results[1];
+        let primary_unrestricted: Vec<_> = primary
+            .unfulfilled_requirements
+            .iter()
+            .chain(primary.fulfilled_requirements.iter())
+            .filter(|m| m.requirement.get_category() == CAS_UNRESTRICTED_ELECTIVES_CATEGORY)
+            .collect();
+        let secondary_unrestricted: Vec<_> = secondary
+            .unfulfilled_requirements
+            .iter()
+            .chain(secondary.fulfilled_requirements.iter())
+            .filter(|m| m.requirement.get_category() == CAS_UNRESTRICTED_ELECTIVES_CATEGORY)
+            .collect();
+
+        assert_eq!(
+            primary_unrestricted.len() as i32,
+            shared_unrestricted,
+            "primary CAS degree should expose exactly {shared_unrestricted} unrestricted electives, got {}",
+            primary_unrestricted.len()
+        );
+        assert!(
+            secondary_unrestricted.is_empty(),
+            "secondary CAS major should not list college-wide unrestricted electives"
+        );
+
+        let nominal = cas_major_pool_major_cu(&neur) + cas_major_pool_major_cu(&econ);
+        assert!(
+            nominal > combined || shared_unrestricted == 0,
+            "combined major CU should not exceed nominal without overlap savings"
+        );
+    }
+
+    #[test]
     fn cas_cas_dual_writ_appears_once_without_college_overlap_optimizer() {
         let output = generate_schedule(dual_degree_input("CAS", "NEUR", "CAS", "ECON"));
         assert_eq!(writ_cu_units_on_schedule(&output), 1.0);

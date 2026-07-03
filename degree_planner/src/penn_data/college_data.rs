@@ -235,9 +235,66 @@ pub fn build_cas_gen_ed_info(
     }
 }
 
+pub const CAS_UNRESTRICTED_ELECTIVES_CATEGORY: &str = "Unrestricted Electives";
+
 /// Two or more CAS majors = one College degree with multiple majors (double major).
 pub fn is_cas_college_double_major(degree_schools: &[String]) -> bool {
     degree_schools.len() >= 2 && degree_schools.iter().all(|s| s == "CAS")
+}
+
+pub fn is_cas_unrestricted_elective_requirement(req: &Requirement) -> bool {
+    req.get_category() == CAS_UNRESTRICTED_ELECTIVES_CATEGORY
+}
+
+/// Top-level unrestricted elective slot (`2`, `3`, …), not pool flex/constraint keys.
+pub fn is_cas_unrestricted_elective_instance_scope(scope: &str, major: &Major) -> bool {
+    let Ok(idx) = scope.parse::<usize>() else {
+        return false;
+    };
+    major
+        .requirements
+        .get(idx)
+        .is_some_and(is_cas_unrestricted_elective_requirement)
+}
+
+/// College-wide requirement shared across CAS double majors (writing, gen-ed, unrestricted).
+pub fn is_cas_college_wide_requirement_scope(scope: &str, major: &Major) -> bool {
+    is_cas_college_shared_instance_scope(scope)
+        || is_cas_unrestricted_elective_instance_scope(scope, major)
+}
+
+/// Combined major CU after subtracting cross-major overlap savings (1 CU per shared course).
+pub fn cas_effective_combined_major_cu(cas_majors: &[&Major], overlap_cu_savings: i32) -> i32 {
+    let nominal: i32 = cas_majors.iter().map(|m| cas_major_pool_major_cu(m)).sum();
+    (nominal - overlap_cu_savings.max(0)).max(0)
+}
+
+/// CU remaining in a CAS degree after writing (1) and major requirements.
+pub fn cas_degree_remaining_after_major(effective_major_cu: i32) -> i32 {
+    (CAS_DEGREE_CU - 1 - effective_major_cu).max(0)
+}
+
+/// Shared gen-ed pool flex placeholders for one CAS college degree.
+pub fn cas_shared_gened_flex_slots(effective_major_cu: i32) -> i32 {
+    cas_degree_remaining_after_major(effective_major_cu)
+        .min(cas_gened_requirement_row_count() as i32)
+}
+
+/// Residual unrestricted electives after writing, major(s), and gen-ed pool flex.
+pub fn cas_shared_unrestricted_elective_count(effective_major_cu: i32) -> i32 {
+    let remaining = cas_degree_remaining_after_major(effective_major_cu);
+    let gen_ed = cas_shared_gened_flex_slots(effective_major_cu);
+    (remaining - gen_ed).max(0)
+}
+
+pub fn cas_unrestricted_elective_instance_ids(major: &Major) -> Vec<String> {
+    major
+        .requirements
+        .iter()
+        .enumerate()
+        .filter(|(_, req)| is_cas_unrestricted_elective_requirement(req))
+        .map(|(idx, _)| idx.to_string())
+        .collect()
 }
 
 /// Requirement instance scope for college-wide CAS requirements (not major-only).
@@ -284,13 +341,16 @@ pub fn cas_major_pool_major_cu(major: &Major) -> i32 {
 }
 
 /// Shared flexible pool slots for a CAS college double major (one writing + one gen-ed pool).
-pub fn cas_double_major_shared_flexible_slots(cas_majors: &[&Major]) -> i32 {
-    cas_cross_degree_gened_flex_cap(cas_majors)
+pub fn cas_double_major_shared_flexible_slots(
+    cas_majors: &[&Major],
+    overlap_cu_savings: i32,
+) -> i32 {
+    cas_cross_degree_gened_flex_cap(cas_majors, overlap_cu_savings)
 }
 
 /// Max gen-ed pool flex placeholders on the schedule when CAS is in a cross-degree plan.
 /// FA + sector coverage rows cap at 12; remaining pool capacity is free electives, not gen-ed slots.
-pub fn cas_cross_degree_gened_flex_cap(cas_majors: &[&Major]) -> i32 {
+pub fn cas_cross_degree_gened_flex_cap(cas_majors: &[&Major], overlap_cu_savings: i32) -> i32 {
     let gen_ed_rows = cas_gened_requirement_row_count() as i32;
     match cas_majors.len() {
         0 => 0,
@@ -308,9 +368,9 @@ pub fn cas_cross_degree_gened_flex_cap(cas_majors: &[&Major]) -> i32 {
             pool_flex.min(gen_ed_rows)
         }
         _ => {
-            let combined_major_cu: i32 = cas_majors.iter().map(|m| cas_major_pool_major_cu(m)).sum();
-            let cu_flex = (CAS_DEGREE_CU - 1 - combined_major_cu).max(0);
-            cu_flex.min(gen_ed_rows)
+            let effective =
+                cas_effective_combined_major_cu(cas_majors, overlap_cu_savings);
+            cas_shared_gened_flex_slots(effective).min(gen_ed_rows)
         }
     }
 }
@@ -463,7 +523,7 @@ fn requirement_slot_cu(req: &Requirement) -> i32 {
 }
 
 fn cas_unrestricted_elective() -> Requirement {
-    unrestricted_elective("Unrestricted Electives")
+    unrestricted_elective(CAS_UNRESTRICTED_ELECTIVES_CATEGORY)
 }
 
 /// Assemble a full CAS degree using a shared course pool for major + electives + gen-ed coverage.

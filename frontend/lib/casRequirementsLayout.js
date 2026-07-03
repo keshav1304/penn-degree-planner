@@ -9,6 +9,7 @@ import { getRequirementInstanceId } from "@/lib/requirementText";
 
 export const CAS_WRITING_HEADING = "Writing Seminar";
 export const CAS_GENED_HEADING = "General Education";
+export const CAS_UNRESTRICTED_HEADING = "Unrestricted Electives";
 
 export function isCasSchool(school) {
     return school === "CAS";
@@ -138,6 +139,9 @@ export function casRequirementSection(item) {
         || isPoolFlexibleSlotInstanceId(id)
     ) {
         return "genEd";
+    }
+    if (cat === CAS_UNRESTRICTED_HEADING) {
+        return "unrestricted";
     }
     if (/^1:f/.test(id)) {
         return "major";
@@ -444,6 +448,19 @@ export function buildCasSuperSections({
         degreeIndex: casIndices[0],
     });
 
+    const unrestrictedItems = allItems.filter(
+        (i) => casRequirementSection(i) === "unrestricted",
+    );
+    if (unrestrictedItems.length) {
+        sections.push({
+            id: "cas-unrestricted",
+            kind: "unrestricted",
+            title: CAS_UNRESTRICTED_HEADING,
+            items: combined ? dedupeByInstanceId(unrestrictedItems) : unrestrictedItems,
+            degreeIndex: casIndices[0],
+        });
+    }
+
     for (const idx of casIndices) {
         const result = results[idx];
         const { major: majorName } = formatDegreeDisplay(
@@ -464,6 +481,7 @@ export function buildCasSuperSections({
             (cat) =>
                 cat !== CAS_WRITING_HEADING
                 && cat !== CAS_GENED_HEADING
+                && cat !== CAS_UNRESTRICTED_HEADING
                 && (categoryMap[cat]?.length ?? 0) > 0,
         );
 
