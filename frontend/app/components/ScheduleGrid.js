@@ -318,23 +318,19 @@ export default function ScheduleGrid({
                         }
                     >
                         <div className="schedule-overlap-inline">
-                            {members.flatMap((m, i) => {
+                            {members.map((m, i) => {
                                 const slotText = m.schedule_slot_id
                                     ? getSlotLabel(m.schedule_slot_id)
                                     : "";
                                 const text = formatOverlapMemberLabel(slotText, m.label);
-                                const nodes = [];
-                                if (i > 0) {
-                                    nodes.push(
-                                        <div key={`${i}-junction`} className="schedule-overlap-junction" aria-hidden="true">
-                                            <span className="schedule-overlap-plus">+</span>
-                                        </div>,
-                                    );
-                                }
-                                nodes.push(
-                                    <div key={`${i}-line`} className="schedule-overlap-line">{text}</div>,
+                                return (
+                                    <span key={i} className="schedule-overlap-part">
+                                        {i > 0 && (
+                                            <span className="schedule-overlap-plus" aria-hidden="true">+</span>
+                                        )}
+                                        <span className="schedule-overlap-label">{text}</span>
+                                    </span>
                                 );
-                                return nodes;
                             })}
                         </div>
                         <span className="course-card-actions">

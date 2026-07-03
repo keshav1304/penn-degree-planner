@@ -546,23 +546,11 @@ pub fn create_cis_major() -> Major {
             single("Engineering", &["CIS 4710", "CIS 5710"]),
             single("Engineering", &["CIS 4000", "CIS 4100"]),
             single("Engineering", &["CIS 4010", "CIS 4110"]),
+            restriction(1).category("Engineering").departments(&["CIS", "NETS"]).into(),
+            restriction(1).category("Engineering").departments(&["CIS", "NETS"]).into(),
+            restriction(1).category("Engineering").departments(&["CIS", "NETS"]).into(),
+            restriction(1).category("Engineering").departments(&["CIS", "NETS"]).into(),
 
-            any_of("Engineering", vec![
-                    restriction(1).category("CIS Elective").departments(&["CIS"]).into(),
-                    restriction(1).category("CIS Elective").departments(&["NETS"]).into(),
-                ]),
-            any_of("Engineering", vec![
-                    restriction(1).category("CIS Elective").departments(&["CIS"]).into(),
-                    restriction(1).category("CIS Elective").departments(&["NETS"]).into(),
-                ]),
-            any_of("Engineering", vec![
-                    restriction(1).category("CIS Elective").departments(&["CIS"]).into(),
-                    restriction(1).category("CIS Elective").departments(&["NETS"]).into(),
-                ]),
-            any_of("Engineering", vec![
-                    restriction(1).category("CIS Elective").departments(&["CIS"]).into(),
-                    restriction(1).category("CIS Elective").departments(&["NETS"]).into(),
-                ]),
             
             // Math and Natural Science
             single("Math and Natural Science", &["MATH 1400"]),
