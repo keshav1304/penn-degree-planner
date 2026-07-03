@@ -154,13 +154,13 @@ fn format_truncated_list(items: &[String], prefix: &str) -> String {
 /// Schedule grid label for a multi-option SingleCourse dashed requirement block.
 pub fn format_schedule_single_course_label(possibilities: &[String]) -> String {
     if possibilities.is_empty() {
-        return "1 CU from (options not specified)".to_string();
+        return "(options not specified)".to_string();
     }
     if possibilities.len() == 1 {
         return possibilities[0].clone();
     }
     if possibilities.len() <= MAX_SCHEDULE_LISTED_COURSES {
-        return format!("1 CU from {}", possibilities.join(", "));
+        return possibilities.join(", ");
     }
     let shown: Vec<String> = possibilities
         .iter()
@@ -168,7 +168,65 @@ pub fn format_schedule_single_course_label(possibilities: &[String]) -> String {
         .cloned()
         .collect();
     let more = possibilities.len() - MAX_SCHEDULE_LISTED_COURSES;
-    format!("1 CU from {} (+{more})", shown.join(", "))
+    format!("{} (+{more})", shown.join(", "))
+}
+
+fn format_schedule_level_clause(level: Option<i32>, max_level: Option<i32>) -> String {
+    match (level, max_level) {
+        (Some(min), Some(max)) if max != RESTRICTION_DEFAULT_MAX_LEVEL => {
+            format!("{min}–{max}")
+        }
+        (Some(min), _) => format!("≥{min}"),
+        (None, Some(max)) => format!("≤{max}"),
+        (None, None) => String::new(),
+    }
+}
+
+/// Compact restriction label for 1-CU schedule slots (no redundant CU prefix).
+pub fn format_schedule_restriction_description(
+    department: &Option<Vec<String>>,
+    cu: &Option<i32>,
+    level: &Option<i32>,
+    max_level: &Option<i32>,
+    attr: &Option<Vec<String>>,
+    number: &i32,
+    no_school: &Option<String>,
+) -> String {
+    let target_cu = restriction_required_cu(*number, cu);
+    let mut parts: Vec<String> = Vec::new();
+
+    if (target_cu - 1.0).abs() >= CU_EPS {
+        parts.push(if (target_cu - target_cu.round()).abs() < CU_EPS {
+            format!("{} CU", target_cu as i32)
+        } else {
+            format!("{target_cu} CU")
+        });
+    }
+
+    if let Some(depts) = department {
+        if !depts.is_empty() {
+            parts.push(depts.join("/"));
+        }
+    }
+    if let Some(attrs) = attr {
+        if !attrs.is_empty() {
+            parts.push(attrs.join("/"));
+        }
+    }
+
+    let level_clause = format_schedule_level_clause(*level, *max_level);
+    if !level_clause.is_empty() {
+        parts.push(level_clause);
+    }
+    if let Some(school) = no_school {
+        parts.push(format!("excl. {school}"));
+    }
+
+    if parts.is_empty() {
+        "Open".to_string()
+    } else {
+        parts.join(" ")
+    }
 }
 
 /// SingleCourse on the schedule: one possibility → concrete course; many → scoped placeholder slot.
@@ -628,6 +686,7 @@ fn format_restriction_description(
     department: &Option<Vec<String>>,
     cu: &Option<i32>,
     level: &Option<i32>,
+    max_level: &Option<i32>,
     attr: &Option<Vec<String>>,
     number: &i32,
     no_school: &Option<String>,
@@ -642,8 +701,10 @@ fn format_restriction_description(
         response.push_str(" from ");
         response.push_str(&depts.join("/"));
     }
-    if let Some(min_level) = level {
-        response.push_str(&format!(" min. level {}", min_level));
+    let level_clause = format_schedule_level_clause(*level, *max_level);
+    if !level_clause.is_empty() {
+        response.push(' ');
+        response.push_str(&level_clause);
     }
     if let Some(attr_names) = attr {
         response.push_str(" from attribute ");
@@ -831,7 +892,7 @@ pub fn pool_overlap_display_label(
     }
     let pool_idx: usize = slot_key.split(':').next()?.parse().ok()?;
     let pool = pool_coverage.iter().find(|p| p.pool_index == pool_idx)?;
-    Some(format!("1 CU from {}", pool.category))
+    Some(pool.category.clone())
 }
 
 /// Resolve an open-slot key to the schedulable pool flex slot when it is a coverage constraint.
@@ -1114,17 +1175,39 @@ impl Requirement {
         }
     }
 
+    pub fn schedule_label_for_requirement(&self) -> String {
+        match self {
+            Requirement::SingleCourse { possibilities, .. } => {
+                format_schedule_single_course_label(possibilities)
+            }
+            Requirement::Restriction {
+                department,
+                cu,
+                level,
+                max_level,
+                attr,
+                number,
+                no_school,
+                ..
+            } => format_schedule_restriction_description(
+                department,
+                cu,
+                level,
+                max_level,
+                attr,
+                number,
+                no_school,
+            ),
+            _ => self.create_requirement_description(),
+        }
+    }
+
     pub fn slot_label_for_id(&self, slot_id: &str) -> String {
         if let Some(label) = self.business_breadth_label_for_slot(slot_id) {
             return label;
         }
         if let Some(matched) = self.find_for_slot_id(slot_id) {
-            if let Requirement::SingleCourse { possibilities, .. } = matched {
-                if possibilities.len() > 1 {
-                    return format_schedule_single_course_label(possibilities);
-                }
-            }
-            return matched.create_requirement_description();
+            return matched.schedule_label_for_requirement();
         }
         "Open requirement".to_string()
     }
@@ -1500,12 +1583,13 @@ impl Requirement {
                 department,
                 cu,
                 level,
+                max_level,
                 attr,
                 number,
                 no_school,
                 ..
             } => format_restriction_description(
-                department, cu, level, attr, number, no_school,
+                department, cu, level, max_level, attr, number, no_school,
             ),
             Requirement::AnyOf { possibilities, .. } => {
                 if possibilities.len() == 1 {

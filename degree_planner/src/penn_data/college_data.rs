@@ -360,7 +360,7 @@ pub fn is_cas_gened_pool_flex_key(slot_key: &str, pool_idx: usize) -> bool {
 }
 
 pub fn cas_gened_overlap_display_label(major: &Major) -> Option<String> {
-    cas_gened_pool(major).map(|(_, cat)| format!("1 CU from {}", cat))
+    cas_gened_pool(major).map(|(_, cat)| cat.to_string())
 }
 
 pub fn is_cas_gened_flex_schedule_slot(slot_id: &str, pool_idx: usize) -> bool {

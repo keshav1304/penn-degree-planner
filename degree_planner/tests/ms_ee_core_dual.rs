@@ -25,6 +25,36 @@ fn ms_ee_alone_has_five_core_slots() {
 }
 
 #[test]
+fn format_schedule_restriction_label_levels() {
+    use degree_planner::requirement::format_schedule_restriction_description;
+
+    assert_eq!(
+        format_schedule_restriction_description(
+            &Some(vec!["ESE".to_string()]),
+            &None,
+            &Some(5000),
+            &None,
+            &None,
+            &1,
+            &None,
+        ),
+        "ESE ≥5000"
+    );
+    assert_eq!(
+        format_schedule_restriction_description(
+            &None,
+            &None,
+            &None,
+            &Some(3000),
+            &Some(vec!["EUHS".to_string(), "EUSS".to_string()]),
+            &1,
+            &None,
+        ),
+        "EUHS/EUSS ≤3000"
+    );
+}
+
+#[test]
 fn format_schedule_single_course_label_truncates_after_two() {
     let label = requirement::format_schedule_single_course_label(&[
         "ESE 5090".into(),
@@ -33,7 +63,7 @@ fn format_schedule_single_course_label_truncates_after_two() {
         "ESE 5210".into(),
         "ESE 5230".into(),
     ]);
-    assert_eq!(label, "1 CU from ESE 5090, ESE 5100 (+3)");
+    assert_eq!(label, "ESE 5090, ESE 5100 (+3)");
 }
 
 #[test]
@@ -140,7 +170,7 @@ fn ee_plus_ms_ee_schedules_five_distinct_ms_core_placeholders() {
         .map(String::as_str)
         .unwrap_or("");
     assert!(
-        sample_label.starts_with("1 CU from ESE 5090, ESE 5100 (+"),
+        sample_label.starts_with("ESE 5090, ESE 5100 (+"),
         "unexpected schedule label: {sample_label}"
     );
 }

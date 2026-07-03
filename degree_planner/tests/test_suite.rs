@@ -3656,7 +3656,7 @@ mod dual_degree_properties {
                         && output
                             .slot_labels
                             .get(&g.group_id)
-                            .is_some_and(|l| l.contains("1 CU from General Education"))
+                            .is_some_and(|l| l.contains("General Education"))
                 })
             })
             .count();
@@ -3695,14 +3695,14 @@ mod dual_degree_properties {
                     if output
                         .slot_labels
                         .get(slot)
-                        .is_some_and(|l| l.contains("1 CU from General Education"))
+                        .is_some_and(|l| l.contains("General Education"))
                     {
                         gen_ed_overlap += 1;
                     }
                 } else if output
                     .slot_labels
                     .get(slot)
-                    .is_some_and(|l| l == "1 CU from General Education")
+                    .is_some_and(|l| l == "General Education")
                 {
                     gen_ed_flex += 1;
                 }
@@ -3797,7 +3797,7 @@ mod dual_degree_properties {
                 output
                     .slot_labels
                     .get(s.as_str())
-                    .is_some_and(|l| l == "1 CU from General Education")
+                    .is_some_and(|l| l == "General Education")
             })
             .count();
         assert!(
@@ -3951,7 +3951,7 @@ mod dual_degree_properties {
                 output
                     .slot_labels
                     .get(s.as_str())
-                    .is_some_and(|l| l == "1 CU from General Education")
+                    .is_some_and(|l| l == "General Education")
             })
             .collect();
 
@@ -4546,7 +4546,7 @@ mod property_invariants {
                 output
                     .slot_labels
                     .get(slot.as_str())
-                    .is_some_and(|l| l == "1 CU from General Education")
+                    .is_some_and(|l| l == "General Education")
             })
             .collect();
 

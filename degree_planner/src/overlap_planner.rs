@@ -700,7 +700,7 @@ pub fn extract_open_slots(
                 slots.push(OpenSlot {
                     degree_index: compact_index,
                     slot_key: format!("{}:p{}", pool.pool_index, pi),
-                    label: format!("1 CU from {}", pool.category),
+                    label: pool.category.clone(),
                     matcher: CourseMatcher::Unrestricted,
                     consumption_group: None,
                     gened_attr: None,

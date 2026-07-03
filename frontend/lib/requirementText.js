@@ -60,17 +60,50 @@ export function formatTruncatedList(items, prefix = "") {
 export function formatScheduleSingleCourseLabel(possibilities) {
   const list = (possibilities || []).filter((item) => item != null && item !== "");
   if (list.length === 0) {
-    return "1 CU from (options not specified)";
+    return "(options not specified)";
   }
   if (list.length === 1) {
     return list[0];
   }
   if (list.length <= MAX_SCHEDULE_LISTED_COURSES) {
-    return `1 CU from ${list.join(", ")}`;
+    return list.join(", ");
   }
   const shown = list.slice(0, MAX_SCHEDULE_LISTED_COURSES);
   const more = list.length - MAX_SCHEDULE_LISTED_COURSES;
-  return `1 CU from ${shown.join(", ")} (+${more})`;
+  return `${shown.join(", ")} (+${more})`;
+}
+
+const RESTRICTION_DEFAULT_MAX_LEVEL = 9000;
+
+/** Must stay in sync with Rust `format_schedule_level_clause`. */
+export function formatScheduleLevelClause(level, maxLevel) {
+  if (level != null && maxLevel != null && maxLevel !== RESTRICTION_DEFAULT_MAX_LEVEL) {
+    return `${level}–${maxLevel}`;
+  }
+  if (level != null) return `≥${level}`;
+  if (maxLevel != null) return `≤${maxLevel}`;
+  return "";
+}
+
+/** Compact restriction label for 1-CU schedule slots. */
+export function formatScheduleRestriction(data) {
+  const parts = [];
+  const target = restrictionRequiredCu(data.number, data.cu);
+  if (Math.abs(target - 1) >= CU_EPS) {
+    parts.push(formatCuLabel(data.number, data.cu));
+  }
+  if (data.department?.length) {
+    const depts = Array.isArray(data.department) ? data.department : [data.department];
+    parts.push(depts.join("/"));
+  }
+  if (data.attr?.length) {
+    const attrs = data.attr.filter((a) => typeof a === "string");
+    if (attrs.length) parts.push(attrs.join("/"));
+  }
+  const levelClause = formatScheduleLevelClause(data.level, data.max_level);
+  if (levelClause) parts.push(levelClause);
+  if (data.no_school) parts.push(`excl. ${data.no_school}`);
+  return parts.length ? parts.join(" ") : "Open";
 }
 
 /** Must stay in sync with Rust `format_restriction_description`. */
@@ -80,8 +113,9 @@ export function formatRestriction(data) {
     const depts = Array.isArray(data.department) ? data.department : [data.department];
     response += ` from ${depts.join("/")}`;
   }
-  if (data.level != null) {
-    response += ` min. level ${data.level}`;
+  const levelClause = formatScheduleLevelClause(data.level, data.max_level);
+  if (levelClause) {
+    response += ` ${levelClause}`;
   }
   if (data.attr?.length) {
     const attrs = data.attr.filter((a) => typeof a === "string");
@@ -651,14 +685,6 @@ export function formatOverlapMemberLabel(slotLabel, memberLabel) {
     return text;
   }
 
-  const looksLikeCourse = /^[A-Z]{2,6}\s+\d{4}$/.test(text);
-  if (
-    memberText
-    && (looksLikeCourse || text === "One of the following options" || text.startsWith("One of:") || text === memberText)
-  ) {
-    return `1 CU from ${memberText}`;
-  }
-
   return text;
 }
 
@@ -675,6 +701,9 @@ export function getSlotLabel(req, slotId, apiLabels = {}) {
     const { type, data } = parseRequirement(matched);
     if (type === "SingleCourse" && (data.possibilities?.length ?? 0) > 1) {
       return formatScheduleSingleCourseLabel(data.possibilities);
+    }
+    if (type === "Restriction") {
+      return formatScheduleRestriction(data);
     }
     return createRequirementDescription(matched);
   }

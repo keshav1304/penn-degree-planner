@@ -902,7 +902,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                                 pool_coverage
                                     .iter()
                                     .find(|p| p.pool_index == pool_idx)
-                                    .map(|p| format!("1 CU from {}", p.category))
+                                    .map(|p| p.category.clone())
                                     .unwrap_or_else(|| {
                                         mapped.requirement.slot_label_for_id(course_id)
                                     })
