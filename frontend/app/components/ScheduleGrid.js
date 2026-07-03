@@ -317,21 +317,48 @@ export default function ScheduleGrid({
                                 : frozen ? "Click to unfreeze (white)" : "Click to freeze in this semester (orange)"
                         }
                     >
-                        <div className="schedule-overlap-inline">
-                            {members.map((m, i) => {
-                                const slotText = m.schedule_slot_id
-                                    ? getSlotLabel(m.schedule_slot_id)
-                                    : "";
-                                const text = formatOverlapMemberLabel(slotText, m.label);
-                                return (
-                                    <div key={i} className="schedule-overlap-line">
-                                        {text}
-                                        {i < members.length - 1 && (
-                                            <span className="schedule-overlap-slash"> /</span>
-                                        )}
-                                    </div>
-                                );
-                            })}
+                        <div
+                            className="schedule-overlap-stack"
+                            aria-label={
+                                group?.explanation
+                                || `One course satisfies: ${members.map((m) => {
+                                    const slotText = m.schedule_slot_id
+                                        ? getSlotLabel(m.schedule_slot_id)
+                                        : "";
+                                    return formatOverlapMemberLabel(slotText, m.label);
+                                }).join(" and ")}`
+                            }
+                        >
+                            {members.length > 1 && (
+                                <div className="schedule-overlap-dual-hint" title="One course placed here counts toward both degrees">
+                                    <span className="schedule-overlap-dual-icon" aria-hidden="true">⇄</span>
+                                    <span>Both degrees</span>
+                                </div>
+                            )}
+                            <div className="schedule-overlap-rows">
+                                {members.map((m, i) => {
+                                    const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
+                                    const color = degKey ? (degreeColorMap[degKey] || "#888") : "#888";
+                                    const slotText = m.schedule_slot_id
+                                        ? getSlotLabel(m.schedule_slot_id)
+                                        : "";
+                                    const text = formatOverlapMemberLabel(slotText, m.label);
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="schedule-overlap-row"
+                                            title={degreeDisplayLabels[degKey] || degKey || text}
+                                        >
+                                            <span
+                                                className="schedule-overlap-row-marker"
+                                                style={{ background: color }}
+                                                aria-hidden="true"
+                                            />
+                                            <span className="schedule-overlap-row-label">{text}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <span className="course-card-actions">
                             {renderReqNavButton(groupId)}

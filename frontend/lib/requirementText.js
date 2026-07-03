@@ -80,8 +80,8 @@ export function formatScheduleLevelClause(level, maxLevel) {
   if (level != null && maxLevel != null && maxLevel !== RESTRICTION_DEFAULT_MAX_LEVEL) {
     return `${level}–${maxLevel}`;
   }
-  if (level != null) return `≥${level}`;
-  if (maxLevel != null) return `≤${maxLevel}`;
+  if (level != null) return `min level ${level}`;
+  if (maxLevel != null) return `max level ${maxLevel}`;
   return "";
 }
 

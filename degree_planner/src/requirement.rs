@@ -176,8 +176,8 @@ fn format_schedule_level_clause(level: Option<i32>, max_level: Option<i32>) -> S
         (Some(min), Some(max)) if max != RESTRICTION_DEFAULT_MAX_LEVEL => {
             format!("{min}–{max}")
         }
-        (Some(min), _) => format!("≥{min}"),
-        (None, Some(max)) => format!("≤{max}"),
+        (Some(min), _) => format!("min level {min}"),
+        (None, Some(max)) => format!("max level {max}"),
         (None, None) => String::new(),
     }
 }

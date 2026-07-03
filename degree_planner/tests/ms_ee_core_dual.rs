@@ -38,7 +38,7 @@ fn format_schedule_restriction_label_levels() {
             &1,
             &None,
         ),
-        "ESE ≥5000"
+        "ESE min level 5000"
     );
     assert_eq!(
         format_schedule_restriction_description(
@@ -50,7 +50,7 @@ fn format_schedule_restriction_label_levels() {
             &1,
             &None,
         ),
-        "EUHS/EUSS ≤3000"
+        "EUHS/EUSS max level 3000"
     );
 }
 
