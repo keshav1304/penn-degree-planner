@@ -1911,13 +1911,13 @@ select {
 }
 
 .req-choice-children {
-  padding-left: 20px;
+  padding-left: 12px;
   border-left: 2px solid rgba(0, 0, 0, 0.06);
-  margin-left: 14px;
+  margin-left: 8px;
 }
 
 .req-anyof-child {
-  padding-left: 12px;
+  padding-left: 6px;
   border-top: none;
 }
 
@@ -1939,7 +1939,7 @@ select {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  padding-left: 8px;
+  padding-left: 4px;
 }
 
 .req-allof-partial-row--partial {
