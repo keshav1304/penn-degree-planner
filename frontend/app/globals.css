@@ -1077,66 +1077,54 @@ select {
 .schedule-course.schedule-requirement-overlap {
   border-color: rgba(5, 150, 105, 0.45);
   background: rgba(5, 150, 105, 0.06);
+  padding-left: 12px;
 }
 
-.schedule-overlap-stack {
+.schedule-overlap-inline {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  min-height: 2.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
   padding-right: 4px;
 }
 
-.schedule-overlap-dual-hint {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(5, 150, 105, 0.9);
-  margin-bottom: 3px;
-  line-height: 1;
-}
-
-.schedule-overlap-dual-icon {
-  font-size: 0.72rem;
-  line-height: 1;
-}
-
-.schedule-overlap-rows {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.schedule-overlap-row {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 1.05rem;
-}
-
-.schedule-overlap-row-marker {
-  width: 3px;
-  align-self: stretch;
-  min-height: 0.8rem;
-  border-radius: 2px;
+.schedule-overlap-junction {
+  position: relative;
   flex-shrink: 0;
+  height: 1px;
+  margin: 1px 0;
+  background: var(--border-glass);
 }
 
-.schedule-overlap-row-label {
-  font-size: 0.75rem;
+.schedule-overlap-plus {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding-right: 5px;
+  font-size: 0.65rem;
   font-weight: 600;
-  line-height: 1.25;
-  color: var(--text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1;
+  color: var(--text-muted);
+  background: rgba(5, 150, 105, 0.06);
+}
+
+.schedule-course.schedule-requirement-overlap.frozen .schedule-overlap-plus {
+  background: var(--bg-secondary);
+}
+
+.schedule-overlap-line {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-height: 0;
 }
 
 .schedule-course.schedule-requirement-overlap .schedule-course-content {
@@ -1223,6 +1211,10 @@ select {
 .degree-bar-stripe {
   flex: 1;
   min-height: 0;
+}
+
+.degree-bar-container--overlap {
+  width: 7px;
 }
 
 .cross-degree-banner {
