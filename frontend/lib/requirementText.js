@@ -103,7 +103,7 @@ export function formatScheduleRestriction(data) {
   const levelClause = formatScheduleLevelClause(data.level, data.max_level);
   if (levelClause) parts.push(levelClause);
   if (data.no_school) parts.push(`excl. ${data.no_school}`);
-  return parts.length ? parts.join(" ") : "Open";
+  return parts.length ? parts.join(" ") : "Unrestricted";
 }
 
 /** Must stay in sync with Rust `format_restriction_description`. */

@@ -223,7 +223,7 @@ pub fn format_schedule_restriction_description(
     }
 
     if parts.is_empty() {
-        "Open".to_string()
+        "Unrestricted".to_string()
     } else {
         parts.join(" ")
     }

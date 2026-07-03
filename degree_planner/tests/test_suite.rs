@@ -837,6 +837,109 @@ mod catalog {
     }
 
     #[test]
+    fn minor_catalog_includes_data_science() {
+        let catalog = major::minor_catalog();
+        let seas = catalog
+            .iter()
+            .find(|s| s.school_code == "SEAS")
+            .expect("SEAS in minor catalog");
+        assert!(
+            seas.majors.iter().any(|m| m.api_code == "DATA_SCI"),
+            "Data Science minor should be selectable"
+        );
+    }
+
+    #[test]
+    fn data_science_minor_resolves_six_cu() {
+        let minor = major::resolve_minor("SEAS", "DATA_SCI", &[])
+            .expect("DATA_SCI minor resolves");
+        assert_eq!(minor.short_name, "DATA_SCI");
+        assert_eq!(minor.name, "Data Science");
+
+        let expanded = requirement::expand_restriction_slots(minor.requirements.clone());
+        assert_eq!(
+            expanded.len(),
+            5,
+            "4 core SingleCourse rows + 1 CourseGroup electives"
+        );
+        assert!(
+            expanded
+                .iter()
+                .filter(|r| matches!(r, Requirement::SingleCourse { .. }))
+                .count()
+                == 4,
+            "core requirements should be SingleCourse rows"
+        );
+        assert!(
+            expanded.iter().any(|r| matches!(
+                r,
+                Requirement::CourseGroup {
+                    category: Some(cat),
+                    number: 2,
+                    ..
+                } if cat == "Data Science Electives"
+            )),
+            "electives should be a CourseGroup of 2 from 5 areas"
+        );
+    }
+
+    #[test]
+    fn minor_catalog_includes_wh_stat_data_science() {
+        let catalog = major::minor_catalog();
+        let wh = catalog
+            .iter()
+            .find(|s| s.school_code == "WH")
+            .expect("WH in minor catalog");
+        assert!(
+            wh.majors.iter().any(|m| m.api_code == "STAT_DS"),
+            "Statistics and Data Science minor should be selectable"
+        );
+    }
+
+    #[test]
+    fn stat_data_science_minor_resolves_seven_cu() {
+        use degree_planner::Requirement;
+
+        let minor = major::resolve_minor("WH", "STAT_DS", &[])
+            .expect("STAT_DS minor resolves");
+        assert_eq!(minor.short_name, "STAT_DS");
+        assert_eq!(minor.name, "Statistics and Data Science");
+
+        let expanded = requirement::expand_restriction_slots(minor.requirements.clone());
+        assert_eq!(
+            expanded.len(),
+            7,
+            "3 core SingleCourse rows + 4 STAT elective restriction slots"
+        );
+        assert_eq!(
+            expanded
+                .iter()
+                .filter(|r| matches!(r, Requirement::SingleCourse { .. }))
+                .count(),
+            3,
+            "core requirements should be SingleCourse rows"
+        );
+        let elective_slots: Vec<_> = expanded
+            .iter()
+            .filter(|r| {
+                matches!(
+                    r,
+                    Requirement::Restriction {
+                        department: Some(depts),
+                        level: Some(4050),
+                        ..
+                    } if depts == &["STAT".to_string()]
+                )
+            })
+            .collect();
+        assert_eq!(
+            elective_slots.len(),
+            4,
+            "electives should be four STAT restriction slots at min level 4050"
+        );
+    }
+
+    #[test]
     fn minor_catalog_includes_cas_math() {
         let catalog = major::minor_catalog();
         let cas = catalog

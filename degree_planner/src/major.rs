@@ -236,10 +236,16 @@ pub fn minor_catalog() -> Vec<SchoolCatalogEntry> {
         SchoolCatalogEntry {
             school_code: "SEAS".to_string(),
             display_name: "School of Engineering and Applied Science".to_string(),
-            majors: vec![MajorCatalogEntry {
-                display_name: "Engineering Entrepreneurship".to_string(),
-                api_code: "EENT".to_string(),
-            }],
+            majors: vec![
+                MajorCatalogEntry {
+                    display_name: "Engineering Entrepreneurship".to_string(),
+                    api_code: "EENT".to_string(),
+                },
+                MajorCatalogEntry {
+                    display_name: "Data Science".to_string(),
+                    api_code: "DATA_SCI".to_string(),
+                },
+            ],
         },
         SchoolCatalogEntry {
             school_code: "CAS".to_string(),
@@ -247,6 +253,14 @@ pub fn minor_catalog() -> Vec<SchoolCatalogEntry> {
             majors: vec![MajorCatalogEntry {
                 display_name: "Mathematics".to_string(),
                 api_code: "MATH".to_string(),
+            }],
+        },
+        SchoolCatalogEntry {
+            school_code: "WH".to_string(),
+            display_name: "The Wharton School".to_string(),
+            majors: vec![MajorCatalogEntry {
+                display_name: "Statistics and Data Science".to_string(),
+                api_code: "STAT_DS".to_string(),
             }],
         },
     ]
@@ -294,7 +308,9 @@ fn build_minor(school: &str, minor: &str, concentrations: &[String]) -> Option<M
                 .unwrap_or_else(|| "Standard".to_string());
             Some(seas_data::create_eent_minor(&conc))
         }
+        ("SEAS", "DATA_SCI") => Some(seas_data::create_data_science_minor()),
         ("CAS", "MATH") => Some(college_data::create_math_minor()),
+        ("WH", "STAT_DS") => Some(wharton_data::create_stat_data_science_minor()),
         _ => None,
     };
     major.map(normalize_major)

@@ -931,3 +931,36 @@ pub fn create_wh_fl_mt_major(concentrations: Vec<String>) -> Major {
     }
 }
 
+/// Statistics and Data Science minor (7 CU) for students outside Wharton per
+/// [Penn catalog](https://catalog.upenn.edu/undergraduate/programs/statistics-data-science-minor/).
+pub fn create_stat_data_science_minor() -> Major {
+    Major {
+        short_name: "STAT_DS".to_string(),
+        name: "Statistics and Data Science".to_string(),
+        requirements: vec![
+            single(
+                "Statistics and Data Science Core",
+                &["MATH 1410", "MATH 1080", "MATH 1610"],
+            ),
+            single(
+                "Statistics and Data Science Core",
+                &[
+                    "STAT 1020", "STAT 1028", "STAT 1120", "STAT 4310", "ESE 4020",
+                    "ECON 2310",
+                ],
+            ),
+            single(
+                "Statistics and Data Science Core",
+                &["STAT 4300", "ESE 3010"],
+            ),
+            restriction(4)
+                .category("Statistics and Data Science Electives")
+                .departments(&["STAT"])
+                .level(4050)
+                .into(),
+        ],
+        concentrations: None,
+        schedule_hints: HashMap::new(),
+    }
+}
+

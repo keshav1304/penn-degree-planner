@@ -1228,6 +1228,58 @@ fn eent_elective_slots() -> Vec<Requirement> {
     (0..4).map(|_| eent_elective_slot()).collect()
 }
 
+/// Data Science minor (6 CU) per [Penn catalog](https://catalog.upenn.edu/undergraduate/programs/data-science-minor/).
+pub fn create_data_science_minor() -> Major {
+    Major {
+        short_name: "DATA_SCI".to_string(),
+        name: "Data Science".to_string(),
+        requirements: vec![
+            single("Data Science Core", &["CIS 1200"]),
+            single(
+                "Data Science Core",
+                &["CIS 4190", "CIS 5190", "STAT 4710", "CIS 5200"],
+            ),
+            single("Data Science Core", &["NETS 2120", "CIS 2450", "CIS 5450"]),
+            single(
+                "Data Science Core",
+                &["ESE 3010", "ESE 4020", "STAT 4300", "STAT 4310"],
+            ),
+            course_group(
+                "Data Science Electives",
+                2,
+                vec![
+                    single(
+                        "Data-Centric Programming",
+                        &["CIS 1050", "ENGR 1050", "ESE 3050", "STAT 4050", "STAT 4700"],
+                    ),
+                    single(
+                        "Statistics",
+                        &["BIOL 2510", "CIS 2610", "ESE 3010", "STAT 4300", "STAT 4760"],
+                    ),
+                    single(
+                        "Data Collection & Management",
+                        &[
+                            "CIS 4550", "CIS 5550", "CIS 4500", "CIS 5500", "NETS 2130",
+                            "OIDD 1050", "STAT 4750",
+                        ],
+                    ),
+                    single(
+                        "Data Analysis",
+                        &[
+                            "CIS 4190", "CIS 5190", "CIS 4300", "CIS 5300", "CIS 2210",
+                            "CIS 5210", "CIS 5200", "MKTG 2120", "MKTG 3090", "STAT 4220",
+                            "STAT 4350", "STAT 4710", "STAT 5200",
+                        ],
+                    ),
+                    single("Modeling", &["NETS 3120", "STAT 4330"]),
+                ],
+            ),
+        ],
+        concentrations: None,
+        schedule_hints: HashMap::new(),
+    }
+}
+
 /// Engineering Entrepreneurship minor (6 CU) per Penn catalog.
 pub fn create_eent_minor(concentration: &str) -> Major {
     let core = if concentration == "Fellows" {
