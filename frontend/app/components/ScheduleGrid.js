@@ -295,7 +295,7 @@ export default function ScheduleGrid({
                 data={{ courseId: groupId, source: "schedule", fromYear: year, fromSemester: sem }}
             >
                 <div className={className} style={{ position: "relative" }}>
-                    <div className="degree-bar-container degree-bar-container--overlap">
+                    <div className="degree-bar-container">
                         {members.map((m, i) => {
                             const degKey = m.school && m.major ? `${m.school}-${m.major}` : null;
                             return (
@@ -336,7 +336,8 @@ export default function ScheduleGrid({
                                 );
                                 return nodes;
                             })}
-                        </div>                        <span className="course-card-actions">
+                        </div>
+                        <span className="course-card-actions">
                             {renderReqNavButton(groupId)}
                             <span className="course-cu-label">1.0 CU</span>
                         </span>

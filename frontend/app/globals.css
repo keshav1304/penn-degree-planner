@@ -1077,7 +1077,6 @@ select {
 .schedule-course.schedule-requirement-overlap {
   border-color: rgba(5, 150, 105, 0.45);
   background: rgba(5, 150, 105, 0.06);
-  padding-left: 12px;
 }
 
 .schedule-overlap-inline {
@@ -1096,28 +1095,29 @@ select {
 }
 
 .schedule-overlap-junction {
-  position: relative;
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+  margin: 2px 0;
+  gap: 0;
+}
+
+.schedule-overlap-junction::before,
+.schedule-overlap-junction::after {
+  content: "";
+  flex: 1;
   height: 1px;
-  margin: 1px 0;
   background: var(--border-glass);
 }
 
 .schedule-overlap-plus {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  padding-right: 5px;
-  font-size: 0.65rem;
-  font-weight: 600;
+  flex-shrink: 0;
+  padding: 0 8px;
+  font-size: 0.82rem;
+  font-weight: 800;
   line-height: 1;
-  color: var(--text-muted);
-  background: rgba(5, 150, 105, 0.06);
-}
-
-.schedule-course.schedule-requirement-overlap.frozen .schedule-overlap-plus {
-  background: var(--bg-secondary);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
 }
 
 .schedule-overlap-line {
@@ -1211,10 +1211,6 @@ select {
 .degree-bar-stripe {
   flex: 1;
   min-height: 0;
-}
-
-.degree-bar-container--overlap {
-  width: 7px;
 }
 
 .cross-degree-banner {
