@@ -63,7 +63,7 @@ fn format_schedule_single_course_label_truncates_after_two() {
         "ESE 5210".into(),
         "ESE 5230".into(),
     ]);
-    assert_eq!(label, "ESE 5090, ESE 5100 (+3)");
+    assert_eq!(label, "ESE 5090/ESE 5100 (+3)");
 }
 
 #[test]
@@ -170,7 +170,7 @@ fn ee_plus_ms_ee_schedules_five_distinct_ms_core_placeholders() {
         .map(String::as_str)
         .unwrap_or("");
     assert!(
-        sample_label.starts_with("ESE 5090, ESE 5100 (+"),
+        sample_label.starts_with("ESE 5090/ESE 5100 (+"),
         "unexpected schedule label: {sample_label}"
     );
 }

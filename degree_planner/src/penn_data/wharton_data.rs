@@ -520,8 +520,8 @@ fn wh_fundamentals_fl() -> Vec<(crate::schedule_template::Semester, Requirement)
                 &["LGST 1000", "LGST 1010", "LGST 1008", "LGST 1018"],
             ),
         ),
-        (Y1S, single("Fundamentals", &["MGMT 1010", "MKTG 1018"])),
-        (Y1S, single("Fundamentals", &["MKTG 1010"])),
+        (Y1S, single("Fundamentals", &["MGMT 1010"])),
+        (Y1S, single("Fundamentals", &["MKTG 1010", "MKTG 1018"])),
         (Y1S, single("Fundamentals", &["OIDD 1010"])),
         (
             Y1S,
@@ -585,8 +585,8 @@ fn wh_fundamentals_nofl() -> Vec<(crate::schedule_template::Semester, Requiremen
                 &["LGST 1000", "LGST 1010", "LGST 1008", "LGST 1018"],
             ),
         ),
-        (Y1F, single("Fundamentals", &["MGMT 1010", "MKTG 1018"])),
-        (Y1S, single("Fundamentals", &["MKTG 1010"])),
+        (Y1F, single("Fundamentals", &["MGMT 1010"])),
+        (Y1S, single("Fundamentals", &["MKTG 1010", "MKTG 1018"])),
         (Y1S, single("Fundamentals", &["OIDD 1010"])),
         (
             Y1S,
@@ -620,8 +620,8 @@ fn wh_fundamentals_mt() -> Vec<(crate::schedule_template::Semester, Requirement)
         (Y1S, single("Fundamentals", &["BEPP 2500", "BEPP 2508"])),
         (Y2F, single("Fundamentals", &["FNCE 1000", "FNCE 1008"])),
         (Y2F, single("Fundamentals", &["FNCE 1010", "FNCE 1018"])),
-        (Y1S, single("Fundamentals", &["MGMT 1010", "MKTG 1018"])),
-        (Y1S, single("Fundamentals", &["MKTG 1010"])),
+        (Y1S, single("Fundamentals", &["MGMT 1010"])),
+        (Y1S, single("Fundamentals", &["MKTG 1010", "MKTG 1018"])),
         (
             Y1S,
             single(

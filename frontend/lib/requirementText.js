@@ -66,11 +66,11 @@ export function formatScheduleSingleCourseLabel(possibilities) {
     return list[0];
   }
   if (list.length <= MAX_SCHEDULE_LISTED_COURSES) {
-    return list.join(", ");
+    return list.join("/");
   }
   const shown = list.slice(0, MAX_SCHEDULE_LISTED_COURSES);
   const more = list.length - MAX_SCHEDULE_LISTED_COURSES;
-  return `${shown.join(", ")} (+${more})`;
+  return `${shown.join("/")} (+${more})`;
 }
 
 const RESTRICTION_DEFAULT_MAX_LEVEL = 9000;

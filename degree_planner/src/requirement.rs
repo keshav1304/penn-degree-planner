@@ -160,7 +160,7 @@ pub fn format_schedule_single_course_label(possibilities: &[String]) -> String {
         return possibilities[0].clone();
     }
     if possibilities.len() <= MAX_SCHEDULE_LISTED_COURSES {
-        return possibilities.join(", ");
+        return possibilities.join("/");
     }
     let shown: Vec<String> = possibilities
         .iter()
@@ -168,7 +168,7 @@ pub fn format_schedule_single_course_label(possibilities: &[String]) -> String {
         .cloned()
         .collect();
     let more = possibilities.len() - MAX_SCHEDULE_LISTED_COURSES;
-    format!("{} (+{more})", shown.join(", "))
+    format!("{} (+{more})", shown.join("/"))
 }
 
 fn format_schedule_level_clause(level: Option<i32>, max_level: Option<i32>) -> String {
