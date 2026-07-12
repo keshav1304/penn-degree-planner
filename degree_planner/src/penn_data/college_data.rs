@@ -2112,9 +2112,13 @@ fn chem_major_requirements() -> Vec<Requirement> {
                 code(&["CHEM 1161"]),
             ],
         ),
-        all_of(
-            Some("General Chemistry Laboratories".to_string()),
-            vec![code(&["CHEM 1101"]), code(&["CHEM 1102"])],
+        single(
+            "General Chemistry Laboratories",
+            &["CHEM 1101"],
+        ),
+        single(
+            "General Chemistry Laboratories",
+            &["CHEM 1102"],
         ),
         single("Organic Chemistry with Laboratories", &["CHEM 2411"]),
         single("Organic Chemistry with Laboratories", &["CHEM 2421"]),
