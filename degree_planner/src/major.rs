@@ -509,6 +509,8 @@ fn build_major(school: &str, major: &str, concentrations: &[String]) -> Option<M
                     .unwrap_or_else(|| "Choice and Behaviour".to_string());
                 Some(college_data::create_ppe_major(conc))
             }
+            "BIOC" => Some(college_data::create_bioc_major()),
+            "BIOL" => Some(college_data::create_biol_major()),
             "CHEM" => Some(college_data::create_chem_major()),
             "NEUR" => Some(college_data::create_neur_major()),
             "PSYC" => Some(college_data::create_psyc_major()),

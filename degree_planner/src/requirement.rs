@@ -1,13 +1,18 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use serde::Serialize;
 
-use crate::penn_data::attributes_data;
 use crate::course;
 use crate::cross_degree::{
     self, CrossDegreeState, CrossDegreeSummary, detect_violations, is_graduate_degree,
     crosses_undergrad_grad, UNDERGRAD_GRAD_CU_LIMIT,
 };
+use crate::major::Major;
+use crate::penn_data::{attributes_data, college_data};
+use crate::penn_data::college_data::{
+    CAS_DEGREE_CU, CAS_GENED_POOL_CATEGORY, CAS_UNRESTRICTED_ELECTIVES_CATEGORY,
+};
+use crate::penn_data::requirement_builders::unrestricted_elective;
 
 /// A node in a degree's requirement tree. Variants compose via nesting (`AllOf`, `AnyOf`,
 /// `CourseGroup`) or match individual courses (`SingleCourse`, `Restriction`).
@@ -415,7 +420,7 @@ fn sorted_child_requirements<'a>(requirements: &'a [Requirement]) -> Vec<&'a Req
 }
 
 /// Expand [`Requirement::Concentration`] blocks inside pool fixed slots into their children.
-fn expand_pool_fixed_slots(
+pub(crate) fn expand_pool_fixed_slots(
     fixed_slots: Vec<Requirement>,
 ) -> Vec<(usize, usize, Requirement)> {
     let mut out = Vec::new();
@@ -1867,6 +1872,136 @@ pub fn evaluate_pool_constraints(
     results.into_iter().map(|r| r.expect("all units evaluated")).collect()
 }
 
+/// CAS gen-ed coverage: FA constraints may use major courses freely.
+/// Sector constraints may use at most **one** course that also fulfills a major requirement;
+/// additional sector slots must use non-major courses.
+/// Writing must already be excluded from both course lists by the caller.
+pub fn evaluate_cas_pool_constraints(
+    fa_courses: &[String],
+    sector_courses: &[String],
+    major_courses: &HashSet<String>,
+    constraints: &[PoolConstraint],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> Vec<PoolConstraintEvaluation> {
+    let units = expanded_pool_constraint_units(constraints);
+    let unit_count = units.len();
+    let mut eval_order: Vec<usize> = (0..unit_count).collect();
+    eval_order.sort_by_key(|&i| (pool_constraint_unit_priority(&units[i].0), i));
+
+    let mut blocked_by_group: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut course_constraint_uses: HashMap<String, usize> = HashMap::new();
+    let mut major_sector_double_counts: usize = 0;
+    let mut results: Vec<Option<PoolConstraintEvaluation>> = vec![None; unit_count];
+
+    for i in eval_order {
+        let (req, group) = units[i].clone();
+        let is_sector = group == "cas:sector" || group.starts_with("cas:sector");
+        let blocked = blocked_by_group.get(&group).cloned().unwrap_or_default();
+        let source = if is_sector {
+            sector_courses
+        } else {
+            fa_courses
+        };
+        let mut available: Vec<String> = source
+            .iter()
+            .filter(|c| {
+                if blocked.contains(*c) {
+                    return false;
+                }
+                if course_constraint_uses.get(*c).copied().unwrap_or(0)
+                    >= POOL_MAX_CONSTRAINT_USES_PER_COURSE
+                {
+                    return false;
+                }
+                // After one major↔sector double-count, further sectors need non-major courses.
+                if is_sector
+                    && major_sector_double_counts >= 1
+                    && major_courses.contains(*c)
+                {
+                    return false;
+                }
+                true
+            })
+            .cloned()
+            .collect();
+        if is_sector {
+            // Prefer non-major courses so the single double-count slot is used only if needed.
+            available.sort_by_key(|c| major_courses.contains(c));
+        }
+        let label = constraint_short_label(&req);
+
+        results[i] = Some(match req.fulfills_requirement(&available, attributes, cu_map) {
+            Some(courses) => {
+                blocked_by_group
+                    .entry(group.clone())
+                    .or_default()
+                    .extend(courses.iter().cloned());
+                for course in &courses {
+                    *course_constraint_uses.entry(course.clone()).or_insert(0) += 1;
+                    if is_sector && major_courses.contains(course) {
+                        major_sector_double_counts += 1;
+                    }
+                }
+                PoolConstraintEvaluation {
+                    requirement: req,
+                    fulfilled: true,
+                    course_ids: courses,
+                    consumption_group: group,
+                    label,
+                }
+            }
+            None => PoolConstraintEvaluation {
+                requirement: req,
+                fulfilled: false,
+                course_ids: vec![],
+                consumption_group: group,
+                label,
+            },
+        });
+    }
+
+    results.into_iter().map(|r| r.expect("all units evaluated")).collect()
+}
+
+pub(crate) fn course_improves_cas_pool_coverage(
+    course: &str,
+    fa_courses: &[String],
+    sector_courses: &[String],
+    major_courses: &HashSet<String>,
+    constraints: &[PoolConstraint],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> bool {
+    let before = evaluate_cas_pool_constraints(
+        fa_courses,
+        sector_courses,
+        major_courses,
+        constraints,
+        attributes,
+        cu_map,
+    )
+    .iter()
+    .filter(|e| e.fulfilled)
+    .count();
+    let mut fa = fa_courses.to_vec();
+    fa.push(course.to_string());
+    let mut sector = sector_courses.to_vec();
+    sector.push(course.to_string());
+    let after = evaluate_cas_pool_constraints(
+        &fa,
+        &sector,
+        major_courses,
+        constraints,
+        attributes,
+        cu_map,
+    )
+    .iter()
+    .filter(|e| e.fulfilled)
+    .count();
+    after > before
+}
+
 fn pool_fill_hint(evaluations: &[PoolConstraintEvaluation]) -> Option<String> {
     let open: Vec<&PoolConstraintEvaluation> =
         evaluations.iter().filter(|e| !e.fulfilled).collect();
@@ -1986,7 +2121,7 @@ pub fn plan_pool_slot_hints(
     hints
 }
 
-fn build_pool_coverage_info(
+pub(crate) fn build_pool_coverage_info(
     pool_index: usize,
     category: Option<String>,
     pool_courses: Vec<String>,
@@ -2460,7 +2595,7 @@ fn attribute_fulfillment_for_requirement(
     }
 }
 
-fn new_mapped_requirement(
+pub(crate) fn new_mapped_requirement(
     requirement: Requirement,
     course_ids: Vec<String>,
     instance_id: Option<String>,
@@ -2539,7 +2674,7 @@ fn try_fulfill_or_partial_composite(
     ));
 }
 
-fn try_fulfill_or_partial_base(
+pub(crate) fn try_fulfill_or_partial_base(
     base_req: &Requirement,
     taken: &mut Vec<String>,
     attributes: &HashMap<String, Vec<String>>,
@@ -3043,6 +3178,15 @@ fn remove_course_from_degree_result(
     }
 }
 
+/// Formerly patched independent per-major CAS validation. College-wide assignment is now
+/// handled by [`assign_cas_college`]; this is a no-op kept for call-site compatibility in
+/// older tests.
+pub fn reconcile_cas_college_double_major_claims(
+    _per_degree: &mut [DegreeValidationResult],
+    _degree_schools: &[String],
+) {
+}
+
 fn course_allocated_to_degree(
     course_id: &str,
     degree_idx: usize,
@@ -3490,5 +3634,348 @@ pub fn resolve_cross_degree_conflicts(
     state.ug_concentration_courses = ug_conc_claims;
     state.violations = detect_violations(&allocations, degree_schools, cu_map);
     state.to_summary()
+}
+
+// ── College-wide CAS requirement assignment ─────────────────────────────────
+//
+// Order: Writing (exclusive) → Majors (shared bag, dual-major overlap) → Gen-Ed
+// (FA may use major courses; remaining sectors may not) → residual Unrestricted to 36 CU.
+
+pub struct CasCollegeAssignResult {
+    pub per_degree: Vec<(usize, DegreeValidationResult)>,
+    pub primary_flexible_slots: i32,
+    pub primary_unrestricted_count: i32,
+    pub college_auto_sectors: Vec<String>,
+    pub college_constraints: Vec<PoolConstraint>,
+}
+
+fn cas_pool_fixed_slots(major: &Major) -> Option<&[Requirement]> {
+    let (_, _) = college_data::cas_gened_pool(major)?;
+    major.requirements.iter().find_map(|req| {
+        if let Requirement::CoursePool {
+            category,
+            fixed_slots,
+            ..
+        } = req
+        {
+            if category.as_deref() == Some(CAS_GENED_POOL_CATEGORY) {
+                return Some(fixed_slots.as_slice());
+            }
+        }
+        None
+    })
+}
+
+fn fulfill_from_available(
+    req: &Requirement,
+    available: &[String],
+    attributes: &HashMap<String, Vec<String>>,
+    cu_map: &HashMap<String, f64>,
+) -> Option<Vec<String>> {
+    req.fulfills_requirement(&available.to_vec(), attributes, cu_map)
+}
+
+/// Assign CAS college requirements for one or more CAS majors (primary first).
+/// `concentrations[i]` matches `majors[i]` for sector auto-completion overrides.
+pub fn assign_cas_college(
+    majors: &[(usize, &Major)],
+    concentrations: &[&[String]],
+    taken: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> CasCollegeAssignResult {
+    assert!(!majors.is_empty(), "assign_cas_college requires at least one CAS major");
+    let attributes = attributes_data::attributes();
+    let mut bag: Vec<String> = taken.to_vec();
+
+    let major_refs: Vec<&Major> = majors.iter().map(|(_, m)| *m).collect();
+    let mut seen = BTreeSet::new();
+    let mut college_auto_sectors = Vec::new();
+    for (i, (_, major)) in majors.iter().enumerate() {
+        let conc = concentrations
+            .get(i)
+            .and_then(|c| c.first())
+            .map(|s| s.as_str());
+        for attr in college_data::cas_auto_completed_sectors_for(&major.short_name, conc) {
+            if seen.insert(attr.clone()) {
+                college_auto_sectors.push(attr);
+            }
+        }
+    }
+    let college_constraints = college_data::cas_pool_constraints(&college_auto_sectors);
+
+    // ── 1. Writing (exclusive, primary only) ────────────────────────────────
+    let writing_req = majors[0]
+        .1
+        .requirements
+        .first()
+        .cloned()
+        .expect("CAS major has writing requirement");
+    let mut writing_mapped: Option<MappedRequirement> = None;
+    if let Some(courses) = writing_req.fulfills_requirement(&bag, &attributes, cu_map) {
+        bag.retain(|c| !courses.contains(c));
+        writing_mapped = Some(new_mapped_requirement(
+            writing_req.clone(),
+            courses,
+            Some("0".to_string()),
+            &attributes,
+        ));
+    }
+    let writing_unfulfilled = writing_mapped.is_none().then(|| {
+        new_mapped_requirement(writing_req, vec![], Some("0".to_string()), &attributes)
+    });
+
+    // ── 2. Majors (shared bag; overlap courses kept on both) ────────────────
+    let mut shared_major_courses: HashSet<String> = HashSet::new();
+    let mut per_major_fulfilled: Vec<Vec<MappedRequirement>> = vec![Vec::new(); majors.len()];
+    let mut per_major_unfulfilled: Vec<Vec<MappedRequirement>> = vec![Vec::new(); majors.len()];
+    let mut per_major_course_sets: Vec<HashSet<String>> = vec![HashSet::new(); majors.len()];
+
+    for (mi, (_, major)) in majors.iter().enumerate() {
+        let Some(fixed_slots) = cas_pool_fixed_slots(major) else {
+            continue;
+        };
+        for (fi, ci, slot_req) in expand_pool_fixed_slots(fixed_slots.to_vec()) {
+            let child_id = Some(format!("1:f{fi}:c{ci}"));
+
+            if let Some(courses) = fulfill_from_available(&slot_req, &bag, &attributes, cu_map) {
+                bag.retain(|c| !courses.contains(c));
+                for c in &courses {
+                    shared_major_courses.insert(c.clone());
+                    per_major_course_sets[mi].insert(c.clone());
+                }
+                per_major_fulfilled[mi].push(new_mapped_requirement(
+                    slot_req,
+                    courses,
+                    child_id,
+                    &attributes,
+                ));
+                continue;
+            }
+
+            let shared_vec: Vec<String> = shared_major_courses.iter().cloned().collect();
+            if let Some(courses) =
+                fulfill_from_available(&slot_req, &shared_vec, &attributes, cu_map)
+            {
+                for c in &courses {
+                    per_major_course_sets[mi].insert(c.clone());
+                }
+                per_major_fulfilled[mi].push(new_mapped_requirement(
+                    slot_req,
+                    courses,
+                    child_id,
+                    &attributes,
+                ));
+                continue;
+            }
+
+            let courses = try_fulfill_or_partial_base(
+                &slot_req,
+                &mut bag,
+                &attributes,
+                cu_map,
+                child_id,
+                &mut per_major_fulfilled[mi],
+                &mut per_major_unfulfilled[mi],
+            );
+            for c in &courses {
+                if course::is_valid_course_code(c) {
+                    shared_major_courses.insert(c.clone());
+                    per_major_course_sets[mi].insert(c.clone());
+                }
+            }
+        }
+    }
+
+    // Overlap savings: courses claimed by 2+ majors.
+    let mut course_major_count: HashMap<String, usize> = HashMap::new();
+    for set in &per_major_course_sets {
+        for c in set {
+            *course_major_count.entry(c.clone()).or_insert(0) += 1;
+        }
+    }
+    let overlap_savings = course_major_count.values().filter(|&&n| n >= 2).count() as i32;
+    let effective_major_cu =
+        college_data::cas_effective_combined_major_cu(&major_refs, overlap_savings);
+
+    // ── 3. Gen-Ed coverage ──────────────────────────────────────────────────
+    // FA + sector candidates start as major courses. At most one major course may
+    // also satisfy a sector; prefer non-major (bag) courses for additional sectors.
+    let major_course_vec: Vec<String> = shared_major_courses.iter().cloned().collect();
+    let mut fa_courses = major_course_vec.clone();
+    let mut sector_courses = major_course_vec.clone();
+
+    let mut flex_fulfilled: Vec<MappedRequirement> = Vec::new();
+    let mut absorbed: Vec<String> = Vec::new();
+    loop {
+        let Some(idx) = bag.iter().position(|c| {
+            course_improves_cas_pool_coverage(
+                c,
+                &fa_courses,
+                &sector_courses,
+                &shared_major_courses,
+                &college_constraints,
+                &attributes,
+                cu_map,
+            )
+        }) else {
+            break;
+        };
+        let course = bag.remove(idx);
+        absorbed.push(course.clone());
+        fa_courses.push(course.clone());
+        sector_courses.push(course.clone());
+        let pi = flex_fulfilled.len();
+        let flex_req = pool_flexible_slot_requirement(CAS_GENED_POOL_CATEGORY, pi);
+        flex_fulfilled.push(new_mapped_requirement(
+            flex_req,
+            vec![course],
+            Some(format!("1:p{pi}")),
+            &attributes,
+        ));
+    }
+
+    let evaluations = evaluate_cas_pool_constraints(
+        &fa_courses,
+        &sector_courses,
+        &shared_major_courses,
+        &college_constraints,
+        &attributes,
+        cu_map,
+    );
+
+    let open_coverage = evaluations.iter().filter(|e| !e.fulfilled).count() as i32;
+    let flex_filled = flex_fulfilled.len() as i32;
+    let flex_total = flex_filled + open_coverage;
+    let remaining_after_major = (CAS_DEGREE_CU - 1 - effective_major_cu).max(0);
+    let primary_flexible_slots = flex_total.min(remaining_after_major);
+    // If CU budget is tighter than open coverage, drop excess open flex slots.
+    let open_flex_slots = (primary_flexible_slots - flex_filled).max(0);
+    let primary_unrestricted_count =
+        (remaining_after_major - primary_flexible_slots).max(0);
+
+    let mut flex_unfulfilled: Vec<MappedRequirement> = Vec::new();
+    for i in 0..open_flex_slots as usize {
+        let pi = flex_filled as usize + i;
+        let flex_req = pool_flexible_slot_requirement(CAS_GENED_POOL_CATEGORY, pi);
+        flex_unfulfilled.push(new_mapped_requirement(
+            flex_req,
+            vec![],
+            Some(format!("1:p{pi}")),
+            &attributes,
+        ));
+    }
+
+    let mut constraint_fulfilled = Vec::new();
+    let mut constraint_unfulfilled = Vec::new();
+    for (ci, eval) in evaluations.iter().enumerate() {
+        let child_id = Some(format!("1:c{ci}"));
+        let mapped = new_mapped_requirement(
+            eval.requirement.clone(),
+            eval.course_ids.clone(),
+            child_id,
+            &attributes,
+        );
+        if eval.fulfilled {
+            constraint_fulfilled.push(mapped);
+        } else {
+            constraint_unfulfilled.push(mapped);
+        }
+    }
+
+    // ── 4. Unrestricted residual ────────────────────────────────────────────
+    let unrest_start_idx = 2usize; // writing=0, pool=1
+    let mut unrest_fulfilled = Vec::new();
+    let mut unrest_unfulfilled = Vec::new();
+    for i in 0..primary_unrestricted_count as usize {
+        let instance_id = Some((unrest_start_idx + i).to_string());
+        let req = unrestricted_elective(CAS_UNRESTRICTED_ELECTIVES_CATEGORY);
+        if let Some(courses) = req.fulfills_requirement(&bag, &attributes, cu_map) {
+            bag.retain(|c| !courses.contains(c));
+            unrest_fulfilled.push(new_mapped_requirement(
+                req,
+                courses,
+                instance_id,
+                &attributes,
+            ));
+        } else {
+            unrest_unfulfilled.push(new_mapped_requirement(
+                req,
+                vec![],
+                instance_id,
+                &attributes,
+            ));
+        }
+    }
+
+    // Pool courses for coverage info = major + absorbed gen-ed flex.
+    let mut pool_courses = major_course_vec;
+    pool_courses.extend(absorbed.iter().cloned());
+
+    let pool_coverage = vec![build_pool_coverage_info(
+        1,
+        Some(CAS_GENED_POOL_CATEGORY.to_string()),
+        pool_courses,
+        cas_pool_fixed_slots(majors[0].1)
+            .map(|s| expand_pool_fixed_slots(s.to_vec()).len() as i32)
+            .unwrap_or(0),
+        per_major_fulfilled[0]
+            .iter()
+            .filter(|m| !m.course_ids.is_empty())
+            .count() as i32,
+        primary_flexible_slots,
+        flex_filled,
+        &evaluations,
+    )];
+
+    // ── Assemble per-degree results ─────────────────────────────────────────
+    let mut per_degree = Vec::new();
+    for (mi, (degree_idx, _)) in majors.iter().enumerate() {
+        let is_primary = mi == 0;
+        let mut fulfilled = Vec::new();
+        let mut unfulfilled = Vec::new();
+
+        if is_primary {
+            if let Some(w) = writing_mapped.clone() {
+                fulfilled.push(w);
+            } else if let Some(w) = writing_unfulfilled.clone() {
+                unfulfilled.push(w);
+            }
+        }
+
+        fulfilled.extend(per_major_fulfilled[mi].clone());
+        unfulfilled.extend(per_major_unfulfilled[mi].clone());
+
+        if is_primary {
+            fulfilled.extend(flex_fulfilled.clone());
+            unfulfilled.extend(flex_unfulfilled.clone());
+            fulfilled.extend(constraint_fulfilled.clone());
+            unfulfilled.extend(constraint_unfulfilled.clone());
+            fulfilled.extend(unrest_fulfilled.clone());
+            unfulfilled.extend(unrest_unfulfilled.clone());
+        }
+
+        let coverage = if is_primary {
+            pool_coverage.clone()
+        } else {
+            Vec::new()
+        };
+
+        per_degree.push((
+            *degree_idx,
+            DegreeValidationResult {
+                fulfilled,
+                unfulfilled,
+                pool_coverage_info: coverage,
+            },
+        ));
+    }
+
+    CasCollegeAssignResult {
+        per_degree,
+        primary_flexible_slots,
+        primary_unrestricted_count,
+        college_auto_sectors,
+        college_constraints,
+    }
 }
 

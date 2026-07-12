@@ -321,8 +321,9 @@ mod catalog_resolve {
 mod cas_builder {
     use super::*;
     use degree_planner::penn_data::college_data::{
-        create_anch_major, create_chem_major, create_cis_cas_major, create_dsgn_major,
-        create_econ_major, create_mathecon_major, create_neur_major, create_psyc_major,
+        create_anch_major, create_bioc_major, create_biol_major, create_chem_major,
+        create_cis_cas_major, create_dsgn_major, create_econ_major, create_mathecon_major,
+        create_neur_major, create_psyc_major,
     };
 
     #[test]
@@ -330,6 +331,8 @@ mod cas_builder {
         for (major, short_name) in [
             (create_econ_major(), "ECON"),
             (create_neur_major(), "NEUR"),
+            (create_bioc_major(), "BIOC"),
+            (create_biol_major(), "BIOL"),
             (create_chem_major(), "CHEM"),
             (create_anch_major(), "ANCH"),
             (create_mathecon_major(), "MECON"),
@@ -344,12 +347,12 @@ mod cas_builder {
 
     #[test]
     fn cas_placeholder_stubs_use_empty_major_pool_and_full_gened_flex() {
-        let biol = college_data::create_cas_placeholder_major(
-            college_data::cas_catalog_entry("BIOL").expect("BIOL catalog entry"),
+        let biop = college_data::create_cas_placeholder_major(
+            college_data::cas_catalog_entry("BIOP").expect("BIOP catalog entry"),
         );
-        assert_cas_gened_pool_invariants(&biol, "BIOL", None);
-        assert_eq!(cas_major_pool_major_cu(&biol), 0);
-        assert!(!major_has_authored_requirements("CAS", &biol));
+        assert_cas_gened_pool_invariants(&biop, "BIOP", None);
+        assert_eq!(cas_major_pool_major_cu(&biop), 0);
+        assert!(!major_has_authored_requirements("CAS", &biop));
     }
 
     #[test]

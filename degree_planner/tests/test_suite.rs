@@ -1318,8 +1318,16 @@ mod catalog {
             .find(|s| s.school_code == "CAS")
             .expect("CAS in catalog");
         assert!(
-            !cas.majors.iter().any(|m| m.api_code == "BIOL"),
+            !cas.majors.iter().any(|m| m.api_code == "BIOP"),
             "gen-ed-only placeholders should not appear in the UI catalog"
+        );
+        assert!(
+            cas.majors.iter().any(|m| m.api_code == "BIOC"),
+            "authored CAS Biochemistry should appear in the UI catalog"
+        );
+        assert!(
+            cas.majors.iter().any(|m| m.api_code == "BIOL"),
+            "authored CAS Biology should appear in the UI catalog"
         );
         assert!(
             cas.majors.iter().any(|m| m.api_code == "ECON"),
@@ -1350,11 +1358,15 @@ mod catalog {
 
     #[test]
     fn major_is_implemented_inferred_from_requirements() {
-        let biol = resolve_major("CAS", "BIOL", &[]).expect("BIOL resolves");
+        let biop = resolve_major("CAS", "BIOP", &[]).expect("BIOP resolves");
         assert!(
-            !major::major_has_authored_requirements("CAS", &biol),
+            !major::major_has_authored_requirements("CAS", &biop),
             "CAS placeholder with empty pool major CU should not count as implemented"
         );
+        let bioc = resolve_major("CAS", "BIOC", &[]).expect("BIOC resolves");
+        assert!(major::major_has_authored_requirements("CAS", &bioc));
+        let biol = resolve_major("CAS", "BIOL", &[]).expect("BIOL resolves");
+        assert!(major::major_has_authored_requirements("CAS", &biol));
         let econ = resolve_major("CAS", "ECON", &[]).expect("ECON resolves");
         assert!(major::major_has_authored_requirements("CAS", &econ));
         let meam = resolve_major("SEAS_MS", "MS_MEAM", &[]).expect("MS_MEAM resolves");
@@ -1730,9 +1742,9 @@ mod catalog {
 
     #[test]
     fn cas_placeholder_majors_are_valid_stubs() {
-        let biol = resolve_major("CAS", "BIOL", &[]).expect("BIOL");
-        assert_eq!(biol.short_name, "BIOL");
-        assert!(biol.concentrations.is_none());
+        let biop = resolve_major("CAS", "BIOP", &[]).expect("BIOP");
+        assert_eq!(biop.short_name, "BIOP");
+        assert!(biop.concentrations.is_none());
     }
 
     #[test]
@@ -3849,27 +3861,23 @@ mod dual_degree_properties {
     #[test]
     fn cas_single_econ_gen_ed_capped_at_twelve_with_unrestricted_electives() {
         use degree_planner::penn_data::college_data::{
-            cas_gened_pool, cas_major_pool_major_cu, create_econ_major, CAS_DEGREE_CU,
+            cas_auto_completed_sectors_for, cas_major_pool_major_cu, cas_open_gen_ed_slot_count,
+            cas_shared_gened_flex_slots, cas_shared_unrestricted_elective_count, create_econ_major,
+            CAS_DEGREE_CU, CAS_UNRESTRICTED_ELECTIVES_CATEGORY,
         };
         use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
 
         let major = create_econ_major();
         let major_cu = cas_major_pool_major_cu(&major);
-        let (pool_idx, _) = cas_gened_pool(&major).expect("gen-ed pool");
-        let gen_ed_flex = match &major.requirements[pool_idx] {
-            degree_planner::requirement::Requirement::CoursePool { flexible_slots, .. } => *flexible_slots,
-            _ => panic!("expected pool"),
-        };
-        let unrestricted: i32 = major
-            .requirements
-            .iter()
-            .filter(|req| req.get_category() == "Unrestricted Electives")
-            .count() as i32;
+        let autos = cas_auto_completed_sectors_for("ECON", None);
+        let open = cas_open_gen_ed_slot_count(&autos);
+        let gen_ed_flex = cas_shared_gened_flex_slots(major_cu, open);
+        let unrestricted = cas_shared_unrestricted_elective_count(major_cu, open);
 
         assert!(gen_ed_flex <= 12, "gen-ed flex should cap at 12, got {gen_ed_flex}");
         assert!(
             unrestricted > 0,
-            "expected unrestricted electives beyond 12 gen-ed slots"
+            "expected unrestricted electives beyond gen-ed slots"
         );
         assert_eq!(
             1 + major_cu + gen_ed_flex + unrestricted,
@@ -3907,6 +3915,18 @@ mod dual_degree_properties {
             gen_ed_slots <= 12,
             "single CAS ECON should schedule at most 12 gen-ed slots, got {gen_ed_slots}"
         );
+        assert_eq!(
+            gen_ed_slots as i32, gen_ed_flex,
+            "scheduled gen-ed flex should match open coverage needs"
+        );
+
+        let unrest_rows = output.degree_results[0]
+            .unfulfilled_requirements
+            .iter()
+            .chain(output.degree_results[0].fulfilled_requirements.iter())
+            .filter(|m| m.requirement.get_category() == CAS_UNRESTRICTED_ELECTIVES_CATEGORY)
+            .count();
+        assert_eq!(unrest_rows as i32, unrestricted);
     }
 
     #[test]
@@ -4140,19 +4160,181 @@ mod dual_degree_properties {
                 pool.flexible_slots_total, pool.flexible_slots_filled
             );
         }
+        let expected_flex = {
+            use degree_planner::penn_data::college_data::{
+                cas_college_auto_completed_sectors, cas_effective_combined_major_cu,
+                cas_open_gen_ed_slot_count, cas_shared_gened_flex_slots,
+            };
+            let econ = resolve_major("CAS", "ECON", &[]).expect("ECON");
+            let cis = resolve_major("CAS", "CIS", &[]).expect("CIS");
+            let majors = vec![&econ, &cis];
+            let combined = cas_effective_combined_major_cu(&majors, 0);
+            let open = cas_open_gen_ed_slot_count(&cas_college_auto_completed_sectors(&majors));
+            cas_shared_gened_flex_slots(combined, open) as usize
+        };
         assert_eq!(
             gen_ed_slots.len(),
-            12,
-            "expected 12 shared gen-ed flex slots on schedule, got {}: {:?}",
+            expected_flex,
+            "expected {expected_flex} shared gen-ed flex slots on schedule, got {}: {:?}",
             gen_ed_slots.len(),
             gen_ed_slots
         );
     }
 
     #[test]
+    fn cas_double_major_major_course_not_absorbed_as_unrestricted() {
+        // CIS listed first → primary for college-wide residual slots. SOCI 1000 fills Society
+        // gen-ed; ECON 0200 must stay on the ECON major and must NOT also fill unrestricted.
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "ECON".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![
+                FrozenCourse {
+                    course_id: "SOCI 1000".into(),
+                    year: 1,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "ECON 0200".into(),
+                    year: 1,
+                    semester: "Spring".into(),
+                },
+            ],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let econ = output
+            .degree_results
+            .iter()
+            .find(|r| r.major == "ECON")
+            .expect("ECON");
+        assert!(
+            econ.fulfilled_requirements.iter().any(|m| {
+                m.requirement.get_category() == "Introductory Economics"
+                    && m.course_ids.iter().any(|c| c == "ECON 0200")
+            }),
+            "ECON 0200 should fulfill Introductory Economics"
+        );
+
+        for dr in &output.degree_results {
+            let unrestricted_econ: Vec<_> = dr
+                .fulfilled_requirements
+                .iter()
+                .filter(|m| {
+                    m.requirement.get_category() == "Unrestricted Electives"
+                        && m.course_ids.iter().any(|c| c == "ECON 0200")
+                })
+                .collect();
+            assert!(
+                unrestricted_econ.is_empty(),
+                "{} {} must not place ECON 0200 in Unrestricted Electives: {:?}",
+                dr.school,
+                dr.major,
+                unrestricted_econ
+                    .iter()
+                    .map(|m| &m.course_ids)
+                    .collect::<Vec<_>>()
+            );
+
+            let flex_econ = dr.fulfilled_requirements.iter().any(|m| {
+                m.instance_id.as_deref().is_some_and(|id| id.contains(":p"))
+                    && m.course_ids.iter().any(|c| c == "ECON 0200")
+            });
+            assert!(
+                !flex_econ,
+                "{} {} must not absorb ECON 0200 into gen-ed flex when it is an ECON major course",
+                dr.school,
+                dr.major
+            );
+        }
+    }
+
+    #[test]
+    fn cas_double_major_fnce_unrestricted_primary_only() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "ECON".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![FrozenCourse {
+                course_id: "FNCE 1010".into(),
+                year: 2,
+                semester: "Fall".into(),
+            }],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let primary = &output.degree_results[0];
+        assert_eq!(primary.major, "CIS");
+        assert!(
+            primary.fulfilled_requirements.iter().any(|m| {
+                m.requirement.get_category() == "Unrestricted Electives"
+                    && m.course_ids.iter().any(|c| c == "FNCE 1010")
+            }),
+            "FNCE 1010 should fulfill primary Unrestricted Electives"
+        );
+
+        let secondary = &output.degree_results[1];
+        assert!(
+            !secondary.fulfilled_requirements.iter().any(|m| {
+                m.course_ids.iter().any(|c| c == "FNCE 1010")
+            }),
+            "secondary CAS major must not also claim FNCE 1010 after college-wide reconcile"
+        );
+
+        let allocs = output
+            .cross_degree_summary
+            .as_ref()
+            .and_then(|s| s.course_allocations.get("FNCE 1010"))
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(
+            allocs.len(),
+            1,
+            "FNCE 1010 should allocate to exactly one degree, got {:?}",
+            allocs
+        );
+        assert_eq!(allocs[0].degree_index, 0);
+        assert_eq!(allocs[0].major, "CIS");
+    }
+
+    #[test]
     fn cas_double_major_unrestricted_computed_from_combined_major_cu() {
         use degree_planner::penn_data::college_data::{
-            cas_effective_combined_major_cu, cas_major_pool_major_cu,
+            cas_college_auto_completed_sectors, cas_effective_combined_major_cu,
+            cas_major_pool_major_cu, cas_open_gen_ed_slot_count, cas_shared_gened_flex_slots,
             cas_shared_unrestricted_elective_count, CAS_DEGREE_CU,
             CAS_UNRESTRICTED_ELECTIVES_CATEGORY,
         };
@@ -4161,8 +4343,9 @@ mod dual_degree_properties {
         let econ = resolve_major("CAS", "ECON", &[]).expect("ECON");
         let cas_majors = vec![&neur, &econ];
         let combined = cas_effective_combined_major_cu(&cas_majors, 0);
-        let shared_unrestricted = cas_shared_unrestricted_elective_count(combined);
-        let gen_ed_flex = college_data::cas_shared_gened_flex_slots(combined);
+        let open = cas_open_gen_ed_slot_count(&cas_college_auto_completed_sectors(&cas_majors));
+        let shared_unrestricted = cas_shared_unrestricted_elective_count(combined, open);
+        let gen_ed_flex = cas_shared_gened_flex_slots(combined, open);
         assert_eq!(
             1 + combined + gen_ed_flex + shared_unrestricted,
             CAS_DEGREE_CU,
@@ -4279,6 +4462,161 @@ mod dual_degree_properties {
                 .iter()
                 .any(|m| requirement_tree_has_writ_department(&m.requirement)),
             "CAS writing should be fulfilled before gen-ed pool absorbs WRIT courses"
+        );
+    }
+
+    #[test]
+    fn cas_writing_course_never_counts_elsewhere() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "ECON".into(),
+                school: "CAS".into(),
+                kind: "major".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![FrozenCourse {
+                course_id: "WRIT 0100".into(),
+                year: 1,
+                semester: "Fall".into(),
+            }],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let dr = &output.degree_results[0];
+        let writ_rows: Vec<_> = dr
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| m.course_ids.iter().any(|c| c == "WRIT 0100"))
+            .collect();
+        assert_eq!(writ_rows.len(), 1, "WRIT should appear on exactly one fulfilled row");
+        assert_eq!(
+            writ_rows[0].instance_id.as_deref(),
+            Some("0"),
+            "WRIT must only fulfill Writing Seminar"
+        );
+        assert!(
+            !dr.fulfilled_requirements.iter().any(|m| {
+                m.instance_id.as_deref() != Some("0")
+                    && m.course_ids.iter().any(|c| c == "WRIT 0100")
+            }),
+            "WRIT must not appear on gen-ed, major, or unrestricted rows"
+        );
+    }
+
+    #[test]
+    fn cas_sector_major_double_count_at_most_one() {
+        use degree_planner::penn_data::attributes_data;
+        use degree_planner::penn_data::college_data::{cas_pool_constraints, SECTOR_SOCIETY};
+        use degree_planner::requirement::evaluate_cas_pool_constraints;
+        use std::collections::HashSet;
+
+        let cu = catalog_cu_map();
+        let attrs = attributes_data::attributes();
+        // Society auto-completed → AUHS / AUPW remain. Both courses carry those attrs.
+        let constraints = cas_pool_constraints(&[SECTOR_SOCIETY.to_string()]);
+        let major_only = vec!["ECON 0620".to_string(), "CHEM 1012".to_string()];
+        let major_set: HashSet<String> = major_only.iter().cloned().collect();
+
+        let evals = evaluate_cas_pool_constraints(
+            &major_only,
+            &major_only,
+            &major_set,
+            &constraints,
+            &attrs,
+            &cu,
+        );
+        let sector_hits: Vec<_> = evals
+            .iter()
+            .filter(|e| e.consumption_group.starts_with("cas:sector") && e.fulfilled)
+            .collect();
+        assert_eq!(
+            sector_hits.len(),
+            1,
+            "at most one major course may double-count toward a sector; got {:?}",
+            sector_hits
+                .iter()
+                .map(|e| (&e.label, &e.course_ids))
+                .collect::<Vec<_>>()
+        );
+
+        // Treated as non-major → both sectors can be covered.
+        let empty_majors = HashSet::new();
+        let both = evaluate_cas_pool_constraints(
+            &major_only,
+            &major_only,
+            &empty_majors,
+            &constraints,
+            &attrs,
+            &cu,
+        );
+        let both_hits = both
+            .iter()
+            .filter(|e| e.consumption_group.starts_with("cas:sector") && e.fulfilled)
+            .count();
+        assert_eq!(
+            both_hits, 2,
+            "without major tagging, both sector courses should count"
+        );
+    }
+
+    #[test]
+    fn orphan_taken_course_absent_from_degree_allocations() {
+        // EE has a single Free Elective. Two non-major courses → one fills it, one is orphan.
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "EE".into(),
+                school: "SEAS".into(),
+                kind: "major".into(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![
+                FrozenCourse {
+                    course_id: "FNCE 1010".into(),
+                    year: 1,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "MKTG 1010".into(),
+                    year: 1,
+                    semester: "Spring".into(),
+                },
+            ],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let dr = &output.degree_results[0];
+        let claimed: std::collections::HashSet<&str> = dr
+            .fulfilled_requirements
+            .iter()
+            .chain(dr.unfulfilled_requirements.iter().filter(|m| m.partial))
+            .flat_map(|m| m.course_ids.iter().map(|c| c.as_str()))
+            .collect();
+        let orphans: Vec<_> = ["FNCE 1010", "MKTG 1010"]
+            .into_iter()
+            .filter(|c| !claimed.contains(*c))
+            .collect();
+        assert_eq!(
+            orphans.len(),
+            1,
+            "exactly one of the two free courses should be unclaimed, got claimed={claimed:?}"
+        );
+        let orphan = orphans[0];
+        let allocs = output
+            .cross_degree_summary
+            .as_ref()
+            .and_then(|s| s.course_allocations.get(orphan))
+            .cloned()
+            .unwrap_or_default();
+        assert!(
+            allocs.is_empty(),
+            "orphan {orphan} must not appear in course_allocations: {:?}",
+            allocs
         );
     }
 
@@ -4740,4 +5078,3 @@ mod property_invariants {
         }
     }
 }
-

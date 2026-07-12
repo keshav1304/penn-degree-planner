@@ -25,7 +25,6 @@ import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
 import { reqRowDomId, parseOverlapGroupSlots, overlapSlotsEqual, resolveOverlapSlotNav, poolConstraintInstanceId, requirementSlotScope } from "@/lib/requirementNav";
 import {
   buildCourseDegreesMapFromAllocations,
-  courseCountsForDegree,
   courseViolationMap,
   filterConcentrationInfoForDegree,
 } from "@/lib/crossDegree";
@@ -478,9 +477,9 @@ export default function Home() {
       ) {
         return;
       }
-      if (isValidCourseCode(courseId)) {
-        if (!courseCountsForDegree(courseId, degreeLabel, courseDegreesMap)) return;
-      }
+      // Trust courses listed on this degree's own mapped requirement. Gating on
+      // courseDegreesMap caused missing arrows when allocations / dual-CAS filtering
+      // diverged from navigable rows (e.g. FNCE 1010 → Unrestricted Electives).
       const category = requirementCategoryForNav(mapped.requirement);
       const instanceId = getRequirementInstanceId(mapped);
       const entry = {
@@ -508,9 +507,6 @@ export default function Home() {
         && !isOverlapScheduleGroupId(targetId)
       ) {
         return;
-      }
-      if (isValidCourseCode(targetId)) {
-        if (!courseCountsForDegree(targetId, degreeLabel, courseDegreesMap)) return;
       }
       const category = normalizeCategory(nav.category);
       const rowLabel = nav.rowLabel || category;

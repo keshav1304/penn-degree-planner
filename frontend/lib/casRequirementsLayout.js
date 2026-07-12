@@ -1,6 +1,7 @@
 import {
     isPoolConstraintInstanceId,
     isPoolFlexibleSlotInstanceId,
+    isValidCourseCode,
 } from "@/lib/courseUtils";
 import { courseCountsForDegree, filterAttributeFulfillmentForDegree } from "@/lib/crossDegree";
 import { formatDegreeDisplay, isMinorProgram, catalogForProgram } from "@/lib/degreeDisplay";
@@ -199,12 +200,20 @@ export function mapRequirementForCasCombined(
     courseDegreesMap,
     { fulfilledDefault, partialDefault },
 ) {
-    const fulfilledCourses = coursesForAnyCasLabel(
-        mapped.course_ids,
-        casIndices,
-        results,
-        courseDegreesMap,
-    );
+    const category = normalizeCategory(getCategory(mapped.requirement));
+    const collegeWide =
+        category === CAS_UNRESTRICTED_HEADING
+        || category === CAS_WRITING_HEADING
+        || category === CAS_GENED_HEADING;
+    // College-wide CAS rows: trust backend course_ids (avoid degMap filter dropping chips/arrows).
+    const fulfilledCourses = collegeWide
+        ? (mapped.course_ids || []).filter(isValidCourseCode)
+        : coursesForAnyCasLabel(
+            mapped.course_ids,
+            casIndices,
+            results,
+            courseDegreesMap,
+        );
     let attributeFulfillment;
     for (const idx of casIndices) {
         const label = degreeLabelFor(results, idx);
@@ -223,7 +232,7 @@ export function mapRequirementForCasCombined(
         || (attributeFulfillment
             && [...attributeFulfillment.values()].some((ids) => ids.length > 0));
     return {
-        category: normalizeCategory(getCategory(mapped.requirement)),
+        category,
         fulfilled: fulfilledDefault && hasAllocatedFulfillment,
         partial: partialDefault && hasAllocatedFulfillment,
         committedAnyofBranch: mapped.committed_anyof_branch ?? null,

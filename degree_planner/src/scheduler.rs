@@ -620,7 +620,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     }
 
     let mut resolved_degrees: Vec<ResolvedDegree> = Vec::new();
-    let mut per_degree_validation: Vec<requirement::DegreeValidationResult> = Vec::new();
+    let mut per_degree_validation: Vec<Option<requirement::DegreeValidationResult>> = Vec::new();
     let mut degree_schools: Vec<String> = Vec::new();
     let mut degree_majors: Vec<String> = Vec::new();
 
@@ -632,20 +632,6 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             resolve_major(&degree.school, &degree.major, &concs)
         };
         if let Some(major_data) = major_data {
-            let mut validation = requirement::validate_courses_for_degree(
-                major_data.requirements.clone(),
-                &courses_for_validation,
-                &cu_map,
-            );
-            for mapped in &mut validation.fulfilled {
-                mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());
-            }
-            validation.fulfilled.retain(|m| !m.course_ids.is_empty());
-            validation
-                .fulfilled
-                .sort_by_key(|r| r.requirement.get_category());
-
-            per_degree_validation.push(validation);
             if !degree.is_minor() {
                 degree_schools.push(degree.school.clone());
                 degree_majors.push(degree.major.clone());
@@ -656,6 +642,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 concs,
                 is_minor: degree.is_minor(),
             });
+            per_degree_validation.push(None);
         } else {
             let label = if degree.is_minor() { "Minor" } else { "Major" };
             degree_results.push(DegreeResult {
@@ -679,6 +666,74 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             });
         }
     }
+
+    // CAS majors: one college-wide assignment (writing → majors → gen-ed → unrestricted).
+    let cas_indices: Vec<usize> = resolved_degrees
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| !r.is_minor && r.input.school == "CAS")
+        .map(|(i, _)| i)
+        .collect();
+    if !cas_indices.is_empty() {
+        let assignment = {
+            let cas_entries: Vec<(usize, &Major)> = cas_indices
+                .iter()
+                .map(|&i| (i, &resolved_degrees[i].major_data))
+                .collect();
+            let concs: Vec<&[String]> = cas_indices
+                .iter()
+                .map(|&i| resolved_degrees[i].concs.as_slice())
+                .collect();
+            crate::requirement::assign_cas_college(
+                &cas_entries,
+                &concs,
+                &courses_for_validation,
+                &cu_map,
+            )
+        };
+        let primary_idx = cas_indices[0];
+        college_data::materialize_cas_college_structure(
+            &mut resolved_degrees[primary_idx].major_data,
+            assignment.primary_flexible_slots,
+            assignment.primary_unrestricted_count,
+            Some(assignment.college_constraints.clone()),
+        );
+        for (degree_idx, mut validation) in assignment.per_degree {
+            for mapped in &mut validation.fulfilled {
+                mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());
+            }
+            validation.fulfilled.retain(|m| !m.course_ids.is_empty());
+            validation
+                .fulfilled
+                .sort_by_key(|r| r.requirement.get_category());
+            per_degree_validation[degree_idx] = Some(validation);
+        }
+    }
+
+    for (degree_idx, resolved) in resolved_degrees.iter().enumerate() {
+        if per_degree_validation[degree_idx].is_some() {
+            continue;
+        }
+        let mut validation = requirement::validate_courses_for_degree(
+            resolved.major_data.requirements.clone(),
+            &courses_for_validation,
+            &cu_map,
+        );
+        for mapped in &mut validation.fulfilled {
+            mapped.course_ids = requirement::filter_valid_course_ids(mapped.course_ids.clone());
+        }
+        validation.fulfilled.retain(|m| !m.course_ids.is_empty());
+        validation
+            .fulfilled
+            .sort_by_key(|r| r.requirement.get_category());
+        per_degree_validation[degree_idx] = Some(validation);
+    }
+
+    let mut per_degree_validation: Vec<requirement::DegreeValidationResult> =
+        per_degree_validation
+            .into_iter()
+            .map(|v| v.expect("every resolved degree has validation"))
+            .collect();
 
     let major_resolved: Vec<&ResolvedDegree> =
         resolved_degrees.iter().filter(|r| !r.is_minor).collect();
@@ -839,12 +894,8 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             .iter()
             .map(|&i| &resolved_degrees[i].major_data)
             .collect();
-        let effective =
-            college_data::cas_effective_combined_major_cu(&cas_majors, cas_major_overlap_savings);
-        Some((
-            cas_indices[0],
-            college_data::cas_shared_unrestricted_elective_count(effective),
-        ))
+        let unrest = college_data::cas_unrestricted_elective_instance_ids(cas_majors[0]).len() as i32;
+        Some((cas_indices[0], unrest.max(0)))
     } else {
         None
     };
@@ -854,8 +905,10 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         let major_data = &resolved.major_data;
         let concs = &resolved.concs;
         let is_minor = resolved.is_minor;
-        per_degree_validation[degree_idx]
-            .refresh_pool_coverage_info(&major_data.requirements, &cu_map);
+        if resolved.input.school != "CAS" || is_minor {
+            per_degree_validation[degree_idx]
+                .refresh_pool_coverage_info(&major_data.requirements, &cu_map);
+        }
         let validation = &mut per_degree_validation[degree_idx];
         validation
             .fulfilled
@@ -1071,18 +1124,25 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 req.collect_category_order(&mut category_order);
             }
 
-            let cas_gen_ed = if !is_minor && degree.school == "CAS" {
+            let cas_gen_ed = if !is_minor && degree.school == "CAS" && !is_secondary_cas_major {
                 pool_coverage
                     .iter()
                     .find(|p| p.category == "General Education")
                     .map(|pool| {
-                        college_data::build_cas_gen_ed_info(
-                            pool,
-                            &college_data::cas_auto_completed_sectors_for(
+                        let auto_sectors = if cas_college_double_major {
+                            let cas_majors: Vec<&Major> = resolved_degrees
+                                .iter()
+                                .filter(|r| !r.is_minor && r.input.school == "CAS")
+                                .map(|r| &r.major_data)
+                                .collect();
+                            college_data::cas_college_auto_completed_sectors(&cas_majors)
+                        } else {
+                            college_data::cas_auto_completed_sectors_for(
                                 &major_data.short_name,
                                 concs.first().map(|s| s.as_str()),
-                            ),
-                        )
+                            )
+                        };
+                        college_data::build_cas_gen_ed_info(pool, &auto_sectors)
                     })
             } else {
                 None

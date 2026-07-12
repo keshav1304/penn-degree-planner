@@ -274,16 +274,21 @@ pub fn cas_degree_remaining_after_major(effective_major_cu: i32) -> i32 {
     (CAS_DEGREE_CU - 1 - effective_major_cu).max(0)
 }
 
-/// Shared gen-ed pool flex placeholders for one CAS college degree.
-pub fn cas_shared_gened_flex_slots(effective_major_cu: i32) -> i32 {
-    cas_degree_remaining_after_major(effective_major_cu)
-        .min(cas_gened_requirement_row_count() as i32)
+/// Gen-ed course slots still needed after major auto-sectors (open FA + remaining sectors).
+pub fn cas_open_gen_ed_slot_count(auto_completed_sectors: &[String]) -> i32 {
+    cas_pool_constraints(auto_completed_sectors).len() as i32
 }
 
-/// Residual unrestricted electives after writing, major(s), and gen-ed pool flex.
-pub fn cas_shared_unrestricted_elective_count(effective_major_cu: i32) -> i32 {
+/// Shared gen-ed pool flex placeholders for one CAS college degree.
+/// Sized to open coverage needs, capped by remaining CU after writing + major(s).
+pub fn cas_shared_gened_flex_slots(effective_major_cu: i32, open_gen_ed_slots: i32) -> i32 {
+    cas_degree_remaining_after_major(effective_major_cu).min(open_gen_ed_slots.max(0))
+}
+
+/// Residual unrestricted electives after writing, major(s), and gen-ed course slots.
+pub fn cas_shared_unrestricted_elective_count(effective_major_cu: i32, open_gen_ed_slots: i32) -> i32 {
     let remaining = cas_degree_remaining_after_major(effective_major_cu);
-    let gen_ed = cas_shared_gened_flex_slots(effective_major_cu);
+    let gen_ed = cas_shared_gened_flex_slots(effective_major_cu, open_gen_ed_slots);
     (remaining - gen_ed).max(0)
 }
 
@@ -348,8 +353,21 @@ pub fn cas_double_major_shared_flexible_slots(
     cas_cross_degree_gened_flex_cap(cas_majors, overlap_cu_savings)
 }
 
+/// Union of auto-completed sector attrs across CAS majors (college-wide gen-ed).
+pub fn cas_college_auto_completed_sectors(cas_majors: &[&Major]) -> Vec<String> {
+    let mut seen = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for major in cas_majors {
+        for attr in cas_auto_completed_sectors_for(&major.short_name, None) {
+            if seen.insert(attr.clone()) {
+                out.push(attr);
+            }
+        }
+    }
+    out
+}
+
 /// Max gen-ed pool flex placeholders on the schedule when CAS is in a cross-degree plan.
-/// FA + sector coverage rows cap at 12; remaining pool capacity is free electives, not gen-ed slots.
 pub fn cas_cross_degree_gened_flex_cap(cas_majors: &[&Major], overlap_cu_savings: i32) -> i32 {
     let gen_ed_rows = cas_gened_requirement_row_count() as i32;
     match cas_majors.len() {
@@ -365,12 +383,20 @@ pub fn cas_cross_degree_gened_flex_cap(cas_majors: &[&Major], overlap_cu_savings
                     }
                 })
                 .unwrap_or(0);
-            pool_flex.min(gen_ed_rows)
+            if pool_flex > 0 {
+                return pool_flex.min(gen_ed_rows);
+            }
+            let autos = cas_auto_completed_sectors_for(&major.short_name, None);
+            let open = cas_open_gen_ed_slot_count(&autos);
+            let effective = cas_major_pool_major_cu(major);
+            cas_shared_gened_flex_slots(effective, open).min(gen_ed_rows)
         }
         _ => {
             let effective =
                 cas_effective_combined_major_cu(cas_majors, overlap_cu_savings);
-            cas_shared_gened_flex_slots(effective).min(gen_ed_rows)
+            let autos = cas_college_auto_completed_sectors(cas_majors);
+            let open = cas_open_gen_ed_slot_count(&autos);
+            cas_shared_gened_flex_slots(effective, open).min(gen_ed_rows)
         }
     }
 }
@@ -526,31 +552,26 @@ fn cas_unrestricted_elective() -> Requirement {
     unrestricted_elective(CAS_UNRESTRICTED_ELECTIVES_CATEGORY)
 }
 
-/// Assemble a full CAS degree using a shared course pool for major + electives + gen-ed coverage.
+/// Assemble a full CAS degree: writing + major/gen-ed pool (no pre-sized flex/unrestricted).
+///
+/// Flexible gen-ed placeholders and unrestricted electives are materialized after assignment
+/// by [`crate::requirement::assign_cas_college`] so residual CU reaches [`CAS_DEGREE_CU`].
 pub fn create_cas_major(config: CasMajorConfig) -> Major {
-    let major_cu: i32 = config.major_requirements.iter().map(requirement_slot_cu).sum();
-    let gen_ed_cap = cas_gened_requirement_row_count() as i32;
-    let total_remaining = (CAS_DEGREE_CU - 1 - major_cu).max(0);
-    let gen_ed_flex = total_remaining.min(gen_ed_cap);
-    let unrestricted_count = total_remaining - gen_ed_flex;
     let auto_completed_sectors = if config.auto_completed_sectors.is_empty() {
         cas_default_auto_completed_sectors(&config.short_name)
     } else {
         config.auto_completed_sectors
     };
 
-    let mut requirements = vec![
+    let requirements = vec![
         cas_writing_requirement(),
         course_pool(
             "General Education",
             config.major_requirements,
-            gen_ed_flex,
+            0, // flex sized after college assignment
             cas_pool_constraints(&auto_completed_sectors),
         ),
     ];
-    for _ in 0..unrestricted_count {
-        requirements.push(cas_unrestricted_elective());
-    }
 
     let mut schedule_hints = config.schedule_hints;
     schedule_hints.insert("0".to_string(), Y1F.into());
@@ -561,6 +582,38 @@ pub fn create_cas_major(config: CasMajorConfig) -> Major {
         requirements,
         schedule_hints,
         concentrations: config.concentrations,
+    }
+}
+
+/// Append gen-ed flex capacity and unrestricted elective slots onto a CAS major after assignment.
+pub fn materialize_cas_college_structure(
+    major: &mut Major,
+    flexible_slots: i32,
+    unrestricted_count: i32,
+    college_constraints: Option<Vec<PoolConstraint>>,
+) {
+    major
+        .requirements
+        .retain(|req| !is_cas_unrestricted_elective_requirement(req));
+    for req in &mut major.requirements {
+        if let Requirement::CoursePool {
+            category,
+            flexible_slots: flex,
+            constraints,
+            ..
+        } = req
+        {
+            if category.as_deref() == Some(CAS_GENED_POOL_CATEGORY) {
+                *flex = flexible_slots.max(0);
+                if let Some(ref c) = college_constraints {
+                    *constraints = c.clone();
+                }
+                break;
+            }
+        }
+    }
+    for _ in 0..unrestricted_count.max(0) {
+        major.requirements.push(cas_unrestricted_elective());
     }
 }
 
@@ -1316,7 +1369,7 @@ fn cis_major_requirements() -> Vec<Requirement> {
             ],
         ),
         any_of(
-            "CIS Elective >= 2000",
+            "CIS Elective",
             vec![
                 restriction(1)
                     .departments(&["CIS", "NETS"])
@@ -1827,6 +1880,218 @@ fn neur_major_requirements() -> Vec<Requirement> {
             .attr(&["ABBE", "ABBM"])
             .into(),
     ]
+}
+
+const BIOL_LPS_EXCLUDED: &[&str] = &[
+    "BIOL 2001",
+    "BIOL 2201",
+    "BIOL 2301",
+    "BIOL 2701",
+    "BIOL 2801",
+    "BIOL 3004",
+    "BIOL 3006",
+    "BIOL 3313",
+];
+
+const BIOL_ALLIED_SCIENCES: &[&str] = &[
+    "CHEM 1011",
+    "CHEM 1021",
+    "CHEM 1012",
+    "CHEM 1022",
+    "CHEM 1101",
+    "CHEM 1102",
+    "PHYS 0101",
+    "PHYS 0102",
+    "PHYS 0150",
+    "PHYS 0151",
+    "MATH 1300",
+    "MATH 1400",
+    "MATH 1410",
+    "BIOL 2510",
+    "STAT 1110",
+    "STAT 1020",
+    "CIS 1200",
+    "CIS 1600",
+];
+
+const BIOL_INTERMEDIATE_GROUP_1: &[&str] = &[
+    "BIOL 2010",
+    "BIOL 2110",
+    "BIOL 2210",
+    "BIOL 2810",
+    "CHEM 2510",
+];
+
+const BIOL_INTERMEDIATE_GROUP_2: &[&str] = &[
+    "BIOL 2140",
+    "BIOL 3310",
+    "BIOL 2311",
+    "BIOL 2410",
+    "BIOL 2610",
+];
+
+const BIOL_RELATED_ATTRS: &[&str] = &[
+    "ABB2", "ABXD", "ABAM", "ABCM", "ABAN", "ABCB", "ABEE", "ABGD", "ABGG", "ABMD", "ABMI",
+    "ABMC",
+];
+
+fn biol_elective_or_related() -> Requirement {
+    any_of(
+        "Additional Biology",
+        vec![
+            restriction(1)
+                .departments(&["BIOL"])
+                .level(2000)
+                .max_level(5999)
+                .excluding(BIOL_LPS_EXCLUDED)
+                .into(),
+            restriction(1).attr(BIOL_RELATED_ATTRS).into(),
+        ],
+    )
+}
+
+fn biol_major_requirements() -> Vec<Requirement> {
+    let mut requirements = vec![
+        any_of(
+            "Introductory Biology",
+            vec![
+                all_of(
+                    None,
+                    vec![code(&["BIOL 1101"]), code(&["BIOL 1102"])],
+                ),
+                all_of(
+                    None,
+                    vec![
+                        code(&["BIOL 1121"]),
+                        code(&["BIOL 1123"]),
+                        code(&["BIOL 1124"]),
+                        restriction(1)
+                            .departments(&["BIOL"])
+                            .level(2000)
+                            .max_level(5999)
+                            .excluding(BIOL_LPS_EXCLUDED)
+                            .into(),
+                    ],
+                ),
+            ],
+        ),
+    ];
+    requirements.extend(repeat_req(
+        &single(
+            "Physical Sciences, Calculus, Statistics, and Computer Science",
+            BIOL_ALLIED_SCIENCES,
+        ),
+        4,
+    ));
+    requirements.extend(repeat_req(
+        &single("Intermediate Biology (Group 1)", BIOL_INTERMEDIATE_GROUP_1),
+        2,
+    ));
+    requirements.extend(repeat_req(
+        &single("Intermediate Biology (Group 2)", BIOL_INTERMEDIATE_GROUP_2),
+        2,
+    ));
+    requirements.extend(repeat_req(&biol_elective_or_related(), 6));
+    requirements
+}
+
+fn bioc_major_requirements() -> Vec<Requirement> {
+    vec![
+        single("Mathematics", &["MATH 1400", "MATH 1610", "MATH 2200"]),
+        single("Mathematics", &["MATH 1410", "MATH 2300", "MATH 3000"]),
+        single("General Chemistry", &["CHEM 1012", "CHEM 1151", "CHEM 1011"]),
+        single("General Chemistry", &["CHEM 1022", "CHEM 1161", "CHEM 1021"]),
+        all_of(
+            Some("General Chemistry Laboratories".to_string()),
+            vec![code(&["CHEM 1101"]), code(&["CHEM 1102"])],
+        ),
+        single("Organic Chemistry with Laboratories", &["CHEM 2411"]),
+        single("Organic Chemistry with Laboratories", &["CHEM 2421"]),
+        single("Physical Chemistry", &["CHEM 2210"]),
+        single("Physical Chemistry", &["CHEM 2220"]),
+        single("Biological Chemistry", &["CHEM 2510"]),
+        single("Biological Chemistry", &["CHEM 5510"]),
+        single("Biological Chemistry", &["CHEM 5520"]),
+        single("Physics", &["PHYS 0150", "PHYS 0170"]),
+        single("Physics", &["PHYS 0151", "PHYS 0171"]),
+        // BCHE 4597 is 2 CU across year 4 (fall + spring).
+        single("Research", &["BCHE 4597"]),
+        single("Research", &["BCHE 4597"]),
+    ]
+}
+
+pub fn create_bioc_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("MATH 1400".to_string(), Y1F.into()),
+        ("MATH 1610".to_string(), Y1F.into()),
+        ("MATH 2200".to_string(), Y1F.into()),
+        ("MATH 1410".to_string(), Y1S.into()),
+        ("MATH 2300".to_string(), Y1S.into()),
+        ("MATH 3000".to_string(), Y1S.into()),
+        ("CHEM 1011".to_string(), Y1F.into()),
+        ("CHEM 1012".to_string(), Y1F.into()),
+        ("CHEM 1151".to_string(), Y1F.into()),
+        ("CHEM 1021".to_string(), Y1S.into()),
+        ("CHEM 1022".to_string(), Y1S.into()),
+        ("CHEM 1161".to_string(), Y1S.into()),
+        ("CHEM 1101".to_string(), Y1F.into()),
+        ("CHEM 1102".to_string(), Y1S.into()),
+        ("CHEM 2411".to_string(), Y2F.into()),
+        ("CHEM 2421".to_string(), Y2S.into()),
+        ("CHEM 2510".to_string(), Y2S.into()),
+        ("PHYS 0150".to_string(), Y2F.into()),
+        ("PHYS 0170".to_string(), Y2F.into()),
+        ("PHYS 0151".to_string(), Y2S.into()),
+        ("PHYS 0171".to_string(), Y2S.into()),
+        ("CHEM 2210".to_string(), Y3F.into()),
+        ("CHEM 2220".to_string(), Y3S.into()),
+        ("CHEM 5510".to_string(), Y3F.into()),
+        ("CHEM 5520".to_string(), Y3S.into()),
+        ("BCHE 4597".to_string(), Y4F.into()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "BIOC".to_string(),
+        name: "Biochemistry".to_string(),
+        major_requirements: bioc_major_requirements(),
+        auto_completed_sectors: vec![],
+        concentrations: None,
+        schedule_hints,
+    })
+}
+
+pub fn create_biol_major() -> Major {
+    let schedule_hints = HashMap::from([
+        ("BIOL 1101".to_string(), Y1F.into()),
+        ("BIOL 1102".to_string(), Y1S.into()),
+        ("BIOL 1121".to_string(), Y1F.into()),
+        ("BIOL 1123".to_string(), Y1S.into()),
+        ("BIOL 1124".to_string(), Y1S.into()),
+        ("CHEM 1011".to_string(), Y1F.into()),
+        ("CHEM 1012".to_string(), Y1F.into()),
+        ("CHEM 1021".to_string(), Y1S.into()),
+        ("CHEM 1022".to_string(), Y1S.into()),
+        ("CHEM 1101".to_string(), Y1F.into()),
+        ("CHEM 1102".to_string(), Y1S.into()),
+        ("MATH 1400".to_string(), Y1F.into()),
+        ("MATH 1410".to_string(), Y1S.into()),
+        ("PHYS 0150".to_string(), Y2F.into()),
+        ("PHYS 0151".to_string(), Y2S.into()),
+        ("BIOL 2010".to_string(), Y2F.into()),
+        ("BIOL 2210".to_string(), Y2F.into()),
+        ("BIOL 2810".to_string(), Y2S.into()),
+        ("CHEM 2510".to_string(), Y2S.into()),
+        ("BIOL 2410".to_string(), Y2S.into()),
+        ("BIOL 2610".to_string(), Y3F.into()),
+        ("BIOL 2510".to_string(), Y2S.into()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "BIOL".to_string(),
+        name: "Biology".to_string(),
+        major_requirements: biol_major_requirements(),
+        auto_completed_sectors: vec![],
+        concentrations: None,
+        schedule_hints,
+    })
 }
 
 fn chem_major_requirements() -> Vec<Requirement> {

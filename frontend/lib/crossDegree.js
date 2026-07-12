@@ -95,11 +95,31 @@ function labelForAllocation(alloc, degreeResults) {
 
 function buildCourseMapFromDegreeResults(degreeResults = []) {
     const degMap = {};
+    const casDegreeLabels = casDegreeLabelsFromResults(degreeResults);
+    const isDualCasCollege = casDegreeLabels.length >= 2;
+
     degreeResults.forEach((result) => {
         const degreeLabel = labelForDegreeResult(result);
         const addCourses = (mapped) => {
+            const category = mapped?.requirement
+                ? (mapped.requirement.category
+                    || mapped.requirement.Restriction?.category
+                    || mapped.requirement.SingleCourse?.category
+                    || mapped.requirement.CoursePool?.category
+                    || "")
+                : "";
+            const collegeWide =
+                isDualCasCollege
+                && (category === "Unrestricted Electives"
+                    || category === "Writing Seminar"
+                    || category === "General Education");
             mapped.course_ids?.forEach((id) => {
-                if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
+                if (!isValidCourseCode(id)) return;
+                if (collegeWide) {
+                    casDegreeLabels.forEach((label) => addCourseToDegreeMap(degMap, id, label));
+                } else {
+                    addCourseToDegreeMap(degMap, id, degreeLabel);
+                }
             });
         };
         result.fulfilled_requirements?.forEach(addCourses);
@@ -107,10 +127,17 @@ function buildCourseMapFromDegreeResults(degreeResults = []) {
         result.unfulfilled_requirements?.forEach((mapped) => {
             if (mapped.partial) addCourses(mapped);
         });
-        result.concentration_info?.forEach((ci) => {
-            if (ci.is_core) return;
-            (ci.matched_courses || []).flat().forEach((id) => {
-                if (isValidCourseCode(id)) addCourseToDegreeMap(degMap, id, degreeLabel);
+        // Pool coverage matches are navigable (same source as req-nav arrows).
+        (result.pool_coverage_info || []).forEach((pool) => {
+            (pool.constraints || []).forEach((constraint) => {
+                (constraint.matched_courses || []).forEach((id) => {
+                    if (!isValidCourseCode(id)) return;
+                    if (isDualCasCollege && (pool.category === "General Education")) {
+                        casDegreeLabels.forEach((label) => addCourseToDegreeMap(degMap, id, label));
+                    } else {
+                        addCourseToDegreeMap(degMap, id, degreeLabel);
+                    }
+                });
             });
         });
     });
@@ -131,23 +158,29 @@ function ensureFulfillmentLabels(degMap, degreeResults = []) {
         result.unfulfilled_requirements?.forEach((mapped) => {
             if (mapped.partial) processMapped(mapped);
         });
-        result.concentration_info?.forEach((ci) => {
-            if (ci.is_core) return;
-            (ci.matched_courses || []).flat().forEach(addCourse);
+        (result.pool_coverage_info || []).forEach((pool) => {
+            (pool.constraints || []).forEach((constraint) => {
+                (constraint.matched_courses || []).forEach(addCourse);
+            });
         });
     });
 }
 
 export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
-    // Always seed from degree_results (fulfilled + suggested). Required for multi-degree
-    // plans without the cross-degree overlap optimizer (e.g. undergrad + SEAS_MS), where
-    // course_allocations only lists fulfilled/taken courses—not scheduler suggestions.
+    // Seed from navigable requirement rows only (fulfilled / partial / suggested / pool matches).
+    // This keeps schedule stripes aligned with req-nav arrows. Courses that fulfill nothing
+    // never enter the map and therefore get no degree stripes.
     const degMap = buildCourseMapFromDegreeResults(degreeResults);
+    const casDegreeLabels = casDegreeLabelsFromResults(degreeResults);
+    const isDualCasCollege = casDegreeLabels.length >= 2;
 
-    // Authoritative for shared / resolved courses when the backend tracked allocations.
+    // Merge backend allocations (shared / conflict-resolved ownership).
     if (summary?.course_allocations) {
         Object.entries(summary.course_allocations).forEach(([courseId, allocs]) => {
             if (!isValidCourseCode(courseId)) return;
+            // Only merge labels for courses already navigable from requirement rows,
+            // so allocation-only orphans cannot invent stripes.
+            if (!degMap[courseId]?.length) return;
             const allocLabels = [];
             allocs.forEach((alloc) => {
                 const label = labelForAllocation(alloc, degreeResults);
@@ -163,8 +196,6 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
     }
 
     // Requirement slots are placeholders, not in cross_degree allocations.
-    const casDegreeLabels = casDegreeLabelsFromResults(degreeResults);
-    const isDualCasCollege = casDegreeLabels.length >= 2;
     degreeResults.forEach((result) => {
         const degreeLabel = `${result.school}-${result.major}`;
         const addSlots = (mapped) => {
