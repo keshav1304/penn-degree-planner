@@ -4267,6 +4267,70 @@ mod dual_degree_properties {
     }
 
     #[test]
+    fn cas_cis_no_within_major_double_count_of_core_as_elective() {
+        // CIS 1600 fulfills Core; the CIS Elective restriction must not reclaim it.
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![
+                DegreeInput {
+                    major: "CIS".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+                DegreeInput {
+                    major: "ECON".into(),
+                    school: "CAS".into(),
+                    kind: "major".into(),
+                    concentrations: vec![],
+                    concentration: None,
+                },
+            ],
+            frozen: vec![FrozenCourse {
+                course_id: "CIS 1600".into(),
+                year: 1,
+                semester: "Fall".into(),
+            }],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+
+        let cis = output
+            .degree_results
+            .iter()
+            .find(|r| r.major == "CIS")
+            .expect("CIS");
+        let cis1600_rows: Vec<_> = cis
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| m.course_ids.iter().any(|c| c == "CIS 1600"))
+            .collect();
+        assert_eq!(
+            cis1600_rows.len(),
+            1,
+            "CIS 1600 must fulfill exactly one CIS major slot, got {:?}",
+            cis1600_rows
+                .iter()
+                .map(|m| (m.requirement.get_category(), &m.instance_id, &m.course_ids))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            cis1600_rows[0].requirement.get_category(),
+            "Core Courses",
+            "CIS 1600 should count as Core, not CIS Elective"
+        );
+        assert!(
+            !cis.fulfilled_requirements.iter().any(|m| {
+                m.requirement.get_category() == "CIS Elective"
+                    && m.course_ids.iter().any(|c| c == "CIS 1600")
+            }),
+            "CIS 1600 must not also fulfill CIS Elective"
+        );
+    }
+
+    #[test]
     fn cas_double_major_fnce_unrestricted_primary_only() {
         let output = generate_schedule(ScheduleInput {
             taken: vec![],

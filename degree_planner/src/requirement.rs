@@ -3752,9 +3752,15 @@ pub fn assign_cas_college(
                 continue;
             }
 
-            let shared_vec: Vec<String> = shared_major_courses.iter().cloned().collect();
+            // Cross-major overlap only: a course already claimed by *this* major must not
+            // fill another of its slots (no within-major double-counting in CAS).
+            let other_majors: Vec<String> = shared_major_courses
+                .iter()
+                .filter(|c| !per_major_course_sets[mi].contains(*c))
+                .cloned()
+                .collect();
             if let Some(courses) =
-                fulfill_from_available(&slot_req, &shared_vec, &attributes, cu_map)
+                fulfill_from_available(&slot_req, &other_majors, &attributes, cu_map)
             {
                 for c in &courses {
                     per_major_course_sets[mi].insert(c.clone());
