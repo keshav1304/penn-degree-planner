@@ -76,7 +76,6 @@ export default function Home() {
   const [exporting, setExporting] = useState(false);
   const debounceRef = useRef(null);
   const scheduleRequestId = useRef(0);
-  const scheduleGridRef = useRef(null);
   const exportMenuRef = useRef(null);
 
   // Require 8px movement before starting drag (so clicks still work)
@@ -663,7 +662,19 @@ export default function Home() {
     setExportOpen(false);
     setExporting(true);
     try {
-      await exportScheduleJpeg(scheduleGridRef.current);
+      await exportScheduleJpeg({
+        scheduleData,
+        frozenCourses,
+        assignedCourses,
+        allowSummer,
+        degrees,
+        semesterCuLimits,
+        courseCuMap,
+        requirementSlotLabels,
+        degreeCatalog,
+        minorCatalog,
+        concentrationData,
+      });
     } catch (err) {
       console.error("JPEG export failed", err);
       window.alert("Could not export schedule image. Try again.");
@@ -812,7 +823,6 @@ export default function Home() {
             </div>
             <div className="panel-body">
               <ScheduleGrid
-                ref={scheduleGridRef}
                 scheduleData={scheduleData}
                 requirementSlotLabels={requirementSlotLabels}
                 frozenCourses={frozenCourses}

@@ -110,7 +110,7 @@ function writeScheduleCenter(sheet, startCol, startRow, ctx) {
 
   sheet.mergeCells(r, startCol, r, startCol + scheduleWidth - 1);
   const title = sheet.getCell(r, startCol);
-  title.value = "COURSE PLANNING";
+  title.value = "Schedule";
   title.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
   title.fill = solidFill(FILL_HEADER);
   title.alignment = { horizontal: "center" };
@@ -119,12 +119,6 @@ function writeScheduleCenter(sheet, startCol, startRow, ctx) {
   sheet.mergeCells(r, startCol, r, startCol + scheduleWidth - 1);
   sheet.getCell(r, startCol).value = degreeLabels.join(" · ") || "Degree plan";
   sheet.getCell(r, startCol).font = { size: 9, italic: true };
-  r += 1;
-
-  sheet.mergeCells(r, startCol, r, startCol + scheduleWidth - 1);
-  sheet.getCell(r, startCol).value =
-    "Planning aid only — verify CUs and requirements with your advisors.";
-  sheet.getCell(r, startCol).font = { size: 8, color: { argb: "FF666666" } };
   r += 1;
 
   // Credits received
