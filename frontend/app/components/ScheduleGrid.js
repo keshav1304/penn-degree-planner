@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
-import { isValidCourseCode, isRequirementSlotId, isSchedulableRequirementSlotId, isOverlapScheduleGroupId } from "@/lib/courseUtils";
-import { resolveSemesterCuLimit } from "@/lib/semesterOptions";
+import { isValidCourseCode, isOverlapScheduleGroupId } from "@/lib/courseUtils";
+import { buildScheduleDisplay } from "@/lib/scheduleDisplay";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
 import { formatDegreeApiLabel, catalogForProgram } from "@/lib/degreeDisplay";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
@@ -12,7 +12,7 @@ import { formatOverlapMemberLabel } from "@/lib/requirementText";
 
 const YEAR_NAMES = {};
 
-export default function ScheduleGrid({
+const ScheduleGrid = forwardRef(function ScheduleGrid({
     scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementLinks,
@@ -23,11 +23,9 @@ export default function ScheduleGrid({
     degreeCatalog = [],
     minorCatalog = [],
     semesterCuLimits, onSemesterCuLimitChange,
-}) {
+}, ref) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [reqNavCycle, setReqNavCycle] = useState({});
-
-    const getCu = (courseId) => courseCuMap[courseId] ?? 1.0;
 
     if (!degrees || degrees.length === 0) {
         return (
@@ -47,120 +45,30 @@ export default function ScheduleGrid({
         );
     }
 
-    // Derive years from API schedule and user-pinned placements
-    const pinnedYears = [
-        ...frozenCourses.map((f) => f.year),
-        ...(assignedCourses || []).filter((a) => a.year > 0).map((a) => a.year),
-    ];
-    const uniqueYears = [...new Set([
-        ...scheduleData.schedule.map((s) => s.year),
-        ...pinnedYears,
-    ])].filter((y) => y > 0).sort((a, b) => a - b);
-    const semOrder = ["Fall", "Spring", "Summer"];
-
-    const getSemesterPlan = (year, semester) => {
-        return scheduleData.schedule.find(
-            s => s.year === year && s.semester === semester
-        );
-    };
-
-    // User-pinned items win over API auto-placement (including Credits Received)
-    const pinnedIds = new Set([
-        ...frozenCourses.map((f) => f.courseId),
-        ...(assignedCourses || []).map((a) => a.courseId),
-    ]);
-
-    const getDisplayCourses = (year, semester) => {
-        const plan = getSemesterPlan(year, semester);
-        const apiCourses = (plan?.courses || []).filter((id) => !pinnedIds.has(id) && isValidCourseCode(id));
-        const pinnedHere = [
-            ...frozenCourses.filter((f) => f.year === year && f.semester === semester).map((f) => f.courseId),
-            ...(assignedCourses || [])
-                .filter((a) => a.year === year && a.semester === semester)
-                .map((a) => a.courseId),
-        ];
-        return [...new Set([...pinnedHere, ...apiCourses])].filter(isValidCourseCode);
-    };
-
-    const overlapScheduleGroups = scheduleData?.overlap_schedule_groups ?? [];
-    const overlapGroupById = Object.fromEntries(
-        overlapScheduleGroups.map((g) => [g.group_id, g]),
-    );
-    const overlapMemberSlotIds = new Set(
-        overlapScheduleGroups.flatMap((g) =>
-            g.members.map((m) => m.schedule_slot_id).filter(isRequirementSlotId),
-        ),
-    );
-
-    const getDisplayOverlapGroups = (year, semester) => {
-        const plan = getSemesterPlan(year, semester);
-        const apiGroups = (plan?.requirement_slots || []).filter(
-            (id) => isOverlapScheduleGroupId(id) && !pinnedIds.has(id),
-        );
-        const pinnedHere = frozenCourses
-            .filter(
-                (f) =>
-                    f.year === year
-                    && f.semester === semester
-                    && isOverlapScheduleGroupId(f.courseId),
-            )
-            .map((f) => f.courseId);
-        return [...new Set([...pinnedHere, ...apiGroups])];
-    };
-
-    // Requirement slots still open (unfulfilled) — hide once a frozen/taken course satisfies them
-    const openRequirementSlotIds = new Set();
-    scheduleData?.degree_results?.forEach((result) => {
-        result.suggested_for_unfulfilled?.forEach((mapped) => {
-            mapped.course_ids?.forEach((id) => {
-                if (isSchedulableRequirementSlotId(id)) openRequirementSlotIds.add(id);
-            });
-        });
+    const display = buildScheduleDisplay({
+        scheduleData,
+        frozenCourses,
+        assignedCourses,
+        allowSummer,
+        degrees,
+        semesterCuLimits,
+        courseCuMap,
+        requirementSlotLabels,
     });
 
-    const getDisplayRequirementSlots = (year, semester) => {
-        const plan = getSemesterPlan(year, semester);
-        const apiSlots = (plan?.requirement_slots || []).filter(
-            (id) => !pinnedIds.has(id) && openRequirementSlotIds.has(id)
-        );
-        const pinnedHere = [
-            ...frozenCourses
-                .filter(
-                    (f) =>
-                        f.year === year
-                        && f.semester === semester
-                        && isSchedulableRequirementSlotId(f.courseId)
-                        && openRequirementSlotIds.has(f.courseId)
-                )
-                .map((f) => f.courseId),
-        ];
-        return [...new Set([...pinnedHere, ...apiSlots])]
-            .filter(isSchedulableRequirementSlotId)
-            .filter((id) => !isOverlapScheduleGroupId(id))
-            .filter((id) => !overlapMemberSlotIds.has(id));
-    };
-
-    const semesterHasContent = (year, semester) => (
-        getDisplayCourses(year, semester).length > 0
-        || getDisplayOverlapGroups(year, semester).length > 0
-        || getDisplayRequirementSlots(year, semester).length > 0
-    );
-
-    // Years 1–4 always show as drop targets; year 5+ only when a term has content
-    const visibleYears = uniqueYears.filter((year) => {
-        if (year <= 4) return true;
-        return semOrder.some((sem) => {
-            if (sem === "Summer" && !allowSummer) return false;
-            return semesterHasContent(year, sem);
-        });
-    });
-
-    const visibleSemesters = semOrder.filter((s) => s !== "Summer" || allowSummer);
-
-    const getSlotLabel = (slotId) => requirementSlotLabels[slotId] || "Open requirement";
-
-    const isFrozen = (courseId) => frozenCourses.some(f => f.courseId === courseId);
-    const isAssigned = (courseId) => assignedCourses?.some(a => a.courseId === courseId);
+    const {
+        visibleYears,
+        visibleSemesters,
+        getDisplayCourses,
+        getDisplayOverlapGroups,
+        getDisplayRequirementSlots,
+        getSlotLabel,
+        getCu,
+        overlapGroupById,
+        creditsCourses,
+        isFrozen,
+        isAssigned,
+    } = display;
 
     const degreeColorMap = buildDegreeColorMap(scheduleData);
     const degreeDisplayLabels = {};
@@ -180,8 +88,6 @@ export default function ScheduleGrid({
     const sortSemesterCourses = (courseIds) =>
         sortCourseCodesByDegree(courseIds, degreeOrder, courseDegreesMap);
 
-    // Courses assigned to "Credits Received" (year 0)
-    const creditsCourses = assignedCourses?.filter(a => a.year === 0) || [];
     const sortedCreditsCourses = (() => {
         const ids = sortSemesterCourses(creditsCourses.map((a) => a.courseId));
         const byId = new Map(creditsCourses.map((a) => [a.courseId, a]));
@@ -334,7 +240,7 @@ export default function ScheduleGrid({
                             })}
                         </div>
                         <span className="course-card-actions">
-                            {renderReqNavButton(groupId)}
+                            <span className="export-hide">{renderReqNavButton(groupId)}</span>
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>
@@ -368,7 +274,7 @@ export default function ScheduleGrid({
                     >
                         <span className="schedule-requirement-label">{slotLabel}</span>
                         <span className="course-card-actions">
-                            {renderReqNavButton(slotId)}
+                            <span className="export-hide">{renderReqNavButton(slotId)}</span>
                             <span className="course-cu-label">1.0 CU</span>
                         </span>
                     </div>
@@ -423,7 +329,7 @@ export default function ScheduleGrid({
                         <span>{courseId}</span>
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
-                            {renderReqNavButton(courseId)}
+                            <span className="export-hide">{renderReqNavButton(courseId)}</span>
                             <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
                         </span>
                     </div>
@@ -433,7 +339,10 @@ export default function ScheduleGrid({
     };
 
     return (
-        <div className="schedule-container">
+        <div
+            ref={ref}
+            className={`schedule-container${creditsCollapsed ? " credits-collapsed" : ""}`}
+        >
             {/* Credits Received section — collapsible */}
             <div className="credits-received-row fade-in">
                 <div
@@ -441,7 +350,7 @@ export default function ScheduleGrid({
                     onClick={() => setCreditsCollapsed(prev => !prev)}
                     style={{ cursor: "pointer", userSelect: "none", display: "flex", alignItems: "center", gap: 6 }}
                 >
-                    <span style={{
+                    <span className="credits-collapse-chevron export-hide" style={{
                         display: "inline-block",
                         transition: "transform 0.2s ease",
                         transform: creditsCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
@@ -454,7 +363,7 @@ export default function ScheduleGrid({
                         </span>
                     )}
                 </div>
-                {!creditsCollapsed && (
+                <div className="credits-received-body-wrap">
                     <DroppableSemester id="slot-0-Credits" year={0} semester="Credits" style={{ minHeight: "50px" }}>
                         <div className="credits-received-body">
                             {creditsCourses.length > 0 ? (
@@ -471,7 +380,7 @@ export default function ScheduleGrid({
                                                     <span>{a.courseId}</span>
                                     <span className="course-card-actions">
                                         {renderConcBadges(a.courseId)}
-                                        {renderReqNavButton(a.courseId)}
+                                        <span className="export-hide">{renderReqNavButton(a.courseId)}</span>
                                     </span>
                                                 </div>
                                             </div>
@@ -479,13 +388,13 @@ export default function ScheduleGrid({
                                     ))}
                                 </div>
                             ) : (
-                                <div className="drop-hint">
+                                <div className="drop-hint export-hide">
                                     Assign AP/transfer credits from My Courses, or drag here
                                 </div>
                             )}
                         </div>
                     </DroppableSemester>
-                )}
+                </div>
             </div>
 
             {/* Column headers */}
@@ -513,7 +422,6 @@ export default function ScheduleGrid({
                 <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `48px repeat(${visibleSemesters.length}, 1fr)` }}>
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
                     {visibleSemesters.map(sem => {
-                        const plan = getSemesterPlan(year, sem);
                         const courses = sortSemesterCourses(getDisplayCourses(year, sem));
                         const overlapGroups = getDisplayOverlapGroups(year, sem);
                         const requirementSlots = getDisplayRequirementSlots(year, sem);
@@ -532,20 +440,11 @@ export default function ScheduleGrid({
                                 {overlapGroups.map((groupId, idx) => renderOverlapGroupCard(groupId, year, sem, idx))}
                                 {requirementSlots.map((slotId, idx) => renderRequirementSlotCard(slotId, year, sem, idx))}
                                 {itemCount === 0 && (
-                                    <div className="drop-hint">Drop courses here</div>
+                                    <div className="drop-hint export-hide">Drop courses here</div>
                                 )}
                                 {(() => {
                                     const semKey = `${year}-${sem}`;
-                                    const slotCu = (id) => (
-                                        isOverlapScheduleGroupId(id) || isRequirementSlotId(id)
-                                            ? 1.0
-                                            : getCu(id)
-                                    );
-                                    const actualCu =
-                                        courses.reduce((s, c) => s + getCu(c), 0)
-                                        + overlapGroups.reduce((s, id) => s + slotCu(id), 0)
-                                        + requirementSlots.reduce((s, id) => s + slotCu(id), 0);
-                                    const limitValue = resolveSemesterCuLimit(sem, year, degrees, semesterCuLimits);
+                                    const { actualCu, limitCu: limitValue } = display.getSemesterItems(year, sem);
                                     const overLimit = actualCu > limitValue + 0.001;
                                     return (
                                         <div className={`semester-cu-total${overLimit ? " semester-cu-over" : ""}`}>
@@ -563,8 +462,9 @@ export default function ScheduleGrid({
                                                         onSemesterCuLimitChange(semKey, val);
                                                     }
                                                 }}
-                                                className="semester-cu-input"
+                                                className="semester-cu-input export-hide"
                                             />
+                                            <span className="semester-cu-limit-export" aria-hidden="true">{limitValue}</span>
                                             <span>CU</span>
                                         </div>
                                     );
@@ -639,4 +539,6 @@ export default function ScheduleGrid({
             )}
         </div>
     );
-}
+});
+
+export default ScheduleGrid;

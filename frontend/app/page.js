@@ -28,6 +28,8 @@ import {
   courseViolationMap,
   filterConcentrationInfoForDegree,
 } from "@/lib/crossDegree";
+import { exportScheduleJpeg } from "@/lib/exportScheduleImage";
+import { exportScheduleExcel } from "@/lib/exportScheduleExcel";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -70,8 +72,12 @@ export default function Home() {
   const [requirementsOpen, setRequirementsOpen] = useState(true);
   const [allowSummer, setAllowSummer] = useState(false);
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const debounceRef = useRef(null);
   const scheduleRequestId = useRef(0);
+  const scheduleGridRef = useRef(null);
+  const exportMenuRef = useRef(null);
 
   // Require 8px movement before starting drag (so clicks still work)
   const sensors = useSensors(
@@ -632,6 +638,67 @@ export default function Home() {
     return { concentrationData: concList, courseConcentrationMap: concCourseMap };
   }, [scheduleData, courseDegreesMap]);
 
+  const canExport = Boolean(scheduleData?.schedule?.length);
+
+  useEffect(() => {
+    if (!exportOpen) return undefined;
+    const onPointerDown = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setExportOpen(false);
+      }
+    };
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setExportOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [exportOpen]);
+
+  const handleExportJpeg = async () => {
+    if (!canExport || exporting) return;
+    setExportOpen(false);
+    setExporting(true);
+    try {
+      await exportScheduleJpeg(scheduleGridRef.current);
+    } catch (err) {
+      console.error("JPEG export failed", err);
+      window.alert("Could not export schedule image. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!canExport || exporting) return;
+    setExportOpen(false);
+    setExporting(true);
+    try {
+      await exportScheduleExcel({
+        scheduleData,
+        frozenCourses,
+        assignedCourses,
+        allowSummer,
+        degrees,
+        semesterCuLimits,
+        courseCuMap,
+        requirementSlotLabels,
+        degreeCatalog,
+        minorCatalog,
+        courseDegreesMap,
+        concentrationData,
+      });
+    } catch (err) {
+      console.error("Excel export failed", err);
+      window.alert("Could not export Excel workbook. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -709,10 +776,43 @@ export default function Home() {
                     {assignedCourses.length} placed · {frozenCourses.length} frozen
                   </span>
                 )}
+                <div className="export-menu" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={!canExport || exporting}
+                    aria-expanded={exportOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setExportOpen((open) => !open)}
+                  >
+                    {exporting ? "Exporting…" : "Export ▾"}
+                  </button>
+                  {exportOpen && (
+                    <div className="export-menu-dropdown" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="export-menu-item"
+                        onClick={handleExportJpeg}
+                      >
+                        Export as JPEG
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="export-menu-item"
+                        onClick={handleExportExcel}
+                      >
+                        Export as Excel
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="panel-body">
               <ScheduleGrid
+                ref={scheduleGridRef}
                 scheduleData={scheduleData}
                 requirementSlotLabels={requirementSlotLabels}
                 frozenCourses={frozenCourses}
