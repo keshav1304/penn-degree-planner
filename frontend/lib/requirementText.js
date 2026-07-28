@@ -80,7 +80,7 @@ export function formatScheduleLevelClause(level, maxLevel) {
   if (level != null && maxLevel != null && maxLevel !== RESTRICTION_DEFAULT_MAX_LEVEL) {
     return `${level}–${maxLevel}`;
   }
-  if (level != null) return `min level ${level}`;
+  if (level != null) return `${level}+`;
   if (maxLevel != null) return `max level ${maxLevel}`;
   return "";
 }
@@ -106,23 +106,9 @@ export function formatScheduleRestriction(data) {
   return parts.length ? parts.join(" ") : "Unrestricted";
 }
 
-/** Must stay in sync with Rust `format_restriction_description`. */
+/** Must stay in sync with Rust `format_schedule_restriction_description` (panel + schedule). */
 export function formatRestriction(data) {
-  let response = formatCuLabel(data.number, data.cu);
-  if (data.department?.length) {
-    const depts = Array.isArray(data.department) ? data.department : [data.department];
-    response += ` from ${depts.join("/")}`;
-  }
-  const levelClause = formatScheduleLevelClause(data.level, data.max_level);
-  if (levelClause) {
-    response += ` ${levelClause}`;
-  }
-  if (data.attr?.length) {
-    const attrs = data.attr.filter((a) => typeof a === "string");
-    if (attrs.length) response += ` from attribute ${attrs.join("/")}`;
-  }
-  if (data.no_school) response += ` not from ${data.no_school}`;
-  return response || "Restriction requirement";
+  return formatScheduleRestriction(data);
 }
 
 /** Must stay in sync with Rust `create_requirement_description`. */

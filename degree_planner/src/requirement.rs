@@ -87,7 +87,7 @@ pub enum Requirement {
 
     /// **Flexible elective slot** matched by course attributes rather than a fixed course list.
     ///
-    /// Example: "1 CU from CIS/ESE/MEAM at min. level 5000" or "1 CU from attribute EMRT".
+    /// Example: "CIS/ESE 5000+" or "EMRT" (same compact style as schedule slots).
     ///
     /// - `category` — panel grouping label (e.g. "Technical Elective").
     /// - `department` — allowed departments (e.g. `["CIS", "ESE"]`); `None` = any.
@@ -181,7 +181,7 @@ fn format_schedule_level_clause(level: Option<i32>, max_level: Option<i32>) -> S
         (Some(min), Some(max)) if max != RESTRICTION_DEFAULT_MAX_LEVEL => {
             format!("{min}–{max}")
         }
-        (Some(min), _) => format!("min level {min}"),
+        (Some(min), _) => format!("{min}+"),
         (None, Some(max)) => format!("max level {max}"),
         (None, None) => String::new(),
     }
@@ -696,30 +696,10 @@ fn format_restriction_description(
     number: &i32,
     no_school: &Option<String>,
 ) -> String {
-    let target = restriction_required_cu(*number, cu);
-    let mut response = if (target - target.round()).abs() < CU_EPS {
-        format!("{} CU", target as i32)
-    } else {
-        format!("{target} CU")
-    };
-    if let Some(depts) = department {
-        response.push_str(" from ");
-        response.push_str(&depts.join("/"));
-    }
-    let level_clause = format_schedule_level_clause(*level, *max_level);
-    if !level_clause.is_empty() {
-        response.push(' ');
-        response.push_str(&level_clause);
-    }
-    if let Some(attr_names) = attr {
-        response.push_str(" from attribute ");
-        response.push_str(&attr_names.join("/"));
-    }
-    if let Some(no_school_name) = no_school {
-        response.push_str(" not from ");
-        response.push_str(no_school_name);
-    }
-    response
+    // Same compact wording as schedule-grid slot labels.
+    format_schedule_restriction_description(
+        department, cu, level, max_level, attr, number, no_school,
+    )
 }
 
 /// Default upper bound for [`Requirement::Restriction`] course numbers when `max_level` is unset.

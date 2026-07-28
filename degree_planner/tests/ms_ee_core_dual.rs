@@ -38,7 +38,7 @@ fn format_schedule_restriction_label_levels() {
             &1,
             &None,
         ),
-        "ESE min level 5000"
+        "ESE 5000+"
     );
     assert_eq!(
         format_schedule_restriction_description(
