@@ -99,6 +99,7 @@ fn default_concentrations(school: &str, code: &str) -> Vec<String> {
             .collect(),
         ("SEAS", "MEAM") => vec!["General".into()],
         ("SEAS_MS", "MS_BE") => vec!["Thesis".into()],
+        ("SEAS_MS", "MS_MEAM") => vec!["Design and Manufacturing".into()],
         _ => vec![],
     }
 }

@@ -156,9 +156,195 @@ pub fn create_ms_robo_major() -> Major {
     }
 }
 
-pub fn create_ms_meam_major() -> Major {
-    // TODO: populate MS Mechanical Engineering and Applied Mechanics requirements
-    placeholder_ms_major("MS_MEAM", "Mechanical Engineering and Applied Mechanics, MSE")
+/// Fall 2026+ curriculum: 10 CU + mandatory concentration (seminar omitted).
+pub fn ms_meam_concentration_names() -> Vec<String> {
+    vec![
+        "Design and Manufacturing".to_string(),
+        "Heat Transfer, Fluid Mechanics, and Energy".to_string(),
+        "Mechanics of Materials".to_string(),
+        "Mechatronic and Robotic Systems".to_string(),
+        "Micro/Nano Systems".to_string(),
+    ]
+}
+
+const MS_MEAM_DESIGN_CORE: &[&str] = &[
+    "MEAM 5040",
+    "MEAM 5060",
+    "MEAM 5080",
+    "MEAM 5100",
+    "MEAM 5160",
+    "MEAM 5270",
+    "MEAM 5370",
+    "MEAM 5430",
+    "MEAM 5500",
+];
+
+const MS_MEAM_HEAT_CORE: &[&str] = &[
+    "MEAM 5020",
+    "MEAM 5030",
+    "MEAM 5040",
+    "MEAM 5180",
+    "MEAM 5270",
+    "MEAM 5300",
+    "MEAM 5360",
+    "MEAM 5380",
+    "MEAM 5450",
+    "MEAM 5460",
+    "MEAM 5480",
+    "MEAM 5490",
+    "MEAM 5610",
+    "MEAM 5620",
+    "MEAM 5700",
+    "MEAM 5710",
+    "MEAM 5750",
+    "MEAM 5800",
+    "MEAM 6420",
+    "MEAM 6460",
+    "MEAM 6620",
+    "MEAM 6900",
+];
+
+const MS_MEAM_MECHANICS_CORE: &[&str] = &[
+    "MEAM 5040",
+    "MEAM 5050",
+    "MEAM 5060",
+    "MEAM 5070",
+    "MEAM 5080",
+    "MEAM 5270",
+    "MEAM 5300",
+    "MEAM 5370",
+    "MEAM 5500",
+    "MEAM 5530",
+    "MEAM 5550",
+    "MEAM 5700",
+    "MEAM 6320",
+    "MEAM 6330",
+    "MEAM 6340",
+    "MEAM 6350",
+    "MEAM 6630",
+    "MEAM 6640",
+    "MEAM 6910",
+];
+
+const MS_MEAM_MECHATRONIC_CORE: &[&str] = &[
+    "MEAM 5130",
+    "MEAM 5160",
+    "MEAM 5170",
+    "MEAM 5200",
+    "MEAM 5230",
+    "MEAM 5290",
+    "MEAM 5350",
+    "MEAM 5430",
+    "MEAM 5460",
+    "MEAM 5500",
+    "MEAM 6130",
+    "MEAM 6200",
+    "MEAM 6230",
+    "MEAM 6240",
+    "MEAM 6920",
+];
+
+const MS_MEAM_MICRO_NANO_CORE: &[&str] = &[
+    "MEAM 5050",
+    "MEAM 5070",
+    "MEAM 5180",
+    "MEAM 5190",
+    "MEAM 5270",
+    "MEAM 5290",
+    "MEAM 5370",
+    "MEAM 5500",
+    "MEAM 5530",
+    "MEAM 5550",
+    "MEAM 5750",
+    "MEAM 5800",
+];
+
+fn ms_meam_concentration_slots(concentration_name: &str) -> Vec<Requirement> {
+    let (required, electives): (Requirement, &[&str]) = match concentration_name {
+        "Heat Transfer, Fluid Mechanics, and Energy" => (
+            single("Concentration", &["MEAM 5360", "MEAM 5700"]),
+            MS_MEAM_HEAT_CORE,
+        ),
+        "Mechanics of Materials" => (
+            single("Concentration", &["MEAM 5190"]),
+            MS_MEAM_MECHANICS_CORE,
+        ),
+        "Mechatronic and Robotic Systems" => (
+            single("Concentration", &["MEAM 5100"]),
+            MS_MEAM_MECHATRONIC_CORE,
+        ),
+        "Micro/Nano Systems" => (
+            single("Concentration", &["MEAM 5370", "MEAM 5290"]),
+            MS_MEAM_MICRO_NANO_CORE,
+        ),
+        // Default / Design and Manufacturing
+        _ => (
+            single("Concentration", &["MEAM 5140"]),
+            MS_MEAM_DESIGN_CORE,
+        ),
+    };
+    let elective = single("Concentration", electives);
+    [
+        vec![required],
+        repeat_req(&elective, 2),
+    ]
+    .concat()
+}
+
+pub fn create_ms_meam_major(concentration_name: String) -> Major {
+    let eng_math = any_of(
+        "Engineering Math",
+        vec![
+            restriction(1)
+                .departments(&["ENM"])
+                .level(5000)
+                .into(),
+            single("Engineering Math", &["CIS 5200"]),
+            single("Engineering Math", &["MEAM 5270"]),
+        ],
+    );
+    let meam_elective: Requirement = restriction(1)
+        .category("MEAM Electives")
+        .departments(&["MEAM"])
+        .level(5000)
+        .excluding(&["MEAM 5990"])
+        .into();
+    let general_elective: Requirement = restriction(1)
+        .category("General Electives")
+        .level(5000)
+        .into();
+
+    let concentrations: BTreeMap<String, Vec<Requirement>> = ms_meam_concentration_names()
+        .into_iter()
+        .map(|name| {
+            let slots = ms_meam_concentration_slots(&name);
+            (name, slots)
+        })
+        .collect();
+
+    let conc_slots = concentrations
+        .get(&concentration_name)
+        .cloned()
+        .unwrap_or_else(|| ms_meam_concentration_slots("Design and Manufacturing"));
+
+    let requirements = [
+        repeat_req(&eng_math, 2),
+        conc_slots,
+        repeat_req(&meam_elective, 2),
+        repeat_req(&general_elective, 3),
+    ]
+    .concat();
+
+    Major {
+        short_name: "MS_MEAM".to_string(),
+        name: "Mechanical Engineering and Applied Mechanics, MSE".to_string(),
+        requirements,
+        schedule_hints: schedule_hints(
+            &[Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y2F, Y2F, Y2F, Y2S],
+            &[],
+        ),
+        concentrations: Some(concentrations),
+    }
 }
 
 pub fn create_ms_cis_major() -> Major {

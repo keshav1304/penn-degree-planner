@@ -1351,7 +1351,11 @@ mod catalog {
             .find(|s| s.school_code == "SEAS_MS")
             .expect("SEAS_MS in catalog");
         assert!(
-            !seas_ms.majors.iter().any(|m| m.api_code == "MS_MEAM"),
+            seas_ms.majors.iter().any(|m| m.api_code == "MS_MEAM"),
+            "implemented MS_MEAM should appear in the UI catalog"
+        );
+        assert!(
+            !seas_ms.majors.iter().any(|m| m.api_code == "MS_MSE"),
             "placeholder grad programs should not appear in the UI catalog"
         );
     }
@@ -1370,8 +1374,8 @@ mod catalog {
         let econ = resolve_major("CAS", "ECON", &[]).expect("ECON resolves");
         assert!(major::major_has_authored_requirements("CAS", &econ));
         let meam = resolve_major("SEAS_MS", "MS_MEAM", &[]).expect("MS_MEAM resolves");
-        assert!(!major::major_is_implemented("SEAS_MS", "MS_MEAM"));
-        assert!(!major::major_has_authored_requirements("SEAS_MS", &meam));
+        assert!(major::major_is_implemented("SEAS_MS", "MS_MEAM"));
+        assert!(major::major_has_authored_requirements("SEAS_MS", &meam));
         assert!(major::major_is_implemented("SEAS_MS", "MS_EE"));
         assert!(major::major_is_implemented("SEAS_MS", "MS_BE"));
     }
@@ -1616,6 +1620,70 @@ mod catalog {
         assert_eq!(
             major::concentrations_for("SEAS_MS", "MS_BE"),
             vec!["Thesis", "Non-thesis"]
+        );
+    }
+
+    #[test]
+    fn ms_meam_major_resolves_with_ten_cu_and_concentrations() {
+        let design = resolve_major("SEAS_MS", "MS_MEAM", &[]).expect("MS_MEAM design default");
+        assert_eq!(design.short_name, "MS_MEAM");
+        assert_eq!(
+            design.name,
+            "Mechanical Engineering and Applied Mechanics, MSE"
+        );
+        assert_eq!(design.requirements.len(), 10);
+        assert!(design.concentrations.is_some());
+        assert_eq!(design.concentrations.as_ref().unwrap().len(), 5);
+        assert!(
+            design.requirements.iter().any(|r| matches!(
+                r,
+                Requirement::SingleCourse {
+                    category: Some(cat),
+                    possibilities,
+                    ..
+                } if cat == "Concentration" && possibilities == &["MEAM 5140".to_string()]
+            )),
+            "Design and Manufacturing should require MEAM 5140"
+        );
+        assert_eq!(
+            design
+                .requirements
+                .iter()
+                .filter(|r| r.get_category() == "Concentration")
+                .count(),
+            3,
+            "concentration should contribute 1 required + 2 core elective slots"
+        );
+
+        let heat = resolve_major(
+            "SEAS_MS",
+            "MS_MEAM",
+            &["Heat Transfer, Fluid Mechanics, and Energy".into()],
+        )
+        .expect("MS_MEAM heat");
+        assert!(
+            heat.requirements.iter().any(|r| matches!(
+                r,
+                Requirement::SingleCourse {
+                    category: Some(cat),
+                    possibilities,
+                    ..
+                } if cat == "Concentration"
+                    && possibilities.contains(&"MEAM 5360".to_string())
+                    && possibilities.contains(&"MEAM 5700".to_string())
+            )),
+            "Heat concentration should allow MEAM 5360 or MEAM 5700 as required"
+        );
+
+        assert_eq!(
+            major::concentrations_for("SEAS_MS", "MS_MEAM"),
+            vec![
+                "Design and Manufacturing",
+                "Heat Transfer, Fluid Mechanics, and Energy",
+                "Mechanics of Materials",
+                "Mechatronic and Robotic Systems",
+                "Micro/Nano Systems",
+            ]
         );
     }
 
