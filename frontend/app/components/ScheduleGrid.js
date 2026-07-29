@@ -241,7 +241,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         </div>
                         <span className="course-card-actions">
                             <span className="export-hide">{renderReqNavButton(groupId)}</span>
-                            <span className="course-cu-label">1.0 CU</span>
+                            <span className="course-cu-label">1.0<span className="course-cu-unit"> CU</span></span>
                         </span>
                     </div>
                 </div>
@@ -275,7 +275,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         <span className="schedule-requirement-label">{slotLabel}</span>
                         <span className="course-card-actions">
                             <span className="export-hide">{renderReqNavButton(slotId)}</span>
-                            <span className="course-cu-label">1.0 CU</span>
+                            <span className="course-cu-label">1.0<span className="course-cu-unit"> CU</span></span>
                         </span>
                     </div>
                 </div>
@@ -330,7 +330,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
                             <span className="export-hide">{renderReqNavButton(courseId)}</span>
-                            <span className="course-cu-label">{getCu(courseId).toFixed(1)} CU</span>
+                            <span className="course-cu-label">{getCu(courseId).toFixed(1)}<span className="course-cu-unit"> CU</span></span>
                         </span>
                     </div>
                 </div>
@@ -357,11 +357,6 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         fontSize: "0.7rem",
                     }}>▼</span>
                     🎓 Credits Received
-                    {creditsCourses.length > 0 && (
-                        <span style={{ fontSize: "0.7rem", fontWeight: 400, color: "var(--text-muted)" }}>
-                            ({creditsCourses.length})
-                        </span>
-                    )}
                 </div>
                 <div className="credits-received-body-wrap">
                     <DroppableSemester id="slot-0-Credits" year={0} semester="Credits" style={{ minHeight: "50px" }}>
@@ -378,10 +373,10 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                                 {renderDegreeBar(a.courseId)}
                                                 <div className="schedule-course-content">
                                                     <span className="schedule-course-title">{a.courseId}</span>
-                                    <span className="course-card-actions">
-                                        {renderConcBadges(a.courseId)}
-                                        <span className="export-hide">{renderReqNavButton(a.courseId)}</span>
-                                    </span>
+                                                    <span className="course-card-actions">
+                                                        {renderConcBadges(a.courseId)}
+                                                        <span className="export-hide">{renderReqNavButton(a.courseId)}</span>
+                                                    </span>
                                                 </div>
                                             </div>
                                         </DraggableCourse>
@@ -423,10 +418,10 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         return (
                             <DroppableSemester key={sem} id={droppableId} year={year} semester={sem}>
                                 <div className="semester-col-header">
-                                    {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
-                                    {itemCount > 0 && (
-                                        <span style={{ float: "right", fontWeight: 400 }}>{itemCount}</span>
-                                    )}
+                                    <span className="semester-col-header-full">
+                                        {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
+                                    </span>
+                                    <span className="semester-col-header-term">{sem}</span>
                                 </div>
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
                                 {overlapGroups.map((groupId, idx) => renderOverlapGroupCard(groupId, year, sem, idx))}

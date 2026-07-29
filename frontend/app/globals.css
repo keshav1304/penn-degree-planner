@@ -1122,6 +1122,10 @@ select {
   border-bottom: 1px solid var(--border-glass);
 }
 
+.semester-col-header-term {
+  display: none;
+}
+
 .schedule-course {
   position: relative;
   display: flex;
@@ -2296,6 +2300,14 @@ select {
 
 /* ============ PHONE (≤640px) ============ */
 @media (max-width: 640px) {
+  :root {
+    --page-pad: 6px;
+    --section-gap: 8px;
+    --panel-pad-x: 8px;
+    --panel-pad-y: 8px;
+    --panel-header-pad-x: 10px;
+  }
+
   .degree-popover-backdrop--sheet {
     pointer-events: auto;
     background: rgba(15, 23, 42, 0.4);
@@ -2303,8 +2315,8 @@ select {
 
   .degree-popover,
   .degree-popover--sheet {
-    left: 8px !important;
-    right: 8px !important;
+    left: 0 !important;
+    right: 0 !important;
     width: auto !important;
     bottom: 0 !important;
     top: auto !important;
@@ -2312,8 +2324,7 @@ select {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     padding-bottom: max(14px, env(safe-area-inset-bottom));
   }
 
@@ -2370,6 +2381,7 @@ select {
   .main-layout.requirements-collapsed {
     display: flex;
     flex-direction: column;
+    gap: var(--section-gap);
   }
 
   .panel-schedule {
@@ -2410,6 +2422,11 @@ select {
 
   .panel-schedule .panel-body {
     overflow-x: visible;
+    padding: 8px;
+  }
+
+  .schedule-container {
+    gap: 8px;
   }
 
   .year-row.terms-3,
@@ -2428,7 +2445,7 @@ select {
     text-orientation: mixed;
     transform: none;
     justify-content: flex-start;
-    padding: 6px 2px 2px;
+    padding: 4px 0 2px;
     font-size: 0.78rem;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -2436,6 +2453,17 @@ select {
 
   .semester-col {
     min-height: 72px;
+    padding: 6px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .semester-col-header-full {
+    display: none;
+  }
+
+  .semester-col-header-term {
+    display: inline;
   }
 
   .degree-selector-row {
@@ -2475,26 +2503,51 @@ select {
     font-size: 0.85rem !important;
   }
 
-  /* Keep schedule chrome compact so labels keep horizontal space */
+  /* Full-width course rows with minimal chrome */
   .schedule-course {
-    padding: 6px 8px 6px 6px;
+    padding: 8px 6px 8px 8px;
+    margin-bottom: 5px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .schedule-course:hover {
+    transform: none;
+  }
+
+  .schedule-course-content {
+    width: 100%;
+    min-width: 0;
+    gap: 6px;
+    align-items: flex-start;
   }
 
   .course-card-actions {
-    gap: 3px;
-    margin-left: 4px;
-    align-items: flex-end;
-    flex-direction: column;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    margin-left: 0;
+    flex-shrink: 0;
   }
 
   .course-req-nav-btn {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .course-req-nav-btn:hover {
+    background: transparent;
+    color: var(--accent-teal);
+    border-color: transparent;
   }
 
   .course-req-nav-arrow {
-    width: 10px;
-    height: 10px;
+    width: 9px;
+    height: 9px;
   }
 
   .course-cu-label {
@@ -2503,18 +2556,31 @@ select {
     line-height: 1.1;
   }
 
+  .course-cu-unit {
+    display: none;
+  }
+
   .schedule-course.schedule-requirement .schedule-requirement-label,
   .schedule-overlap-inline,
   .schedule-course-title {
-    font-size: 0.72rem;
-    line-height: 1.3;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.8rem;
+    line-height: 1.35;
+    padding-right: 0;
+  }
+
+  .schedule-course.schedule-requirement .course-card-actions {
+    padding-top: 2px;
+  }
+
+  .dc-badges {
+    display: none;
   }
 
   .dc-badge,
   .conc-badge {
-    font-size: 0.5rem;
-    padding: 0 3px;
-    max-width: 56px;
+    display: none;
   }
 }
 

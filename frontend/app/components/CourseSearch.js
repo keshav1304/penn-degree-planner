@@ -109,7 +109,6 @@ export default function CourseSearch({
             <div className="cart-section">
                 <div className="cart-header">
                     <h3>My Courses</h3>
-                    <span className="cart-count">{filterValidCourseCodes(takenCourses).length}</span>
                 </div>
                 <div className="cart-hint">
                     Drag courses to a semester slot, or use the dropdown
