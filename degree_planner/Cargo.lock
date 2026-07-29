@@ -304,6 +304,7 @@ dependencies = [
  "axum",
  "chrono",
  "csv",
+ "dotenvy",
  "proptest",
  "serde",
  "serde_json",

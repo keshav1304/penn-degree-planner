@@ -1071,6 +1071,10 @@ select {
   align-items: stretch;
 }
 
+.year-row.terms-2 {
+  grid-template-columns: var(--schedule-year-col, 48px) repeat(2, 1fr);
+}
+
 .year-row.terms-3 {
   grid-template-columns: var(--schedule-year-col, 48px) repeat(3, 1fr);
 }
@@ -2288,6 +2292,10 @@ select {
     transform: none;
   }
 
+  .year-row.terms-2 {
+    grid-template-columns: 44px repeat(2, 1fr);
+  }
+
   .year-row.terms-3 {
     grid-template-columns: 44px repeat(3, 1fr);
   }
@@ -2429,6 +2437,7 @@ select {
     gap: 8px;
   }
 
+  .year-row.terms-2,
   .year-row.terms-3,
   .year-row.terms-4 {
     grid-template-columns: 1fr;

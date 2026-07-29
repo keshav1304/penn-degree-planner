@@ -1,26 +1,41 @@
 //! Print a local analytics report from Neon Postgres.
 //!
-//! Usage:
-//!   DATABASE_URL='postgresql://…' cargo run --bin analytics_report
-//!   DATABASE_URL='postgresql://…' cargo run --bin analytics_report -- --days 7
-//!   DATABASE_URL='postgresql://…' cargo run --bin analytics_report -- --session <uuid>
+//! Usage (from `degree_planner/`):
+//!   cargo run --bin analytics_report
+//!   cargo run --bin analytics_report -- --days 7
+//!   cargo run --bin analytics_report -- --session <uuid>
 //!
-//! Never commit DATABASE_URL. Export it in your shell or use a gitignored env file.
+//! Set `DATABASE_URL` in a gitignored `.env` next to this crate's `Cargo.toml`
+//! (see `.env.example`). Shell-exported `DATABASE_URL` still wins over `.env`.
 
 use std::env;
+use std::path::PathBuf;
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Row;
 
+fn load_local_env() {
+    let manifest_env = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
+    if manifest_env.is_file() {
+        if let Err(err) = dotenvy::from_path(&manifest_env) {
+            eprintln!("warning: could not load {}: {err}", manifest_env.display());
+        }
+    }
+    // Optional cwd `.env` for overrides when already present vars are unset.
+    let _ = dotenvy::dotenv();
+}
+
 #[tokio::main]
 async fn main() {
+    load_local_env();
+
     let days = parse_days(env::args().skip(1));
     let url = match env::var("DATABASE_URL") {
         Ok(u) if !u.is_empty() => u,
         _ => {
             eprintln!(
                 "DATABASE_URL is not set.\n\
-                 Example:\n\
+                 Add it to degree_planner/.env (see .env.example), or export it:\n\
                    DATABASE_URL='postgresql://…' cargo run --bin analytics_report -- --days {days}"
             );
             std::process::exit(1);

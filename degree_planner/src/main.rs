@@ -27,6 +27,13 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
+    // Local `.env` next to Cargo.toml (gitignored). Existing shell env wins.
+    let manifest_env = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(".env");
+    if manifest_env.is_file() {
+        let _ = dotenvy::from_path(&manifest_env);
+    }
+    let _ = dotenvy::dotenv();
+
     let db = match std::env::var("DATABASE_URL") {
         Ok(url) if !url.is_empty() => match analytics::connect(&url).await {
             Ok(pool) => {
