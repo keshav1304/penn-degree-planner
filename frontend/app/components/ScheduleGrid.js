@@ -326,7 +326,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                     : "Click to mark taken (green)"
                         }
                     >
-                        <span>{courseId}</span>
+                        <span className="schedule-course-title">{courseId}</span>
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
                             <span className="export-hide">{renderReqNavButton(courseId)}</span>
@@ -377,7 +377,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                             <div className="schedule-course assigned" style={{ position: "relative" }}>
                                                 {renderDegreeBar(a.courseId)}
                                                 <div className="schedule-course-content">
-                                                    <span>{a.courseId}</span>
+                                                    <span className="schedule-course-title">{a.courseId}</span>
                                     <span className="course-card-actions">
                                         {renderConcBadges(a.courseId)}
                                         <span className="export-hide">{renderReqNavButton(a.courseId)}</span>

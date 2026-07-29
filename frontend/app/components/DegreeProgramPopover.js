@@ -187,7 +187,7 @@ export default function DegreeProgramPopover({
 
     useEffect(() => {
         if (!open) return;
-        const onDocClick = (e) => {
+        const onDocPointer = (e) => {
             if (
                 popoverRef.current?.contains(e.target)
                 || anchorRef?.current?.contains(e.target)
@@ -199,10 +199,10 @@ export default function DegreeProgramPopover({
         const onKey = (e) => {
             if (e.key === "Escape") onClose();
         };
-        document.addEventListener("mousedown", onDocClick);
+        document.addEventListener("pointerdown", onDocPointer);
         document.addEventListener("keydown", onKey);
         return () => {
-            document.removeEventListener("mousedown", onDocClick);
+            document.removeEventListener("pointerdown", onDocPointer);
             document.removeEventListener("keydown", onKey);
         };
     }, [open, onClose, anchorRef]);
@@ -254,19 +254,27 @@ export default function DegreeProgramPopover({
 
     if (!open || !mounted) return null;
 
-    const anchorRect = anchorRef?.current?.getBoundingClientRect();
+    const isPhone =
+        typeof window !== "undefined"
+        && window.matchMedia("(max-width: 640px)").matches;
+    const anchorRect = !isPhone ? anchorRef?.current?.getBoundingClientRect() : null;
     const style = anchorRect
         ? { top: anchorRect.bottom + 6, left: Math.max(8, anchorRect.left) }
-        : {};
+        : undefined;
 
     return createPortal(
-        <div className="degree-popover-backdrop" aria-hidden>
+        <div
+            className={`degree-popover-backdrop${isPhone ? " degree-popover-backdrop--sheet" : ""}`}
+            onClick={onClose}
+            aria-hidden
+        >
             <div
                 ref={popoverRef}
-                className="degree-popover"
+                className={`degree-popover${isPhone ? " degree-popover--sheet" : ""}`}
                 style={style}
                 role="dialog"
                 aria-label={mode === "edit" ? "Edit program" : "Add program"}
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="degree-popover-title">
                     {mode === "edit" ? "Edit" : "Add"}{" "}
