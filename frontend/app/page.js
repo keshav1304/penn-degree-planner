@@ -30,6 +30,7 @@ import {
 } from "@/lib/crossDegree";
 import { exportScheduleJpeg } from "@/lib/exportScheduleImage";
 import { exportScheduleExcel } from "@/lib/exportScheduleExcel";
+import { getOrCreateAnonSessionId } from "@/lib/anonSession";
 
 const STORAGE_KEY = "penn_degree_planner_state";
 
@@ -223,6 +224,7 @@ export default function Home() {
             allowSummer,
             semesterCuLimits,
           ),
+          anon_session_id: getOrCreateAnonSessionId(),
         }),
       });
       const data = await response.json();
@@ -453,7 +455,8 @@ export default function Home() {
     () =>
       buildCourseDegreesMapFromAllocations(
         crossDegreeSummary,
-        scheduleData?.degree_results
+        scheduleData?.degree_results,
+        scheduleData,
       ),
     [scheduleData, crossDegreeSummary]
   );

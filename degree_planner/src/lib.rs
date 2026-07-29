@@ -1,3 +1,4 @@
+pub mod analytics;
 pub mod course;
 pub mod cross_degree;
 pub mod major;

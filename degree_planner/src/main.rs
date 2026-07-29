@@ -1,12 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
+use std::time::Instant;
 
 use axum::{
     debug_handler,
-    extract::Query,
+    extract::{Query, State},
     http::{header, Method},
     routing::{get, post},
     Json, Router,
 };
+use degree_planner::analytics::{self, ScheduleGenerateEvent};
 use degree_planner::course::{self, search_courses, Course, CourseSearchHit};
 use degree_planner::major::{
     all_concentrations, all_majors, concentrations_for_program, degree_catalog, minor_catalog,
@@ -15,10 +17,35 @@ use degree_planner::major::{
 use degree_planner::requirement::{self, MappedRequirement, PoolCoverageInfo};
 use degree_planner::scheduler::{generate_schedule, ScheduleInput, ScheduleOutput};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use tower_http::cors::{Any, CorsLayer};
+
+#[derive(Clone)]
+struct AppState {
+    db: Option<PgPool>,
+}
 
 #[tokio::main]
 async fn main() {
+    let db = match std::env::var("DATABASE_URL") {
+        Ok(url) if !url.is_empty() => match analytics::connect(&url).await {
+            Ok(pool) => {
+                eprintln!("analytics: connected to Postgres");
+                Some(pool)
+            }
+            Err(err) => {
+                eprintln!("analytics: failed to connect ({err}); continuing without DB");
+                None
+            }
+        },
+        _ => {
+            eprintln!("analytics: DATABASE_URL unset; schedule generates will not be recorded");
+            None
+        }
+    };
+
+    let state = AppState { db };
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
@@ -37,7 +64,8 @@ async fn main() {
         .route("/concentrations", get(concentrations_get))
         .route("/all_concentrations", get(all_concentrations_get))
         .route("/generate_schedule", post(generate_schedule_post))
-        .layer(cors);
+        .layer(cors)
+        .with_state(state);
 
     let address = "0.0.0.0:8080";
     let listener = tokio::net::TcpListener::bind(address).await.unwrap();
@@ -231,6 +259,22 @@ async fn course_get(Query(params): Query<CourseGetParams>) -> Json<Course> {
 }
 
 #[debug_handler]
-async fn generate_schedule_post(Json(payload): Json<ScheduleInput>) -> Json<ScheduleOutput> {
-    Json(generate_schedule(payload))
+async fn generate_schedule_post(
+    State(state): State<AppState>,
+    Json(payload): Json<ScheduleInput>,
+) -> Json<ScheduleOutput> {
+    let started = Instant::now();
+    let output = generate_schedule(payload.clone());
+    let latency_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
+
+    if let Some(pool) = state.db.clone() {
+        let event = ScheduleGenerateEvent::from_request_and_output(&payload, &output, latency_ms);
+        tokio::spawn(async move {
+            if let Err(err) = analytics::insert_schedule_generate(&pool, &event).await {
+                eprintln!("analytics: insert failed: {err}");
+            }
+        });
+    }
+
+    Json(output)
 }

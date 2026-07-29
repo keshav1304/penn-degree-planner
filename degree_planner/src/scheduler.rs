@@ -144,13 +144,16 @@ pub struct FrozenCourse {
     pub semester: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ScheduleInput {
     pub taken: Vec<String>,
     pub degrees: Vec<DegreeInput>,
     pub frozen: Vec<FrozenCourse>,
     pub allow_summer: Option<bool>,
     pub semester_cu_limits: Option<HashMap<String, f64>>,
+    /// Browser-local anonymous id for analytics (not auth). Optional for back-compat.
+    #[serde(default)]
+    pub anon_session_id: Option<String>,
 }
 
 #[derive(Serialize)]

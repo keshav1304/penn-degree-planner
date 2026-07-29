@@ -1,4 +1,5 @@
 import { isRequirementSlotId, isValidCourseCode } from "@/lib/courseUtils";
+import { overlapSlotsEqual } from "@/lib/requirementNav";
 
 /** Instance scope for college-wide CAS requirements (writing / gen-ed pool). */
 export function isCasCollegeSharedInstanceScope(scope) {
@@ -166,21 +167,23 @@ function ensureFulfillmentLabels(degMap, degreeResults = []) {
     });
 }
 
-export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []) {
-    // Seed from navigable requirement rows only (fulfilled / partial / suggested / pool matches).
-    // This keeps schedule stripes aligned with req-nav arrows. Courses that fulfill nothing
-    // never enter the map and therefore get no degree stripes.
+export function buildCourseDegreesMapFromAllocations(
+    summary,
+    degreeResults = [],
+    scheduleData = null,
+) {
+    // Seed from navigable requirement rows (fulfilled / partial / suggested / pool matches).
     const degMap = buildCourseMapFromDegreeResults(degreeResults);
     const casDegreeLabels = casDegreeLabelsFromResults(degreeResults);
     const isDualCasCollege = casDegreeLabels.length >= 2;
 
     // Merge backend allocations (shared / conflict-resolved ownership).
+    // Allocations alone are enough: overlap pairs replace mapped course_ids with req:
+    // slots while the named course remains claimed — gating on prior rows hid stripes
+    // for courses that still have req-nav arrows via overlap_plan.
     if (summary?.course_allocations) {
         Object.entries(summary.course_allocations).forEach(([courseId, allocs]) => {
             if (!isValidCourseCode(courseId)) return;
-            // Only merge labels for courses already navigable from requirement rows,
-            // so allocation-only orphans cannot invent stripes.
-            if (!degMap[courseId]?.length) return;
             const allocLabels = [];
             allocs.forEach((alloc) => {
                 const label = labelForAllocation(alloc, degreeResults);
@@ -192,6 +195,28 @@ export function buildCourseDegreesMapFromAllocations(summary, degreeResults = []
                 if (!merged.includes(label)) merged.push(label);
             });
             degMap[courseId] = merged;
+        });
+    }
+
+    // Same source as req-nav arrows for shared named courses on an overlap pair.
+    const plan = scheduleData?.overlap_plan;
+    if (plan?.pairs?.length) {
+        const onSchedule = new Set(
+            (scheduleData.schedule || []).flatMap((p) => p.courses || []),
+        );
+        plan.pairs.forEach((pair) => {
+            const opp = plan.opportunities?.find((o) => overlapSlotsEqual(o.slots, pair.slots));
+            if (!opp?.suggested_courses?.length) return;
+            const sharedCourses = opp.suggested_courses.filter(
+                (id) => isValidCourseCode(id) && onSchedule.has(id),
+            );
+            if (!sharedCourses.length) return;
+            pair.slots.forEach((slotRef) => {
+                const result = degreeResults[slotRef.degree_index];
+                if (!result) return;
+                const label = labelForDegreeResult(result);
+                sharedCourses.forEach((courseId) => addCourseToDegreeMap(degMap, courseId, label));
+            });
         });
     }
 
