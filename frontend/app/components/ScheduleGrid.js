@@ -398,28 +398,20 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
             </div>
 
             {/* Column headers */}
-            <div className="year-row" style={{ minHeight: 0, gridTemplateColumns: `48px repeat(${visibleSemesters.length}, 1fr)` }}>
+            <div
+                className={`year-row year-row-headers terms-${visibleSemesters.length}`}
+                style={{ minHeight: 0 }}
+            >
                 <div />
                 {visibleSemesters.map(sem => (
-                    <div
-                        key={sem}
-                        style={{
-                            textAlign: "center",
-                            fontSize: "0.72rem",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "1px",
-                            color: "var(--text-muted)",
-                            padding: "4px 0",
-                        }}
-                    >
+                    <div key={sem} className="year-row-term-label">
                         {sem}
                     </div>
                 ))}
             </div>
 
             {visibleYears.map(year => (
-                <div key={year} className="year-row fade-in" style={{ gridTemplateColumns: `48px repeat(${visibleSemesters.length}, 1fr)` }}>
+                <div key={year} className={`year-row fade-in terms-${visibleSemesters.length}`}>
                     <div className="year-label">{YEAR_NAMES[year] || `Year ${year}`}</div>
                     {visibleSemesters.map(sem => {
                         const courses = sortSemesterCourses(getDisplayCourses(year, sem));

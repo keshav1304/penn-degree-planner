@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import appIcon from "./logo.png";
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
@@ -79,10 +79,13 @@ export default function Home() {
   const scheduleRequestId = useRef(0);
   const exportMenuRef = useRef(null);
 
-  // Require 8px movement before starting drag (so clicks still work)
+  // Pointer: 8px movement before drag. Touch: short delay so page scroll wins.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
     })
   );
 
@@ -735,7 +738,8 @@ export default function Home() {
               className="btn btn-ghost btn-sm"
               style={{ textDecoration: "none" }}
             >
-              📝 Feedback / Bug Report
+              <span className="header-feedback-label-full">📝 Feedback / Bug Report</span>
+              <span className="header-feedback-label-short">📝 Feedback</span>
             </a>
             <button className="btn btn-ghost btn-sm" onClick={clearAll}>
               Clear All

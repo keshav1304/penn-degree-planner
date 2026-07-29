@@ -13,7 +13,8 @@ export default function DraggableCourse({ id, children, data }) {
         transform: CSS.Translate.toString(transform),
         opacity: isDragging ? 0.4 : 1,
         cursor: "grab",
-        touchAction: "none",
+        // Allow vertical page scroll; TouchSensor delay activates drag without blocking pan.
+        touchAction: "pan-y",
     };
 
     return (
