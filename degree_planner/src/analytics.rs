@@ -30,12 +30,6 @@ CREATE TABLE IF NOT EXISTS schedule_generates (
   error_kinds       text[] NOT NULL DEFAULT '{}',
   anon_session_id   text
 );
-CREATE INDEX IF NOT EXISTS schedule_generates_created_at_idx
-  ON schedule_generates (created_at);
-CREATE INDEX IF NOT EXISTS schedule_generates_degree_combo_key_idx
-  ON schedule_generates (degree_combo_key);
-CREATE INDEX IF NOT EXISTS schedule_generates_anon_session_id_idx
-  ON schedule_generates (anon_session_id);
 
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS degree_count integer NOT NULL DEFAULT 0;
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS major_count integer NOT NULL DEFAULT 0;
@@ -46,6 +40,13 @@ ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS semester_count integer;
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS has_overlap boolean NOT NULL DEFAULT false;
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS error_kinds text[] NOT NULL DEFAULT '{}';
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS anon_session_id text;
+
+CREATE INDEX IF NOT EXISTS schedule_generates_created_at_idx
+  ON schedule_generates (created_at);
+CREATE INDEX IF NOT EXISTS schedule_generates_degree_combo_key_idx
+  ON schedule_generates (degree_combo_key);
+CREATE INDEX IF NOT EXISTS schedule_generates_anon_session_id_idx
+  ON schedule_generates (anon_session_id);
 "#;
 
 pub async fn connect(database_url: &str) -> Result<PgPool, sqlx::Error> {
