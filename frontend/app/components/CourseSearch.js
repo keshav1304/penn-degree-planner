@@ -11,6 +11,7 @@ const SEARCH_LIMIT = 50;
 
 export default function CourseSearch({
     courseCatalog,
+    courseRelations = null,
     takenCourses, assignedCourses, frozenCourses = [],
     onAdd, onRemove, onAssign,
     maxScheduleYear = 4, allowSummer = true,
@@ -80,7 +81,8 @@ export default function CourseSearch({
                         </div>
                     )}
                     {results.map(course => {
-                        const inCart = takenCourses.includes(course.course_code);
+                        const inCart = courseRelations?.listContainsEquiv(takenCourses, course.course_code)
+                            ?? takenCourses.includes(course.course_code);
                         return (
                             <DraggableCourse
                                 key={course.course_code}

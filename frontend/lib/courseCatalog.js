@@ -13,6 +13,8 @@ export function prepareCourseCatalog(rows) {
     course_code: row.course_code,
     title: row.title,
     cu: row.cu,
+    also_offered_as: row.also_offered_as ?? null,
+    mutually_exclusive: row.mutually_exclusive ?? null,
     _lc: {
       code: row.course_code.toLowerCase(),
       title: row.title.toLowerCase(),

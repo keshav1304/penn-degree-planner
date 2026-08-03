@@ -4,6 +4,7 @@ use std::sync::OnceLock;
 use serde::Serialize;
 
 use crate::course;
+use crate::course_relations;
 use crate::cross_degree::{
     self, crosses_undergrad_grad, overlap_plan_applicable, CrossDegreeState,
     UNDERGRAD_GRAD_CU_LIMIT,
@@ -103,7 +104,8 @@ impl CatalogIndex {
 
         let mut out = base.unwrap_or_default();
         out.retain(|c| {
-            !taken.contains(c)
+            !course_relations::set_contains_equiv(taken, c)
+                && !taken.iter().any(|t| course_relations::codes_conflict(t, c))
                 && course_matches_restriction(
                     c,
                     department,
@@ -125,7 +127,11 @@ impl CatalogIndex {
     ) -> HashSet<String> {
         possibilities
             .iter()
-            .filter(|c| course::is_valid_course_code(c) && !taken.contains(*c))
+            .filter(|c| {
+                course::is_valid_course_code(c)
+                    && !course_relations::set_contains_equiv(taken, c)
+                    && !taken.iter().any(|t| course_relations::codes_conflict(t, c))
+            })
             .cloned()
             .collect()
     }
@@ -242,7 +248,7 @@ fn course_satisfies_matcher(
     attributes: &HashMap<String, Vec<String>>,
 ) -> bool {
     match matcher {
-        CourseMatcher::OneOf(list) => list.iter().any(|c| c == course),
+        CourseMatcher::OneOf(list) => list.iter().any(|c| course_relations::equivalent(c, course)),
         CourseMatcher::Restriction {
             department,
             level,
@@ -639,7 +645,7 @@ fn cross_degree_slot_pairs(
 }
 
 fn course_is_explicit_option(course: &str, matcher: &CourseMatcher) -> bool {
-    matches!(matcher, CourseMatcher::OneOf(v) if v.iter().any(|c| c == course))
+    matches!(matcher, CourseMatcher::OneOf(v) if v.iter().any(|c| course_relations::equivalent(c, course)))
 }
 
 /// Lower is better. Prefer courses named directly on every open slot over broad attribute matches.
@@ -1011,7 +1017,9 @@ fn index_explicit_courses_to_slots(
     attributes: &HashMap<String, Vec<String>>,
 ) {
     for course in explicit_oneof_courses(open_slots, eligible_indices) {
-        if taken.contains(&course) {
+        if course_relations::set_contains_equiv(taken, &course)
+            || taken.iter().any(|t| course_relations::codes_conflict(t, &course))
+        {
             continue;
         }
         for &slot_idx in eligible_indices {

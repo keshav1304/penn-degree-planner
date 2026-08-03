@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::course;
+use crate::course_relations;
 use crate::cross_degree::{self, is_graduate_degree, CrossDegreeSummary};
 use crate::major::{self, Major, resolve_major, resolve_minor};
 use crate::overlap_planner::{
@@ -108,6 +109,45 @@ pub fn undergrad_schedule_years(schools: &[String]) -> i32 {
     5
 }
 
+/// Merge resolved results with unresolved errors into payload order.
+fn assemble_degree_results_in_payload_order(
+    payload_len: usize,
+    resolved_payload_indices: &[usize],
+    resolved_results: Vec<DegreeResult>,
+    mut unresolved_by_payload_idx: HashMap<usize, DegreeResult>,
+) -> Vec<DegreeResult> {
+    let mut ordered: Vec<Option<DegreeResult>> = (0..payload_len).map(|_| None).collect();
+    for (resolved_idx, result) in resolved_results.into_iter().enumerate() {
+        let payload_idx = resolved_payload_indices[resolved_idx];
+        ordered[payload_idx] = Some(result);
+    }
+    for (payload_idx, result) in unresolved_by_payload_idx.drain() {
+        ordered[payload_idx] = Some(result);
+    }
+    ordered
+        .into_iter()
+        .map(|r| r.expect("every payload degree has a DegreeResult"))
+        .collect()
+}
+
+fn remap_overlap_group_schedule_id(old_id: &str, resolved_to_payload: &[usize]) -> String {
+    let Some(rest) = old_id.strip_prefix("req:overlap:") else {
+        return old_id.to_string();
+    };
+    let mut parts: Vec<String> = rest
+        .split('+')
+        .map(|part| {
+            let Some((idx_str, key)) = part.split_once('@') else {
+                return part.to_string();
+            };
+            let compact = idx_str.parse::<usize>().unwrap_or(0);
+            let mapped = resolved_to_payload.get(compact).copied().unwrap_or(compact);
+            format!("{mapped}@{key}")
+        })
+        .collect();
+    parts.sort();
+    format!("req:overlap:{}", parts.join("+"))
+}
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DegreeInput {
@@ -144,7 +184,7 @@ pub struct FrozenCourse {
     pub semester: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct ScheduleInput {
     pub taken: Vec<String>,
     pub degrees: Vec<DegreeInput>,
@@ -575,34 +615,60 @@ fn is_cas_college_degree_excluded_mapped(
 
 pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
-    let mut taken: Vec<String> = payload
-        .taken
-        .iter()
-        .filter(|c| course::is_valid_course_code(c))
-        .cloned()
-        .collect();
-    let frozen: Vec<FrozenCourse> = payload
-        .frozen
-        .iter()
-        .filter(|f| {
-            course::is_valid_course_code(&f.course_id)
-                || requirement::is_requirement_slot_id(&f.course_id)
-        })
-        .cloned()
-        .collect();
+    let mut taken: Vec<String> = Vec::new();
+    let mut seen_canonical: HashSet<String> = HashSet::new();
+    for c in &payload.taken {
+        if !course::is_valid_course_code(c) {
+            continue;
+        }
+        let n = course_relations::normalize_code(c);
+        let canon = course_relations::canonical(&n);
+        if seen_canonical.insert(canon) {
+            taken.push(n);
+        }
+    }
+    let mut frozen: Vec<FrozenCourse> = Vec::new();
+    let mut frozen_canonical: HashSet<String> = HashSet::new();
+    for f in &payload.frozen {
+        if !(course::is_valid_course_code(&f.course_id)
+            || requirement::is_requirement_slot_id(&f.course_id))
+        {
+            continue;
+        }
+        if course::is_valid_course_code(&f.course_id) {
+            let n = course_relations::normalize_code(&f.course_id);
+            let canon = course_relations::canonical(&n);
+            if !frozen_canonical.insert(canon) {
+                continue;
+            }
+            frozen.push(FrozenCourse {
+                course_id: n,
+                year: f.year,
+                semester: f.semester.clone(),
+            });
+        } else {
+            frozen.push(f.clone());
+        }
+    }
     // Taken + frozen course codes count toward requirement fulfillment (frozen ≠ completed).
     let mut courses_for_validation: Vec<String> = taken.clone();
+    let mut validation_canonical: HashSet<String> = seen_canonical;
     for f in &frozen {
-        if course::is_valid_course_code(&f.course_id)
-            && !courses_for_validation.contains(&f.course_id)
-        {
-            courses_for_validation.push(f.course_id.clone());
+        if !course::is_valid_course_code(&f.course_id) {
+            continue;
+        }
+        let n = course_relations::normalize_code(&f.course_id);
+        let canon = course_relations::canonical(&n);
+        if validation_canonical.insert(canon) {
+            courses_for_validation.push(n);
         }
     }
     let courses_for_validation_set: HashSet<String> =
         courses_for_validation.iter().cloned().collect();
 
     let mut degree_results: Vec<DegreeResult> = Vec::new();
+    let mut unresolved_by_payload_idx: HashMap<usize, DegreeResult> = HashMap::new();
+    let mut resolved_payload_indices: Vec<usize> = Vec::new();
     let mut all_suggested_courses: Vec<String> = Vec::new();
     let mut all_suggested_courses_set: HashSet<String> = HashSet::new();
     let mut all_requirement_slots: Vec<String> = Vec::new();
@@ -627,7 +693,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let mut degree_schools: Vec<String> = Vec::new();
     let mut degree_majors: Vec<String> = Vec::new();
 
-    for degree in &payload.degrees {
+    for (payload_idx, degree) in payload.degrees.iter().enumerate() {
         let concs = degree.effective_concentrations();
         let major_data = if degree.is_minor() {
             resolve_minor(&degree.school, &degree.major, &concs)
@@ -639,6 +705,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 degree_schools.push(degree.school.clone());
                 degree_majors.push(degree.major.clone());
             }
+            resolved_payload_indices.push(payload_idx);
             resolved_degrees.push(ResolvedDegree {
                 input: degree.clone(),
                 major_data,
@@ -648,25 +715,28 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             per_degree_validation.push(None);
         } else {
             let label = if degree.is_minor() { "Minor" } else { "Major" };
-            degree_results.push(DegreeResult {
-                kind: degree.kind.clone(),
-                school: degree.school.clone(),
-                major: degree.major.clone(),
-                fulfilled_requirements: vec![],
-                unfulfilled_requirements: vec![],
-                suggested_for_unfulfilled: vec![],
-                unapplicable_courses: vec![],
-                pool_coverage_info: vec![],
-                concentration_info: vec![],
-                available_concentrations: vec![],
-                has_core_concentration: false,
-                category_order: vec![],
-                cas_gen_ed: None,
-                error: Some(format!(
-                    "{label} '{}' in school '{}' is not implemented yet.",
-                    degree.major, degree.school
-                )),
-            });
+            unresolved_by_payload_idx.insert(
+                payload_idx,
+                DegreeResult {
+                    kind: degree.kind.clone(),
+                    school: degree.school.clone(),
+                    major: degree.major.clone(),
+                    fulfilled_requirements: vec![],
+                    unfulfilled_requirements: vec![],
+                    suggested_for_unfulfilled: vec![],
+                    unapplicable_courses: vec![],
+                    pool_coverage_info: vec![],
+                    concentration_info: vec![],
+                    available_concentrations: vec![],
+                    has_core_concentration: false,
+                    category_order: vec![],
+                    cas_gen_ed: None,
+                    error: Some(format!(
+                        "{label} '{}' in school '{}' is not implemented yet.",
+                        degree.major, degree.school
+                    )),
+                },
+            );
         }
     }
 
@@ -1451,8 +1521,16 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         if requirement::is_requirement_slot_id(course_id) {
             return 1.0;
         }
-        *cu_map.get(course_id).unwrap_or(&1.0)
+        if let Some(&cu) = cu_map.get(course_id) {
+            return cu;
+        }
+        let canon = course_relations::canonical(course_id);
+        *cu_map.get(&canon).unwrap_or(&1.0)
     };
+
+    // Across the whole grid: place at most one spelling per also-offered cluster.
+    let placed_canonical: std::cell::RefCell<HashSet<String>> =
+        std::cell::RefCell::new(HashSet::new());
 
     let place_in_semester = |plan: &mut SemesterPlan, item_id: &str| {
         if requirement::is_requirement_slot_id(item_id) {
@@ -1465,9 +1543,22 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 plan.requirement_slots.push(item_id.to_string());
                 plan.total_cu += get_cu(item_id);
             }
-        } else if !plan.courses.contains(&item_id.to_string()) {
+        } else {
+            let canon = course_relations::canonical(item_id);
+            let mut placed = placed_canonical.borrow_mut();
+            if placed.contains(&canon) {
+                return;
+            }
+            if plan
+                .courses
+                .iter()
+                .any(|c| course_relations::equivalent(c, item_id))
+            {
+                return;
+            }
             plan.courses.push(item_id.to_string());
             plan.total_cu += get_cu(item_id);
+            placed.insert(canon);
         }
     };
 
@@ -1532,7 +1623,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 place_in_semester(plan, &frozen.course_id);
             }
         }
-        all_suggested_courses.retain(|c| c != &frozen.course_id);
+        if course::is_valid_course_code(&frozen.course_id) {
+            course_relations::retain_without_equiv(
+                &mut all_suggested_courses,
+                std::slice::from_ref(&frozen.course_id),
+            );
+        } else {
+            all_suggested_courses.retain(|c| c != &frozen.course_id);
+        }
         all_requirement_slots.retain(|s| s != &frozen.course_id);
     }
 
@@ -1544,6 +1642,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             remaining_items.push(slot);
         }
     }
+    remaining_items.retain(|item| {
+        if requirement::is_requirement_slot_id(item) {
+            return true;
+        }
+        !placed_canonical
+            .borrow()
+            .contains(&course_relations::canonical(item))
+    });
 
     let fixed_schedule_items: HashSet<String> = item_hints
         .iter()
@@ -1620,7 +1726,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     let already = if requirement::is_requirement_slot_id(item_id) {
                         plan.requirement_slots.contains(&item_id.to_string())
                     } else {
-                        plan.courses.contains(&item_id.to_string())
+                        placed_canonical
+                            .borrow()
+                            .contains(&course_relations::canonical(item_id))
+                            || plan
+                                .courses
+                                .iter()
+                                .any(|c| course_relations::equivalent(c, item_id))
                     };
                     if already {
                         return true;
@@ -1645,7 +1757,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     let already = if requirement::is_requirement_slot_id(item_id) {
                         plan.requirement_slots.contains(&item_id.to_string())
                     } else {
-                        plan.courses.contains(&item_id.to_string())
+                        placed_canonical
+                            .borrow()
+                            .contains(&course_relations::canonical(item_id))
+                            || plan
+                                .courses
+                                .iter()
+                                .any(|c| course_relations::equivalent(c, item_id))
                     };
                     if already {
                         return true;
@@ -2114,14 +2232,30 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         }
     }
 
-    let cross_degree_summary = if degree_schools.len() > 1 {
-        let mut summary = cross_state.to_summary();
+    let schedule_course_codes: HashSet<String> = schedule
+        .iter()
+        .flat_map(|p| p.courses.iter().cloned())
+        .filter(|c| course::is_valid_course_code(c))
+        .collect();
+
+    let mutex_violations = cross_degree::detect_mutex_violations(&schedule_course_codes);
+
+    let mut cross_degree_summary = if degree_schools.len() > 1 {
+        let mut summary = cross_state.to_summary_with_plan_codes(Some(&schedule_course_codes));
         summary.violations = cross_degree::detect_violations(
             &cross_state.claims,
             &degree_schools,
             &cu_map,
         );
+        summary.violations.extend(mutex_violations);
         Some(summary)
+    } else if !mutex_violations.is_empty() {
+        Some(CrossDegreeSummary {
+            undergrad_grad_cu_used: 0.0,
+            undergrad_grad_cu_limit: cross_degree::UNDERGRAD_GRAD_CU_LIMIT,
+            course_allocations: HashMap::new(),
+            violations: mutex_violations,
+        })
     } else {
         None
     };
@@ -2134,6 +2268,77 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             .chain(plan.requirement_slots.iter().map(|s| get_cu(s)))
             .sum();
     }
+
+    // Internal degree_results are aligned with resolved_degrees. Remap export indices to
+    // payload order so the UI can zip degrees[i] with degree_results[i].
+    let needs_payload_remap = !unresolved_by_payload_idx.is_empty()
+        || resolved_payload_indices
+            .iter()
+            .enumerate()
+            .any(|(resolved_idx, &payload_idx)| resolved_idx != payload_idx);
+
+    if needs_payload_remap {
+        let major_payload_indices: Vec<usize> = resolved_degrees
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| !r.is_minor)
+            .map(|(i, _)| resolved_payload_indices[i])
+            .collect();
+
+        if let Some(ref mut plan) = overlap_plan {
+            overlap_planner::remap_overlap_plan_degree_indices(plan, &resolved_payload_indices);
+        }
+
+        for group in &mut overlap_schedule_groups {
+            let old_id = group.group_id.clone();
+            for member in &mut group.members {
+                if member.degree_index < resolved_payload_indices.len() {
+                    member.degree_index = resolved_payload_indices[member.degree_index];
+                }
+            }
+            let new_id = remap_overlap_group_schedule_id(&old_id, &resolved_payload_indices);
+            if new_id != old_id {
+                for plan in schedule.iter_mut() {
+                    for slot in plan.requirement_slots.iter_mut() {
+                        if *slot == old_id {
+                            *slot = new_id.clone();
+                        }
+                    }
+                }
+                if let Some(hint) = item_hints.remove(&old_id) {
+                    item_hints.insert(new_id.clone(), hint);
+                }
+                if let Some(label) = slot_labels.remove(&old_id) {
+                    slot_labels.insert(new_id.clone(), label);
+                }
+                group.group_id = new_id;
+            }
+        }
+
+        if let Some(ref mut summary) = cross_degree_summary {
+            for allocs in summary.course_allocations.values_mut() {
+                for alloc in allocs.iter_mut() {
+                    if alloc.degree_index < major_payload_indices.len() {
+                        alloc.degree_index = major_payload_indices[alloc.degree_index];
+                    }
+                }
+            }
+            for violation in summary.violations.iter_mut() {
+                for idx in violation.degree_indices.iter_mut() {
+                    if *idx < major_payload_indices.len() {
+                        *idx = major_payload_indices[*idx];
+                    }
+                }
+            }
+        }
+    }
+
+    let degree_results = assemble_degree_results_in_payload_order(
+        payload.degrees.len(),
+        &resolved_payload_indices,
+        degree_results,
+        unresolved_by_payload_idx,
+    );
 
     ScheduleOutput {
         schedule,

@@ -5,3 +5,8 @@ degree_planner/.env
 .env.local
 **/.env
 !**/.env.example
+
+# Build artifacts (also covered by package-local gitignores)
+**/target/
+**/node_modules/
+.next/

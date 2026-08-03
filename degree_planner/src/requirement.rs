@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use serde::Serialize;
 
 use crate::course;
+use crate::course_relations;
 use crate::cross_degree::{
     self, CrossDegreeState, CrossDegreeSummary, detect_violations, is_graduate_degree,
     crosses_undergrad_grad, UNDERGRAD_GRAD_CU_LIMIT,
@@ -497,8 +498,9 @@ fn partial_fulfill_composite(
 ) -> (Vec<String>, Option<usize>) {
     match req {
         Requirement::SingleCourse { possibilities, .. } => {
-            if let Some(course) = taken.iter().find(|c| possibilities.contains(c)) {
-                (vec![course.clone()], None)
+            if let Some(hit) = course_relations::taken_hit(taken, possibilities) {
+                let display = course_relations::display_spelling_for_match(hit, possibilities);
+                (vec![display], None)
             } else {
                 (vec![], None)
             }
@@ -515,7 +517,7 @@ fn partial_fulfill_composite(
                     continue;
                 }
                 for course in &courses {
-                    pool.retain(|c| c != course);
+                    course_relations::retain_without_equiv(&mut pool, std::slice::from_ref(course));
                 }
                 assigned.extend(courses);
             }
@@ -528,7 +530,7 @@ fn partial_fulfill_composite(
                 let (courses, _) =
                     partial_fulfill_composite(child, &pool, attributes, cu_map);
                 for course in &courses {
-                    pool.retain(|c| c != course);
+                    course_relations::retain_without_equiv(&mut pool, std::slice::from_ref(course));
                 }
                 assigned.extend(courses);
             }
@@ -729,12 +731,12 @@ pub fn course_matches_restriction(
     if let Some(excluding_items) = excluding {
         for ex in excluding_items {
             if crate::course::is_valid_course_code(ex) {
-                if ex == course {
+                if course_relations::equivalent(ex, course) {
                     return false;
                 }
             } else if attributes
                 .get(ex)
-                .is_some_and(|courses| courses.contains(&course.to_string()))
+                .is_some_and(|courses| course_relations::vec_contains_equiv(courses, course))
             {
                 return false;
             }
@@ -787,7 +789,7 @@ pub fn course_matches_restriction(
         let mut matches_attr = false;
         for attr_name in attr_names {
             if let Some(courses_in_attribute) = attributes.get(attr_name) {
-                if courses_in_attribute.contains(&course.to_string()) {
+                if course_relations::vec_contains_equiv(courses_in_attribute, course) {
                     matches_attr = true;
                 }
             }
@@ -1318,10 +1320,9 @@ impl Requirement {
     pub fn fulfills_requirement(&self, taken: &Vec<String>, attributes: &HashMap<String, Vec<String>>, cu_map: &HashMap<String, f64>) -> Option<Vec<String>> {
         match self {
             Requirement::SingleCourse { category, possibilities, .. } => {
-                for course in taken {
-                    if possibilities.contains(course) {
-                        return Some(vec![course.clone()]);
-                    }
+                if let Some(hit) = course_relations::taken_hit(taken, possibilities) {
+                    let display = course_relations::display_spelling_for_match(hit, possibilities);
+                    return Some(vec![display]);
                 }
                 return None;
             },
@@ -1335,7 +1336,7 @@ impl Requirement {
                         break;
                     }
                     if let Some(mut courses) = child.fulfills_requirement(&pool, attributes, cu_map) {
-                        pool.retain(|x| !courses.contains(x));
+                        course_relations::retain_without_equiv(&mut pool, &courses);
                         all_courses.append(&mut courses);
                         fulfilled_count += 1;
                     }
@@ -1351,7 +1352,7 @@ impl Requirement {
                 let mut all_courses_fulfilled: Vec<String> = Vec::new();
                 for req in sorted_child_requirements(requirements) {
                     if let Some(mut courses_fulfilled) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                        taken_copy.retain(|x| !courses_fulfilled.contains(x));
+                        course_relations::retain_without_equiv(&mut taken_copy, &courses_fulfilled);
                         all_courses_fulfilled.append(&mut courses_fulfilled);
                     } else {
                         return None;
@@ -1395,7 +1396,7 @@ impl Requirement {
                 let flat_fixed = flatten_pool_fixed_slots_owned(fixed_slots);
                 for req in sorted_child_requirements(&flat_fixed) {
                     if let Some(mut courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                        taken_copy.retain(|x| !courses.contains(x));
+                        course_relations::retain_without_equiv(&mut taken_copy, &courses);
                         pool_courses.append(&mut courses);
                     } else {
                         return None;
@@ -1404,7 +1405,7 @@ impl Requirement {
                 for pi in 0..(*flexible_slots).max(0) as usize {
                     let flex = pool_flexible_slot_requirement(pool_cat, pi);
                     if let Some(mut courses) = flex.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                        taken_copy.retain(|x| !courses.contains(x));
+                        course_relations::retain_without_equiv(&mut taken_copy, &courses);
                         pool_courses.append(&mut courses);
                     } else {
                         return None;
@@ -1516,7 +1517,7 @@ impl Requirement {
                 for req in flatten_pool_fixed_slot_refs(fixed_slots) {
                     if req.fulfills_requirement(&taken_copy, attributes, cu_map).is_some() {
                         if let Some(courses) = req.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                            taken_copy.retain(|x| !courses.contains(x));
+                            course_relations::retain_without_equiv(&mut taken_copy, &courses);
                         }
                     } else {
                         unfulfilled_slots.push(req.clone());
@@ -1525,7 +1526,7 @@ impl Requirement {
                 for pi in 0..(*flexible_slots).max(0) as usize {
                     let flex = pool_flexible_slot_requirement(pool_cat, pi);
                     if let Some(courses) = flex.fulfills_requirement(&taken_copy, attributes, cu_map) {
-                        taken_copy.retain(|x| !courses.contains(x));
+                        course_relations::retain_without_equiv(&mut taken_copy, &courses);
                     } else {
                         unfulfilled_slots.push(flex);
                     }
@@ -2279,7 +2280,9 @@ impl DegreeValidationResult {
 pub fn requirement_explicitly_lists_course(req: &Requirement, course: &str) -> bool {
     match req {
         Requirement::SingleCourse { possibilities, .. } => {
-            possibilities.iter().any(|p| p == course)
+            possibilities
+                .iter()
+                .any(|p| course_relations::equivalent(p, course))
         }
         Requirement::AnyOf { possibilities, .. } => possibilities
             .iter()
@@ -2433,7 +2436,7 @@ pub fn validate_courses_for_degree(
             }
             _ => {
                 if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
-                    taken_mut.retain(|x| !courses_fulfilling.contains(x));
+                    course_relations::retain_without_equiv(&mut taken_mut, &courses_fulfilling);
 
                     fulfilled_requirements.push(new_mapped_requirement(
                         req,
@@ -2621,7 +2624,7 @@ fn try_fulfill_or_partial_composite(
     unfulfilled: &mut Vec<MappedRequirement>,
 ) {
     if let Some(courses_fulfilling) = req.fulfills_requirement(taken, attributes, cu_map) {
-        taken.retain(|x| !courses_fulfilling.contains(x));
+        course_relations::retain_without_equiv(taken, &courses_fulfilling);
         fulfilled.push(new_mapped_requirement(
             req.clone(),
             courses_fulfilling,
@@ -2643,7 +2646,7 @@ fn try_fulfill_or_partial_composite(
         return;
     }
 
-    taken.retain(|x| !partial_courses.contains(x));
+    course_relations::retain_without_equiv(taken, &partial_courses);
     unfulfilled.push(new_mapped_requirement_with_options(
         req.clone(),
         partial_courses,
@@ -2664,7 +2667,7 @@ pub(crate) fn try_fulfill_or_partial_base(
     unfulfilled: &mut Vec<MappedRequirement>,
 ) -> Vec<String> {
     if let Some(courses_fulfilling) = base_req.fulfills_requirement(taken, attributes, cu_map) {
-        taken.retain(|x| !courses_fulfilling.contains(x));
+        course_relations::retain_without_equiv(taken, &courses_fulfilling);
         let courses = courses_fulfilling.clone();
         fulfilled.push(new_mapped_requirement(
             base_req.clone(),
@@ -2687,7 +2690,7 @@ pub(crate) fn try_fulfill_or_partial_base(
         return vec![];
     }
 
-    taken.retain(|x| !partial_courses.contains(x));
+    course_relations::retain_without_equiv(taken, &partial_courses);
     let courses = partial_courses.clone();
     unfulfilled.push(new_mapped_requirement_with_options(
         base_req.clone(),
@@ -2929,7 +2932,7 @@ fn fill_overlay_concentration_greedy(
         req_descriptions.push(desc);
 
         if let Some(courses) = req.fulfills_requirement(pool, attributes, cu_map) {
-            pool.retain(|x| !courses.contains(x));
+            course_relations::retain_without_equiv(pool, &courses);
             req_fulfilled.push(true);
             matched_courses.push(courses);
         } else {
@@ -3025,7 +3028,13 @@ fn course_suggestable(
     cross_filter: Option<(&CrossDegreeState, usize)>,
     cu_map: &HashMap<String, f64>,
 ) -> bool {
-    if taken.contains(&course_code.to_string()) {
+    if course_relations::vec_contains_equiv(taken, course_code) {
+        return false;
+    }
+    if taken
+        .iter()
+        .any(|t| course_relations::codes_conflict(t, course_code))
+    {
         return false;
     }
     if let Some((state, degree_idx)) = cross_filter {
@@ -3175,8 +3184,10 @@ fn course_allocated_to_degree(
     if !course::is_valid_course_code(course_id) {
         return true;
     }
+    let key = course_relations::canonical(course_id);
     claims
-        .get(course_id)
+        .get(&key)
+        .or_else(|| claims.get(course_id))
         .map(|indices| indices.contains(&degree_idx))
         .unwrap_or(false)
 }
@@ -3415,7 +3426,7 @@ pub fn build_allocations_from_fulfilled(
         let mut record = |course: &String| {
             if course::is_valid_course_code(course) {
                 allocations
-                    .entry(course.clone())
+                    .entry(course_relations::canonical(course))
                     .or_default()
                     .insert(degree_idx);
             }
@@ -3590,6 +3601,9 @@ pub fn resolve_cross_degree_conflicts(
                         used -= cu;
                     }
                 }
+                cross_degree::CrossDegreeViolationKind::MutuallyExclusive => {
+                    // Warn-only: never strip mutex mates during conflict resolution.
+                }
             }
         }
 
@@ -3692,7 +3706,7 @@ pub fn assign_cas_college(
         .expect("CAS major has writing requirement");
     let mut writing_mapped: Option<MappedRequirement> = None;
     if let Some(courses) = writing_req.fulfills_requirement(&bag, &attributes, cu_map) {
-        bag.retain(|c| !courses.contains(c));
+        course_relations::retain_without_equiv(&mut bag, &courses);
         writing_mapped = Some(new_mapped_requirement(
             writing_req.clone(),
             courses,
@@ -3718,7 +3732,7 @@ pub fn assign_cas_college(
             let child_id = Some(format!("1:f{fi}:c{ci}"));
 
             if let Some(courses) = fulfill_from_available(&slot_req, &bag, &attributes, cu_map) {
-                bag.retain(|c| !courses.contains(c));
+                course_relations::retain_without_equiv(&mut bag, &courses);
                 for c in &courses {
                     shared_major_courses.insert(c.clone());
                     per_major_course_sets[mi].insert(c.clone());
@@ -3876,7 +3890,7 @@ pub fn assign_cas_college(
         let instance_id = Some((unrest_start_idx + i).to_string());
         let req = unrestricted_elective(CAS_UNRESTRICTED_ELECTIVES_CATEGORY);
         if let Some(courses) = req.fulfills_requirement(&bag, &attributes, cu_map) {
-            bag.retain(|c| !courses.contains(c));
+            course_relations::retain_without_equiv(&mut bag, &courses);
             unrest_fulfilled.push(new_mapped_requirement(
                 req,
                 courses,

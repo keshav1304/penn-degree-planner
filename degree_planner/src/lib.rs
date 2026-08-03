@@ -1,5 +1,6 @@
 pub mod analytics;
 pub mod course;
+pub mod course_relations;
 pub mod cross_degree;
 pub mod major;
 pub mod overlap_planner;

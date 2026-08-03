@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::course;
+use crate::course_relations;
 
 pub const UNDERGRAD_GRAD_CU_LIMIT: f64 = 3.0;
 pub const CU_EPS: f64 = 0.001;
@@ -44,7 +45,11 @@ pub fn all_undergrad_degrees_are_cas(degree_schools: &[String]) -> bool {
 }
 
 fn lookup_course_cu(cu_map: &HashMap<String, f64>, course: &str) -> f64 {
-    *cu_map.get(course).unwrap_or(&1.0)
+    if let Some(&cu) = cu_map.get(course) {
+        return cu;
+    }
+    let canon = course_relations::canonical(course);
+    *cu_map.get(&canon).unwrap_or(&1.0)
 }
 
 fn shared_undergrad_grad_cu(
@@ -68,6 +73,7 @@ pub enum CrossDegreeViolationKind {
     TooManyDegrees,
     GradGradOverlap,
     UndergradGradCuCap,
+    MutuallyExclusive,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -154,8 +160,9 @@ impl CrossDegreeState {
             return Ok(());
         }
 
+        let course_key = course_relations::canonical(course);
         let school = &self.degree_schools[degree_idx];
-        let Some(existing) = self.claims.get(course) else {
+        let Some(existing) = self.claims.get(&course_key) else {
             return Ok(());
         };
 
@@ -173,7 +180,7 @@ impl CrossDegreeState {
                     return Err(CrossDegreeViolationKind::GradGradOverlap);
                 }
             }
-            if let Some(&owner) = self.grad_course_owner.get(course) {
+            if let Some(&owner) = self.grad_course_owner.get(&course_key) {
                 if owner != degree_idx {
                     return Err(CrossDegreeViolationKind::GradGradOverlap);
                 }
@@ -181,7 +188,7 @@ impl CrossDegreeState {
         }
 
         if self.claim_crosses_undergrad_grad(degree_idx, existing) {
-            let cu = lookup_course_cu(cu_map, course);
+            let cu = lookup_course_cu(cu_map, &course_key);
             if self.undergrad_grad_cu_used + cu > UNDERGRAD_GRAD_CU_LIMIT + CU_EPS {
                 return Err(CrossDegreeViolationKind::UndergradGradCuCap);
             }
@@ -195,9 +202,10 @@ impl CrossDegreeState {
             return;
         }
 
+        let course_key = course_relations::canonical(course);
         let existing_before = self
             .claims
-            .get(course)
+            .get(&course_key)
             .cloned()
             .unwrap_or_default();
 
@@ -206,7 +214,7 @@ impl CrossDegreeState {
         }
 
         self.claims
-            .entry(course.to_string())
+            .entry(course_key.clone())
             .or_default()
             .insert(degree_idx);
 
@@ -214,11 +222,11 @@ impl CrossDegreeState {
             && is_graduate_degree(&self.degree_schools[degree_idx])
         {
             self.grad_course_owner
-                .insert(course.to_string(), degree_idx);
+                .insert(course_key.clone(), degree_idx);
         }
 
         if self.claim_crosses_undergrad_grad(degree_idx, &existing_before) {
-            self.undergrad_grad_cu_used += lookup_course_cu(cu_map, course);
+            self.undergrad_grad_cu_used += lookup_course_cu(cu_map, &course_key);
         }
     }
 
@@ -227,14 +235,23 @@ impl CrossDegreeState {
         allocations: &HashMap<String, HashSet<usize>>,
         cu_map: &HashMap<String, f64>,
     ) {
-        self.claims = allocations.clone();
-        self.grad_course_owner.clear();
-        self.undergrad_grad_cu_used = 0.0;
-
+        let mut normalized: HashMap<String, HashSet<usize>> = HashMap::new();
         for (course, degree_indices) in allocations {
             if !course::is_valid_course_code(course) {
                 continue;
             }
+            let key = course_relations::canonical(course);
+            normalized
+                .entry(key)
+                .or_default()
+                .extend(degree_indices.iter().copied());
+        }
+
+        self.claims = normalized;
+        self.grad_course_owner.clear();
+        self.undergrad_grad_cu_used = 0.0;
+
+        for (course, degree_indices) in &self.claims {
             for &degree_idx in degree_indices {
                 if course::is_graduate_level(course)
                     && is_graduate_degree(&self.degree_schools[degree_idx])
@@ -249,6 +266,14 @@ impl CrossDegreeState {
     }
 
     pub fn to_summary(&self) -> CrossDegreeSummary {
+        self.to_summary_with_plan_codes(None)
+    }
+
+    /// Mirror allocations under every alias spelling that appears in `plan_codes`.
+    pub fn to_summary_with_plan_codes(
+        &self,
+        plan_codes: Option<&HashSet<String>>,
+    ) -> CrossDegreeSummary {
         let mut course_allocations: HashMap<String, Vec<CourseAllocation>> = HashMap::new();
 
         for (course, degree_indices) in &self.claims {
@@ -268,7 +293,26 @@ impl CrossDegreeState {
                 })
                 .collect();
             allocs.sort_by_key(|a| a.degree_index);
-            course_allocations.insert(course.clone(), allocs);
+            course_allocations.insert(course.clone(), allocs.clone());
+
+            if let Some(plan) = plan_codes {
+                for code in plan {
+                    if course_relations::equivalent(code, course) && code != course {
+                        course_allocations.insert(code.clone(), allocs.clone());
+                    }
+                }
+                // Also mirror known aliases that appear under any spelling in the plan.
+                for alias in course_relations::aliases(course) {
+                    if plan.iter().any(|p| course_relations::equivalent(p, alias))
+                        && !course_allocations.contains_key(alias)
+                    {
+                        // Prefer the plan's displayed spelling when available.
+                        if let Some(display) = plan.iter().find(|p| course_relations::equivalent(p, alias)) {
+                            course_allocations.insert(display.clone(), allocs.clone());
+                        }
+                    }
+                }
+            }
         }
 
         CrossDegreeSummary {
@@ -329,7 +373,57 @@ fn violation_message(kind: &CrossDegreeViolationKind, course: &str) -> String {
         CrossDegreeViolationKind::UndergradGradCuCap => format!(
             "{course} would exceed the {UNDERGRAD_GRAD_CU_LIMIT} CU total undergrad↔masters double-count limit"
         ),
+        CrossDegreeViolationKind::MutuallyExclusive => {
+            format!("{course} conflicts with a mutually exclusive course on the schedule")
+        }
     }
+}
+
+/// Detect mutex pairs where **both** partners appear in `schedule_codes` (grid courses only).
+pub fn detect_mutex_violations(schedule_codes: &HashSet<String>) -> Vec<CrossDegreeViolation> {
+    let mut violations = Vec::new();
+    let mut reported_pairs: HashSet<(String, String)> = HashSet::new();
+
+    let codes: Vec<String> = schedule_codes
+        .iter()
+        .filter(|c| course::is_valid_course_code(c))
+        .cloned()
+        .collect();
+
+    for a in &codes {
+        for partner in course_relations::mutex_partners(a) {
+            let Some(b) = codes
+                .iter()
+                .find(|c| course_relations::equivalent(c, partner) || c.as_str() == partner.as_str())
+            else {
+                continue;
+            };
+            if course_relations::equivalent(a, b) {
+                continue;
+            }
+            let mut ordered = (
+                course_relations::canonical(a),
+                course_relations::canonical(b),
+            );
+            if ordered.0 > ordered.1 {
+                std::mem::swap(&mut ordered.0, &mut ordered.1);
+            }
+            if !reported_pairs.insert(ordered) {
+                continue;
+            }
+            let message = format!("{a} is mutually exclusive with {b}.");
+            for course_id in [a.clone(), b.clone()] {
+                violations.push(CrossDegreeViolation {
+                    course_id,
+                    kind: CrossDegreeViolationKind::MutuallyExclusive,
+                    message: message.clone(),
+                    degree_indices: vec![],
+                });
+            }
+        }
+    }
+
+    violations
 }
 
 pub fn detect_violations(
@@ -417,6 +511,9 @@ pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String
 
         for violation in &violations {
             match violation.kind {
+                CrossDegreeViolationKind::MutuallyExclusive => {
+                    // Warn-only: never strip mutex mates from claims.
+                }
                 CrossDegreeViolationKind::TooManyDegrees => {
                     let course = &violation.course_id;
                     if let Some(indices) = state.claims.get(course).cloned() {

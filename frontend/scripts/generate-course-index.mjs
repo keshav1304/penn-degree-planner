@@ -16,6 +16,8 @@ const slim = courses.map((c) => ({
   course_code: c.course_code,
   title: c.title,
   cu: c.cu,
+  also_offered_as: c.also_offered_as ?? null,
+  mutually_exclusive: c.mutually_exclusive ?? null,
 }));
 
 writeFileSync(outPath, JSON.stringify(slim));

@@ -10,6 +10,7 @@ import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
 import { perfLog } from "@/lib/perfLog";
 import { prepareCourseCatalog, cuMapFromCatalog } from "@/lib/courseCatalog";
+import { buildCourseRelations } from "@/lib/courseRelations";
 import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, undergradScheduleYears } from "@/lib/semesterOptions";
 import {
   isValidCourseCode,
@@ -59,6 +60,7 @@ function saveState(state) {
 export default function Home() {
     const [courseCuMap, setCourseCuMap] = useState({});
   const [courseCatalog, setCourseCatalog] = useState(null);
+  const [courseRelations, setCourseRelations] = useState(null);
   const [degreeCatalog, setDegreeCatalog] = useState([]);
   const [minorCatalog, setMinorCatalog] = useState([]);
   const [concentrationCatalog, setConcentrationCatalog] = useState({});
@@ -135,6 +137,7 @@ export default function Home() {
       const catalog = prepareCourseCatalog(rows);
       setCourseCatalog(catalog);
       setCourseCuMap(cuMapFromCatalog(catalog));
+      setCourseRelations(buildCourseRelations(rows));
       perfLog("bootstrap.course_index.rows", elapsed(), { count: catalog.length });
     });
 
@@ -277,7 +280,11 @@ export default function Home() {
 
   const addCourse = (courseCode) => {
     if (!isValidCourseCode(courseCode)) return;
-    setTakenCourses((prev) => (prev.includes(courseCode) ? prev : [...prev, courseCode]));
+    setTakenCourses((prev) => {
+      if (courseRelations?.listContainsEquiv(prev, courseCode)) return prev;
+      if (prev.includes(courseCode)) return prev;
+      return [...prev, courseCode];
+    });
   };
 
   const removeCourse = (courseCode) => {
@@ -366,22 +373,10 @@ export default function Home() {
 
     if (!courseId || targetYear == null || !targetSemester) return;
 
-    if (dragData.source === "cart") {
+    if (dragData.source === "cart" || dragData.source === "search") {
       if (!isValidCourseCode(courseId)) return;
-      // Cart → Credits Received: assign directly
-      if (targetYear === 0) {
-        assignCourse(courseId, targetYear, targetSemester);
-      } else {
-        // Cart → Schedule: freeze in the slot (orange — planned but not yet taken)
-        setAssignedCourses(prev => prev.filter(a => a.courseId !== courseId));
-        setFrozenCourses(prev => {
-          const filtered = prev.filter(f => f.courseId !== courseId);
-          return [...filtered, { courseId, year: targetYear, semester: targetSemester }];
-        });
-      }
-    } else if (dragData.source === "search") {
-      if (!isValidCourseCode(courseId)) return;
-      // Search → Schedule: add to cart AND assign. Credits Received is handled in assignCourse.
+      // Cart/Search → semester: mark taken (green). Credits Received uses year 0.
+      setFrozenCourses((prev) => prev.filter((f) => f.courseId !== courseId));
       if (targetYear !== 0) {
         setTakenCourses((prev) => (prev.includes(courseId) ? prev : [...prev, courseId]));
       }
@@ -464,10 +459,18 @@ export default function Home() {
     [scheduleData, crossDegreeSummary]
   );
 
-  const crossDegreeViolationsByCourse = useMemo(
-    () => courseViolationMap(crossDegreeSummary),
-    [crossDegreeSummary]
-  );
+  const crossDegreeViolationsByCourse = useMemo(() => {
+    const fromApi = courseViolationMap(crossDegreeSummary);
+    if (!courseRelations) return fromApi;
+
+    const scheduleCodes = (scheduleData?.schedule || []).flatMap((p) => p.courses || []);
+    const creditCodes = (assignedCourses || [])
+      .filter((a) => a.year === 0)
+      .map((a) => a.courseId);
+    const gridCodes = [...scheduleCodes, ...creditCodes];
+    const fromCredits = courseRelations.mutexViolationsOnGrid(gridCodes);
+    return { ...fromCredits, ...fromApi };
+  }, [crossDegreeSummary, courseRelations, scheduleData, assignedCourses]);
 
   const courseRequirementLinks = useMemo(() => {
     const links = {};
@@ -765,6 +768,7 @@ export default function Home() {
             <div className="panel-body">
               <CourseSearch
                 courseCatalog={courseCatalog}
+                courseRelations={courseRelations}
                 takenCourses={takenCourses}
                 assignedCourses={assignedCourses}
                 frozenCourses={frozenCourses}
@@ -791,7 +795,7 @@ export default function Home() {
                 </label>
                 {degrees.length > 0 && (
                   <span className="panel-toolbar-meta">
-                    {assignedCourses.length} placed · {frozenCourses.length} frozen
+                    {assignedCourses.length} taken · {frozenCourses.length} frozen
                   </span>
                 )}
                 <div className="export-menu" ref={exportMenuRef}>
