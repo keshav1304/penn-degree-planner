@@ -32,10 +32,6 @@ dotenvy = "0.15"
 [dev-dependencies]
 proptest = "1.6"
 
-[[bench]]
-name = "course_relations_overhead"
-harness = false
-
 [profile.release-fast]
 inherits = "release"
 opt-level = 2
