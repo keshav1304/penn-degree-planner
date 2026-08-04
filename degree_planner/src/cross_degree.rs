@@ -74,6 +74,10 @@ pub enum CrossDegreeViolationKind {
     GradGradOverlap,
     UndergradGradCuCap,
     MutuallyExclusive,
+    /// Multiple also_offered_as spellings of the same course appear in the plan.
+    AlsoOfferedSameCourse,
+    /// A planned course is missing one or more catalog prerequisites.
+    MissingPrerequisite,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -376,6 +380,12 @@ fn violation_message(kind: &CrossDegreeViolationKind, course: &str) -> String {
         CrossDegreeViolationKind::MutuallyExclusive => {
             format!("{course} conflicts with a mutually exclusive course on the schedule")
         }
+        CrossDegreeViolationKind::AlsoOfferedSameCourse => {
+            format!("{course} appears under more than one also-offered course code")
+        }
+        CrossDegreeViolationKind::MissingPrerequisite => {
+            format!("{course} is missing a catalog prerequisite")
+        }
     }
 }
 
@@ -424,6 +434,71 @@ pub fn detect_mutex_violations(schedule_codes: &HashSet<String>) -> Vec<CrossDeg
     }
 
     violations
+}
+
+/// When the plan lists two or more also-offered spellings of one course, emit a warn-only note.
+pub fn detect_also_offered_duplicates(plan_codes: &[String]) -> Vec<CrossDegreeViolation> {
+    let mut by_canonical: HashMap<String, Vec<String>> = HashMap::new();
+    let mut seen_spelling: HashSet<String> = HashSet::new();
+
+    for raw in plan_codes {
+        if !course::is_valid_course_code(raw) {
+            continue;
+        }
+        let n = course_relations::normalize_code(raw);
+        if !seen_spelling.insert(n.clone()) {
+            continue;
+        }
+        let canon = course_relations::canonical(&n);
+        // Only warn when the catalog actually has an also-offered cluster.
+        if course_relations::aliases(&n).len() < 2 {
+            continue;
+        }
+        by_canonical.entry(canon).or_default().push(n);
+    }
+
+    let mut violations = Vec::new();
+    for spellings in by_canonical.values() {
+        if spellings.len() < 2 {
+            continue;
+        }
+        let mut ordered = spellings.clone();
+        ordered.sort();
+        let message = if ordered.len() == 2 {
+            format!("{} and {} are the same course.", ordered[0], ordered[1])
+        } else {
+            let last = ordered.last().unwrap();
+            let head = ordered[..ordered.len() - 1].join(", ");
+            format!("{head}, and {last} are the same course.")
+        };
+        for course_id in &ordered {
+            violations.push(CrossDegreeViolation {
+                course_id: course_id.clone(),
+                kind: CrossDegreeViolationKind::AlsoOfferedSameCourse,
+                message: message.clone(),
+                degree_indices: vec![],
+            });
+        }
+    }
+    violations
+}
+
+/// Warn when planned courses are missing catalog prerequisites (does not add courses).
+/// `subject_codes` are courses to check (taken/frozen); `plan_codes` is the full set
+/// that may satisfy those prerequisites (includes schedule placements).
+pub fn detect_missing_prerequisites(
+    subject_codes: &[String],
+    plan_codes: &[String],
+) -> Vec<CrossDegreeViolation> {
+    crate::prereq::missing_prereq_messages(subject_codes, plan_codes)
+        .into_iter()
+        .map(|(course_id, message)| CrossDegreeViolation {
+            course_id,
+            kind: CrossDegreeViolationKind::MissingPrerequisite,
+            message,
+            degree_indices: vec![],
+        })
+        .collect()
 }
 
 pub fn detect_violations(
@@ -513,6 +588,12 @@ pub fn enforce_claim_rules(state: &mut CrossDegreeState, cu_map: &HashMap<String
             match violation.kind {
                 CrossDegreeViolationKind::MutuallyExclusive => {
                     // Warn-only: never strip mutex mates from claims.
+                }
+                CrossDegreeViolationKind::AlsoOfferedSameCourse => {
+                    // Warn-only: aliases are already collapsed for claims/CU.
+                }
+                CrossDegreeViolationKind::MissingPrerequisite => {
+                    // Warn-only: never auto-add missing prerequisites.
                 }
                 CrossDegreeViolationKind::TooManyDegrees => {
                     let course = &violation.course_id;

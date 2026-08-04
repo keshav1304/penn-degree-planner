@@ -142,5 +142,33 @@ export function buildCourseRelations(rows) {
       }
       return out;
     },
+    /**
+     * When two+ also-offered spellings appear in the plan, warn they are the same course.
+     * @param {string[]} planCodes
+     * @returns {Record<string, string>}
+     */
+    alsoOfferedDuplicatesInPlan(planCodes) {
+      const codes = [...new Set((planCodes || []).map(normalizeCode).filter(Boolean))];
+      /** @type {Map<string, string[]>} */
+      const byCanon = new Map();
+      for (const code of codes) {
+        const canon = this.canonical(code);
+        if (!byCanon.has(canon)) byCanon.set(canon, []);
+        const list = byCanon.get(canon);
+        if (!list.includes(code)) list.push(code);
+      }
+      /** @type {Record<string, string>} */
+      const out = {};
+      for (const spellings of byCanon.values()) {
+        if (spellings.length < 2) continue;
+        const ordered = [...spellings].sort();
+        const message =
+          ordered.length === 2
+            ? `${ordered[0]} and ${ordered[1]} are the same course.`
+            : `${ordered.slice(0, -1).join(", ")}, and ${ordered[ordered.length - 1]} are the same course.`;
+        for (const code of ordered) out[code] = message;
+      }
+      return out;
+    },
   };
 }

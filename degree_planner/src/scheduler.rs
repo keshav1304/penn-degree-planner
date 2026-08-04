@@ -615,6 +615,18 @@ fn is_cas_college_degree_excluded_mapped(
 
 pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
+    let mut raw_plan_codes: Vec<String> = Vec::new();
+    for c in &payload.taken {
+        if course::is_valid_course_code(c) {
+            raw_plan_codes.push(course_relations::normalize_code(c));
+        }
+    }
+    for f in &payload.frozen {
+        if course::is_valid_course_code(&f.course_id) {
+            raw_plan_codes.push(course_relations::normalize_code(&f.course_id));
+        }
+    }
+
     let mut taken: Vec<String> = Vec::new();
     let mut seen_canonical: HashSet<String> = HashSet::new();
     for c in &payload.taken {
@@ -2239,6 +2251,19 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         .collect();
 
     let mutex_violations = cross_degree::detect_mutex_violations(&schedule_course_codes);
+    let also_offered_violations =
+        cross_degree::detect_also_offered_duplicates(&raw_plan_codes);
+    // Only flag prereqs for courses the user put on the plan (taken/frozen),
+    // not every auto-placed suggestion. Satisfaction may use schedule placements.
+    let mut prereq_plan_codes = raw_plan_codes.clone();
+    for c in &schedule_course_codes {
+        prereq_plan_codes.push(c.clone());
+    }
+    let prereq_violations =
+        cross_degree::detect_missing_prerequisites(&raw_plan_codes, &prereq_plan_codes);
+    let mut relation_violations = mutex_violations;
+    relation_violations.extend(also_offered_violations);
+    relation_violations.extend(prereq_violations);
 
     let mut cross_degree_summary = if degree_schools.len() > 1 {
         let mut summary = cross_state.to_summary_with_plan_codes(Some(&schedule_course_codes));
@@ -2247,14 +2272,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             &degree_schools,
             &cu_map,
         );
-        summary.violations.extend(mutex_violations);
+        summary.violations.extend(relation_violations);
         Some(summary)
-    } else if !mutex_violations.is_empty() {
+    } else if !relation_violations.is_empty() {
         Some(CrossDegreeSummary {
             undergrad_grad_cu_used: 0.0,
             undergrad_grad_cu_limit: cross_degree::UNDERGRAD_GRAD_CU_LIMIT,
             course_allocations: HashMap::new(),
-            violations: mutex_violations,
+            violations: relation_violations,
         })
     } else {
         None

@@ -281,7 +281,6 @@ export default function Home() {
   const addCourse = (courseCode) => {
     if (!isValidCourseCode(courseCode)) return;
     setTakenCourses((prev) => {
-      if (courseRelations?.listContainsEquiv(prev, courseCode)) return prev;
       if (prev.includes(courseCode)) return prev;
       return [...prev, courseCode];
     });
@@ -467,10 +466,20 @@ export default function Home() {
     const creditCodes = (assignedCourses || [])
       .filter((a) => a.year === 0)
       .map((a) => a.courseId);
+    const frozenCodes = (frozenCourses || []).map((f) => f.courseId);
     const gridCodes = [...scheduleCodes, ...creditCodes];
-    const fromCredits = courseRelations.mutexViolationsOnGrid(gridCodes);
-    return { ...fromCredits, ...fromApi };
-  }, [crossDegreeSummary, courseRelations, scheduleData, assignedCourses]);
+    const planCodes = [...takenCourses, ...frozenCodes, ...gridCodes];
+    const fromMutex = courseRelations.mutexViolationsOnGrid(gridCodes);
+    const fromAlsoOffered = courseRelations.alsoOfferedDuplicatesInPlan(planCodes);
+    return { ...fromAlsoOffered, ...fromMutex, ...fromApi };
+  }, [
+    crossDegreeSummary,
+    courseRelations,
+    scheduleData,
+    assignedCourses,
+    frozenCourses,
+    takenCourses,
+  ]);
 
   const courseRequirementLinks = useMemo(() => {
     const links = {};
@@ -768,7 +777,6 @@ export default function Home() {
             <div className="panel-body">
               <CourseSearch
                 courseCatalog={courseCatalog}
-                courseRelations={courseRelations}
                 takenCourses={takenCourses}
                 assignedCourses={assignedCourses}
                 frozenCourses={frozenCourses}

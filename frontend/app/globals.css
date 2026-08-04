@@ -1418,20 +1418,20 @@ select {
 }
 
 .schedule-warnings {
-  padding: 8px 12px;
-  background: var(--bg-glass);
-  border: 1px solid var(--border-glass);
-  border-left: 3px solid var(--accent-amber);
+  padding: 10px 14px;
+  background: var(--accent-amber-dim);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-left: 4px solid var(--accent-amber);
   border-radius: var(--radius-sm);
 }
 
 .schedule-warnings-label {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+  color: #92400e;
+  margin-bottom: 5px;
 }
 
 .schedule-warnings-list {
@@ -1440,13 +1440,14 @@ select {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .schedule-warnings-list li {
-  font-size: var(--sidebar-font-secondary);
-  line-height: 1.4;
-  color: var(--text-secondary);
+  font-size: var(--sidebar-font-body);
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .course-req-nav-btn:hover {

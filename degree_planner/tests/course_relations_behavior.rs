@@ -208,6 +208,103 @@ fn mutex_warns_only_when_both_on_schedule() {
 }
 
 #[test]
+fn also_offered_pair_in_taken_emits_same_course_warning() {
+    let output = generate_schedule(ScheduleInput {
+        taken: vec!["STAT 4760".into(), "MKTG 4760".into()],
+        degrees: vec![major_input("SEAS", "CIS")],
+        frozen: vec![],
+        allow_summer: Some(false),
+        semester_cu_limits: None,
+        anon_session_id: None,
+    });
+    assert!(output.error.is_none(), "{:?}", output.error);
+    let msgs: Vec<_> = output
+        .cross_degree_summary
+        .as_ref()
+        .map(|s| {
+            s.violations
+                .iter()
+                .filter(|v| v.kind == CrossDegreeViolationKind::AlsoOfferedSameCourse)
+                .map(|v| v.message.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    assert!(
+        msgs.iter().any(|m| m.contains("STAT 4760")
+            && m.contains("MKTG 4760")
+            && m.contains("same course")),
+        "expected also-offered same-course warning: {msgs:?}"
+    );
+}
+
+#[test]
+fn missing_prereq_warns_without_adding_courses() {
+    // Use Wharton so the CIS auto-placer does not fill CIS 1210/2620 as major courses.
+    let output = generate_schedule(ScheduleInput {
+        taken: vec!["CIS 3200".into()],
+        degrees: vec![major_input("WH", "WH_NOFL")],
+        frozen: vec![],
+        allow_summer: Some(false),
+        semester_cu_limits: None,
+        anon_session_id: None,
+    });
+    assert!(output.error.is_none(), "{:?}", output.error);
+    let msgs: Vec<_> = output
+        .cross_degree_summary
+        .as_ref()
+        .map(|s| {
+            s.violations
+                .iter()
+                .filter(|v| v.kind == CrossDegreeViolationKind::MissingPrerequisite)
+                .map(|v| v.message.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    assert!(
+        msgs.iter().any(|m| m.contains("CIS 3200")
+            && m.contains("CIS 1210")
+            && m.contains("CIS 2620")),
+        "expected missing-prereq warning: {msgs:?}"
+    );
+    let codes = schedule_codes(&output);
+    assert!(
+        !codes.contains("CIS 1210") && !codes.contains("CIS 2620"),
+        "missing prereqs must not be auto-added for the warning: {codes:?}"
+    );
+
+    let satisfied = generate_schedule(ScheduleInput {
+        taken: vec![
+            "CIS 3200".into(),
+            "CIS 1210".into(),
+            "CIS 2620".into(),
+        ],
+        degrees: vec![major_input("WH", "WH_NOFL")],
+        frozen: vec![],
+        allow_summer: Some(false),
+        semester_cu_limits: None,
+        anon_session_id: None,
+    });
+    let sat_msgs: Vec<_> = satisfied
+        .cross_degree_summary
+        .as_ref()
+        .map(|s| {
+            s.violations
+                .iter()
+                .filter(|v| {
+                    v.kind == CrossDegreeViolationKind::MissingPrerequisite
+                        && v.message.contains("CIS 3200")
+                })
+                .map(|v| v.message.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    assert!(
+        sat_msgs.is_empty(),
+        "CIS 3200 should not warn when prereqs are taken: {sat_msgs:?}"
+    );
+}
+
+#[test]
 fn suggest_avoids_mutex_partner_when_other_taken() {
     let output = generate_schedule(ScheduleInput {
         taken: vec!["CIS 4190".into()],

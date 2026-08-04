@@ -351,7 +351,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                     role="status"
                     aria-live="polite"
                 >
-                    <div className="schedule-warnings-label">Schedule notes</div>
+                    <div className="schedule-warnings-label">Warning</div>
                     <ul className="schedule-warnings-list">
                         {scheduleWarningMessages.map((message) => (
                             <li key={message}>{message}</li>

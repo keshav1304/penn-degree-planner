@@ -5,6 +5,7 @@ pub mod cross_degree;
 pub mod major;
 pub mod overlap_planner;
 pub mod penn_data;
+pub mod prereq;
 pub mod requirement;
 pub mod schedule_template;
 pub mod scheduler;

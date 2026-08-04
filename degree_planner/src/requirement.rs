@@ -3604,6 +3604,12 @@ pub fn resolve_cross_degree_conflicts(
                 cross_degree::CrossDegreeViolationKind::MutuallyExclusive => {
                     // Warn-only: never strip mutex mates during conflict resolution.
                 }
+                cross_degree::CrossDegreeViolationKind::AlsoOfferedSameCourse => {
+                    // Warn-only: also-offered duplicates are informational.
+                }
+                cross_degree::CrossDegreeViolationKind::MissingPrerequisite => {
+                    // Warn-only: never auto-add missing prerequisites.
+                }
             }
         }
 
