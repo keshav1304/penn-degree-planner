@@ -1417,49 +1417,36 @@ select {
   transition: color var(--transition), border-color var(--transition), background var(--transition);
 }
 
-.course-warning-wrap {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
+.schedule-warnings {
+  padding: 8px 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-left: 3px solid var(--accent-amber);
+  border-radius: var(--radius-sm);
 }
 
-.course-warning-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 18px;
-  height: 18px;
-  padding: 0;
+.schedule-warnings-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.schedule-warnings-list {
   margin: 0;
-  border: 1px solid var(--border-glass);
-  border-radius: 4px;
-  background: var(--bg-secondary);
-  color: #b45309;
-  cursor: pointer;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.course-warning-btn:hover,
-.course-warning-btn[aria-expanded="true"] {
-  border-color: rgba(180, 83, 9, 0.45);
-  background: rgba(180, 83, 9, 0.08);
-}
-
-.course-warning-popup {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 40;
-  min-width: 180px;
-  max-width: 260px;
-  padding: 8px 10px;
-  font-size: 12px;
-  line-height: 1.35;
-  color: var(--text-primary);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-glass);
-  border-radius: 6px;
-  box-shadow: none;
+.schedule-warnings-list li {
+  font-size: var(--sidebar-font-secondary);
+  line-height: 1.4;
+  color: var(--text-secondary);
 }
 
 .course-req-nav-btn:hover {

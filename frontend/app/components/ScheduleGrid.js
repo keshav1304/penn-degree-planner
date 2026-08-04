@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, forwardRef } from "react";
+import { useState, forwardRef } from "react";
 import DraggableCourse from "./DraggableCourse";
 import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isOverlapScheduleGroupId } from "@/lib/courseUtils";
@@ -26,26 +26,6 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
 }, ref) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [reqNavCycle, setReqNavCycle] = useState({});
-    const [openWarningId, setOpenWarningId] = useState(null);
-    const warningPopupRef = useRef(null);
-
-    useEffect(() => {
-        if (!openWarningId) return undefined;
-        const onDoc = (e) => {
-            if (warningPopupRef.current && !warningPopupRef.current.contains(e.target)) {
-                setOpenWarningId(null);
-            }
-        };
-        const onKey = (e) => {
-            if (e.key === "Escape") setOpenWarningId(null);
-        };
-        document.addEventListener("mousedown", onDoc);
-        document.addEventListener("keydown", onKey);
-        return () => {
-            document.removeEventListener("mousedown", onDoc);
-            document.removeEventListener("keydown", onKey);
-        };
-    }, [openWarningId]);
 
     if (!degrees || degrees.length === 0) {
         return (
@@ -114,6 +94,12 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
         return ids.map((id) => byId.get(id)).filter(Boolean);
     })();
 
+    const scheduleWarningMessages = [
+        ...new Set(
+            Object.values(crossDegreeViolationsByCourse || {}).filter(Boolean),
+        ),
+    ];
+
     const renderDegreeBar = (courseId) => {
         const degs = courseDegreesMap?.[courseId];
         if (!degs || degs.length === 0) return null;
@@ -128,55 +114,6 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                     />
                 ))}
             </div>
-        );
-    };
-
-    const renderWarningButton = (courseId) => {
-        const message = crossDegreeViolationsByCourse?.[courseId];
-        if (!message) return null;
-        const open = openWarningId === courseId;
-        return (
-            <span className="course-warning-wrap" ref={open ? warningPopupRef : undefined}>
-                <button
-                    type="button"
-                    className="course-warning-btn"
-                    aria-label={`Warning: ${message}`}
-                    aria-expanded={open}
-                    onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setOpenWarningId((prev) => (prev === courseId ? null : courseId));
-                    }}
-                >
-                    <svg
-                        className="course-warning-icon"
-                        viewBox="0 0 16 16"
-                        width="12"
-                        height="12"
-                        aria-hidden="true"
-                    >
-                        <path
-                            d="M8 1.5L14.5 13H1.5L8 1.5z"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinejoin="round"
-                        />
-                        <path
-                            d="M8 6v3.5M8 11.5h.01"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            strokeLinecap="round"
-                        />
-                    </svg>
-                </button>
-                {open && (
-                    <div className="course-warning-popup" role="dialog" aria-label="Course warning">
-                        {message}
-                    </div>
-                )}
-            </span>
         );
     };
 
@@ -394,7 +331,6 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         <span className="schedule-course-title">{courseId}</span>
                         <span className="course-card-actions">
                             {renderConcBadges(courseId)}
-                            <span className="export-hide">{renderWarningButton(courseId)}</span>
                             <span className="export-hide">{renderReqNavButton(courseId)}</span>
                             <span className="course-cu-label">{getCu(courseId).toFixed(1)}<span className="course-cu-unit"> CU</span></span>
                         </span>
@@ -409,6 +345,21 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
             ref={ref}
             className={`schedule-container${creditsCollapsed ? " credits-collapsed" : ""}`}
         >
+            {scheduleWarningMessages.length > 0 && (
+                <div
+                    className="schedule-warnings export-hide fade-in"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div className="schedule-warnings-label">Schedule notes</div>
+                    <ul className="schedule-warnings-list">
+                        {scheduleWarningMessages.map((message) => (
+                            <li key={message}>{message}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
             {/* Credits Received section — collapsible */}
             <div className="credits-received-row fade-in">
                 <div
@@ -441,7 +392,6 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                                     <span className="schedule-course-title">{a.courseId}</span>
                                                     <span className="course-card-actions">
                                                         {renderConcBadges(a.courseId)}
-                                                        <span className="export-hide">{renderWarningButton(a.courseId)}</span>
                                                         <span className="export-hide">{renderReqNavButton(a.courseId)}</span>
                                                     </span>
                                                 </div>
