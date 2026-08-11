@@ -2244,24 +2244,6 @@ const PSYC_COGNATE_ELECTIVES: &[&str] = &[
     "STAT 1120",
 ];
 
-fn psyc_elective_slot() -> Requirement {
-    any_of(
-        "Psychology Electives",
-        vec![
-            restriction(1)
-                .departments(&["PSYC"])
-                .level(1000)
-                .max_level(4999)
-                .excluding(&["PSYC 4997"])
-                .into(),
-            restriction(1)
-                .attr(&["APMR"])
-                .excluding(&["PSYC 4997"])
-                .into(),
-        ],
-    )
-}
-
 fn psyc_elective_cognate_slot() -> Requirement {
     any_of(
         "Psychology Electives",
@@ -2270,7 +2252,7 @@ fn psyc_elective_cognate_slot() -> Requirement {
             restriction(1)
                 .departments(&["PSYC"])
                 .level(1000)
-                .max_level(4999)
+                .max_level(4000)
                 .excluding(&["PSYC 4997"])
                 .into(),
             restriction(1)
@@ -2282,16 +2264,11 @@ fn psyc_elective_cognate_slot() -> Requirement {
 }
 
 fn psyc_major_requirements() -> Vec<Requirement> {
-    let statistics_options: Vec<Requirement> = PSYC_APPROVED_STATISTICS
-        .iter()
-        .map(|c| code(&[*c]))
-        .collect();
-
     let psyc_elective: Requirement = restriction(1)
-        .category("Psychology Elective")
+        .category("Psychology Electives")
         .departments(&["PSYC"])
         .level(1000)
-        .max_level(4999)
+        .max_level(4000)
         .excluding(&["PSYC 4997"])
         .into();
 
@@ -2307,32 +2284,19 @@ fn psyc_major_requirements() -> Vec<Requirement> {
                     .into(),
             ],
         ),
-        any_of(
+        single(
             "Biological Basis of Behavior",
-            vec![
-                code(&["NRSC 1110"]),
-                code(&["PSYC 1210"]),
-                code(&["PSYC 1230"]),
-            ],
+            &["NRSC 1110", "PSYC 1210", "PSYC 1230"],
         ),
         attr_restriction("Biological Basis of Behavior", "APCI"),
-        any_of(
+        single(
             "Cognitive Basis of Behavior",
-            vec![
-                code(&["PSYC 1310"]),
-                code(&["PSYC 1333"]),
-                code(&["PSYC 1340"]),
-                code(&["PSYC 1777"]),
-            ],
+            &["PSYC 1310", "PSYC 1333", "PSYC 1340", "PSYC 1777"],
         ),
         attr_restriction("Cognitive Basis of Behavior", "APCC"),
-        any_of(
+        single(
             "Social Science Bases of Behavior",
-            vec![
-                code(&["PSYC 1440"]),
-                code(&["PSYC 1462"]),
-                code(&["PSYC 1777"]),
-            ],
+            &["PSYC 1440", "PSYC 1462", "PSYC 1777"],
         ),
         attr_restriction("Social Science Bases of Behavior", "APCS"),
         restriction(1)
@@ -2342,7 +2306,7 @@ fn psyc_major_requirements() -> Vec<Requirement> {
             .max_level(4999)
             .excluding(&["PSYC 4997"])
             .into(),
-        any_of("Statistics", statistics_options),
+        single("Statistics", PSYC_APPROVED_STATISTICS),
     ];
     requirements.extend([
         psyc_elective_cognate_slot(),
