@@ -1028,6 +1028,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         for mapped in &mut suggested {
             requirement::normalize_suggested_schedule_ids(mapped);
         }
+        requirement::expand_duplicate_sole_course_suggestions(&mut suggested);
 
         if cross_degree_active {
             for mapped in &mut suggested {
@@ -1051,6 +1052,7 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             for mapped in &mut suggested {
                 requirement::normalize_suggested_schedule_ids(mapped);
             }
+            requirement::expand_duplicate_sole_course_suggestions(&mut suggested);
         }
 
         if cross_degree_active {

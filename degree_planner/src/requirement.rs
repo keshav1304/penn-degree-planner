@@ -258,6 +258,57 @@ pub fn normalize_suggested_schedule_ids(mapped: &mut MappedRequirement) {
     }
 }
 
+/// When several open SingleCourse slots share the same sole possibility (e.g. two BE 9990
+/// thesis units), schedule each as a distinct `req:` placeholder so they can land in
+/// different semesters. Concrete course codes are unique on the grid.
+pub fn expand_duplicate_sole_course_suggestions(suggested: &mut [MappedRequirement]) {
+    let mut sole_counts: HashMap<String, usize> = HashMap::new();
+    for mapped in suggested.iter() {
+        if let Some(code) = sole_possibility_course(mapped) {
+            *sole_counts.entry(code).or_insert(0) += 1;
+        }
+    }
+    let duplicated: HashSet<String> = sole_counts
+        .into_iter()
+        .filter(|(_, n)| *n >= 2)
+        .map(|(code, _)| code)
+        .collect();
+    if duplicated.is_empty() {
+        return;
+    }
+    for mapped in suggested.iter_mut() {
+        let Some(code) = sole_possibility_course(mapped) else {
+            continue;
+        };
+        if !duplicated.contains(&code) {
+            continue;
+        }
+        let Some(instance_id) = mapped.instance_id.as_deref() else {
+            continue;
+        };
+        if let Some(slot_id) = mapped
+            .requirement
+            .schedulable_placeholder_id(Some(instance_id))
+        {
+            mapped.course_ids = vec![slot_id];
+        }
+    }
+}
+
+fn sole_possibility_course(mapped: &MappedRequirement) -> Option<String> {
+    let Requirement::SingleCourse { possibilities, .. } = &mapped.requirement else {
+        return None;
+    };
+    if possibilities.len() != 1 {
+        return None;
+    }
+    let code = &possibilities[0];
+    if !crate::course::is_valid_course_code(code) {
+        return None;
+    }
+    Some(course_relations::canonical(code))
+}
+
 const CU_EPS: f64 = 0.001;
 
 /// Required CU for a Restriction slot. After [`expand_restriction_slots`], `number` is 1 when
@@ -2342,6 +2393,9 @@ pub fn validate_courses_for_degree(
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
     let mut requirements_not_fulfilled = Vec::new();
+    // SingleCourse slots consume 1.0 CU from a course's catalog CU; multi-CU courses
+    // (e.g. BE 9990 at 2.0) can fill multiple sole-possibility SingleCourse slots.
+    let mut remaining_cu = single_course_remaining_cu(&taken_mut, cu_map);
 
     // Preserve original major indices before sorting — identical requirements compare
     // equal and must not share one instance id.
@@ -2434,6 +2488,44 @@ pub fn validate_courses_for_degree(
                     &mut requirements_not_fulfilled,
                 );
             }
+            Requirement::SingleCourse { .. } => {
+                if let Some(courses_fulfilling) =
+                    req.fulfills_requirement(&taken_mut, &attributes, cu_map)
+                {
+                    if courses_fulfilling
+                        .iter()
+                        .all(|c| consume_single_course_slot_cu(&mut remaining_cu, c))
+                    {
+                        for c in &courses_fulfilling {
+                            maybe_remove_exhausted_single_course(
+                                &mut taken_mut,
+                                &remaining_cu,
+                                c,
+                            );
+                        }
+                        fulfilled_requirements.push(new_mapped_requirement(
+                            req,
+                            courses_fulfilling,
+                            instance_id,
+                            &attributes,
+                        ));
+                    } else {
+                        requirements_not_fulfilled.push(new_mapped_requirement(
+                            req,
+                            vec![],
+                            instance_id,
+                            &attributes,
+                        ));
+                    }
+                } else {
+                    requirements_not_fulfilled.push(new_mapped_requirement(
+                        req,
+                        vec![],
+                        instance_id,
+                        &attributes,
+                    ));
+                }
+            }
             _ => {
                 if let Some(courses_fulfilling) = req.fulfills_requirement(&taken_mut, &attributes, cu_map) {
                     course_relations::retain_without_equiv(&mut taken_mut, &courses_fulfilling);
@@ -2474,6 +2566,52 @@ pub fn validate_courses_for_degree(
         fulfilled: fulfilled_requirements,
         unfulfilled: requirements_not_fulfilled,
         pool_coverage_info,
+    }
+}
+
+/// Catalog CU available to fill top-level [`Requirement::SingleCourse`] slots (1.0 CU each).
+fn single_course_remaining_cu(
+    taken: &[String],
+    cu_map: &HashMap<String, f64>,
+) -> HashMap<String, f64> {
+    let mut remaining = HashMap::new();
+    for course in taken {
+        let canon = course_relations::canonical(course);
+        remaining
+            .entry(canon)
+            .or_insert_with(|| lookup_course_cu(cu_map, course));
+    }
+    remaining
+}
+
+const SINGLE_COURSE_SLOT_CU: f64 = 1.0;
+
+/// Spend one SingleCourse slot's worth of CU from `course`'s remaining budget.
+fn consume_single_course_slot_cu(
+    remaining_cu: &mut HashMap<String, f64>,
+    course: &str,
+) -> bool {
+    let canon = course_relations::canonical(course);
+    let rem = remaining_cu.entry(canon).or_insert(0.0);
+    if *rem + CU_EPS < SINGLE_COURSE_SLOT_CU {
+        return false;
+    }
+    *rem -= SINGLE_COURSE_SLOT_CU;
+    if *rem < 0.0 {
+        *rem = 0.0;
+    }
+    true
+}
+
+fn maybe_remove_exhausted_single_course(
+    taken: &mut Vec<String>,
+    remaining_cu: &HashMap<String, f64>,
+    course: &str,
+) {
+    let canon = course_relations::canonical(course);
+    let rem = remaining_cu.get(&canon).copied().unwrap_or(0.0);
+    if rem <= CU_EPS {
+        course_relations::retain_without_equiv(taken, std::slice::from_ref(&course.to_string()));
     }
 }
 

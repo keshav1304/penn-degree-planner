@@ -1714,6 +1714,219 @@ mod catalog {
     }
 
     #[test]
+    fn ms_be_taken_thesis_fills_both_slots() {
+        let major = resolve_major("SEAS_MS", "MS_BE", &[]).expect("MS_BE");
+        let cu_map = courses_data::cu_map();
+        assert!(
+            (cu_map.get("BE 9990").copied().unwrap_or(0.0) - 2.0).abs() < 1e-6,
+            "BE 9990 catalog CU should be 2.0"
+        );
+        let result = validate_courses_for_degree(
+            major.requirements.clone(),
+            &vec!["BE 9990".to_string()],
+            cu_map,
+        );
+        let thesis_fulfilled = result
+            .fulfilled
+            .iter()
+            .filter(|m| {
+                matches!(
+                    &m.requirement,
+                    Requirement::SingleCourse {
+                        possibilities,
+                        ..
+                    } if possibilities == &["BE 9990".to_string()]
+                )
+            })
+            .count();
+        let thesis_open = result
+            .unfulfilled
+            .iter()
+            .filter(|m| {
+                matches!(
+                    &m.requirement,
+                    Requirement::SingleCourse {
+                        possibilities,
+                        ..
+                    } if possibilities == &["BE 9990".to_string()]
+                )
+            })
+            .count();
+        assert_eq!(thesis_fulfilled, 2, "one taken BE 9990 should fill both 1 CU thesis slots");
+        assert_eq!(thesis_open, 0, "no open thesis slots after taking BE 9990");
+    }
+
+    #[test]
+    fn ms_be_schedule_uses_two_thesis_placeholders() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "MS_BE".into(),
+                school: "SEAS_MS".into(),
+                kind: "major".to_string(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+            anon_session_id: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let suggested = &output.degree_results[0].suggested_for_unfulfilled;
+        let thesis_suggestions: Vec<_> = suggested
+            .iter()
+            .filter(|m| {
+                matches!(
+                    &m.requirement,
+                    Requirement::SingleCourse {
+                        category: Some(cat),
+                        possibilities,
+                        ..
+                    } if cat == "Master's Thesis" && possibilities == &["BE 9990".to_string()]
+                )
+            })
+            .collect();
+        assert_eq!(thesis_suggestions.len(), 2, "two open thesis units");
+        for mapped in &thesis_suggestions {
+            assert_eq!(mapped.course_ids.len(), 1);
+            let id = &mapped.course_ids[0];
+            assert!(
+                requirement::is_schedulable_requirement_slot_id(id),
+                "duplicate sole-course thesis should schedule as req: placeholder, got {id}"
+            );
+            assert_ne!(id, "BE 9990", "must not emit a single concrete BE 9990 for both units");
+        }
+        assert_ne!(
+            thesis_suggestions[0].course_ids[0], thesis_suggestions[1].course_ids[0],
+            "placeholders must be distinct so units can sit in different semesters"
+        );
+
+        let schedule_ids: Vec<String> = output
+            .schedule
+            .iter()
+            .flat_map(|p| {
+                p.courses
+                    .iter()
+                    .cloned()
+                    .chain(p.requirement_slots.iter().cloned())
+            })
+            .collect();
+        let thesis_on_grid: Vec<_> = thesis_suggestions
+            .iter()
+            .map(|m| m.course_ids[0].as_str())
+            .filter(|id| schedule_ids.iter().any(|s| s == id))
+            .collect();
+        assert_eq!(
+            thesis_on_grid.len(),
+            2,
+            "both thesis placeholders should appear on the schedule grid"
+        );
+
+        let with_taken = generate_schedule(ScheduleInput {
+            taken: vec!["BE 9990".into()],
+            degrees: vec![DegreeInput {
+                major: "MS_BE".into(),
+                school: "SEAS_MS".into(),
+                kind: "major".to_string(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+            anon_session_id: None,
+        });
+        assert!(with_taken.error.is_none(), "{:?}", with_taken.error);
+        let open_thesis = with_taken.degree_results[0]
+            .suggested_for_unfulfilled
+            .iter()
+            .filter(|m| {
+                matches!(
+                    &m.requirement,
+                    Requirement::SingleCourse {
+                        possibilities,
+                        ..
+                    } if possibilities == &["BE 9990".to_string()]
+                )
+            })
+            .count();
+        assert_eq!(open_thesis, 0, "taken BE 9990 should clear thesis suggestions");
+    }
+
+    #[test]
+    fn ms_be_non_thesis_schedule_has_no_be_9990() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "MS_BE".into(),
+                school: "SEAS_MS".into(),
+                kind: "major".to_string(),
+                concentrations: vec!["Non-thesis".into()],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+            anon_session_id: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        assert!(
+            !output.degree_results[0].suggested_for_unfulfilled.iter().any(|m| {
+                matches!(
+                    &m.requirement,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"BE 9990".to_string())
+                )
+            }),
+            "non-thesis track should not suggest BE 9990"
+        );
+    }
+
+    #[test]
+    fn single_sole_course_still_suggests_concrete_code() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "CIS".into(),
+                school: "SEAS".into(),
+                kind: "major".to_string(),
+                concentrations: vec![],
+                concentration: None,
+            }],
+            frozen: vec![],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+            anon_session_id: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let cis_1200 = output.degree_results[0]
+            .suggested_for_unfulfilled
+            .iter()
+            .find(|m| {
+                matches!(
+                    &m.requirement,
+                    Requirement::SingleCourse {
+                        possibilities,
+                        ..
+                    } if possibilities == &["CIS 1200".to_string()]
+                )
+            });
+        let Some(mapped) = cis_1200 else {
+            // CIS tree may nest CIS 1200; accept concrete appearance on the schedule.
+            assert!(
+                output
+                    .schedule
+                    .iter()
+                    .any(|p| p.courses.iter().any(|c| c == "CIS 1200")),
+                "sole-possibility SingleCourse should still schedule as concrete CIS 1200"
+            );
+            return;
+        };
+        assert_eq!(mapped.course_ids, vec!["CIS 1200".to_string()]);
+    }
+
+    #[test]
     fn ms_meam_major_resolves_with_ten_cu_and_concentrations() {
         let design = resolve_major("SEAS_MS", "MS_MEAM", &[]).expect("MS_MEAM design default");
         assert_eq!(design.short_name, "MS_MEAM");

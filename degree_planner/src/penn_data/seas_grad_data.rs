@@ -6,7 +6,7 @@ use crate::penn_data::requirement_builders::{
     any_of, course_group, repeat_req, required_slots, restriction,
     schedule_hints, single,
 };
-use crate::schedule_template::{Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
+use crate::schedule_template::{ScheduleHint, Y1F, Y1S, Y2F, Y2S, Y3F, Y3S, Y4F, Y4S};
 
 fn placeholder_ms_major(short_name: &str, display_name: &str) -> Major {
     Major {
@@ -470,7 +470,10 @@ pub fn create_ms_be_major(concentration_name: String) -> Major {
     ]
     .concat();
 
-    // Determine track requirements (2 CU)
+    // Track: 2 CU of BE 9990 (thesis) or 2 CU SEAS/bio electives (non-thesis).
+    // Path lists BE 9990 as variable 1–2 CU; we approximate: taken BE 9990 ⇒ full 2 CU
+    // credit (fills both slots); planning uses two 1 CU schedule placeholders.
+    let thesis = repeat_req(&single("Master's Thesis", &["BE 9990"]), 2);
     let (track, concentrations): (Vec<Requirement>, Option<BTreeMap<String, Vec<Requirement>>>) =
         match concentration_name.as_str() {
             "Non-thesis" => {
@@ -481,51 +484,43 @@ pub fn create_ms_be_major(concentration_name: String) -> Major {
                 (
                     non_thesis.clone(),
                     Some(BTreeMap::from([
-                        (
-                            "Thesis".to_string(),
-                            vec![
-                                single("Master's Thesis", &["BE 9990"]),
-                                single("Master's Thesis", &["BE 9990"]),
-                            ],
-                        ),
+                        ("Thesis".to_string(), thesis),
                         ("Non-thesis".to_string(), non_thesis),
                     ])),
                 )
             }
-            _ => {
-                let thesis = vec![
-                    single("Master's Thesis", &["BE 9990"]),
-                    single("Master's Thesis", &["BE 9990"]),
-                ];
-                (
-                    thesis.clone(),
-                    Some(BTreeMap::from([
-                        (
-                            "Thesis".to_string(),
-                            thesis,
+            _ => (
+                thesis.clone(),
+                Some(BTreeMap::from([
+                    ("Thesis".to_string(), thesis),
+                    (
+                        "Non-thesis".to_string(),
+                        repeat_req(
+                            &ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
+                            2,
                         ),
-                        (
-                            "Non-thesis".to_string(),
-                            repeat_req(
-                                &ms_be_seas_or_bio_slot("SEAS and/or Biological Science Elective"),
-                                2,
-                            ),
-                        ),
-                    ])),
-                )
-            }
+                    ),
+                ])),
+            ),
         };
 
     requirements.extend(track);
+
+    // Index hints place the two thesis slots on Y2F then Y2S. Fixed mode keeps MS
+    // default semester targeting from collapsing both onto year 3. No course-key
+    // override for BE 9990 — that would dedupe both units onto one schedule item.
+    let mut schedule_hints_map = schedule_hints(
+        &[Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S],
+        &[],
+    );
+    schedule_hints_map.insert("8".to_string(), ScheduleHint::fixed(Y2F));
+    schedule_hints_map.insert("9".to_string(), ScheduleHint::fixed(Y2S));
 
     Major {
         short_name: "MS_BE".to_string(),
         name: "Bioengineering, MSE".to_string(),
         requirements,
-        schedule_hints: schedule_hints(
-            &[Y1F, Y1F, Y1F, Y1S, Y1S, Y1S, Y1S, Y2F, Y2F, Y2S],
-            &[("BE 9990", Y2F)],
-        ),
+        schedule_hints: schedule_hints_map,
         concentrations,
     }
 }
