@@ -108,6 +108,7 @@ fn dual_degree_input(
         frozen: vec![],
         allow_summer: Some(true),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     }
 }
@@ -141,6 +142,7 @@ fn dual_degree_input_with_conc(
         frozen: vec![],
         allow_summer: Some(true),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     }
 }
@@ -1159,6 +1161,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(false),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
 
@@ -1205,6 +1208,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(false),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
 
@@ -1247,6 +1251,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(false),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
 
@@ -1299,6 +1304,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(false),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
 
@@ -1347,6 +1353,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(false),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         };
         let output = generate_schedule(payload);
@@ -1567,6 +1574,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -1598,6 +1606,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -1640,6 +1649,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -1770,6 +1780,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -1835,6 +1846,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(with_taken.error.is_none(), "{:?}", with_taken.error);
@@ -1868,6 +1880,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -1897,6 +1910,7 @@ mod catalog {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -2617,6 +2631,7 @@ mod cross_degree_sharing {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -2730,6 +2745,7 @@ mod cross_degree_sharing {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none());
@@ -2802,6 +2818,7 @@ mod cross_degree_sharing {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -2900,6 +2917,7 @@ mod cross_degree_sharing {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -2984,6 +3002,7 @@ mod cross_degree_sharing {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
 
@@ -3225,6 +3244,7 @@ mod overlap {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
 
@@ -3350,6 +3370,7 @@ mod overlap {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         let scheduled: Vec<&str> = output
@@ -3396,6 +3417,7 @@ mod overlap {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         let scheduled: Vec<&str> = output
@@ -3491,6 +3513,7 @@ mod overlap {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert_shared_course_on_schedule(&output, "BEPP 2500", "EE+WH_NOFL_MT");
@@ -4049,6 +4072,7 @@ mod scheduling {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.cross_degree_summary.is_none());
@@ -4069,6 +4093,7 @@ mod scheduling {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4090,6 +4115,7 @@ mod scheduling {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4280,6 +4306,7 @@ mod dual_degree_properties {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4339,6 +4366,7 @@ mod dual_degree_properties {
             ],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4402,6 +4430,7 @@ mod dual_degree_properties {
             ],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4603,6 +4632,7 @@ mod dual_degree_properties {
             ],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4681,6 +4711,7 @@ mod dual_degree_properties {
             }],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4745,6 +4776,7 @@ mod dual_degree_properties {
             }],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -4936,6 +4968,7 @@ mod dual_degree_properties {
             }],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -5042,6 +5075,7 @@ mod dual_degree_properties {
             ],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert!(output.error.is_none(), "{:?}", output.error);
@@ -5133,6 +5167,7 @@ mod dual_degree_properties {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         let writ_units = writ_cu_units_on_schedule(&output);
@@ -5329,6 +5364,7 @@ mod schedule_templates {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert_course_in_semester(&output, "CIS 4000", 4, "Fall");
@@ -5360,6 +5396,7 @@ mod schedule_templates {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert_course_in_semester(&output, "WH 1010", 1, "Fall");
@@ -5367,6 +5404,157 @@ mod schedule_templates {
         assert_course_in_semester(&output, "MGMT 2370", 2, "Spring");
         assert_course_in_semester(&output, "ESE 4500", 4, "Fall");
         assert_course_in_semester(&output, "ESE 4510", 4, "Spring");
+    }
+
+    #[test]
+    fn half_credit_wh_mt_named_courses_fulfill_their_slots() {
+        let major = resolve_major("WH", "WH_NOFL_MT", &["STAT".into()]).expect("WH_NOFL_MT");
+        let cu_map = catalog_cu_map();
+        for (course, category) in [
+            ("WH 1010", "Leadership Journey"),
+            ("WH 2010", "Leadership Journey"),
+            ("MGMT 3010", "Leadership Journey"),
+            ("OIDD 2340", "M&T Freshman Course"),
+        ] {
+            assert!(
+                (cu_map.get(course).copied().unwrap_or(0.0) - 0.5).abs() < 1e-6,
+                "{course} should be 0.5 CU"
+            );
+            let result = validate_courses_for_degree(
+                major.requirements.clone(),
+                &vec![course.to_string()],
+                cu_map,
+            );
+            assert!(
+                result.fulfilled.iter().any(|m| {
+                    m.requirement.get_category() == category && m.course_ids.iter().any(|c| c == course)
+                }),
+                "{course} should fulfill {category}; fulfilled={:?} unfulfilled={:?}",
+                result
+                    .fulfilled
+                    .iter()
+                    .map(|m| (m.requirement.get_category(), m.course_ids.clone()))
+                    .collect::<Vec<_>>(),
+                result
+                    .unfulfilled
+                    .iter()
+                    .filter(|m| m.requirement.get_category() == category)
+                    .map(|m| m.course_ids.clone())
+                    .collect::<Vec<_>>(),
+            );
+        }
+    }
+
+    #[test]
+    fn frozen_wh_mt_leadership_and_freshman_count_on_requirements() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "WH_NOFL_MT".into(),
+                school: "WH".into(),
+                kind: "major".to_string(),
+                concentrations: vec!["STAT".into()],
+                concentration: None,
+            }],
+            frozen: vec![
+                FrozenCourse {
+                    course_id: "WH 1010".into(),
+                    year: 1,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "WH 2010".into(),
+                    year: 2,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "MGMT 3010".into(),
+                    year: 3,
+                    semester: "Fall".into(),
+                },
+                FrozenCourse {
+                    course_id: "OIDD 2340".into(),
+                    year: 1,
+                    semester: "Fall".into(),
+                },
+            ],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+            gap_semesters: vec![],
+            anon_session_id: None,
+        });
+        assert!(output.error.is_none(), "{:?}", output.error);
+        let wh = output
+            .degree_results
+            .iter()
+            .find(|r| r.major == "WH_NOFL_MT")
+            .expect("WH_NOFL_MT result");
+        let fulfilled_cats: Vec<(String, Vec<String>)> = wh
+            .fulfilled_requirements
+            .iter()
+            .map(|m| (m.requirement.get_category(), m.course_ids.clone()))
+            .collect();
+        for (course, category) in [
+            ("WH 1010", "Leadership Journey"),
+            ("WH 2010", "Leadership Journey"),
+            ("MGMT 3010", "Leadership Journey"),
+            ("OIDD 2340", "M&T Freshman Course"),
+        ] {
+            assert!(
+                wh.fulfilled_requirements.iter().any(|m| {
+                    m.requirement.get_category() == category
+                        && m.course_ids.iter().any(|c| c == course)
+                }),
+                "{course} should appear on {category} in the requirements panel; fulfilled={fulfilled_cats:?}"
+            );
+        }
+        let leadership_filled = wh
+            .fulfilled_requirements
+            .iter()
+            .filter(|m| m.requirement.get_category() == "Leadership Journey")
+            .count();
+        assert_eq!(
+            leadership_filled, 3,
+            "all three Leadership Journey slots should be fulfilled; {fulfilled_cats:?}"
+        );
+    }
+
+    #[test]
+    fn frozen_ese_4210_counts_toward_ee_robotics_tracker() {
+        let output = generate_schedule(ScheduleInput {
+            taken: vec![],
+            degrees: vec![DegreeInput {
+                major: "EE".into(),
+                school: "SEAS".into(),
+                kind: "major".to_string(),
+                concentrations: vec!["Robotics".into()],
+                concentration: None,
+            }],
+            frozen: vec![FrozenCourse {
+                course_id: "ESE 4210".into(),
+                year: 3,
+                semester: "Spring".into(),
+            }],
+            allow_summer: Some(true),
+            semester_cu_limits: None,
+            gap_semesters: vec![],
+            anon_session_id: None,
+        });
+        let ee = output
+            .degree_results
+            .iter()
+            .find(|r| r.major == "EE")
+            .expect("EE result");
+        let robotics = ee
+            .concentration_info
+            .iter()
+            .find(|ci| ci.name == "Robotics")
+            .expect("Robotics tracker");
+        assert!(
+            robotics.requirement_fulfilled.first().copied().unwrap_or(false),
+            "frozen ESE 4210 should count toward Robotics; matched={:?}",
+            robotics.matched_courses
+        );
     }
 
     #[test]
@@ -5385,6 +5573,7 @@ mod schedule_templates {
             frozen: vec![],
             allow_summer: Some(true),
             semester_cu_limits: None,
+            gap_semesters: vec![],
             anon_session_id: None,
         });
         assert_course_in_semester(&output, "WH 1010", 1, "Fall");

@@ -134,6 +134,7 @@ fn alias_pair_in_taken_does_not_double_count_as_two_courses_for_ug_ms_budget() {
         ],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     assert!(output.error.is_none(), "{:?}", output.error);
@@ -163,6 +164,7 @@ fn mutex_warns_only_when_both_on_schedule() {
         ],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     let codes = schedule_codes(&both);
@@ -190,6 +192,7 @@ fn mutex_warns_only_when_both_on_schedule() {
         }],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     let only_codes = schedule_codes(&only_one);
@@ -215,6 +218,7 @@ fn also_offered_pair_in_taken_emits_same_course_warning() {
         frozen: vec![],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     assert!(output.error.is_none(), "{:?}", output.error);
@@ -246,6 +250,7 @@ fn missing_prereq_warns_without_adding_courses() {
         frozen: vec![],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     assert!(output.error.is_none(), "{:?}", output.error);
@@ -282,6 +287,7 @@ fn missing_prereq_warns_without_adding_courses() {
         frozen: vec![],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     let sat_msgs: Vec<_> = satisfied
@@ -312,6 +318,7 @@ fn suggest_avoids_mutex_partner_when_other_taken() {
         frozen: vec![],
         allow_summer: Some(false),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     for result in &output.degree_results {

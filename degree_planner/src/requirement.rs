@@ -2393,8 +2393,8 @@ pub fn validate_courses_for_degree(
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
     let mut requirements_not_fulfilled = Vec::new();
-    // SingleCourse slots consume 1.0 CU from a course's catalog CU; multi-CU courses
-    // (e.g. BE 9990 at 2.0) can fill multiple sole-possibility SingleCourse slots.
+    // SingleCourse slots consume min(catalog CU, 1.0): a 0.5 CU named course fills one
+    // slot, while a 2.0 CU course (BE 9990) can fill two sole-possibility slots.
     let mut remaining_cu = single_course_remaining_cu(&taken_mut, cu_map);
 
     // Preserve original major indices before sorting — identical requirements compare
@@ -2492,9 +2492,9 @@ pub fn validate_courses_for_degree(
                 if let Some(courses_fulfilling) =
                     req.fulfills_requirement(&taken_mut, &attributes, cu_map)
                 {
-                    if courses_fulfilling
-                        .iter()
-                        .all(|c| consume_single_course_slot_cu(&mut remaining_cu, c))
+                    if courses_fulfilling.iter().all(|c| {
+                        consume_single_course_slot_cu(&mut remaining_cu, c, cu_map)
+                    })
                     {
                         for c in &courses_fulfilling {
                             maybe_remove_exhausted_single_course(
@@ -2569,7 +2569,7 @@ pub fn validate_courses_for_degree(
     }
 }
 
-/// Catalog CU available to fill top-level [`Requirement::SingleCourse`] slots (1.0 CU each).
+/// Catalog CU available to fill top-level [`Requirement::SingleCourse`] slots.
 fn single_course_remaining_cu(
     taken: &[String],
     cu_map: &HashMap<String, f64>,
@@ -2586,17 +2586,24 @@ fn single_course_remaining_cu(
 
 const SINGLE_COURSE_SLOT_CU: f64 = 1.0;
 
-/// Spend one SingleCourse slot's worth of CU from `course`'s remaining budget.
+/// Spend CU from `course` toward one SingleCourse slot.
+///
+/// A named half-credit course (WH 1010, OIDD 2340, …) fulfills that slot with its
+/// catalog CU. Courses of 1.0+ CU spend 1.0 per slot so a 2.0 CU course (BE 9990)
+/// can fill two identical slots.
 fn consume_single_course_slot_cu(
     remaining_cu: &mut HashMap<String, f64>,
     course: &str,
+    cu_map: &HashMap<String, f64>,
 ) -> bool {
     let canon = course_relations::canonical(course);
+    let catalog = lookup_course_cu(cu_map, course);
+    let slot_need = catalog.min(SINGLE_COURSE_SLOT_CU);
     let rem = remaining_cu.entry(canon).or_insert(0.0);
-    if *rem + CU_EPS < SINGLE_COURSE_SLOT_CU {
+    if *rem + CU_EPS < slot_need {
         return false;
     }
-    *rem -= SINGLE_COURSE_SLOT_CU;
+    *rem -= slot_need;
     if *rem < 0.0 {
         *rem = 0.0;
     }

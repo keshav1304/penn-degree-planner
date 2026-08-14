@@ -23,6 +23,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
     degreeCatalog = [],
     minorCatalog = [],
     semesterCuLimits, onSemesterCuLimitChange,
+    gapSemesters = {}, onToggleGapSemester,
 }, ref) {
     const [creditsCollapsed, setCreditsCollapsed] = useState(false);
     const [reqNavCycle, setReqNavCycle] = useState({});
@@ -52,6 +53,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
         allowSummer,
         degrees,
         semesterCuLimits,
+        gapSemesters,
         courseCuMap,
         requirementSlotLabels,
     });
@@ -68,6 +70,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
         creditsCourses,
         isFrozen,
         isAssigned,
+        isGap,
     } = display;
 
     const degreeColorMap = buildDegreeColorMap(scheduleData);
@@ -431,23 +434,50 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                         const requirementSlots = getDisplayRequirementSlots(year, sem);
                         const itemCount = courses.length + overlapGroups.length + requirementSlots.length;
                         const droppableId = `slot-${year}-${sem}`;
+                        const semKey = `${year}-${sem}`;
+                        const gap = isGap(year, sem);
 
                         return (
-                            <DroppableSemester key={sem} id={droppableId} year={year} semester={sem}>
+                            <DroppableSemester
+                                key={sem}
+                                id={droppableId}
+                                year={year}
+                                semester={sem}
+                                className={gap ? "semester-col-gap" : ""}
+                            >
                                 <div className="semester-col-header">
-                                    <span className="semester-col-header-full">
-                                        {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
+                                    <span className="semester-col-header-labels">
+                                        <span className="semester-col-header-full">
+                                            {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
+                                        </span>
+                                        <span className="semester-col-header-term">{sem}</span>
+                                        {gap && <span className="semester-gap-badge">Gap</span>}
                                     </span>
-                                    <span className="semester-col-header-term">{sem}</span>
+                                    <button
+                                        type="button"
+                                        className={`semester-gap-toggle${gap ? " is-gap" : ""} export-hide`}
+                                        aria-pressed={gap}
+                                        title={gap
+                                            ? "Clear gap — optimizer may fill this semester"
+                                            : "Mark as gap — optimizer will skip this semester"}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onToggleGapSemester?.(semKey);
+                                        }}
+                                    >
+                                        Gap
+                                    </button>
                                 </div>
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
                                 {overlapGroups.map((groupId, idx) => renderOverlapGroupCard(groupId, year, sem, idx))}
                                 {requirementSlots.map((slotId, idx) => renderRequirementSlotCard(slotId, year, sem, idx))}
                                 {itemCount === 0 && (
-                                    <div className="drop-hint export-hide">Drop courses here</div>
+                                    <div className="drop-hint export-hide">
+                                        {gap ? "Pin courses here — not auto-filled" : "Drop courses here"}
+                                    </div>
                                 )}
                                 {(() => {
-                                    const semKey = `${year}-${sem}`;
                                     const { actualCu, limitCu: limitValue } = display.getSemesterItems(year, sem);
                                     const overLimit = actualCu > limitValue + 0.001;
                                     return (

@@ -144,7 +144,8 @@ function writeScheduleCenter(sheet, startCol, startRow, ctx) {
     sems.forEach((sem, i) => {
       const c = startCol + i * 2;
       const h = sheet.getCell(r, c);
-      h.value = sem;
+      const gap = display.isGap?.(year, sem);
+      h.value = gap ? `${sem} (Gap)` : sem;
       h.font = { bold: true, size: 9 };
       h.fill = solidFill(FILL_HEADER);
       h.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 9 };
@@ -193,7 +194,7 @@ function writeScheduleCenter(sheet, startCol, startRow, ctx) {
       const { actualCu, limitCu } = termData[si];
       const labelCell = sheet.getCell(r, c);
       const cuCell = sheet.getCell(r, c + 1);
-      labelCell.value = "Total CUs";
+      labelCell.value = display.isGap?.(year, sems[si]) ? "Gap · Total CUs" : "Total CUs";
       labelCell.font = { bold: true, size: 9 };
       labelCell.fill = solidFill(FILL_TOTAL);
       labelCell.border = thinBorder();
@@ -219,6 +220,7 @@ export async function exportScheduleExcel({
   allowSummer,
   degrees,
   semesterCuLimits,
+  gapSemesters,
   courseCuMap,
   requirementSlotLabels,
   degreeCatalog,
@@ -234,6 +236,7 @@ export async function exportScheduleExcel({
     allowSummer,
     degrees,
     semesterCuLimits,
+    gapSemesters,
     courseCuMap,
     requirementSlotLabels,
   });

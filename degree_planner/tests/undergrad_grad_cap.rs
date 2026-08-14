@@ -106,6 +106,7 @@ fn cis_ms_schedule_input(taken: Vec<String>) -> ScheduleInput {
         frozen: vec![],
         allow_summer: Some(true),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     }
 }
@@ -420,6 +421,7 @@ fn schedule_triple_degree_caps_ug_ms_overlap_blocks() {
         frozen: vec![],
         allow_summer: Some(true),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     assert!(output.error.is_none(), "{:?}", output.error);

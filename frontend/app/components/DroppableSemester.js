@@ -2,7 +2,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 
-export default function DroppableSemester({ id, year, semester, style, children }) {
+export default function DroppableSemester({ id, year, semester, className, style, children }) {
     const { isOver, setNodeRef } = useDroppable({
         id,
         data: { year, semester },
@@ -11,7 +11,7 @@ export default function DroppableSemester({ id, year, semester, style, children 
     return (
         <div
             ref={setNodeRef}
-            className={`semester-col ${isOver ? "drop-target" : ""}`}
+            className={`semester-col ${isOver ? "drop-target" : ""} ${className || ""}`.trim()}
             style={style}
         >
             {children}

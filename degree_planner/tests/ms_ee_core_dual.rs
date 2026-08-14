@@ -124,6 +124,7 @@ fn ee_plus_ms_ee_schedules_five_distinct_ms_core_placeholders() {
         frozen: vec![],
         allow_summer: Some(true),
         semester_cu_limits: None,
+        gap_semesters: vec![],
         anon_session_id: None,
     });
     assert!(output.error.is_none(), "{:?}", output.error);

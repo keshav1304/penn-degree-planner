@@ -61,6 +61,18 @@ export function defaultSemesterCuLimit(semester, year = null, degrees = []) {
     return DEFAULT_SEMESTER_CU_LIMIT;
 }
 
+export function semesterKey(year, semester) {
+    return `${year}-${semester}`;
+}
+
+export function isGapSemester(gapSemesters, year, semester) {
+    return Boolean(gapSemesters?.[semesterKey(year, semester)]);
+}
+
+export function gapSemesterKeys(gapSemesters = {}) {
+    return Object.keys(gapSemesters).filter((key) => gapSemesters[key]);
+}
+
 /**
  * Effective CU limit for a semester: user override if set, else degree-composition default.
  */

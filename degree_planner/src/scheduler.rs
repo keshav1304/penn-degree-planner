@@ -15,9 +15,9 @@ use crate::requirement::{
     self, ConcentrationInfo, MappedRequirement, PoolCoverageInfo,
 };
 use crate::schedule_template::{
-    merge_schedule_hint, ms_default_semester_target, ms_default_semester_target_for_requirement,
-    ms_grad_placement_candidates, placement_semesters, resolve_semester_hint,
-    ScheduleHint, ScheduleHintMode, semester_order,
+    later_semesters, merge_schedule_hint, ms_default_semester_target,
+    ms_default_semester_target_for_requirement, ms_grad_placement_candidates, placement_semesters,
+    resolve_semester_hint, semester_key, ScheduleHint, ScheduleHintMode, semester_order,
 };
 
 pub const DEFAULT_SEMESTER_CU_LIMIT: f64 = 5.5;
@@ -191,12 +191,16 @@ pub struct ScheduleInput {
     pub frozen: Vec<FrozenCourse>,
     pub allow_summer: Option<bool>,
     pub semester_cu_limits: Option<HashMap<String, f64>>,
+    /// Terms the optimizer must not auto-fill (`"year-semester"`, e.g. `"2-Spring"`).
+    /// User-frozen / taken pins in these terms are still placed.
+    #[serde(default)]
+    pub gap_semesters: Vec<String>,
     /// Browser-local anonymous id for analytics (not auth). Optional for back-compat.
     #[serde(default)]
     pub anon_session_id: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct SemesterPlan {
     pub year: i32,
     pub semester: String,
@@ -1188,11 +1192,21 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 }
             }
 
+            let mut conc_pool = courses_for_validation.clone();
+            for mapped in fulfilled.iter().chain(suggested.iter()) {
+                for id in &mapped.course_ids {
+                    if course::is_valid_course_code(id)
+                        && !course_relations::vec_contains_equiv(&conc_pool, id)
+                    {
+                        conc_pool.push(id.clone());
+                    }
+                }
+            }
             let conc_info = requirement::extract_concentration_info(
                 &major_data.requirements,
                 &major_data.concentrations,
                 &concs,
-                &courses_for_validation,
+                &conc_pool,
                 &cu_map,
                 Some(&per_degree_validation[degree_idx]),
             );
@@ -1579,9 +1593,16 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     // Build schedule dynamically — expand semesters until ALL courses fit
     let allow_summer = payload.allow_summer.unwrap_or(true);
     let cu_limits = payload.semester_cu_limits.unwrap_or_default();
+    let gap_semesters: HashSet<String> = payload
+        .gap_semesters
+        .iter()
+        .filter(|k| !k.is_empty())
+        .cloned()
+        .collect();
+    let is_gap = |year: i32, semester: &str| gap_semesters.contains(&semester_key(year, semester));
 
     let get_max_cu = |year: i32, semester: &str| -> f64 {
-        let key = format!("{}-{}", year, semester);
+        let key = semester_key(year, semester);
         if let Some(&limit) = cu_limits.get(&key) {
             return limit;
         }
@@ -1665,9 +1686,10 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             .contains(&course_relations::canonical(item))
     });
 
+    // Fixed hints whose template term is a gap are not forced there — overflow may relocate them.
     let fixed_schedule_items: HashSet<String> = item_hints
         .iter()
-        .filter(|(_, h)| h.mode == ScheduleHintMode::Fixed)
+        .filter(|(_, h)| h.mode == ScheduleHintMode::Fixed && !is_gap(h.year, &h.semester))
         .map(|(k, _)| k.clone())
         .collect();
 
@@ -1734,6 +1756,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let try_place_item =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, year: i32, semester: &str| -> bool {
+            if is_gap(year, semester) {
+                return false;
+            }
             ensure_year(schedule, year, allow_summer);
             for plan in schedule.iter_mut() {
                 if plan.year == year && plan.semester == semester {
@@ -1765,6 +1790,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let try_place_fixed_item =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, year: i32, semester: &str| -> bool {
+            if is_gap(year, semester) {
+                return false;
+            }
             ensure_year(schedule, year, allow_summer);
             for plan in schedule.iter_mut() {
                 if plan.year == year && plan.semester == semester {
@@ -1794,10 +1822,25 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let place_with_template =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, hint: &ScheduleHint| -> bool {
             if hint.mode == ScheduleHintMode::Fixed {
-                if try_place_item(schedule, item_id, hint.year, &hint.semester) {
-                    return true;
+                if !is_gap(hint.year, &hint.semester) {
+                    if try_place_item(schedule, item_id, hint.year, &hint.semester) {
+                        return true;
+                    }
+                    return try_place_fixed_item(schedule, item_id, hint.year, &hint.semester);
                 }
-                return try_place_fixed_item(schedule, item_id, hint.year, &hint.semester);
+                let max_year = if has_undergrad && ms_schedule_items.contains(item_id) {
+                    12
+                } else {
+                    undergrad_schedule_window
+                };
+                for (year, semester) in
+                    later_semesters((hint.year, hint.semester.as_str()), max_year)
+                {
+                    if try_place_item(schedule, item_id, year, &semester) {
+                        return true;
+                    }
+                }
+                return false;
             }
             let max_year = if has_undergrad && ms_schedule_items.contains(item_id) {
                 12
@@ -1829,6 +1872,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             let mut best_tie_ord = i32::MAX;
             for year in 1..=max_year {
                 for semester in ["Fall", "Spring"] {
+                    if is_gap(year, semester) {
+                        continue;
+                    }
                     let max_cu = get_max_cu(year, semester);
                     let load = schedule
                         .iter()
@@ -1937,6 +1983,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
             for (plan_idx, plan) in schedule.iter().enumerate() {
                 if plan.semester == "Summer" && !allow_summer {
+                    continue;
+                }
+                if is_gap(plan.year, &plan.semester) {
                     continue;
                 }
                 if let Some((min_y, max_y)) = year_range {

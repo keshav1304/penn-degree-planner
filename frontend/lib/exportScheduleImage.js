@@ -212,7 +212,8 @@ export function renderScheduleJpegCanvas(ctxInput, pixelRatio = 2) {
       ctx.fillStyle = COLORS.soft;
       ctx.font = "700 11px 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(sem.toUpperCase(), sx + semW / 2, semTop + headH / 2);
+      const gap = display.isGap?.(year, sem);
+      ctx.fillText(gap ? `${sem.toUpperCase()} · GAP` : sem.toUpperCase(), sx + semW / 2, semTop + headH / 2);
 
       const { items, actualCu, limitCu } = display.getSemesterItems(year, sem);
       let cy = bodyTop + 6;
@@ -242,7 +243,7 @@ export function renderScheduleJpegCanvas(ctxInput, pixelRatio = 2) {
         ctx.fillStyle = "#94a3b8";
         ctx.font = "12px 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("—", sx + semW / 2, bodyTop + bodyH / 2);
+        ctx.fillText(gap ? "Gap" : "—", sx + semW / 2, bodyTop + bodyH / 2);
       }
 
       // Footer CU
@@ -256,7 +257,11 @@ export function renderScheduleJpegCanvas(ctxInput, pixelRatio = 2) {
       ctx.fillStyle = COLORS.footText;
       ctx.font = "700 10px 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(`${actualCu.toFixed(1)} / ${limitCu} CU`, sx + semW / 2, semTop + semH - footH / 2);
+      ctx.fillText(
+        gap ? `Gap · ${actualCu.toFixed(1)} / ${limitCu} CU` : `${actualCu.toFixed(1)} / ${limitCu} CU`,
+        sx + semW / 2,
+        semTop + semH - footH / 2,
+      );
     });
   });
 

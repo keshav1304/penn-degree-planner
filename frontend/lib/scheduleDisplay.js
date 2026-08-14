@@ -4,7 +4,7 @@ import {
   isSchedulableRequirementSlotId,
   isOverlapScheduleGroupId,
 } from "@/lib/courseUtils";
-import { resolveSemesterCuLimit } from "@/lib/semesterOptions";
+import { resolveSemesterCuLimit, isGapSemester } from "@/lib/semesterOptions";
 
 const SEM_ORDER = ["Fall", "Spring", "Summer"];
 
@@ -19,6 +19,7 @@ export function buildScheduleDisplay({
   allowSummer = false,
   degrees = [],
   semesterCuLimits = {},
+  gapSemesters = {},
   courseCuMap = {},
   requirementSlotLabels = {},
 }) {
@@ -202,5 +203,6 @@ export function buildScheduleDisplay({
     creditsCourses,
     isFrozen: (courseId) => frozenIdSet.has(courseId),
     isAssigned: (courseId) => assignedIdSet.has(courseId),
+    isGap: (year, semester) => isGapSemester(gapSemesters, year, semester),
   };
 }

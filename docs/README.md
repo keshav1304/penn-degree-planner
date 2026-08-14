@@ -11,6 +11,7 @@ Read in this order if you are new to the project:
 5. [Flows](./flows/README.md): what happens on the main user actions
 6. [Backend modules](./backend/modules.md): file-by-file map of the Rust crate
 7. [Backend features](./backend/features.md): feature-by-feature design and rationale
-8. [Frontend modules](./frontend/modules.md): map of the Next.js app
+8. [Dual-degree overlap performance](./backend/overlap-performance.md): why multi-degree generates are slow, what three planner changes would do to the UI, and the CU-packing tradeoff
+9. [Frontend modules](./frontend/modules.md): map of the Next.js app
 
 The source of truth for degree rules is still the Rust code under `degree_planner/src/penn_data/`. These docs explain *how to think about that code*, not a second copy of every major’s requirements.

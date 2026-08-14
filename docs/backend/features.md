@@ -154,6 +154,8 @@ See also [Adding a degree](../flows/adding-a-degree.md).
 
 **Why not fold this into mapping:** Mapping answers “what do I already satisfy?” Overlap answers “what single future course helps two open slots?” Different question, different stage.
 
+Unconstrained electives and pool flex slots are still overlap-eligible, so the 800-course cap does not keep dual-degree generates interactive (often 15–35 s). See [Overlap performance](./overlap-performance.md) for the current search, three proposed cuts, UI/CU tradeoffs, and why that has not been changed yet.
+
 ---
 
 ## 9. Schedule packing

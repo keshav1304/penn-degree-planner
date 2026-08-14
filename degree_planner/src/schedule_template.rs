@@ -171,6 +171,10 @@ pub fn merge_schedule_hint(existing: Option<&ScheduleHint>, new: ScheduleHint) -
     }
 }
 
+pub fn semester_key(year: i32, semester: &str) -> String {
+    format!("{}-{}", year, semester)
+}
+
 pub fn semester_order(year: i32, semester: &str) -> i32 {
     let sem = match semester {
         "Fall" => 0,

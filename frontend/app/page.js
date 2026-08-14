@@ -11,7 +11,7 @@ import { API_BASE } from "@/lib/api";
 import { perfLog } from "@/lib/perfLog";
 import { prepareCourseCatalog, cuMapFromCatalog } from "@/lib/courseCatalog";
 import { buildCourseRelations } from "@/lib/courseRelations";
-import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, undergradScheduleYears } from "@/lib/semesterOptions";
+import { maxYearFromSchedule, buildSemesterCuLimitsMap, degreeCuPolicyKey, undergradScheduleYears, gapSemesterKeys } from "@/lib/semesterOptions";
 import {
   isValidCourseCode,
   isRequirementSlotId,
@@ -53,6 +53,7 @@ function saveState(state) {
       assignedCourses: state.assignedCourses,
       allowSummer: state.allowSummer,
       semesterCuLimits: state.semesterCuLimits,
+      gapSemesters: state.gapSemesters,
     }));
   } catch { }
 }
@@ -75,6 +76,7 @@ export default function Home() {
   const [requirementsOpen, setRequirementsOpen] = useState(true);
   const [allowSummer, setAllowSummer] = useState(false);
   const [semesterCuLimits, setSemesterCuLimits] = useState({});
+  const [gapSemesters, setGapSemesters] = useState({});
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const debounceRef = useRef(null);
@@ -106,6 +108,7 @@ export default function Home() {
       setAssignedCourses(filterValidPlacements(saved.assignedCourses || []));
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
+      if (saved.gapSemesters) setGapSemesters(saved.gapSemesters);
     }
     perfLog("bootstrap.localStorage", elapsed());
 
@@ -179,8 +182,8 @@ export default function Home() {
 
   // Auto-save on changes
   useEffect(() => {
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits]);
+    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters });
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
@@ -230,6 +233,7 @@ export default function Home() {
             allowSummer,
             semesterCuLimits,
           ),
+          gap_semesters: gapSemesterKeys(gapSemesters),
           anon_session_id: getOrCreateAnonSessionId(),
         }),
       });
@@ -243,7 +247,7 @@ export default function Home() {
     if (requestId === scheduleRequestId.current) {
       setLoading(false);
     }
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, maxScheduleYear]);
+  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters, maxScheduleYear]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -687,6 +691,7 @@ export default function Home() {
         allowSummer,
         degrees,
         semesterCuLimits,
+        gapSemesters,
         courseCuMap,
         requirementSlotLabels,
         degreeCatalog,
@@ -713,6 +718,7 @@ export default function Home() {
         allowSummer,
         degrees,
         semesterCuLimits,
+        gapSemesters,
         courseCuMap,
         requirementSlotLabels,
         degreeCatalog,
@@ -866,6 +872,18 @@ export default function Home() {
                 semesterCuLimits={semesterCuLimits}
                 onSemesterCuLimitChange={(key, value) => {
                   setSemesterCuLimits(prev => ({ ...prev, [key]: value }));
+                }}
+                gapSemesters={gapSemesters}
+                onToggleGapSemester={(key) => {
+                  setGapSemesters((prev) => {
+                    const next = { ...prev };
+                    if (next[key]) {
+                      delete next[key];
+                    } else {
+                      next[key] = true;
+                    }
+                    return next;
+                  });
                 }}
               />
             </div>
