@@ -97,7 +97,34 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
         return ids.map((id) => byId.get(id)).filter(Boolean);
     })();
 
+    const gapPinWarnings = [];
+    const pinnedInGap = new Map();
+    const addPinnedInGap = (year, semester, courseId) => {
+        if (year <= 0 || !isGap(year, semester) || !isValidCourseCode(courseId)) return;
+        const key = `${year}-${semester}`;
+        if (!pinnedInGap.has(key)) pinnedInGap.set(key, []);
+        const list = pinnedInGap.get(key);
+        if (!list.includes(courseId)) list.push(courseId);
+    };
+    for (const frozen of frozenCourses || []) {
+        addPinnedInGap(frozen.year, frozen.semester, frozen.courseId);
+    }
+    for (const assigned of assignedCourses || []) {
+        addPinnedInGap(assigned.year, assigned.semester, assigned.courseId);
+    }
+    for (const year of visibleYears) {
+        for (const sem of visibleSemesters) {
+            const courses = pinnedInGap.get(`${year}-${sem}`);
+            if (!courses?.length) continue;
+            const term = `${YEAR_NAMES[year] || `Year ${year}`} ${sem}`;
+            gapPinWarnings.push(
+                `${term} is a gap semester with pinned courses: ${courses.join(", ")}.`,
+            );
+        }
+    }
+
     const scheduleWarningMessages = [
+        ...gapPinWarnings,
         ...new Set(
             Object.values(crossDegreeViolationsByCourse || {}).filter(Boolean),
         ),
@@ -471,8 +498,8 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                 {overlapGroups.map((groupId, idx) => renderOverlapGroupCard(groupId, year, sem, idx))}
                                 {requirementSlots.map((slotId, idx) => renderRequirementSlotCard(slotId, year, sem, idx))}
                                 {itemCount === 0 && (
-                                    <div className="drop-hint export-hide">
-                                        {gap ? "Pin courses here — not auto-filled" : "Drop courses here"}
+                                    <div className={`${gap ? "semester-gap-empty" : "drop-hint"} export-hide`}>
+                                        {gap ? "Gap semester" : "Drop courses here"}
                                     </div>
                                 )}
                                 {(() => {
