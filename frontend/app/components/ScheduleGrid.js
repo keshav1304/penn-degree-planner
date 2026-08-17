@@ -451,23 +451,21 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                             {(YEAR_NAMES[year] || `Year ${year}`)} {sem}
                                         </span>
                                         <span className="semester-col-header-term">{sem}</span>
-                                        {gap && <span className="semester-gap-badge">Gap</span>}
                                     </span>
-                                    <button
-                                        type="button"
+                                    <label
                                         className={`semester-gap-toggle${gap ? " is-gap" : ""} export-hide`}
-                                        aria-pressed={gap}
                                         title={gap
                                             ? "Clear gap — optimizer may fill this semester"
                                             : "Mark as gap — optimizer will skip this semester"}
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            onToggleGapSemester?.(semKey);
-                                        }}
+                                        onClick={(e) => e.stopPropagation()}
                                     >
+                                        <input
+                                            type="checkbox"
+                                            checked={gap}
+                                            onChange={() => onToggleGapSemester?.(semKey)}
+                                        />
                                         Gap
-                                    </button>
+                                    </label>
                                 </div>
                                 {courses.map((courseId, idx) => renderCourseCard(courseId, year, sem, idx))}
                                 {overlapGroups.map((groupId, idx) => renderOverlapGroupCard(groupId, year, sem, idx))}
