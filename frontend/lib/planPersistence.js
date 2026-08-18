@@ -12,6 +12,7 @@ import { gapSemesterKeys } from "@/lib/semesterOptions";
 
 export const STORAGE_KEY = "penn_degree_planner_state";
 export const SCHEDULE_CACHE_KEY = "penn_degree_planner_schedule";
+export const CATALOG_CACHE_KEY = "penn_degree_planner_catalogs";
 
 export function loadSavedState() {
   if (typeof window === "undefined") return null;
@@ -141,6 +142,45 @@ export function clearCachedSchedule() {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(SCHEDULE_CACHE_KEY);
+  } catch { }
+}
+
+export function loadCachedCatalogs() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CATALOG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      degreeCatalog: Array.isArray(parsed?.degreeCatalog) ? parsed.degreeCatalog : [],
+      minorCatalog: Array.isArray(parsed?.minorCatalog) ? parsed.minorCatalog : [],
+      concentrationCatalog:
+        parsed?.concentrationCatalog && typeof parsed.concentrationCatalog === "object"
+          ? parsed.concentrationCatalog
+          : {},
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveCachedCatalogs(partial) {
+  if (typeof window === "undefined" || !partial) return;
+  const prev = loadCachedCatalogs() || {
+    degreeCatalog: [],
+    minorCatalog: [],
+    concentrationCatalog: {},
+  };
+  const next = {
+    degreeCatalog: Array.isArray(partial.degreeCatalog) ? partial.degreeCatalog : prev.degreeCatalog,
+    minorCatalog: Array.isArray(partial.minorCatalog) ? partial.minorCatalog : prev.minorCatalog,
+    concentrationCatalog:
+      partial.concentrationCatalog && typeof partial.concentrationCatalog === "object"
+        ? partial.concentrationCatalog
+        : prev.concentrationCatalog,
+  };
+  try {
+    localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(next));
   } catch { }
 }
 

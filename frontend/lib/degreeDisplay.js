@@ -85,16 +85,39 @@ export function stripAbbreviationSuffix(label) {
 
 function resolveFromCatalog(degreeCatalog, schoolCode, majorCode) {
     if (!degreeCatalog?.length || !schoolCode) {
-        return {
-            displaySchool: stripAbbreviationSuffix(schoolCode || ""),
-            displayMajor: stripAbbreviationSuffix(majorCode || ""),
-        };
+        return { displaySchool: null, displayMajor: null };
     }
     const schoolEntry = degreeCatalog.find((s) => s.school_code === schoolCode);
     const majorEntry = schoolEntry?.majors?.find((m) => m.api_code === majorCode);
-    const displaySchool = stripAbbreviationSuffix(schoolEntry?.display_name || schoolCode);
-    const displayMajor = stripAbbreviationSuffix(majorEntry?.display_name || majorCode || "Degree");
-    return { displaySchool, displayMajor };
+    return {
+        displaySchool: schoolEntry
+            ? stripAbbreviationSuffix(schoolEntry.display_name || schoolCode)
+            : null,
+        displayMajor: majorEntry
+            ? stripAbbreviationSuffix(majorEntry.display_name || majorCode || "")
+            : null,
+    };
+}
+
+/** Stamp catalog display names onto selected programs so chips/legend work before a catalog refetch. */
+export function applyCatalogNamesToDegrees(degrees, degreeCatalog, minorCatalog = []) {
+    if (!Array.isArray(degrees) || !degrees.length) return degrees;
+    let changed = false;
+    const next = degrees.map((d) => {
+        const catalog = catalogForProgram(d, null, degreeCatalog, minorCatalog);
+        const names = resolveFromCatalog(catalog, d.schoolCode, d.majorCode);
+        if (!names.displaySchool && !names.displayMajor) return d;
+        if (d.displaySchool === names.displaySchool && d.displayMajor === names.displayMajor) {
+            return d;
+        }
+        changed = true;
+        return {
+            ...d,
+            displaySchool: names.displaySchool || d.displaySchool,
+            displayMajor: names.displayMajor || d.displayMajor,
+        };
+    });
+    return changed ? next : degrees;
 }
 
 /** Human-readable label for API keys like `CAS-ECON`. */
@@ -149,6 +172,7 @@ export function formatDegreeDisplay(degree, result, degreeCatalog) {
 
     const major = fromCatalog.displayMajor
         || stripAbbreviationSuffix(degree?.displayMajor)
+        || stripAbbreviationSuffix(majorCode)
         || "Degree";
     const school = fromCatalog.displaySchool
         || stripAbbreviationSuffix(degree?.displaySchool)

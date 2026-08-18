@@ -121,11 +121,14 @@ export function createRequirementDescription(req) {
       return `Complete ${data.number ?? "N"} of ${(data.possibilities || []).length} areas`;
     case "Restriction":
       return formatRestriction(data);
-    case "AnyOf":
+    case "AnyOf": {
+      const cat = typeof data.category === "string" ? data.category.trim() : "";
+      if (cat) return cat;
       if (data.possibilities?.length === 1) {
         return createRequirementDescription(data.possibilities[0]);
       }
       return "One of the following options";
+    }
     case "AllOf": {
       const parts = (data.requirements || [])
         .map((sub) => createRequirementDescription(sub))
@@ -505,11 +508,14 @@ export function getRequirementLabel(req) {
   switch (type) {
     case "Restriction":
       return formatRestriction(data);
-    case "AnyOf":
+    case "AnyOf": {
+      const cat = typeof data.category === "string" ? data.category.trim() : "";
+      if (cat) return cat;
       if (data.possibilities?.length === 1) {
         return getRequirementLabel(data.possibilities[0]);
       }
       return "One of the following options";
+    }
     case "AllOf":
       return "Complete all sub-requirements";
     case "SingleCourse":
@@ -690,6 +696,13 @@ export function getSlotLabel(req, slotId, apiLabels = {}) {
     }
     if (type === "Restriction") {
       return formatScheduleRestriction(data);
+    }
+    if (type === "AnyOf") {
+      const cat = typeof data.category === "string" ? data.category.trim() : "";
+      if (cat) return cat;
+      if (data.possibilities?.length === 1) {
+        return getSlotLabel(data.possibilities[0], slotId, apiLabels);
+      }
     }
     return createRequirementDescription(matched);
   }

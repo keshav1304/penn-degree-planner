@@ -35,12 +35,15 @@ import { getOrCreateAnonSessionId } from "@/lib/anonSession";
 import {
   clearCachedSchedule,
   clearPlanPersistence,
+  loadCachedCatalogs,
   loadCachedSchedule,
   loadSavedState,
+  saveCachedCatalogs,
   saveCachedSchedule,
   savePlanState,
   scheduleInputKey,
 } from "@/lib/planPersistence";
+import { applyCatalogNamesToDegrees } from "@/lib/degreeDisplay";
 
 export default function Home() {
     const [courseCuMap, setCourseCuMap] = useState({});
@@ -88,14 +91,28 @@ export default function Home() {
     ) - bootstrapStart;
 
     const saved = loadSavedState();
+    const cachedCatalogs = loadCachedCatalogs();
+    const cachedDegreeCatalog = cachedCatalogs?.degreeCatalog || [];
+    const cachedMinorCatalog = cachedCatalogs?.minorCatalog || [];
+    if (cachedDegreeCatalog.length) setDegreeCatalog(cachedDegreeCatalog);
+    if (cachedMinorCatalog.length) setMinorCatalog(cachedMinorCatalog);
+    if (cachedCatalogs?.concentrationCatalog
+        && Object.keys(cachedCatalogs.concentrationCatalog).length) {
+      setConcentrationCatalog(cachedCatalogs.concentrationCatalog);
+    }
+
     if (saved) {
-      const degrees = saved.degrees || [];
       const takenCourses = filterValidCourseCodes(saved.takenCourses || []);
       const frozenCourses = filterFrozenPlacements(saved.frozenCourses || []);
       const assignedCourses = filterValidPlacements(saved.assignedCourses || []);
       const allowSummer = saved.allowSummer !== undefined ? saved.allowSummer : false;
       const semesterCuLimits = saved.semesterCuLimits || {};
       const gapSemesters = saved.gapSemesters || {};
+      const degrees = applyCatalogNamesToDegrees(
+        saved.degrees || [],
+        cachedDegreeCatalog,
+        cachedMinorCatalog,
+      );
       setDegrees(degrees);
       setTakenCourses(takenCourses);
       setFrozenCourses(frozenCourses);
@@ -141,25 +158,39 @@ export default function Home() {
     };
 
     trackFetch("bootstrap.course_index", "/course_index.json", (data) => {
-      const rows = Array.isArray(data) ? data : [];
-      const catalog = prepareCourseCatalog(rows);
-      setCourseCatalog(catalog);
-      setCourseCuMap(cuMapFromCatalog(catalog));
-      setCourseRelations(buildCourseRelations(rows));
-      perfLog("bootstrap.course_index.rows", elapsed(), { count: catalog.length });
+      const apply = () => {
+        const rows = Array.isArray(data) ? data : [];
+        const catalog = prepareCourseCatalog(rows);
+        setCourseCatalog(catalog);
+        setCourseCuMap(cuMapFromCatalog(catalog));
+        setCourseRelations(buildCourseRelations(rows));
+        perfLog("bootstrap.course_index.rows", elapsed(), { count: catalog.length });
+      };
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(apply, { timeout: 1500 });
+      } else {
+        setTimeout(apply, 0);
+      }
     });
 
     trackFetch("bootstrap.degree_catalog", `${API_BASE}/degree_catalog`, (data) => {
-      setDegreeCatalog(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setDegreeCatalog(list);
+      if (list.length) saveCachedCatalogs({ degreeCatalog: list });
     });
 
     trackFetch("bootstrap.minor_catalog", `${API_BASE}/minor_catalog`, (data) => {
-      setMinorCatalog(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setMinorCatalog(list);
+      if (list.length) saveCachedCatalogs({ minorCatalog: list });
     });
 
     trackFetch("bootstrap.all_concentrations", `${API_BASE}/all_concentrations`, (data) => {
       const catalog = data && typeof data === "object" ? data : {};
       setConcentrationCatalog(catalog);
+      if (Object.keys(catalog).length) {
+        saveCachedCatalogs({ concentrationCatalog: catalog });
+      }
       perfLog("bootstrap.all_concentrations.keys", elapsed(), {
         count: Object.keys(catalog).length,
       });
@@ -192,8 +223,16 @@ export default function Home() {
   // Auto-save on changes
   useEffect(() => {
     if (!planReady) return;
-    savePlanState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters });
-  }, [planReady, degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters]);
+    savePlanState({
+      degrees: applyCatalogNamesToDegrees(degrees, degreeCatalog, minorCatalog),
+      takenCourses,
+      frozenCourses,
+      assignedCourses,
+      allowSummer,
+      semesterCuLimits,
+      gapSemesters,
+    });
+  }, [planReady, degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters, degreeCatalog, minorCatalog]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {

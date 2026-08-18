@@ -50,12 +50,21 @@ fn overlap_pair_fixed_course(
     pair: &OverlapPair,
     opportunities: &[OverlapOpportunity],
     per_degree: &[requirement::DegreeValidationResult],
+    used_courses: &HashSet<String>,
 ) -> Option<String> {
     let opp = opportunities
         .iter()
         .find(|o| overlap_slots_equal(&o.slots, &pair.slots))?;
     for course in &opp.suggested_courses {
         if !course::is_valid_course_code(course) {
+            continue;
+        }
+        let canon = course_relations::canonical(course);
+        if used_courses.contains(&canon)
+            || used_courses
+                .iter()
+                .any(|used| course_relations::equivalent(used, course))
+        {
             continue;
         }
         let mut names_course_explicitly = false;
@@ -76,6 +85,75 @@ fn overlap_pair_fixed_course(
         }
     }
     None
+}
+
+struct FixedOverlapAssignment {
+    slots: HashSet<(usize, String)>,
+    course_by_pair: Vec<Option<String>>,
+}
+
+/// One named course per overlap pair, never reusing a course already assigned to an earlier pair.
+fn assign_fixed_overlap_courses(
+    pairs: &[OverlapPair],
+    opportunities: &[OverlapOpportunity],
+    per_degree: &[requirement::DegreeValidationResult],
+) -> FixedOverlapAssignment {
+    let mut used_courses = HashSet::new();
+    let mut slots = HashSet::new();
+    let mut course_by_pair = Vec::with_capacity(pairs.len());
+    for pair in pairs {
+        match overlap_pair_fixed_course(pair, opportunities, per_degree, &used_courses) {
+            Some(course) => {
+                used_courses.insert(course_relations::canonical(&course));
+                for slot in &pair.slots {
+                    slots.insert((slot.degree_index, slot.slot_key.clone()));
+                }
+                course_by_pair.push(Some(course));
+            }
+            None => course_by_pair.push(None),
+        }
+    }
+    FixedOverlapAssignment {
+        slots,
+        course_by_pair,
+    }
+}
+
+/// Courses encoded in a `req:…:S:MATH_1410/MATH_1610` option-list placeholder.
+fn option_list_courses_in_slot(slot: &str) -> Vec<String> {
+    let Some(rest) = slot.strip_prefix("req:") else {
+        return Vec::new();
+    };
+    let Some((_, fingerprint)) = rest.split_once(":S:") else {
+        return Vec::new();
+    };
+    fingerprint
+        .split('/')
+        .map(|part| part.replace('_', " "))
+        .filter(|code| course::is_valid_course_code(code))
+        .collect()
+}
+
+/// Dual-undergrad packing must not keep a dashed option list once one of those
+/// courses is already a named card (e.g. M&T MATH 1410 plus CIS MATH 1410/1610).
+fn drop_option_placeholders_covered_by_named_courses(items: &mut Vec<String>) {
+    let named: Vec<String> = items
+        .iter()
+        .filter(|item| course::is_valid_course_code(item))
+        .cloned()
+        .collect();
+    if named.is_empty() {
+        return;
+    }
+    items.retain(|item| {
+        let options = option_list_courses_in_slot(item);
+        if options.is_empty() {
+            return true;
+        }
+        !options
+            .iter()
+            .any(|opt| named.iter().any(|course| course_relations::equivalent(course, opt)))
+    });
 }
 
 pub fn dual_undergrad_only(schools: &[String]) -> bool {
@@ -1003,23 +1081,20 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         })
         .unwrap_or_default();
 
-    let fixed_course_overlap_slots: HashSet<(usize, String)> = overlap_plan
+    let fixed_overlap = overlap_plan
         .as_ref()
         .map(|plan| {
-            plan.pairs
-                .iter()
-                .filter(|pair| {
-                    overlap_pair_fixed_course(pair, &plan.opportunities, &per_degree_validation)
-                        .is_some()
-                })
-                .flat_map(|pair| {
-                    pair.slots
-                        .iter()
-                        .map(|s| (s.degree_index, s.slot_key.clone()))
-                })
-                .collect()
+            assign_fixed_overlap_courses(
+                &plan.pairs,
+                &plan.opportunities,
+                &per_degree_validation,
+            )
         })
-        .unwrap_or_default();
+        .unwrap_or(FixedOverlapAssignment {
+            slots: HashSet::new(),
+            course_by_pair: Vec::new(),
+        });
+    let fixed_course_overlap_slots = &fixed_overlap.slots;
 
     let cross_degree_optimizer =
         cross_degree::cross_degree_optimizer_applicable(&degree_schools);
@@ -1132,6 +1207,14 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                 }
             }
             for mapped in &mut suggested {
+                let keep_cleared = dual_undergrad_only(&degree_schools)
+                    && mapped.instance_id.as_ref().is_some_and(|id| {
+                        fixed_course_overlap_slots.contains(&(degree_idx, id.clone()))
+                    });
+                if keep_cleared {
+                    mapped.course_ids.clear();
+                    continue;
+                }
                 requirement::normalize_suggested_schedule_ids(mapped);
             }
             requirement::expand_duplicate_sole_course_suggestions(&mut suggested);
@@ -1376,10 +1459,8 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     }
 
     if let Some(ref plan) = overlap_plan {
-        for pair in &plan.pairs {
-            let Some(course) =
-                overlap_pair_fixed_course(pair, &plan.opportunities, &per_degree_validation)
-            else {
+        for (pair, assigned) in plan.pairs.iter().zip(fixed_overlap.course_by_pair.iter()) {
+            let Some(course) = assigned.clone() else {
                 continue;
             };
             if !all_suggested_courses_set.contains(&course) {
@@ -1486,9 +1567,8 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
     let mut suppressed_overlap_slots: HashSet<String> = HashSet::new();
 
     if let Some(ref plan) = overlap_plan {
-        for pair in &plan.pairs {
-            if overlap_pair_fixed_course(pair, &plan.opportunities, &per_degree_validation).is_some()
-            {
+        for (pair, assigned) in plan.pairs.iter().zip(fixed_overlap.course_by_pair.iter()) {
+            if assigned.is_some() {
                 continue;
             }
             let mut members: Vec<overlap_planner::OverlapScheduleGroupMember> = Vec::new();
@@ -1763,6 +1843,9 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             .borrow()
             .contains(&course_relations::canonical(item))
     });
+    if dual_undergrad_only(&degree_schools) {
+        drop_option_placeholders_covered_by_named_courses(&mut remaining_items);
+    }
 
     // Fixed hints whose template term is a gap are not forced there — overflow may relocate them.
     let fixed_schedule_items: HashSet<String> = item_hints
@@ -1925,6 +2008,13 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
             } else {
                 undergrad_schedule_window
             };
+            let prefer_four_plus_summer =
+                dual_undergrad_only(&degree_schools) && allow_summer && !ms_schedule_items.contains(item_id);
+            let primary_years = if prefer_four_plus_summer {
+                4.min(max_year)
+            } else {
+                max_year
+            };
             let candidates = if has_undergrad && ms_schedule_items.contains(item_id) {
                 ms_grad_placement_candidates(
                     (hint.year, hint.semester.as_str()),
@@ -1932,11 +2022,28 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
                     max_year,
                 )
             } else {
-                placement_semesters(hint, max_year)
+                placement_semesters(hint, primary_years)
             };
             for (year, semester) in candidates {
                 if try_place_item(schedule, item_id, year, &semester) {
                     return true;
+                }
+            }
+            if prefer_four_plus_summer {
+                for year in 1..=primary_years {
+                    if try_place_item(schedule, item_id, year, "Summer") {
+                        return true;
+                    }
+                }
+                if primary_years < max_year {
+                    for (year, semester) in placement_semesters(hint, max_year) {
+                        if year <= primary_years {
+                            continue;
+                        }
+                        if try_place_item(schedule, item_id, year, &semester) {
+                            return true;
+                        }
+                    }
                 }
             }
             false
@@ -1944,36 +2051,63 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let try_place_greedy =
         |schedule: &mut Vec<SemesterPlan>, item_id: &str, max_year: i32| -> bool {
-            let mut best: Option<(i32, String)> = None;
-            // Pack into semesters that already have courses before opening new ones.
-            let mut best_load = f64::MIN;
-            let mut best_tie_ord = i32::MAX;
-            for year in 1..=max_year {
-                for semester in ["Fall", "Spring"] {
-                    if is_gap(year, semester) {
-                        continue;
-                    }
-                    let max_cu = get_max_cu(year, semester);
-                    let load = schedule
-                        .iter()
-                        .find(|p| p.year == year && p.semester == semester)
-                        .map(|p| p.total_cu)
-                        .unwrap_or(0.0);
-                    if !item_fits_semester(item_id, load, max_cu) {
-                        continue;
-                    }
-                    let tie_ord = semester_order(year, semester);
-                    if load > best_load
-                        || (load == best_load && tie_ord < best_tie_ord)
-                    {
-                        best_load = load;
-                        best_tie_ord = tie_ord;
-                        best = Some((year, semester.to_string()));
+            let prefer_four_plus_summer =
+                dual_undergrad_only(&degree_schools) && allow_summer;
+            let primary_years = if prefer_four_plus_summer {
+                4.min(max_year)
+            } else {
+                max_year
+            };
+
+            let pick_best = |schedule: &[SemesterPlan], years: std::ops::RangeInclusive<i32>, semesters: &[&str]| -> Option<(i32, String)> {
+                let mut best: Option<(i32, String)> = None;
+                let mut best_load = f64::MIN;
+                let mut best_tie_ord = i32::MAX;
+                for year in years {
+                    for semester in semesters {
+                        if is_gap(year, semester) {
+                            continue;
+                        }
+                        let max_cu = get_max_cu(year, semester);
+                        let load = schedule
+                            .iter()
+                            .find(|p| p.year == year && p.semester == *semester)
+                            .map(|p| p.total_cu)
+                            .unwrap_or(0.0);
+                        if !item_fits_semester(item_id, load, max_cu) {
+                            continue;
+                        }
+                        let tie_ord = semester_order(year, semester);
+                        if load > best_load || (load == best_load && tie_ord < best_tie_ord)
+                        {
+                            best_load = load;
+                            best_tie_ord = tie_ord;
+                            best = Some((year, semester.to_string()));
+                        }
                     }
                 }
-            }
-            if let Some((year, semester)) = best {
+                best
+            };
+
+            // Pack Fall/Spring that already have load before opening a new year.
+            if let Some((year, semester)) =
+                pick_best(schedule, 1..=primary_years, &["Fall", "Spring"])
+            {
                 return try_place_item(schedule, item_id, year, &semester);
+            }
+            if prefer_four_plus_summer {
+                if let Some((year, semester)) =
+                    pick_best(schedule, 1..=primary_years, &["Summer"])
+                {
+                    return try_place_item(schedule, item_id, year, &semester);
+                }
+            }
+            if primary_years < max_year {
+                if let Some((year, semester)) =
+                    pick_best(schedule, primary_years + 1..=max_year, &["Fall", "Spring"])
+                {
+                    return try_place_item(schedule, item_id, year, &semester);
+                }
             }
             false
         };

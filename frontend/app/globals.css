@@ -406,6 +406,12 @@ body {
   padding: var(--panel-pad-y) var(--panel-pad-x);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+}
+
+.panel-schedule .panel-body {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Lets RequirementsPanel fill height and scroll its category list */

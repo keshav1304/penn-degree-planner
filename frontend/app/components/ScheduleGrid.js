@@ -6,7 +6,7 @@ import DroppableSemester from "./DroppableSemester";
 import { isValidCourseCode, isOverlapScheduleGroupId } from "@/lib/courseUtils";
 import { buildScheduleDisplay } from "@/lib/scheduleDisplay";
 import { buildDegreeOrder, sortCourseCodesByDegree } from "@/lib/courseOrdering";
-import { formatDegreeApiLabel, catalogForProgram } from "@/lib/degreeDisplay";
+import { formatDegreeDisplay, catalogForProgram } from "@/lib/degreeDisplay";
 import { buildDegreeColorMap, getDegreeColorForIndex } from "@/lib/degreeColors";
 import { formatOverlapMemberLabel } from "@/lib/requirementText";
 
@@ -80,11 +80,12 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
         scheduleData.degree_results.forEach((result, index) => {
             const key = `${result.school}-${result.major}`;
             const degree = degrees[index];
-            degreeDisplayLabels[key] = formatDegreeApiLabel(
-                result.school,
-                result.major,
+            const { major, school } = formatDegreeDisplay(
+                degree,
+                result,
                 catalogForProgram(degree, result, degreeCatalog, minorCatalog),
             );
+            degreeDisplayLabels[key] = school ? `${major} · ${school}` : major;
         });
     }
 

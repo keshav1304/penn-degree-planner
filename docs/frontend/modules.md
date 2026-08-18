@@ -65,7 +65,7 @@ Defaults here must stay consistent with backend CU policy helpers in `scheduler.
 | `exportScheduleExcel.js` | Excel export. |
 | `exportRequirementsFlat.js` | Flattened requirements export helpers. |
 | `anonSession.js` | Persistent anonymous id for analytics. |
-| `planPersistence.js` | `localStorage` for plan inputs and the last matching generate response. |
+| `planPersistence.js` | `localStorage` for plan inputs, last matching generate response, and degree/minor catalogs. |
 | `perfLog.js` | Optional timing logs during bootstrap / fetches. |
 
 ## Static assets

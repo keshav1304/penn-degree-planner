@@ -177,6 +177,16 @@ pub fn format_schedule_single_course_label(possibilities: &[String]) -> String {
     format!("{} (+{more})", shown.join("/"))
 }
 
+fn any_of_schedule_label(category: &Option<String>, possibilities: &[Requirement]) -> String {
+    if let Some(cat) = category.as_deref().map(str::trim).filter(|c| !c.is_empty()) {
+        return cat.to_string();
+    }
+    if possibilities.len() == 1 {
+        return possibilities[0].schedule_label_for_requirement();
+    }
+    "One of the following options".to_string()
+}
+
 fn format_schedule_level_clause(level: Option<i32>, max_level: Option<i32>) -> String {
     match (level, max_level) {
         (Some(min), Some(max)) if max != RESTRICTION_DEFAULT_MAX_LEVEL => {
@@ -1241,6 +1251,11 @@ impl Requirement {
                 number,
                 no_school,
             ),
+            Requirement::AnyOf {
+                category,
+                possibilities,
+                ..
+            } => any_of_schedule_label(category, possibilities),
             _ => self.create_requirement_description(),
         }
     }
@@ -1537,8 +1552,22 @@ impl Requirement {
                 }
                 for req in possibilities {
                     match req.suggest_for_requirement(taken, attributes, cu_map, scope, cross_filter) {
-                        Some(val) => return Some(val),
-                        None => {},
+                        Some(val) => {
+                            let child_is_placeholder = val.iter().all(|id| {
+                                !course::is_valid_course_code(id)
+                            });
+                            if child_is_placeholder
+                                && category
+                                    .as_deref()
+                                    .is_some_and(|c| !c.trim().is_empty())
+                            {
+                                if let Some(slot_id) = self.schedulable_placeholder_id(scope) {
+                                    return Some(vec![slot_id]);
+                                }
+                            }
+                            return Some(val);
+                        }
+                        None => {}
                     }
                 }
                 return None;
@@ -1633,12 +1662,8 @@ impl Requirement {
             } => format_restriction_description(
                 department, cu, level, max_level, attr, number, no_school,
             ),
-            Requirement::AnyOf { possibilities, .. } => {
-                if possibilities.len() == 1 {
-                    possibilities[0].create_requirement_description()
-                } else {
-                    "One of the following options".to_string()
-                }
+            Requirement::AnyOf { category, possibilities, .. } => {
+                any_of_schedule_label(category, possibilities)
             }
             Requirement::AllOf { requirements, .. } => {
                 let parts: Vec<String> = requirements

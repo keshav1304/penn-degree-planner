@@ -99,7 +99,7 @@ export default function DegreeSelector({
         );
     };
 
-    if (!degreeCatalog?.length) {
+    if (!degreeCatalog?.length && !degrees?.length) {
         return (
             <div className="degree-bar">
                 <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
@@ -108,6 +108,9 @@ export default function DegreeSelector({
             </div>
         );
     }
+
+    const catalogsReady = Boolean(degreeCatalog?.length);
+    const minorsReady = Boolean(minorCatalog?.length);
 
     const labelStyle = {
         fontSize: "0.82rem",
@@ -130,6 +133,8 @@ export default function DegreeSelector({
                     type="button"
                     className="degree-add-btn"
                     aria-label="Add degree"
+                    disabled={!catalogsReady}
+                    title={catalogsReady ? "Add degree" : "Loading schools…"}
                     onClick={(e) =>
                         openPopover({ mode: "add", kind: "major" }, e.currentTarget)
                     }
@@ -150,8 +155,14 @@ export default function DegreeSelector({
                     type="button"
                     className="degree-add-btn"
                     aria-label="Add minor"
-                    disabled={majors.length === 0}
-                    title={majors.length === 0 ? "Add a degree first" : "Add minor"}
+                    disabled={!minorsReady || majors.length === 0}
+                    title={
+                        majors.length === 0
+                            ? "Add a degree first"
+                            : minorsReady
+                                ? "Add minor"
+                                : "Loading schools…"
+                    }
                     onClick={(e) =>
                         openPopover({ mode: "add", kind: "minor" }, e.currentTarget)
                     }
@@ -160,7 +171,7 @@ export default function DegreeSelector({
                 </button>
             </div>
 
-            {popover && (
+            {popover && (popover.kind === "minor" ? minorsReady : catalogsReady) && (
                 <DegreeProgramPopover
                     open
                     mode={popover.mode}

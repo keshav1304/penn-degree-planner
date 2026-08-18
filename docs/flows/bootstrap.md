@@ -14,8 +14,9 @@ What happens when the planner page first opens.
 - per-semester CU limit overrides
 - gap semesters
 - last matching `/generate_schedule` response (grid + requirements), when the saved inputs still match
+- degree / minor / concentration catalogs (so chips and labels do not wait on Fly)
 
-Invalid course codes and bad placement shapes are filtered out with helpers from `lib/courseUtils.js`. Persistence lives in `lib/planPersistence.js`. The cached schedule is shown immediately; a generate request still runs so a stopped Fly machine can wake and the plan can refresh.
+Invalid course codes and bad placement shapes are filtered out with helpers from `lib/courseUtils.js`. Persistence lives in `lib/planPersistence.js`. The cached schedule and program names are shown immediately; a generate request still runs so a stopped Fly machine can wake and the plan can refresh. The schedule panel is independently scrollable while catalogs and generate continue in the background.
 
 ## 2. Load the slim course index
 

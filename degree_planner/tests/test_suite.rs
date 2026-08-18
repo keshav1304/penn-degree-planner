@@ -379,6 +379,94 @@ fn assert_schedule_respects_cu_limits(output: &scheduler::ScheduleOutput, label:
     }
 }
 
+fn occupied_schedule_max_year(output: &scheduler::ScheduleOutput) -> i32 {
+    output
+        .schedule
+        .iter()
+        .filter(|p| !p.courses.is_empty() || !p.requirement_slots.is_empty())
+        .map(|p| p.year)
+        .max()
+        .unwrap_or(0)
+}
+
+fn assert_no_generic_anyof_grid_labels(output: &scheduler::ScheduleOutput, label: &str) {
+    for plan in &output.schedule {
+        for slot in &plan.requirement_slots {
+            let text = output.slot_labels.get(slot).map(String::as_str).unwrap_or("");
+            assert!(
+                !text.eq_ignore_ascii_case("One of the following options"),
+                "{label}: slot {slot} should use a category name, got {text:?}"
+            );
+        }
+    }
+}
+
+fn assert_no_named_course_plus_option_placeholder(
+    output: &scheduler::ScheduleOutput,
+    label: &str,
+) {
+    let courses: HashSet<&str> = output
+        .schedule
+        .iter()
+        .flat_map(|p| p.courses.iter().map(String::as_str))
+        .collect();
+    for plan in &output.schedule {
+        for slot in &plan.requirement_slots {
+            let Some(rest) = slot.strip_prefix("req:") else {
+                continue;
+            };
+            let Some((_, fp)) = rest.split_once(":S:") else {
+                continue;
+            };
+            let first = fp.split('/').next().unwrap_or("").replace('_', " ");
+            assert!(
+                !courses.contains(first.as_str()),
+                "{label}: {first} is already a course card; leftover placeholder {slot}"
+            );
+        }
+    }
+}
+
+fn assert_healthy_dual_degree_schedule(
+    output: &scheduler::ScheduleOutput,
+    label: &str,
+    max_occupied_year: i32,
+) {
+    assert!(
+        output.error.is_none(),
+        "{label}: pipeline error: {:?}",
+        output.error
+    );
+    assert_eq!(output.degree_results.len(), 2, "{label}");
+    for result in &output.degree_results {
+        assert!(
+            result.error.is_none(),
+            "{label}: {} {} error: {:?}",
+            result.school,
+            result.major,
+            result.error
+        );
+    }
+    assert_schedule_respects_cu_limits(output, label);
+    let occupied = occupied_schedule_max_year(output);
+    assert!(
+        occupied <= max_occupied_year,
+        "{label}: occupied max year {occupied} (limit {max_occupied_year}); total_cu={:.1}",
+        output.schedule.iter().map(|p| p.total_cu).sum::<f64>()
+    );
+    let pairs = output
+        .overlap_plan
+        .as_ref()
+        .map(|p| p.pairs.len())
+        .unwrap_or(0);
+    assert!(
+        !output.overlap_schedule_groups.is_empty() || pairs > 0,
+        "{label}: expected overlap pairs or schedule groups"
+    );
+    assert_no_generic_anyof_grid_labels(output, label);
+    assert_no_named_course_plus_option_placeholder(output, label);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // 1. Catalog & major resolution — can the student pick a valid plan?
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2345,6 +2433,49 @@ mod requirement_fulfillment {
         assert!(!is_schedulable_requirement_slot_id("req:1:c0"));
         assert!(is_pool_constraint_slot_id("req:1:c0"));
     }
+
+    #[test]
+    fn anyof_placeholder_uses_category_name_not_generic_options_text() {
+        use degree_planner::penn_data::requirement_builders::{any_of, restriction};
+
+        let req = any_of(
+            "Additional Biology",
+            vec![
+                restriction(1)
+                    .departments(&["BIOL"])
+                    .level(2000)
+                    .max_level(5999)
+                    .into(),
+                restriction(1).attr(&["ABB2"]).into(),
+            ],
+        );
+        assert_eq!(
+            req.schedule_label_for_requirement(),
+            "Additional Biology",
+            "long AnyOf slots should show the category, not 'One of the following options'"
+        );
+        let slot_id = req
+            .schedulable_placeholder_id(Some("1:f9:c0"))
+            .expect("Additional Biology should have a category placeholder id");
+        assert!(
+            slot_id.contains("A:Additional_Biology"),
+            "placeholder id should keep the category slug, got {slot_id}"
+        );
+        assert_eq!(req.slot_label_for_id(&slot_id), "Additional Biology");
+
+        let suggested = req.suggest_for_requirement(
+            &vec![],
+            attributes_data::attributes(),
+            catalog_cu_map(),
+            Some("1:f9:c0"),
+            None,
+        );
+        assert_eq!(
+            suggested,
+            Some(vec![slot_id.clone()]),
+            "unpaired Additional Biology should schedule as the category block, not BIOL 2000–5999"
+        );
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -3533,6 +3664,32 @@ mod overlap {
         assert_shared_course_on_schedule(&output, "FNCE 1010", "CIS+WH_NOFL");
     }
 
+    fn option_list_placeholder_on_grid(output: &scheduler::ScheduleOutput, course: &str) -> bool {
+        let slug = course.replace(' ', "_");
+        output.schedule.iter().any(|sem| {
+            sem.requirement_slots.iter().any(|slot| {
+                slot.contains(&format!("S:{slug}"))
+                    || slot.contains(&format!("{slug}/"))
+                    || slot.contains(&format!("/{slug}"))
+            })
+        })
+    }
+
+    #[test]
+    fn biol_wh_nofl_math1400_is_one_shared_course_not_course_plus_placeholder() {
+        let output = generate_schedule(dual_degree_input("CAS", "BIOL", "WH", "WH_NOFL"));
+        assert_shared_course_on_schedule(&output, "MATH 1400", "BIOL+WH_NOFL");
+        assert!(
+            !option_list_placeholder_on_grid(&output, "MATH 1400"),
+            "MATH 1400 already fills Biology allied science + Wharton math; the MATH 1400/MATH 1070 dashed block must not also sit on the grid. slots={:?}",
+            output
+                .schedule
+                .iter()
+                .flat_map(|p| p.requirement_slots.iter())
+                .collect::<Vec<_>>()
+        );
+    }
+
     #[test]
     fn ee_wh_nofl_mt_schedules_bepp2500_and_fnce1010_as_shared_course_cards() {
         let output = generate_schedule(ScheduleInput {
@@ -4157,6 +4314,85 @@ mod scheduling {
         assert_dual_schedule(&output, "NEUR + WH_NOFL");
     }
 
+    fn scheduled_slot_ids(output: &scheduler::ScheduleOutput) -> HashSet<&str> {
+        output
+            .schedule
+            .iter()
+            .flat_map(|p| p.requirement_slots.iter().map(String::as_str))
+            .collect()
+    }
+
+    #[test]
+    fn biol_wh_nofl_finishes_in_four_years_without_duplicate_placeholders() {
+        let output = generate_schedule(dual_degree_input("CAS", "BIOL", "WH", "WH_NOFL"));
+        assert_dual_schedule(&output, "BIOL + WH_NOFL");
+        assert!(
+            occupied_schedule_max_year(&output) <= 4,
+            "BIOL+WH_NOFL should finish in 4 years with summer; occupied max year={}, total_cu={:.1}, schedule={:?}",
+            occupied_schedule_max_year(&output),
+            output.schedule.iter().map(|p| p.total_cu).sum::<f64>(),
+            output
+                .schedule
+                .iter()
+                .filter(|p| !p.courses.is_empty() || !p.requirement_slots.is_empty())
+                .map(|p| format!(
+                    "Y{} {} cu={:.1} courses={:?} slots={:?}",
+                    p.year, p.semester, p.total_cu, p.courses, p.requirement_slots
+                ))
+                .collect::<Vec<_>>()
+        );
+
+        let courses: HashSet<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|p| p.courses.iter().map(String::as_str))
+            .collect();
+        let on_grid = scheduled_slot_ids(&output);
+        for slot in &on_grid {
+            if let Some(rest) = slot.strip_prefix("req:") {
+                if let Some((_, fp)) = rest.split_once(":S:") {
+                    let first = fp.split('/').next().unwrap_or("").replace('_', " ");
+                    assert!(
+                        !courses.contains(first.as_str()),
+                        "BIOL+WH_NOFL: {first} is already a course card; leftover placeholder {slot}"
+                    );
+                }
+            }
+            let label = output.slot_labels.get(*slot).map(String::as_str).unwrap_or("");
+            assert!(
+                !label.eq_ignore_ascii_case("One of the following options"),
+                "BIOL+WH_NOFL: schedule slot {slot} should use the category name, got {label:?}"
+            );
+        }
+
+        let additional_biology_slots: Vec<_> = on_grid
+            .iter()
+            .copied()
+            .filter(|id| {
+                id.contains("Additional_Biology")
+                    || output
+                        .slot_labels
+                        .get(*id)
+                        .is_some_and(|l| l.contains("Additional Biology"))
+            })
+            .collect();
+        assert!(
+            !additional_biology_slots.is_empty(),
+            "BIOL+WH_NOFL should still schedule Additional Biology slots"
+        );
+        for slot in additional_biology_slots {
+            let label = output.slot_labels.get(slot).map(String::as_str).unwrap_or("");
+            assert!(
+                label.contains("Additional Biology"),
+                "BIOL+WH_NOFL: Additional Biology slot {slot} should be labeled with the category, got {label:?}"
+            );
+            assert!(
+                !label.contains("BIOL 2000"),
+                "BIOL+WH_NOFL: Additional Biology slot {slot} should not expand to the child restriction, got {label:?}"
+            );
+        }
+    }
+
     #[test]
     fn cis_wh_dual_degree_generates_valid_schedule() {
         let output = generate_schedule(dual_degree_input("SEAS", "CIS", "WH", "WH_NOFL"));
@@ -4261,6 +4497,318 @@ mod scheduling {
                 );
             }
         }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 7a. Common Penn dual-degree patterns (coordinated + uncoordinated)
+// Catalog: https://catalog.upenn.edu/undergraduate/interdisciplinary/coordinated-dual-degree/
+// NHCM (Nursing + Wharton) is omitted on purpose.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+mod penn_dual_degree_patterns {
+    use super::*;
+
+    struct DualPattern {
+        label: &'static str,
+        school1: &'static str,
+        major1: &'static str,
+        conc1: Option<&'static str>,
+        school2: &'static str,
+        major2: &'static str,
+        conc2: Option<&'static str>,
+        max_occupied_year: i32,
+        must_schedule: &'static [&'static str],
+        require_overlap: bool,
+    }
+
+    fn pattern_input(case: &DualPattern) -> ScheduleInput {
+        let mut input = dual_degree_input_with_conc(
+            case.school1,
+            case.major1,
+            case.conc1,
+            case.school2,
+            case.major2,
+            case.conc2,
+        );
+        if case.school1 == "WH" || case.school2 == "WH" {
+            let wh = input
+                .degrees
+                .iter_mut()
+                .find(|d| d.school == "WH")
+                .expect("Wharton degree");
+            if wh.concentration.is_none() && wh.concentrations.is_empty() {
+                wh.concentration = Some("FNCE".into());
+                wh.concentrations = vec!["FNCE".into()];
+            }
+        }
+        input
+    }
+
+    fn assert_pattern(case: &DualPattern) {
+        assert!(
+            major::major_is_implemented(case.school1, case.major1),
+            "{}: {} {} is not authored",
+            case.label,
+            case.school1,
+            case.major1
+        );
+        assert!(
+            major::major_is_implemented(case.school2, case.major2),
+            "{}: {} {} is not authored",
+            case.label,
+            case.school2,
+            case.major2
+        );
+        let output = generate_schedule(pattern_input(case));
+        if case.require_overlap {
+            assert_healthy_dual_degree_schedule(&output, case.label, case.max_occupied_year);
+        } else {
+            assert!(
+                output.error.is_none(),
+                "{}: pipeline error: {:?}",
+                case.label,
+                output.error
+            );
+            assert_eq!(output.degree_results.len(), 2, "{}", case.label);
+            for result in &output.degree_results {
+                assert!(
+                    result.error.is_none(),
+                    "{}: {} {} error: {:?}",
+                    case.label,
+                    result.school,
+                    result.major,
+                    result.error
+                );
+            }
+            assert_schedule_respects_cu_limits(&output, case.label);
+            let occupied = occupied_schedule_max_year(&output);
+            assert!(
+                occupied <= case.max_occupied_year,
+                "{}: occupied max year {occupied} (limit {}); total_cu={:.1}",
+                case.label,
+                case.max_occupied_year,
+                output.schedule.iter().map(|p| p.total_cu).sum::<f64>()
+            );
+            assert_no_generic_anyof_grid_labels(&output, case.label);
+            assert_no_named_course_plus_option_placeholder(&output, case.label);
+        }
+        let courses: HashSet<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|p| p.courses.iter().map(String::as_str))
+            .collect();
+        for course in case.must_schedule {
+            assert!(
+                courses.contains(course),
+                "{}: expected {course} on the grid; courses: {:?}",
+                case.label,
+                courses
+            );
+        }
+        let total_cu: f64 = output.schedule.iter().map(|p| p.total_cu).sum();
+        let named = output
+            .schedule
+            .iter()
+            .map(|p| p.courses.len())
+            .sum::<usize>();
+        let slots = output
+            .schedule
+            .iter()
+            .map(|p| p.requirement_slots.len())
+            .sum::<usize>();
+        eprintln!(
+            "CU_REPORT\t{}\tyear={}\ttotal_cu={:.1}\tnamed={}\tslots={}",
+            case.label,
+            occupied_schedule_max_year(&output),
+            total_cu,
+            named,
+            slots
+        );
+    }
+
+    fn run_patterns(cases: &[DualPattern]) {
+        assert!(!cases.is_empty());
+        for case in cases {
+            assert_pattern(case);
+        }
+    }
+
+    /// Huntsman is BA International Studies (INST) + BS Economics with language (WH_FL).
+    /// INST is still a College catalog placeholder, so we lock the pairing rather than
+    /// generating a hollow schedule.
+    #[test]
+    fn huntsman_pairs_international_studies_with_wharton_language() {
+        assert!(
+            college_data::CAS_DEGREE_CATALOG
+                .iter()
+                .any(|e| e.api_code == "INST" && e.display_name == "International Studies"),
+            "Huntsman College degree is International Studies (INST)"
+        );
+        assert!(
+            major::major_is_implemented("WH", "WH_FL"),
+            "Huntsman uses the language-required Wharton path"
+        );
+        assert!(
+            !major::major_is_implemented("CAS", "INST"),
+            "INST is now authored — generate a Huntsman INST+WH_FL schedule (4 years) and drop this assertion"
+        );
+    }
+
+    #[test]
+    fn coordinated_m_and_t_lsm_and_viper_schedules_are_healthy() {
+        run_patterns(&[
+            DualPattern {
+                label: "M&T CIS + WH_NOFL_MT",
+                school1: "SEAS",
+                major1: "CIS",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL_MT",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &["OIDD 2340"],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "M&T MEAM + WH_NOFL_MT",
+                school1: "SEAS",
+                major1: "MEAM",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL_MT",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &["OIDD 2340"],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "LSM Biology + WH_NOFL",
+                school1: "CAS",
+                major1: "BIOL",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL",
+                conc2: Some("FNCE"),
+                max_occupied_year: 4,
+                must_schedule: &["MATH 1400"],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "LSM Biochemistry + WH_NOFL",
+                school1: "CAS",
+                major1: "BIOC",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "VIPER Physics + MEAM",
+                school1: "CAS",
+                major1: "PHYS",
+                conc1: Some("Physical Theory and Experimental Technique"),
+                school2: "SEAS",
+                major2: "MEAM",
+                conc2: None,
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "VIPER Math + CIS",
+                school1: "CAS",
+                major1: "MATH",
+                conc1: Some("General Mathematics"),
+                school2: "SEAS",
+                major2: "CIS",
+                conc2: None,
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+        ]);
+    }
+
+    #[test]
+    fn uncoordinated_common_school_pairings_are_healthy() {
+        run_patterns(&[
+            DualPattern {
+                label: "College + Wharton ECON + WH_NOFL",
+                school1: "CAS",
+                major1: "ECON",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "College + Wharton (language) ECON + WH_FL",
+                school1: "CAS",
+                major1: "ECON",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_FL",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "College + Wharton PSYC + WH_NOFL",
+                school1: "CAS",
+                major1: "PSYC",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "SEAS + Wharton (uncoordinated) CIS + WH_NOFL",
+                school1: "SEAS",
+                major1: "CIS",
+                conc1: None,
+                school2: "WH",
+                major2: "WH_NOFL",
+                conc2: Some("FNCE"),
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "College + SEAS ECON + CIS",
+                school1: "CAS",
+                major1: "ECON",
+                conc1: None,
+                school2: "SEAS",
+                major2: "CIS",
+                conc2: None,
+                max_occupied_year: 5,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+            DualPattern {
+                label: "Nursing + College BSN_NOFL + NEUR",
+                school1: "NURS",
+                major1: "BSN_NOFL",
+                conc1: None,
+                school2: "CAS",
+                major2: "NEUR",
+                conc2: None,
+                max_occupied_year: 6,
+                must_schedule: &[],
+                require_overlap: true,
+            },
+        ]);
     }
 }
 
