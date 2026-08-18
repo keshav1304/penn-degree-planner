@@ -65,6 +65,7 @@ Defaults here must stay consistent with backend CU policy helpers in `scheduler.
 | `exportScheduleExcel.js` | Excel export. |
 | `exportRequirementsFlat.js` | Flattened requirements export helpers. |
 | `anonSession.js` | Persistent anonymous id for analytics. |
+| `planPersistence.js` | `localStorage` for plan inputs and the last matching generate response. |
 | `perfLog.js` | Optional timing logs during bootstrap / fetches. |
 
 ## Static assets
@@ -77,7 +78,7 @@ Defaults here must stay consistent with backend CU policy helpers in `scheduler.
 Owned in `page.js` (names approximate):
 
 - `degrees`, `takenCourses`, `frozenCourses`, `assignedCourses`
-- `scheduleData`: last `/generate_schedule` response
+- `scheduleData`: last `/generate_schedule` response (restored from `localStorage` on reload when inputs match, then refreshed in the background)
 - `allowSummer`, `semesterCuLimits`
 - catalogs: `degreeCatalog`, `minorCatalog`, `concentrationCatalog`, `courseCatalog`, …
 

@@ -40,6 +40,8 @@ use degree_planner::scheduler::{
     DegreeInput, FrozenCourse, ScheduleInput,
 };
 
+mod common;
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 fn catalog_cu_map() -> &'static HashMap<String, f64> {
@@ -1682,6 +1684,20 @@ mod catalog {
                 }
             }
         }
+        let plan = output.overlap_plan.as_ref().expect("overlap plan");
+        assert!(
+            plan.opportunities.iter().any(|o| {
+                o.slots.iter().any(|s| {
+                    common::is_pool_flex_key(&s.slot_key) || s.slot_key.contains(":c")
+                })
+            }),
+            "BE CoursePool flex/coverage slots must stay overlap-eligible; slots: {:?}",
+            plan.opportunities
+                .iter()
+                .take(12)
+                .flat_map(|o| o.slots.iter().map(|s| s.slot_key.as_str()))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -3111,6 +3127,14 @@ mod overlap {
         assert!(!plan.opportunities.is_empty());
         assert!(!plan.hints_by_slot.is_empty());
         assert!(!plan.pairs.is_empty());
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "NEUR+WH",
+        );
     }
 
     #[test]
@@ -3142,6 +3166,14 @@ mod overlap {
             let degrees: HashSet<_> = opp.slots.iter().map(|s| s.degree_index).collect();
             assert_eq!(degrees.len(), 2, "overlap must pair two degrees");
         }
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "NEUR+WH+ECON",
+        );
     }
 
     #[test]
@@ -3194,6 +3226,14 @@ mod overlap {
             "expected a fundamentals stats overlap opportunity; opportunities: {:?}",
             plan.opportunities
         );
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "EE+WH_FL_MT",
+        );
     }
 
     #[test]
@@ -3215,6 +3255,9 @@ mod overlap {
             },
         ];
         let id = overlap_group_schedule_id(&slots);
+        let reversed = overlap_group_schedule_id(&[slots[1].clone(), slots[0].clone()]);
+        assert_eq!(id, reversed, "overlap group ids must be order-independent");
+        assert_eq!(id, "req:overlap:0@2:c1+1@3:p0");
         assert!(id.starts_with("req:overlap:"));
         assert!(is_overlap_schedule_group_id(&id));
     }
@@ -3678,6 +3721,14 @@ mod overlap {
                 plan.opportunities
             );
         }
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "CIS+WH",
+        );
     }
 
     #[test]
@@ -3713,6 +3764,31 @@ mod overlap {
                 plan.opportunities
             );
         }
+        let named_idx = plan.opportunities.iter().position(|o| {
+            o.suggested_courses
+                .iter()
+                .any(|c| c == "ESE 3010" || c == "STAT 4300")
+        });
+        let catchall_idx = plan.opportunities.iter().position(|o| {
+            o.slots.iter().any(|s| s.label == "Unrestricted Electives")
+                && o.slots
+                    .iter()
+                    .any(|s| s.label.contains("General Electives"))
+        });
+        if let (Some(named), Some(catchall)) = (named_idx, catchall_idx) {
+            assert!(
+                named < catchall,
+                "named stats overlap must rank above unrestricted×elective catch-alls ({named} vs {catchall})"
+            );
+        }
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "EE+WH",
+        );
     }
 
     #[test]
@@ -3750,6 +3826,14 @@ mod overlap {
             }),
             "expected a cross-degree WRIT pair; pairs: {:?}",
             plan.pairs
+        );
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "CAS+WH WRIT",
         );
     }
 
@@ -3789,6 +3873,14 @@ mod overlap {
             }),
             "WH Unrestricted Electives should pair cross-degree; pairs: {:?}",
             plan.pairs.iter().map(|p| p.slots.iter().map(|s| &s.label).collect::<Vec<_>>()).collect::<Vec<_>>()
+        );
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "NEUR+WH unrestricted",
         );
     }
 
@@ -3843,6 +3935,14 @@ mod overlap {
             "CAS gen-ed should overlap WH LAS pool or SSH constraints; pairs: {:?}",
             plan.pairs.iter().map(|p| p.slots.iter().map(|s| &s.label).collect::<Vec<_>>()).collect::<Vec<_>>()
         );
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &HashSet::new(),
+            "NEUR+WH gen-ed/LAS",
+        );
     }
 
     #[test]
@@ -3862,6 +3962,24 @@ mod overlap {
                 .map(|g| g.members.iter().map(|m| &m.label).collect::<Vec<_>>())
                 .collect::<Vec<_>>()
         );
+
+        let scheduled_slots: HashSet<&str> = output
+            .schedule
+            .iter()
+            .flat_map(|p| p.requirement_slots.iter().map(String::as_str))
+            .collect();
+        for group in &output.overlap_schedule_groups {
+            assert_eq!(group.members.len(), 2);
+            assert!(scheduled_slots.contains(group.group_id.as_str()));
+            for member in &group.members {
+                assert!(
+                    !scheduled_slots.contains(member.schedule_slot_id.as_str()),
+                    "paired slot {} should be suppressed for {}",
+                    member.schedule_slot_id,
+                    group.group_id
+                );
+            }
+        }
     }
 
     #[test]
@@ -4076,6 +4194,10 @@ mod scheduling {
             anon_session_id: None,
         });
         assert!(output.cross_degree_summary.is_none());
+        assert!(
+            output.overlap_plan.is_none(),
+            "single-degree generate must skip overlap discovery"
+        );
         assert_schedule_respects_cu_limits(&output, "single CIS");
     }
 
@@ -4933,6 +5055,14 @@ mod dual_degree_properties {
                 );
             }
         }
+        common::assert_overlap_plan_accuracy(
+            &plan,
+            &per_degree,
+            &schools,
+            &majors,
+            &taken,
+            "CAS+CAS",
+        );
     }
 
     #[test]

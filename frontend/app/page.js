@@ -32,31 +32,15 @@ import {
 import { exportScheduleJpeg } from "@/lib/exportScheduleImage";
 import { exportScheduleExcel } from "@/lib/exportScheduleExcel";
 import { getOrCreateAnonSessionId } from "@/lib/anonSession";
-
-const STORAGE_KEY = "penn_degree_planner_state";
-
-function loadSavedState() {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-function saveState(state) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      degrees: state.degrees,
-      takenCourses: state.takenCourses,
-      frozenCourses: state.frozenCourses,
-      assignedCourses: state.assignedCourses,
-      allowSummer: state.allowSummer,
-      semesterCuLimits: state.semesterCuLimits,
-      gapSemesters: state.gapSemesters,
-    }));
-  } catch { }
-}
+import {
+  clearCachedSchedule,
+  clearPlanPersistence,
+  loadCachedSchedule,
+  loadSavedState,
+  saveCachedSchedule,
+  savePlanState,
+  scheduleInputKey,
+} from "@/lib/planPersistence";
 
 export default function Home() {
     const [courseCuMap, setCourseCuMap] = useState({});
@@ -79,9 +63,12 @@ export default function Home() {
   const [gapSemesters, setGapSemesters] = useState({});
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [planReady, setPlanReady] = useState(false);
   const debounceRef = useRef(null);
   const scheduleRequestId = useRef(0);
   const exportMenuRef = useRef(null);
+  const firstGenerateRef = useRef(true);
+  const prevCuPolicyKey = useRef(null);
 
   // Pointer: 8px movement before drag. Touch: short delay so page scroll wins.
   const sensors = useSensors(
@@ -102,14 +89,32 @@ export default function Home() {
 
     const saved = loadSavedState();
     if (saved) {
-      setDegrees(saved.degrees || []);
-      setTakenCourses(filterValidCourseCodes(saved.takenCourses || []));
-      setFrozenCourses(filterFrozenPlacements(saved.frozenCourses || []));
-      setAssignedCourses(filterValidPlacements(saved.assignedCourses || []));
+      const degrees = saved.degrees || [];
+      const takenCourses = filterValidCourseCodes(saved.takenCourses || []);
+      const frozenCourses = filterFrozenPlacements(saved.frozenCourses || []);
+      const assignedCourses = filterValidPlacements(saved.assignedCourses || []);
+      const allowSummer = saved.allowSummer !== undefined ? saved.allowSummer : false;
+      const semesterCuLimits = saved.semesterCuLimits || {};
+      const gapSemesters = saved.gapSemesters || {};
+      setDegrees(degrees);
+      setTakenCourses(takenCourses);
+      setFrozenCourses(frozenCourses);
+      setAssignedCourses(assignedCourses);
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
       if (saved.gapSemesters) setGapSemesters(saved.gapSemesters);
+      const cached = loadCachedSchedule(scheduleInputKey({
+        degrees,
+        takenCourses,
+        frozenCourses,
+        assignedCourses,
+        allowSummer,
+        semesterCuLimits,
+        gapSemesters,
+      }));
+      if (cached) setScheduleData(cached);
     }
+    setPlanReady(true);
     perfLog("bootstrap.localStorage", elapsed());
 
     const trackFetch = (step, url, onData) => {
@@ -170,27 +175,43 @@ export default function Home() {
   );
 
   const cuPolicyKey = useMemo(() => degreeCuPolicyKey(degrees), [degrees]);
-  const prevCuPolicyKey = useRef(cuPolicyKey);
 
   // Reset per-semester overrides when school mix changes so defaults track degree composition.
   useEffect(() => {
+    if (!planReady) return;
+    if (prevCuPolicyKey.current === null) {
+      prevCuPolicyKey.current = cuPolicyKey;
+      return;
+    }
     if (prevCuPolicyKey.current !== cuPolicyKey) {
       prevCuPolicyKey.current = cuPolicyKey;
       setSemesterCuLimits({});
     }
-  }, [cuPolicyKey]);
+  }, [planReady, cuPolicyKey]);
 
   // Auto-save on changes
   useEffect(() => {
-    saveState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters });
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters]);
+    if (!planReady) return;
+    savePlanState({ degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters });
+  }, [planReady, degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
     if (degrees.length === 0) {
       setScheduleData(null);
+      clearCachedSchedule();
       return;
     }
+
+    const inputKey = scheduleInputKey({
+      degrees,
+      takenCourses,
+      frozenCourses,
+      assignedCourses,
+      allowSummer,
+      semesterCuLimits,
+      gapSemesters,
+    });
 
     const pinnedOnSchedule = [
       ...filterFrozenPlacements(frozenCourses),
@@ -240,6 +261,9 @@ export default function Home() {
       const data = await response.json();
       if (requestId !== scheduleRequestId.current) return;
       setScheduleData(data);
+      if (Array.isArray(data?.schedule)) {
+        saveCachedSchedule(inputKey, data);
+      }
     } catch (err) {
       if (requestId !== scheduleRequestId.current) return;
       console.error("Schedule generation failed:", err);
@@ -250,10 +274,13 @@ export default function Home() {
   }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters, maxScheduleYear]);
 
   useEffect(() => {
+    if (!planReady) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(generateSchedule, 500);
+    const delay = firstGenerateRef.current ? 0 : 500;
+    firstGenerateRef.current = false;
+    debounceRef.current = setTimeout(generateSchedule, delay);
     return () => clearTimeout(debounceRef.current);
-  }, [generateSchedule]);
+  }, [planReady, generateSchedule]);
 
   // Drop any legacy invalid entries (e.g. requirement description strings in My Courses)
   useEffect(() => {
@@ -354,7 +381,7 @@ export default function Home() {
     setFrozenCourses([]);
     setAssignedCourses([]);
     setScheduleData(null);
-    localStorage.removeItem(STORAGE_KEY);
+    clearPlanPersistence();
   };
 
   // ─── Drag & Drop handlers ───

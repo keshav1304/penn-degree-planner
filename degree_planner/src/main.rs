@@ -271,11 +271,14 @@ async fn generate_schedule_post(
     Json(payload): Json<ScheduleInput>,
 ) -> Json<ScheduleOutput> {
     let started = Instant::now();
-    let output = generate_schedule(payload.clone());
+    let payload_for_event = payload.clone();
+    let output = tokio::task::spawn_blocking(move || generate_schedule(payload))
+        .await
+        .expect("generate_schedule worker");
     let latency_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
 
     if let Some(pool) = state.db.clone() {
-        let event = ScheduleGenerateEvent::from_request_and_output(&payload, &output, latency_ms);
+        let event = ScheduleGenerateEvent::from_request_and_output(&payload_for_event, &output, latency_ms);
         tokio::spawn(async move {
             if let Err(err) = analytics::insert_schedule_generate(&pool, &event).await {
                 eprintln!("analytics: insert failed: {err}");

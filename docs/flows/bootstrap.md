@@ -4,7 +4,7 @@ What happens when the planner page first opens.
 
 ## 1. Restore local plan (if any)
 
-`app/page.js` reads `localStorage` key `penn_degree_planner_state` and, when present, restores:
+`app/page.js` reads `localStorage` keys `penn_degree_planner_state` (plan inputs) and `penn_degree_planner_schedule` (last generate). When present, it restores:
 
 - selected degrees
 - taken courses
@@ -12,8 +12,10 @@ What happens when the planner page first opens.
 - assigned placements
 - summer toggle
 - per-semester CU limit overrides
+- gap semesters
+- last matching `/generate_schedule` response (grid + requirements), when the saved inputs still match
 
-Invalid course codes and bad placement shapes are filtered out with helpers from `lib/courseUtils.js`.
+Invalid course codes and bad placement shapes are filtered out with helpers from `lib/courseUtils.js`. Persistence lives in `lib/planPersistence.js`. The cached schedule is shown immediately; a generate request still runs so a stopped Fly machine can wake and the plan can refresh.
 
 ## 2. Load the slim course index
 
@@ -35,6 +37,6 @@ These populate the degree/minor pickers and concentration options. Only programs
 
 ## 4. First schedule generate
 
-Once degrees (possibly restored) and related state are set, a debounced effect calls `POST /generate_schedule`. Even with no degrees selected, the request machinery still runs; useful results appear once the user picks programs and/or courses.
+Once degrees (possibly restored) and related state are set, a generate effect calls `POST /generate_schedule` immediately on first load (later edits stay debounced ~500ms). If a matching schedule was restored from localStorage, the grid paints that first; the request still goes out. Even with no degrees selected, the request machinery still runs; useful results appear once the user picks programs and/or courses.
 
 After that, every meaningful plan edit retriggers the same generate path. See [Schedule generation](./schedule-generation.md).

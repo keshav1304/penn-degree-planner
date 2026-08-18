@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
+use std::time::Instant;
 
 use serde::Serialize;
 
@@ -22,7 +23,7 @@ use crate::requirement::{
 /// Inverted catalog indexes for fast restriction candidate lookup.
 #[derive(Debug, Clone)]
 struct CatalogIndex {
-    all_courses: Vec<String>,
+    undergrad_courses: Vec<String>,
     courses_by_attr: HashMap<String, HashSet<String>>,
     courses_by_dept: HashMap<String, HashSet<String>>,
 }
@@ -51,20 +52,59 @@ impl CatalogIndex {
                 .insert(c.course_code.clone());
         }
         all_courses.sort();
+        let undergrad_courses: Vec<String> = all_courses
+            .iter()
+            .filter(|c| !course::is_graduate_level(c))
+            .cloned()
+            .collect();
 
         Self {
-            all_courses,
+            undergrad_courses,
             courses_by_attr,
             courses_by_dept,
         }
     }
 
-    fn unrestricted_undergrad_set(&self) -> HashSet<String> {
-        self.all_courses
-            .iter()
-            .filter(|c| !course::is_graduate_level(c))
-            .cloned()
-            .collect()
+    fn filter_base(
+        &self,
+        mut codes: Vec<String>,
+        taken: &HashSet<String>,
+        department: &Option<Vec<String>>,
+        level: &Option<i32>,
+        max_level: &Option<i32>,
+        attr: &Option<Vec<String>>,
+        excluding: &Option<Vec<String>>,
+        no_school: &Option<String>,
+        cap: Option<usize>,
+    ) -> HashSet<String> {
+        let attributes = attributes_data::attributes();
+        codes.sort();
+        codes.dedup();
+        let mut out = HashSet::new();
+        for c in codes {
+            if cap.is_some_and(|max| out.len() >= max) {
+                break;
+            }
+            if course_relations::set_contains_equiv(taken, &c) {
+                continue;
+            }
+            if taken.iter().any(|t| course_relations::codes_conflict(t, &c)) {
+                continue;
+            }
+            if course_matches_restriction(
+                &c,
+                department,
+                level,
+                max_level,
+                attr,
+                excluding,
+                no_school,
+                attributes,
+            ) {
+                out.insert(c);
+            }
+        }
+        out
     }
 
     fn candidates_for_restriction(
@@ -76,18 +116,16 @@ impl CatalogIndex {
         excluding: &Option<Vec<String>>,
         no_school: &Option<String>,
         taken: &HashSet<String>,
+        cap: Option<usize>,
     ) -> HashSet<String> {
-        let attributes = attributes_data::attributes();
-        let mut base: Option<HashSet<String>> = None;
-
-        if let Some(attrs) = attr.as_ref().filter(|a| !a.is_empty()) {
+        let base: Vec<String> = if let Some(attrs) = attr.as_ref().filter(|a| !a.is_empty()) {
             let mut union = HashSet::new();
             for name in attrs {
                 if let Some(set) = self.courses_by_attr.get(name) {
                     union.extend(set.iter().cloned());
                 }
             }
-            base = Some(union);
+            union.into_iter().collect()
         } else if let Some(depts) = department.as_ref().filter(|d| !d.is_empty()) {
             let mut union = HashSet::new();
             for dept in depts {
@@ -95,29 +133,22 @@ impl CatalogIndex {
                     union.extend(set.iter().cloned());
                 }
             }
-            base = Some(union);
-        } else if no_school.is_some() {
-            base = Some(self.unrestricted_undergrad_set());
+            union.into_iter().collect()
         } else {
-            base = Some(self.unrestricted_undergrad_set());
-        }
+            self.undergrad_courses.clone()
+        };
 
-        let mut out = base.unwrap_or_default();
-        out.retain(|c| {
-            !course_relations::set_contains_equiv(taken, c)
-                && !taken.iter().any(|t| course_relations::codes_conflict(t, c))
-                && course_matches_restriction(
-                    c,
-                    department,
-                    level,
-                    max_level,
-                    attr,
-                    excluding,
-                    no_school,
-                    &attributes,
-                )
-        });
-        out
+        self.filter_base(
+            base,
+            taken,
+            department,
+            level,
+            max_level,
+            attr,
+            excluding,
+            no_school,
+            cap,
+        )
     }
 
     fn candidates_for_one_of(
@@ -140,7 +171,7 @@ impl CatalogIndex {
 // ── Course matcher (requirement slot → catalog predicate) ─────────────────────
 
 /// Compiled predicate: which catalog courses can satisfy a single open slot.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum CourseMatcher {
     OneOf(Vec<String>),
     Restriction {
@@ -276,14 +307,30 @@ fn course_satisfies_matcher(
     }
 }
 
+fn cap_candidate_set(set: HashSet<String>, cap: Option<usize>) -> HashSet<String> {
+    let Some(max) = cap else {
+        return set;
+    };
+    if set.len() <= max {
+        return set;
+    }
+    let mut v: Vec<String> = set.into_iter().collect();
+    v.sort();
+    v.truncate(max);
+    v.into_iter().collect()
+}
+
 fn candidates_for_matcher(
     matcher: &CourseMatcher,
     index: &CatalogIndex,
     taken: &HashSet<String>,
+    cap: Option<usize>,
 ) -> Option<HashSet<String>> {
     match matcher {
         CourseMatcher::Unrestricted => None,
-        CourseMatcher::OneOf(list) => Some(index.candidates_for_one_of(list, taken)),
+        CourseMatcher::OneOf(list) => {
+            Some(cap_candidate_set(index.candidates_for_one_of(list, taken), cap))
+        }
         CourseMatcher::Restriction {
             department,
             level,
@@ -299,20 +346,21 @@ fn candidates_for_matcher(
             excluding,
             no_school,
             taken,
+            cap,
         )),
         CourseMatcher::AnyOf(children) => {
             let mut union = HashSet::new();
             for child in children {
-                if let Some(set) = candidates_for_matcher(child, index, taken) {
+                if let Some(set) = candidates_for_matcher(child, index, taken, None) {
                     union.extend(set);
                 }
             }
-            Some(union)
+            Some(cap_candidate_set(union, cap))
         }
         CourseMatcher::AllOf(children) => {
             let mut sets: Vec<HashSet<String>> = Vec::new();
             for child in children {
-                let set = candidates_for_matcher(child, index, taken)?;
+                let set = candidates_for_matcher(child, index, taken, None)?;
                 sets.push(set);
             }
             if sets.is_empty() {
@@ -322,7 +370,7 @@ fn candidates_for_matcher(
             for s in sets.into_iter().skip(1) {
                 acc = acc.intersection(&s).cloned().collect();
             }
-            Some(acc)
+            Some(cap_candidate_set(acc, cap))
         }
     }
 }
@@ -1055,6 +1103,7 @@ pub fn compute_overlap_plan(
         return OverlapPlan::empty();
     }
 
+    let started = Instant::now();
     let index = catalog_index();
     let open_slots = extract_open_slots(per_degree, majors, major_per_degree_indices);
     if open_slots.len() < 2 {
@@ -1074,6 +1123,8 @@ pub fn compute_overlap_plan(
 
     let attributes = attributes_data::attributes();
 
+    let t_candidates = Instant::now();
+    let mut matcher_cache: HashMap<CourseMatcher, Option<HashSet<String>>> = HashMap::new();
     let slot_candidates: Vec<Option<HashSet<String>>> = open_slots
         .iter()
         .enumerate()
@@ -1081,30 +1132,33 @@ pub fn compute_overlap_plan(
             if !eligible_indices.contains(&slot_idx) {
                 return None;
             }
-            let mut set = candidates_for_matcher(&slot.matcher, &index, taken)?;
-            if set.len() > MAX_CANDIDATES_PER_SLOT {
-                let mut v: Vec<String> = set.into_iter().collect();
-                v.sort();
-                v.truncate(MAX_CANDIDATES_PER_SLOT);
-                set = v.into_iter().collect();
+            if let Some(cached) = matcher_cache.get(&slot.matcher) {
+                return cached.clone();
             }
-            Some(set)
+            let computed = candidates_for_matcher(
+                &slot.matcher,
+                index,
+                taken,
+                Some(MAX_CANDIDATES_PER_SLOT),
+            );
+            matcher_cache.insert(slot.matcher.clone(), computed.clone());
+            computed
         })
         .collect();
+    let candidates_ms = t_candidates.elapsed().as_millis();
 
+    let t_invert = Instant::now();
     let mut course_to_slots: HashMap<String, Vec<usize>> = HashMap::new();
-    for (slot_idx, slot) in open_slots.iter().enumerate() {
+    for (slot_idx, _slot) in open_slots.iter().enumerate() {
         if !eligible_indices.contains(&slot_idx) {
             continue;
         }
         if let Some(candidates) = &slot_candidates[slot_idx] {
             for course in candidates {
-                if course_satisfies_matcher(&slot.matcher, course, &attributes) {
-                    course_to_slots
-                        .entry(course.clone())
-                        .or_default()
-                        .push(slot_idx);
-                }
+                course_to_slots
+                    .entry(course.clone())
+                    .or_default()
+                    .push(slot_idx);
             }
         }
     }
@@ -1114,14 +1168,17 @@ pub fn compute_overlap_plan(
         &open_slots,
         &eligible_indices,
         taken,
-        &attributes,
+        attributes,
     );
+    let invert_ms = t_invert.elapsed().as_millis();
 
+    let t_peer = Instant::now();
     for slot_idx in &eligible_indices {
         if slot_candidates[*slot_idx].is_some() {
             continue;
         }
         let slot = &open_slots[*slot_idx];
+        let unrestricted = matches!(slot.matcher, CourseMatcher::Unrestricted);
         for (peer_idx, peer_set) in slot_candidates.iter().enumerate() {
             if !eligible_indices.contains(&peer_idx) || *slot_idx == peer_idx {
                 continue;
@@ -1130,7 +1187,12 @@ pub fn compute_overlap_plan(
                 continue;
             };
             for course in peer {
-                if course_satisfies_matcher(&slot.matcher, course, &attributes) {
+                let accepts = if unrestricted {
+                    course::is_valid_course_code(course)
+                } else {
+                    course_satisfies_matcher(&slot.matcher, course, attributes)
+                };
+                if accepts {
                     let entry = course_to_slots.entry(course.clone()).or_default();
                     if !entry.contains(slot_idx) {
                         entry.push(*slot_idx);
@@ -1139,7 +1201,9 @@ pub fn compute_overlap_plan(
             }
         }
     }
+    let peer_ms = t_peer.elapsed().as_millis();
 
+    let t_pairs = Instant::now();
     let mut group_courses: HashMap<Vec<usize>, Vec<(String, usize)>> = HashMap::new();
 
     for (course, slot_indices) in course_to_slots {
@@ -1238,6 +1302,15 @@ pub fn compute_overlap_plan(
         .collect();
 
     let pairs = select_overlap_pairs(&opportunities, degree_schools, cross_state, cu_map);
+    let pairs_ms = t_pairs.elapsed().as_millis();
+
+    eprintln!(
+        "overlap_planner: candidates={candidates_ms}ms invert={invert_ms}ms peer={peer_ms}ms pairs={pairs_ms}ms total={}ms eligible={} opportunities={} pairs={}",
+        started.elapsed().as_millis(),
+        eligible_indices.len(),
+        opportunities.len(),
+        pairs.len(),
+    );
 
     OverlapPlan {
         opportunities,

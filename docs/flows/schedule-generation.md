@@ -4,7 +4,7 @@ This is the main runtime loop. One API call returns both per-degree requirement 
 
 ## Trigger
 
-In `app/page.js`, `generateSchedule` runs (debounced ~500ms) when any of these change:
+In `app/page.js`, `generateSchedule` runs when any of these change:
 
 - selected degrees
 - taken courses
@@ -12,6 +12,8 @@ In `app/page.js`, `generateSchedule` runs (debounced ~500ms) when any of these c
 - allow-summer
 - semester CU limits
 - max schedule year used to expand CU limit maps
+
+The first generate after bootstrap is immediate (so a stopped Fly machine can wake). Later edits are debounced ~500ms. If a matching schedule is already in `localStorage`, the UI paints that first and still sends the request.
 
 A monotonic request id drops stale responses if a newer generate finished first.
 

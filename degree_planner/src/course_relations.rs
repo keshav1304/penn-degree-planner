@@ -22,17 +22,27 @@ pub struct CourseRelations {
 
 impl CourseRelations {
     pub fn canonical(&self, code: &str) -> String {
+        if let Some(c) = self.canonical_of.get(code) {
+            return c.clone();
+        }
         let n = normalize_code(code);
-        self.canonical_of
-            .get(&n)
-            .cloned()
-            .unwrap_or(n)
+        self.canonical_of.get(&n).cloned().unwrap_or(n)
     }
 
     pub fn aliases(&self, code: &str) -> &[String] {
-        let canon = self.canonical(code);
+        if let Some(canon) = self.canonical_of.get(code) {
+            return self
+                .clusters
+                .get(canon.as_str())
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+        }
+        let n = normalize_code(code);
+        let Some(canon) = self.canonical_of.get(&n) else {
+            return &[];
+        };
         self.clusters
-            .get(&canon)
+            .get(canon.as_str())
             .map(|v| v.as_slice())
             .unwrap_or(&[])
     }
@@ -41,10 +51,16 @@ impl CourseRelations {
         if a == b {
             return true;
         }
-        self.canonical(a) == self.canonical(b)
+        match (self.canonical_of.get(a), self.canonical_of.get(b)) {
+            (Some(ca), Some(cb)) => ca == cb,
+            _ => self.canonical(a) == self.canonical(b),
+        }
     }
 
     pub fn mutex_partners(&self, code: &str) -> &[String] {
+        if let Some(p) = self.mutex.get(code) {
+            return p.as_slice();
+        }
         let n = normalize_code(code);
         self.mutex
             .get(&n)
@@ -56,8 +72,9 @@ impl CourseRelations {
         if self.equivalent(a, b) {
             return false;
         }
-        let nb = normalize_code(b);
-        self.mutex_partners(a).iter().any(|p| p == &nb || self.equivalent(p, &nb))
+        self.mutex_partners(a)
+            .iter()
+            .any(|p| p == b || self.equivalent(p, b))
     }
 }
 

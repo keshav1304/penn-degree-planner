@@ -55,7 +55,7 @@ Inside `frontend/`:
 - `lib/`: pure helpers (IDs, labels, catalog prep, export, semester CU defaults, cross-degree display helpers).
 - `public/course_index.json`: generated slim catalog for client-side search (see `npm run generate:catalog`).
 
-The UI keeps plan state in React state and mirrors a subset into `localStorage` under `penn_degree_planner_state`.
+The UI keeps plan state in React state and mirrors inputs plus the last matching generate response into `localStorage` (`penn_degree_planner_state`, `penn_degree_planner_schedule`). Reload paints the cached schedule immediately, then still calls `/generate_schedule` so a stopped Fly machine can wake.
 
 ## Data ownership
 
@@ -65,7 +65,7 @@ The UI keeps plan state in React state and mirrors a subset into `localStorage` 
 | Course attributes | Embedded in Rust (`attributes_data`) |
 | Degree / minor requirement trees | Authored in Rust school modules; resolved through `major` |
 | Slim search index | Frontend static JSON (generated from catalog tooling) |
-| User plan (degrees, taken, frozen, CU limits) | Browser (`localStorage` + React state) |
+| User plan (degrees, taken, frozen, CU limits, last schedule) | Browser (`localStorage` + React state) |
 | Schedule generate analytics | Optional Postgres |
 
 There is no server-side user account or saved plan store in the current design. Refreshing the browser relies on `localStorage`.

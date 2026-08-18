@@ -785,10 +785,7 @@ pub fn course_matches_restriction(
                 if course_relations::equivalent(ex, course) {
                     return false;
                 }
-            } else if attributes
-                .get(ex)
-                .is_some_and(|courses| course_relations::vec_contains_equiv(courses, course))
-            {
+            } else if restriction_attr_contains(attributes, ex, course) {
                 return false;
             }
         }
@@ -837,19 +834,27 @@ pub fn course_matches_restriction(
         }
     }
     if let Some(attr_names) = attr {
-        let mut matches_attr = false;
-        for attr_name in attr_names {
-            if let Some(courses_in_attribute) = attributes.get(attr_name) {
-                if course_relations::vec_contains_equiv(courses_in_attribute, course) {
-                    matches_attr = true;
-                }
-            }
-        }
+        let matches_attr = attr_names
+            .iter()
+            .any(|attr_name| restriction_attr_contains(attributes, attr_name, course));
         if !matches_attr {
             return false;
         }
     }
     true
+}
+
+fn restriction_attr_contains(
+    attributes: &HashMap<String, Vec<String>>,
+    attr: &str,
+    course: &str,
+) -> bool {
+    if std::ptr::eq(attributes, attributes_data::attributes()) {
+        return attributes_data::attribute_contains_course(attr, course);
+    }
+    attributes
+        .get(attr)
+        .is_some_and(|courses| course_relations::vec_contains_equiv(courses, course))
 }
 
 pub fn filter_valid_course_ids(ids: Vec<String>) -> Vec<String> {

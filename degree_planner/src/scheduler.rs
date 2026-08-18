@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::{Mutex, OnceLock};
 
 use serde::{Deserialize, Serialize};
 
@@ -617,6 +618,71 @@ fn is_cas_college_degree_excluded_mapped(
     is_cas_excess_unrestricted_mapped(degree_idx, mapped, major, cas_unrestricted_cap)
 }
 
+const OVERLAP_MEMO_CAP: usize = 32;
+
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct OverlapMemoKey {
+    degrees: Vec<(String, String, String, Vec<String>)>,
+    courses: Vec<String>,
+}
+
+struct OverlapMemo {
+    entries: HashMap<OverlapMemoKey, OverlapPlan>,
+    order: VecDeque<OverlapMemoKey>,
+}
+
+fn overlap_memo() -> &'static Mutex<OverlapMemo> {
+    static MEMO: OnceLock<Mutex<OverlapMemo>> = OnceLock::new();
+    MEMO.get_or_init(|| {
+        Mutex::new(OverlapMemo {
+            entries: HashMap::new(),
+            order: VecDeque::new(),
+        })
+    })
+}
+
+fn overlap_memo_key(degrees: &[DegreeInput], courses_for_validation: &[String]) -> OverlapMemoKey {
+    let degrees = degrees
+        .iter()
+        .map(|d| {
+            let mut concs = d.effective_concentrations();
+            concs.sort();
+            (d.kind.clone(), d.school.clone(), d.major.clone(), concs)
+        })
+        .collect();
+    let mut courses = courses_for_validation.to_vec();
+    courses.sort();
+    OverlapMemoKey { degrees, courses }
+}
+
+fn overlap_memo_get(key: &OverlapMemoKey) -> Option<OverlapPlan> {
+    let mut memo = overlap_memo()
+        .lock()
+        .unwrap_or_else(|err| err.into_inner());
+    if memo.entries.contains_key(key) {
+        memo.order.retain(|k| k != key);
+        memo.order.push_back(key.clone());
+        memo.entries.get(key).cloned()
+    } else {
+        None
+    }
+}
+
+fn overlap_memo_put(key: OverlapMemoKey, plan: OverlapPlan) {
+    let mut memo = overlap_memo()
+        .lock()
+        .unwrap_or_else(|err| err.into_inner());
+    if memo.entries.contains_key(&key) {
+        memo.order.retain(|k| k != &key);
+    } else if memo.entries.len() >= OVERLAP_MEMO_CAP {
+        if let Some(old) = memo.order.pop_front() {
+            memo.entries.remove(&old);
+        }
+    }
+    memo.order.push_back(key.clone());
+    memo.entries.insert(key, plan);
+}
+
 pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
 
     let mut raw_plan_codes: Vec<String> = Vec::new();
@@ -891,16 +957,28 @@ pub fn generate_schedule(payload: ScheduleInput) -> ScheduleOutput {
         .map(|(i, _)| i)
         .collect();
     let mut overlap_plan = if cross_degree::overlap_plan_applicable(&degree_schools) {
-        let mut plan = overlap_planner::compute_overlap_plan(
-            &per_degree_validation,
-            &major_refs,
-            &degree_schools,
-            &degree_majors,
-            &courses_for_validation.iter().cloned().collect(),
-            &cross_state,
-            &cu_map,
-            Some(&major_resolved_indices),
-        );
+        let memo_key = overlap_memo_key(&payload.degrees, &courses_for_validation);
+        let mut plan = if let Some(cached) = overlap_memo_get(&memo_key) {
+            eprintln!(
+                "overlap_planner: cache_hit degrees={} courses={}",
+                payload.degrees.len(),
+                courses_for_validation.len()
+            );
+            cached
+        } else {
+            let computed = overlap_planner::compute_overlap_plan(
+                &per_degree_validation,
+                &major_refs,
+                &degree_schools,
+                &degree_majors,
+                &courses_for_validation.iter().cloned().collect(),
+                &cross_state,
+                &cu_map,
+                Some(&major_resolved_indices),
+            );
+            overlap_memo_put(memo_key, computed.clone());
+            computed
+        };
         if major_resolved_indices.len() != resolved_degrees.len() {
             overlap_planner::remap_overlap_plan_degree_indices(&mut plan, &major_resolved_indices);
         }
