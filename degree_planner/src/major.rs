@@ -544,6 +544,13 @@ fn build_major(school: &str, major: &str, concentrations: &[String]) -> Option<M
                     .unwrap_or_else(|| "Bioethics and Society".to_string());
                 Some(college_data::create_hsoc_major(conc))
             }
+            "INST" => {
+                let conc = concentrations
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "Arabic".to_string());
+                Some(college_data::create_inst_major(conc))
+            }
             other => college_data::cas_catalog_entry(other)
                 .map(college_data::create_cas_placeholder_major),
         },

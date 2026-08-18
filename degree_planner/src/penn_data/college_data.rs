@@ -858,7 +858,20 @@ pub const CAS_DEGREE_CATALOG: &[CasMajorCatalogEntry] = &[
     CasMajorCatalogEntry {
         api_code: "INST",
         display_name: "International Studies",
-        concentrations: &[],
+        // Huntsman target language — all 4 language CUs must be this subject.
+        concentrations: &[
+            "Arabic",
+            "Chinese",
+            "French",
+            "German",
+            "Hindi",
+            "Italian",
+            "Japanese",
+            "Korean",
+            "Portuguese",
+            "Russian",
+            "Spanish",
+        ],
     },
     CasMajorCatalogEntry {
         api_code: "JWST",
@@ -2614,6 +2627,110 @@ pub fn create_hsoc_major(concentration_name: String) -> Major {
         major_requirements,
         auto_completed_sectors: vec![],
         concentrations: Some(hsoc_concentrations()),
+        schedule_hints,
+    })
+}
+
+/// Huntsman International Studies target languages (catalog 2026–27).
+/// All four language CUs must be 0500–4999 in this same department.
+const INST_LANGUAGES: &[(&str, &str)] = &[
+    ("Arabic", "ARAB"),
+    ("Chinese", "CHIN"),
+    ("French", "FREN"),
+    ("German", "GRMN"),
+    ("Hindi", "HIND"),
+    ("Italian", "ITAL"),
+    ("Japanese", "JPAN"),
+    ("Korean", "KORN"),
+    ("Portuguese", "PRTG"),
+    ("Russian", "RUSS"),
+    ("Spanish", "SPAN"),
+];
+
+fn inst_language_dept(language_name: &str) -> &'static str {
+    INST_LANGUAGES
+        .iter()
+        .find(|(name, _)| *name == language_name)
+        .map(|(_, dept)| *dept)
+        .unwrap_or_else(|| panic!("unknown INST language: {language_name}"))
+}
+
+fn inst_language_slot(dept: &str) -> Requirement {
+    restriction(4)
+        .category("Language")
+        .departments(&[dept])
+        .level(500)
+        .max_level(4999)
+        .into()
+}
+
+fn inst_language_tracks() -> BTreeMap<String, Vec<Requirement>> {
+    INST_LANGUAGES
+        .iter()
+        .map(|(name, dept)| (name.to_string(), vec![inst_language_slot(dept)]))
+        .collect()
+}
+
+fn inst_language_requirement(language_name: &str) -> Requirement {
+    let slot = inst_language_slot(inst_language_dept(language_name));
+    concentration(language_name, 4, vec![slot])
+}
+
+fn inst_major_requirements(language_name: &str) -> Vec<Requirement> {
+    vec![
+        inst_language_requirement(language_name),
+        restriction(3).category("Area Studies").into(),
+        single(
+            "Huntsman First-Year Seminar",
+            &["INSP 1001"],
+        ),
+        restriction(2)
+            .category("International Studies")
+            .attr(&["UNIS"])
+            .into(),
+        restriction(2)
+            .category("International Business")
+            .attr(&["WUIS"])
+            .into(),
+        any_of(
+            "International Studies or Business",
+            vec![
+                restriction(1).attr(&["UNIS"]).into(),
+                restriction(1).attr(&["WUIS"]).into(),
+            ],
+        ),
+        any_of(
+            "Senior Capstone",
+            vec![
+                code(&["INSP 4998"]),
+                code(&["INSP 4999"]),
+                all_of(
+                    None,
+                    vec![code(&["MGMT 4090"]), code(&["INSP 4997"])],
+                ),
+            ],
+        ),
+    ]
+}
+
+pub fn inst_language_names() -> Vec<String> {
+    cas_concentration_names("INST")
+}
+
+pub fn create_inst_major(language_name: String) -> Major {
+    let schedule_hints = HashMap::from([
+        ("INSP 1001".to_string(), Y1F.into()),
+        ("INSP 4998".to_string(), Y4F.into()),
+        ("INSP 4999".to_string(), Y4F.into()),
+        ("MGMT 4090".to_string(), Y4F.into()),
+        ("INSP 4997".to_string(), Y4S.into()),
+    ]);
+    create_cas_major(CasMajorConfig {
+        short_name: "INST".to_string(),
+        name: "International Studies".to_string(),
+        major_requirements: inst_major_requirements(&language_name),
+        auto_completed_sectors: vec![],
+        concentrations: Some(inst_language_tracks()),
         schedule_hints,
     })
 }

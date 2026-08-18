@@ -92,7 +92,7 @@ fn normalize_like_resolve(mut major: Major) -> Major {
 fn default_concentrations(school: &str, code: &str) -> Vec<String> {
     match (school, code) {
         ("WH", _) => vec!["FNCE".into()],
-        ("CAS", "PPE" | "PHYS" | "MATH" | "HSOC") => college_data::cas_concentration_names(code)
+        ("CAS", "PPE" | "PHYS" | "MATH" | "HSOC" | "INST") => college_data::cas_concentration_names(code)
             .into_iter()
             .next()
             .into_iter()

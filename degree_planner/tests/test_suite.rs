@@ -696,6 +696,178 @@ mod catalog {
     }
 
     #[test]
+    fn inst_major_requires_four_cu_of_one_intermediate_language() {
+        use degree_planner::Requirement;
+
+        fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            if pred(req) {
+                return true;
+            }
+            match req {
+                Requirement::AnyOf { possibilities, .. }
+                | Requirement::CourseGroup { possibilities, .. } => possibilities
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::AllOf { requirements, .. }
+                | Requirement::Concentration { requirements, .. } => requirements
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+                    .iter()
+                    .any(|child| requirement_tree_contains(child, pred)),
+                _ => false,
+            }
+        }
+
+        fn major_contains(major: &degree_planner::Major, pred: &dyn Fn(&Requirement) -> bool) -> bool {
+            major
+                .requirements
+                .iter()
+                .any(|r| requirement_tree_contains(r, pred))
+        }
+
+        fn count_matching(req: &Requirement, pred: &dyn Fn(&Requirement) -> bool) -> usize {
+            let here = if pred(req) { 1 } else { 0 };
+            let children = match req {
+                Requirement::AnyOf { possibilities, .. }
+                | Requirement::CourseGroup { possibilities, .. } => possibilities
+                    .iter()
+                    .map(|child| count_matching(child, pred))
+                    .sum(),
+                Requirement::AllOf { requirements, .. }
+                | Requirement::Concentration { requirements, .. } => requirements
+                    .iter()
+                    .map(|child| count_matching(child, pred))
+                    .sum(),
+                Requirement::CoursePool { fixed_slots, .. } => fixed_slots
+                    .iter()
+                    .map(|child| count_matching(child, pred))
+                    .sum(),
+                _ => 0,
+            };
+            here + children
+        }
+
+        let spanish = resolve_major("CAS", "INST", &["Spanish".into()]).expect("INST Spanish");
+        assert_eq!(spanish.short_name, "INST");
+        assert_eq!(spanish.name, "International Studies");
+        assert_eq!(
+            college_data::cas_major_pool_major_cu(&spanish),
+            14,
+            "Huntsman INST major block is 14 CU"
+        );
+        let spanish_lang_slots = spanish
+            .requirements
+            .iter()
+            .map(|r| {
+                count_matching(r, &|req| {
+                    matches!(
+                        req,
+                        Requirement::Restriction {
+                            category,
+                            department,
+                            level,
+                            max_level,
+                            number,
+                            ..
+                        } if category.as_deref() == Some("Language")
+                            && department.as_ref().is_some_and(|d| d == &vec!["SPAN".to_string()])
+                            && *level == Some(500)
+                            && *max_level == Some(4999)
+                            && *number == 1
+                    )
+                })
+            })
+            .sum::<usize>();
+        assert_eq!(
+            spanish_lang_slots, 4,
+            "Spanish track should require 4 CU of SPAN 0500–4999 (not elementary 0100–0400)"
+        );
+        let arabic = resolve_major("CAS", "INST", &["Arabic".into()]).expect("INST Arabic");
+        assert!(
+            major_contains(&arabic, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        department,
+                        ..
+                    } if department.as_ref().is_some_and(|d| d == &vec!["ARAB".to_string()])
+                )
+            }),
+            "Arabic track should lock language slots to ARAB"
+        );
+        assert!(
+            !major_contains(&arabic, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        department,
+                        category,
+                        ..
+                    } if category.as_deref() == Some("Language")
+                        && department.as_ref().is_some_and(|d| d.contains(&"SPAN".to_string()))
+                )
+            }),
+            "Arabic track must not accept SPAN for the language requirement"
+        );
+        assert!(
+            major_contains(&spanish, &|req| {
+                matches!(
+                    req,
+                    Requirement::SingleCourse { possibilities, .. }
+                        if possibilities.contains(&"INSP 1001".to_string())
+                )
+            }),
+            "INST requires INSP 1001"
+        );
+        assert!(
+            major_contains(&spanish, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        category,
+                        attr,
+                        ..
+                    } if category.as_deref() == Some("International Studies")
+                        && attr.as_ref().is_some_and(|a| a == &vec!["UNIS".to_string()])
+                )
+            }),
+            "INST requires 2 CU with UNIS"
+        );
+        assert!(
+            major_contains(&spanish, &|req| {
+                matches!(
+                    req,
+                    Requirement::Restriction {
+                        category,
+                        attr,
+                        ..
+                    } if category.as_deref() == Some("International Business")
+                        && attr.as_ref().is_some_and(|a| a == &vec!["WUIS".to_string()])
+                )
+            }),
+            "INST requires 2 CU with WUIS"
+        );
+        assert!(major::major_is_implemented("CAS", "INST"));
+        assert_eq!(
+            major::concentrations_for("CAS", "INST"),
+            vec![
+                "Arabic",
+                "Chinese",
+                "French",
+                "German",
+                "Hindi",
+                "Italian",
+                "Japanese",
+                "Korean",
+                "Portuguese",
+                "Russian",
+                "Spanish",
+            ]
+        );
+    }
+
+    #[test]
     fn bsn_major_resolves_with_requirements() {
         use degree_planner::Requirement;
 
@@ -1516,6 +1688,10 @@ mod catalog {
         assert!(
             cas.majors.iter().any(|m| m.api_code == "ECON"),
             "implemented CAS majors should remain selectable"
+        );
+        assert!(
+            cas.majors.iter().any(|m| m.api_code == "INST"),
+            "authored Huntsman International Studies should appear in the UI catalog"
         );
         assert!(
             catalog
@@ -4606,25 +4782,6 @@ mod penn_dual_degree_patterns {
                 courses
             );
         }
-        let total_cu: f64 = output.schedule.iter().map(|p| p.total_cu).sum();
-        let named = output
-            .schedule
-            .iter()
-            .map(|p| p.courses.len())
-            .sum::<usize>();
-        let slots = output
-            .schedule
-            .iter()
-            .map(|p| p.requirement_slots.len())
-            .sum::<usize>();
-        eprintln!(
-            "CU_REPORT\t{}\tyear={}\ttotal_cu={:.1}\tnamed={}\tslots={}",
-            case.label,
-            occupied_schedule_max_year(&output),
-            total_cu,
-            named,
-            slots
-        );
     }
 
     fn run_patterns(cases: &[DualPattern]) {
@@ -4635,8 +4792,6 @@ mod penn_dual_degree_patterns {
     }
 
     /// Huntsman is BA International Studies (INST) + BS Economics with language (WH_FL).
-    /// INST is still a College catalog placeholder, so we lock the pairing rather than
-    /// generating a hollow schedule.
     #[test]
     fn huntsman_pairs_international_studies_with_wharton_language() {
         assert!(
@@ -4645,14 +4800,23 @@ mod penn_dual_degree_patterns {
                 .any(|e| e.api_code == "INST" && e.display_name == "International Studies"),
             "Huntsman College degree is International Studies (INST)"
         );
+        assert!(major::major_is_implemented("CAS", "INST"));
         assert!(
             major::major_is_implemented("WH", "WH_FL"),
             "Huntsman uses the language-required Wharton path"
         );
-        assert!(
-            !major::major_is_implemented("CAS", "INST"),
-            "INST is now authored — generate a Huntsman INST+WH_FL schedule (4 years) and drop this assertion"
-        );
+        run_patterns(&[DualPattern {
+            label: "Huntsman INST + WH_FL",
+            school1: "CAS",
+            major1: "INST",
+            conc1: Some("Spanish"),
+            school2: "WH",
+            major2: "WH_FL",
+            conc2: Some("FNCE"),
+            max_occupied_year: 4,
+            must_schedule: &["INSP 1001"],
+            require_overlap: true,
+        }]);
     }
 
     #[test]
