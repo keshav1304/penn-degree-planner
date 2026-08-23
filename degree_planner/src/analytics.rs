@@ -40,6 +40,8 @@ ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS semester_count integer;
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS has_overlap boolean NOT NULL DEFAULT false;
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS error_kinds text[] NOT NULL DEFAULT '{}';
 ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS anon_session_id text;
+ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS taken_courses text[] NOT NULL DEFAULT '{}';
+ALTER TABLE schedule_generates ADD COLUMN IF NOT EXISTS frozen_courses jsonb NOT NULL DEFAULT '[]';
 
 CREATE INDEX IF NOT EXISTS schedule_generates_created_at_idx
   ON schedule_generates (created_at);
@@ -83,6 +85,12 @@ pub struct ScheduleGenerateEvent {
     pub has_overlap: bool,
     pub error_kinds: Vec<String>,
     pub anon_session_id: Option<String>,
+    /// Raw input course codes, for session playback. Codes appearing in
+    /// `frozen_courses` carry their semester there; the rest are credits received.
+    pub taken_courses: Vec<String>,
+    /// Raw input pins (`[{course_id, year, semester}]`) — user-frozen courses and
+    /// taken courses placed on the grid.
+    pub frozen_courses: Value,
 }
 
 impl ScheduleGenerateEvent {
@@ -195,8 +203,40 @@ impl ScheduleGenerateEvent {
             has_overlap: output.overlap_plan.is_some(),
             error_kinds,
             anon_session_id: sanitize_session_id(input.anon_session_id.as_deref()),
+            taken_courses: sanitize_course_list(&input.taken),
+            frozen_courses: Value::Array(
+                input
+                    .frozen
+                    .iter()
+                    .take(MAX_LOGGED_COURSES)
+                    .filter(|f| course_code_ok(&f.course_id))
+                    .map(|f| {
+                        json!({
+                            "course_id": f.course_id,
+                            "year": f.year,
+                            "semester": f.semester,
+                        })
+                    })
+                    .collect(),
+            ),
         }
     }
+}
+
+/// Defensive cap on client-supplied lists so a hostile request can't bloat rows.
+const MAX_LOGGED_COURSES: usize = 300;
+
+fn course_code_ok(code: &str) -> bool {
+    !code.is_empty() && code.len() <= 20
+}
+
+fn sanitize_course_list(codes: &[String]) -> Vec<String> {
+    codes
+        .iter()
+        .take(MAX_LOGGED_COURSES)
+        .filter(|c| course_code_ok(c))
+        .cloned()
+        .collect()
 }
 
 fn sanitize_session_id(raw: Option<&str>) -> Option<String> {
@@ -234,10 +274,12 @@ pub async fn insert_schedule_generate(
             ok, latency_ms, degree_combo_key, degrees,
             taken_count, frozen_count, allow_summer, has_cu_overrides, violation_types,
             degree_count, major_count, minor_count, has_concentration,
-            total_cu, semester_count, has_overlap, error_kinds, anon_session_id
+            total_cu, semester_count, has_overlap, error_kinds, anon_session_id,
+            taken_courses, frozen_courses
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9,
-            $10, $11, $12, $13, $14, $15, $16, $17, $18
+            $10, $11, $12, $13, $14, $15, $16, $17, $18,
+            $19, $20
         )
         "#,
     )
@@ -259,6 +301,8 @@ pub async fn insert_schedule_generate(
     .bind(event.has_overlap)
     .bind(&event.error_kinds)
     .bind(&event.anon_session_id)
+    .bind(&event.taken_courses)
+    .bind(&event.frozen_courses)
     .execute(pool)
     .await?;
     Ok(())

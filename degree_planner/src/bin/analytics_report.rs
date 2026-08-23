@@ -10,7 +10,11 @@
 //!
 //! Developer/test browser sessions listed in `EXCLUDED_SESSION_IDS` are left in
 //! Postgres but omitted from every report query.
+//!
+//! Every run also dumps the entries that passed the exclusion filter to a
+//! timestamped CSV under `analytics_exports/` (gitignored).
 
+use std::collections::HashSet;
 use std::env;
 use std::path::PathBuf;
 
@@ -85,6 +89,11 @@ async fn main() {
     }
     println!();
 
+    match export_entries_csv(&pool, days).await {
+        Ok((path, n)) => println!("CSV export: {} ({n} entries)\n", path.display()),
+        Err(err) => eprintln!("  [CSV export] failed: {err}\n"),
+    }
+
     run("Overview", print_overview(&pool, days)).await;
     run("Sessions", print_session_overview(&pool, days)).await;
     run("Repeat sessions", print_repeat_sessions(&pool, days)).await;
@@ -150,6 +159,113 @@ fn parse_session(mut args: impl Iterator<Item = String>) -> Option<String> {
         }
     }
     None
+}
+
+/// Dump every entry that passes the window + exclusion filter to a fresh
+/// timestamped CSV in `analytics_exports/` (gitignored). Returns path + row count.
+async fn export_entries_csv(
+    pool: &sqlx::PgPool,
+    days: i32,
+) -> Result<(PathBuf, usize), Box<dyn std::error::Error>> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+          id,
+          to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') AS created_at_utc,
+          coalesce(anon_session_id, '') AS anon_session_id,
+          ok,
+          latency_ms,
+          degree_combo_key,
+          degrees::text AS degrees_json,
+          degree_count,
+          major_count,
+          minor_count,
+          has_concentration,
+          taken_count,
+          frozen_count,
+          allow_summer,
+          has_cu_overrides,
+          has_overlap,
+          total_cu,
+          semester_count,
+          array_to_string(violation_types, '; ') AS violation_types,
+          array_to_string(error_kinds, '; ') AS error_kinds,
+          array_to_string(taken_courses, '; ') AS taken_courses,
+          frozen_courses::text AS frozen_courses_json
+        FROM schedule_generates
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+        ORDER BY created_at, id
+        "#,
+    )
+    .bind(days)
+    .bind(excluded_session_ids())
+    .fetch_all(pool)
+    .await?;
+
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("analytics_exports");
+    std::fs::create_dir_all(&dir)?;
+    let requested_at = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%SZ");
+    let path = dir.join(format!("schedule_generates_{requested_at}.csv"));
+
+    let mut writer = csv::Writer::from_path(&path)?;
+    writer.write_record([
+        "id",
+        "created_at_utc",
+        "anon_session_id",
+        "ok",
+        "latency_ms",
+        "degree_combo_key",
+        "degrees_json",
+        "degree_count",
+        "major_count",
+        "minor_count",
+        "has_concentration",
+        "taken_count",
+        "frozen_count",
+        "allow_summer",
+        "has_cu_overrides",
+        "has_overlap",
+        "total_cu",
+        "semester_count",
+        "violation_types",
+        "error_kinds",
+        "taken_courses",
+        "frozen_courses_json",
+    ])?;
+
+    let opt_str = |v: Option<i32>| v.map(|x| x.to_string()).unwrap_or_default();
+    for row in &rows {
+        writer.write_record([
+            row.get::<i64, _>("id").to_string(),
+            row.get::<String, _>("created_at_utc"),
+            row.get::<String, _>("anon_session_id"),
+            row.get::<bool, _>("ok").to_string(),
+            opt_str(row.get("latency_ms")),
+            row.get::<String, _>("degree_combo_key"),
+            row.get::<String, _>("degrees_json"),
+            row.get::<i32, _>("degree_count").to_string(),
+            row.get::<i32, _>("major_count").to_string(),
+            row.get::<i32, _>("minor_count").to_string(),
+            row.get::<bool, _>("has_concentration").to_string(),
+            row.get::<i32, _>("taken_count").to_string(),
+            row.get::<i32, _>("frozen_count").to_string(),
+            row.get::<bool, _>("allow_summer").to_string(),
+            row.get::<bool, _>("has_cu_overrides").to_string(),
+            row.get::<bool, _>("has_overlap").to_string(),
+            row.get::<Option<f64>, _>("total_cu")
+                .map(|v| v.to_string())
+                .unwrap_or_default(),
+            opt_str(row.get("semester_count")),
+            row.get::<String, _>("violation_types"),
+            row.get::<String, _>("error_kinds"),
+            row.get::<String, _>("taken_courses"),
+            row.get::<String, _>("frozen_courses_json"),
+        ])?;
+    }
+    writer.flush()?;
+
+    Ok((path, rows.len()))
 }
 
 fn pct(n: i64, total: i64) -> f64 {
@@ -408,6 +524,28 @@ async fn print_session_changes(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
     Ok(())
 }
 
+/// `course_id -> (year, semester)` from a `frozen_courses` jsonb array.
+fn pin_map(frozen_json: &serde_json::Value) -> std::collections::HashMap<String, (i64, String)> {
+    let mut pins = std::collections::HashMap::new();
+    if let Some(arr) = frozen_json.as_array() {
+        for pin in arr {
+            let (Some(course), Some(year), Some(semester)) = (
+                pin.get("course_id").and_then(|v| v.as_str()),
+                pin.get("year").and_then(|v| v.as_i64()),
+                pin.get("semester").and_then(|v| v.as_str()),
+            ) else {
+                continue;
+            };
+            pins.insert(course.to_string(), (year, semester.to_string()));
+        }
+    }
+    pins
+}
+
+fn fmt_place(year: i64, semester: &str) -> String {
+    format!("Y{year} {semester}")
+}
+
 async fn print_one_session_timeline(
     pool: &sqlx::PgPool,
     session_id: &str,
@@ -421,7 +559,9 @@ async fn print_one_session_timeline(
           taken_count,
           frozen_count,
           allow_summer,
-          degree_combo_key
+          degree_combo_key,
+          taken_courses,
+          frozen_courses
         FROM schedule_generates
         WHERE anon_session_id = $1
         ORDER BY created_at, id
@@ -436,8 +576,10 @@ async fn print_one_session_timeline(
         println!("  (no rows for that session id)");
     } else {
         let mut prev_combo: Option<String> = None;
-        let mut prev_taken: Option<i32> = None;
-        let mut prev_frozen: Option<i32> = None;
+        let mut prev_taken_set: HashSet<String> = HashSet::new();
+        let mut prev_pins: std::collections::HashMap<String, (i64, String)> =
+            std::collections::HashMap::new();
+        let mut first = true;
         for row in rows {
             let ts: String = row.get("ts");
             let ok: bool = row.get("ok");
@@ -446,34 +588,91 @@ async fn print_one_session_timeline(
             let frozen: i32 = row.get("frozen_count");
             let summer: bool = row.get("allow_summer");
             let combo: String = row.get("degree_combo_key");
+            let taken_courses: Vec<String> = row.get("taken_courses");
+            let frozen_json: serde_json::Value = row.get("frozen_courses");
             let status = if ok { "ok " } else { "ERR" };
             let ms = latency_ms
                 .map(|v| format!("{v}ms"))
                 .unwrap_or_else(|| "-".into());
 
-            let mut marks = Vec::new();
+            let taken_set: HashSet<String> = taken_courses.iter().cloned().collect();
+            let pins = pin_map(&frozen_json);
+
+            let mut events: Vec<String> = Vec::new();
             if prev_combo.as_ref().is_some_and(|p| p != &combo) {
-                marks.push("degrees★");
+                events.push(format!("degrees → {combo}"));
             }
-            if prev_taken.is_some_and(|p| p != taken) {
-                marks.push("taken★");
+
+            // Playback diffs (skipped for the first row — that's the starting state).
+            if !first {
+                for c in taken_set.difference(&prev_taken_set) {
+                    match pins.get(c) {
+                        Some((y, s)) => events.push(format!("+taken {c} @ {}", fmt_place(*y, s))),
+                        None => events.push(format!("+taken {c} (credits received)")),
+                    }
+                }
+                for c in prev_taken_set.difference(&taken_set) {
+                    events.push(format!("-taken {c}"));
+                }
+                for (c, (y, s)) in &pins {
+                    let newly_taken = taken_set.contains(c) && !prev_taken_set.contains(c);
+                    match prev_pins.get(c) {
+                        None if !newly_taken => {
+                            let kind = if taken_set.contains(c) { "pin(taken)" } else { "frozen" };
+                            events.push(format!("+{kind} {c} @ {}", fmt_place(*y, s)));
+                        }
+                        Some((py, ps)) if (py, ps.as_str()) != (y, s.as_str()) => {
+                            events.push(format!(
+                                "moved {c} {} → {}",
+                                fmt_place(*py, ps),
+                                fmt_place(*y, s)
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+                for c in prev_pins.keys() {
+                    if !pins.contains_key(c) && taken_set.contains(c) == prev_taken_set.contains(c)
+                    {
+                        events.push(format!("-frozen {c}"));
+                    }
+                }
+                events.sort();
             }
-            if prev_frozen.is_some_and(|p| p != frozen) {
-                marks.push("frozen★");
-            }
-            let mark = if marks.is_empty() {
-                String::new()
-            } else {
-                format!("  [{}]", marks.join(","))
-            };
 
             println!(
-                "  {ts}  {status}  {ms:>6}  taken={taken:<3} frozen={frozen:<3} summer={summer}  {combo}{mark}"
+                "  {ts}  {status}  {ms:>6}  taken={taken:<3} frozen={frozen:<3} summer={summer}  {combo}"
             );
+            for event in events {
+                println!("      {event}");
+            }
+
+            if first && (!taken_set.is_empty() || !pins.is_empty()) {
+                println!("      starting state:");
+                let mut start_taken: Vec<&String> = taken_set.iter().collect();
+                start_taken.sort();
+                for c in start_taken {
+                    match pins.get(c) {
+                        Some((y, s)) => println!("        taken {c} @ {}", fmt_place(*y, s)),
+                        None => println!("        taken {c} (credits received)"),
+                    }
+                }
+                let mut start_pins: Vec<(&String, &(i64, String))> = pins
+                    .iter()
+                    .filter(|(c, _)| !taken_set.contains(*c))
+                    .collect();
+                start_pins.sort();
+                for (c, (y, s)) in start_pins {
+                    println!("        frozen {c} @ {}", fmt_place(*y, s));
+                }
+            }
+
             prev_combo = Some(combo);
-            prev_taken = Some(taken);
-            prev_frozen = Some(frozen);
+            prev_taken_set = taken_set;
+            prev_pins = pins;
+            first = false;
         }
+        println!("  (course-level playback covers rows logged after the taken/frozen columns were added)");
     }
     println!();
     Ok(())
