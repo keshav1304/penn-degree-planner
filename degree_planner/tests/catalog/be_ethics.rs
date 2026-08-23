@@ -4,13 +4,12 @@ use degree_planner::penn_data::seas_data::create_be_major;
 use degree_planner::requirement::validate_courses_for_degree;
 
 fn unit_cu(courses: &[&str]) -> HashMap<String, f64> {
-    courses
-        .iter()
-        .map(|c| (c.to_string(), 1.0))
-        .collect()
+    courses.iter().map(|c| (c.to_string(), 1.0)).collect()
 }
 
-fn gen_ed_unfulfilled_count(validation: &degree_planner::requirement::DegreeValidationResult) -> usize {
+fn gen_ed_unfulfilled_count(
+    validation: &degree_planner::requirement::DegreeValidationResult,
+) -> usize {
     validation
         .unfulfilled
         .iter()
@@ -31,7 +30,13 @@ fn be_ethics_branch_a_eas_2030() {
         "BEPP 2020".to_string(),
     ];
     let cu_map = unit_cu(&[
-        "EAS 2030", "BEPP 2010", "ENGL 0700", "HIST 0100", "ACCT 2110", "PSCI 0100", "BEPP 2020",
+        "EAS 2030",
+        "BEPP 2010",
+        "ENGL 0700",
+        "HIST 0100",
+        "ACCT 2110",
+        "PSCI 0100",
+        "BEPP 2020",
     ]);
     let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
     assert_eq!(
@@ -54,7 +59,13 @@ fn be_ethics_branch_b_phil_1342() {
         "BEPP 2020".to_string(),
     ];
     let cu_map = unit_cu(&[
-        "PHIL 1342", "BEPP 2010", "HSOC 1330", "ENGL 0700", "ACCT 2110", "PSCI 0100", "BEPP 2020",
+        "PHIL 1342",
+        "BEPP 2010",
+        "HSOC 1330",
+        "ENGL 0700",
+        "ACCT 2110",
+        "PSCI 0100",
+        "BEPP 2020",
     ]);
     let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
     assert_eq!(
@@ -79,7 +90,15 @@ fn be_ethics_phil_1342_double_counts_ethics_and_one_distribution() {
     };
 
     let attributes = degree_planner::penn_data::attributes_data::create_attributes();
-    let cu_map = unit_cu(&["PHIL 1342", "BEPP 2010", "HSOC 1330", "ENGL 0700", "ACCT 2110", "PSCI 0100", "BEPP 2020"]);
+    let cu_map = unit_cu(&[
+        "PHIL 1342",
+        "BEPP 2010",
+        "HSOC 1330",
+        "ENGL 0700",
+        "ACCT 2110",
+        "PSCI 0100",
+        "BEPP 2020",
+    ]);
     let pool = vec![
         "PHIL 1342".to_string(),
         "BEPP 2010".to_string(),
@@ -144,7 +163,13 @@ fn be_ethics_branch_b_bioe_4010() {
         "BEPP 2020".to_string(),
     ];
     let cu_map = unit_cu(&[
-        "BIOE 4010", "BEPP 2010", "HSOC 1330", "ENGL 0700", "ACCT 2110", "PSCI 0100", "BEPP 2020",
+        "BIOE 4010",
+        "BEPP 2010",
+        "HSOC 1330",
+        "ENGL 0700",
+        "ACCT 2110",
+        "PSCI 0100",
+        "BEPP 2020",
     ]);
     let validation = validate_courses_for_degree(major.requirements, &taken, &cu_map);
     assert_eq!(

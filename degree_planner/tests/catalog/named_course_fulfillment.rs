@@ -16,9 +16,9 @@ use degree_planner::major::{
 };
 use degree_planner::penn_data::courses_data;
 use degree_planner::requirement::{
-    extract_concentration_info, validate_courses_for_degree, DegreeValidationResult,
+    DegreeValidationResult, extract_concentration_info, validate_courses_for_degree,
 };
-use degree_planner::scheduler::{generate_schedule, DegreeInput, FrozenCourse, ScheduleInput};
+use degree_planner::scheduler::{DegreeInput, FrozenCourse, ScheduleInput, generate_schedule};
 
 const CU_EPS: f64 = 0.001;
 
@@ -69,12 +69,7 @@ fn implemented_programs() -> Vec<(String, String, String, Vec<String>)> {
             if conc == "None" {
                 continue;
             }
-            out.push((
-                "major".into(),
-                school.into(),
-                program.into(),
-                vec![conc],
-            ));
+            out.push(("major".into(), school.into(), program.into(), vec![conc]));
         }
     }
     out
@@ -107,10 +102,7 @@ fn single_course_lists(req: &Requirement, course: &str) -> bool {
     }
 }
 
-fn fulfilled_named_single_course(
-    result: &DegreeValidationResult,
-    course: &str,
-) -> bool {
+fn fulfilled_named_single_course(result: &DegreeValidationResult, course: &str) -> bool {
     result.fulfilled.iter().any(|m| {
         single_course_lists(&m.requirement, course)
             && m.course_ids
@@ -177,7 +169,11 @@ fn every_top_level_single_course_possibility_fulfills_when_taken() {
         let label = program_label(&kind, &school, &program, &concs);
         let slots = top_level_single_courses(&major);
         for req in slots {
-            let Requirement::SingleCourse { possibilities, category } = req else {
+            let Requirement::SingleCourse {
+                possibilities,
+                category,
+            } = req
+            else {
                 continue;
             };
             let cat = category.as_deref().unwrap_or("");
@@ -226,26 +222,32 @@ fn catalog_half_credit_named_courses_are_covered_and_fulfill() {
             };
             for course in possibilities {
                 if course::is_valid_course_code(course) && is_half_credit(course) {
-                    half_credit.push((label.clone(), course.clone(), catalog_cu(course).to_string()));
+                    half_credit.push((
+                        label.clone(),
+                        course.clone(),
+                        catalog_cu(course).to_string(),
+                    ));
                 }
             }
         }
     }
 
     assert!(
-        half_credit.iter().any(|(label, course, _)| {
-            label.contains("WH_NOFL_MT") && course == "WH 1010"
-        }),
+        half_credit
+            .iter()
+            .any(|(label, course, _)| { label.contains("WH_NOFL_MT") && course == "WH 1010" }),
         "sweep must see WH 1010 on M&T FL-exempt; found {half_credit:?}"
     );
     assert!(
-        half_credit.iter().any(|(label, course, _)| {
-            label.contains("WH_NOFL_MT") && course == "OIDD 2340"
-        }),
+        half_credit
+            .iter()
+            .any(|(label, course, _)| { label.contains("WH_NOFL_MT") && course == "OIDD 2340" }),
         "sweep must see OIDD 2340 on M&T FL-exempt; found {half_credit:?}"
     );
     assert!(
-        half_credit.iter().any(|(_, course, _)| course == "MGMT 3010"),
+        half_credit
+            .iter()
+            .any(|(_, course, _)| course == "MGMT 3010"),
         "sweep must see MGMT 3010 Leadership Journey; found {half_credit:?}"
     );
 }
@@ -330,11 +332,7 @@ fn overlay_concentration_named_courses_count_when_taken() {
                 continue;
             }
             let major = resolve_major("SEAS", program, &[conc.clone()]).expect(program);
-            let Some(conc_reqs) = major
-                .concentrations
-                .as_ref()
-                .and_then(|m| m.get(&conc))
-            else {
+            let Some(conc_reqs) = major.concentrations.as_ref().and_then(|m| m.get(&conc)) else {
                 continue;
             };
             let mut seen: Vec<String> = Vec::new();
@@ -362,9 +360,11 @@ fn overlay_concentration_named_courses_count_when_taken() {
                     failures.push(format!("{program}/{conc}: missing tracker"));
                     continue;
                 };
-                let matched = info.matched_courses.iter().flatten().any(|c| {
-                    course_relations::equivalent(c, course)
-                });
+                let matched = info
+                    .matched_courses
+                    .iter()
+                    .flatten()
+                    .any(|c| course_relations::equivalent(c, course));
                 if !matched {
                     failures.push(format!(
                         "{program}/{conc} / {course} ({} CU)",

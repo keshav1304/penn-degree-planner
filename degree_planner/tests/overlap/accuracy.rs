@@ -2,23 +2,22 @@
 //!
 //! Locks planner *results* (courses, slot pairs, schedule groups) so search
 //! optimizations cannot silently change dual-degree behavior. Slow CIS/EE+WH
-//! computes already live in `test_suite`; this file covers cases those tests
+//! computes already live in `planner`; this file covers cases those tests
 //! do not (empty plan, grad-grad claims, taken exclusion, remap, group ids).
 
 use std::collections::{HashMap, HashSet};
 
-use degree_planner::cross_degree::{overlap_plan_applicable, CrossDegreeState};
+use degree_planner::cross_degree::{CrossDegreeState, overlap_plan_applicable};
 use degree_planner::major::resolve_major;
 use degree_planner::overlap_planner::{
-    compute_overlap_plan, is_overlap_schedule_group_id, overlap_group_schedule_id,
-    remap_overlap_plan_degree_indices, OverlapPlan, OverlapSlotRef,
+    OverlapPlan, OverlapSlotRef, compute_overlap_plan, is_overlap_schedule_group_id,
+    overlap_group_schedule_id, remap_overlap_plan_degree_indices,
 };
 use degree_planner::penn_data::courses_data;
 use degree_planner::requirement::validate_courses_for_degree;
-use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+use degree_planner::scheduler::{DegreeInput, ScheduleInput, generate_schedule};
 
-mod common;
-use common::assert_overlap_plan_accuracy;
+use crate::common::assert_overlap_plan_accuracy;
 
 struct DualOverlap {
     plan: OverlapPlan,
@@ -111,9 +110,10 @@ fn overlap_plan_applicable_requires_two_or_more_degrees() {
     assert!(!overlap_plan_applicable(&["SEAS".into()]));
     assert!(overlap_plan_applicable(&["SEAS".into(), "WH".into()]));
     assert!(overlap_plan_applicable(&["SEAS".into(), "SEAS_MS".into()]));
-    assert!(overlap_plan_applicable(
-        &["SEAS_MS".into(), "SEAS_MS".into()]
-    ));
+    assert!(overlap_plan_applicable(&[
+        "SEAS_MS".into(),
+        "SEAS_MS".into()
+    ]));
 }
 
 #[test]
@@ -192,7 +192,10 @@ fn two_graduate_degrees_may_discover_overlap_but_cannot_claim_the_same_course() 
 #[test]
 fn neur_wh_overlap_is_accurate() {
     let dual = compute_dual("CAS", "NEUR", &[], "WH", "WH_NOFL", &["FNCE"], &[]);
-    assert!(!dual.plan.opportunities.is_empty(), "NEUR+WH should find overlaps");
+    assert!(
+        !dual.plan.opportunities.is_empty(),
+        "NEUR+WH should find overlaps"
+    );
     assert!(!dual.plan.pairs.is_empty(), "NEUR+WH should select pairs");
     assert_dual_accuracy(&dual, "NEUR+WH");
 
@@ -222,9 +225,7 @@ fn neur_wh_overlap_is_accurate() {
     assert!(!writ_opps.is_empty(), "CAS+WH should surface WRIT overlap");
     for opp in writ_opps {
         assert!(
-            opp.suggested_courses
-                .iter()
-                .any(|c| c.starts_with("WRIT ")),
+            opp.suggested_courses.iter().any(|c| c.starts_with("WRIT ")),
             "WRIT overlap should suggest WRIT courses, got {:?}",
             opp.suggested_courses
         );

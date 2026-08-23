@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import appIcon from "./logo.png";
-import { DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
@@ -73,15 +73,18 @@ export default function Home() {
   const firstGenerateRef = useRef(true);
   const prevCuPolicyKey = useRef(null);
 
-  // Pointer: 8px movement before drag. Touch: short delay so page scroll wins.
+  // Mouse (not Pointer): PointerSensor also captures touch and fights TouchSensor,
+  // which blocks scrolling the cached grid while generate is in flight.
+  // Touch: short delay so pan-to-scroll wins over drag.
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: { distance: 8 },
     }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 200, tolerance: 8 },
     })
   );
+  const scheduleDragDisabled = Boolean(loading && scheduleData);
 
   // Load data on mount
   useEffect(() => {
@@ -861,7 +864,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="panel panel-schedule">
+          <div className={`panel panel-schedule${scheduleDragDisabled ? " is-refreshing" : ""}`}>
             <div className="panel-header">
               <h2>📅 Schedule</h2>
               <div className="panel-header-actions">
@@ -915,6 +918,7 @@ export default function Home() {
             <div className="panel-body">
               <ScheduleGrid
                 scheduleData={scheduleData}
+                dragDisabled={scheduleDragDisabled}
                 requirementSlotLabels={requirementSlotLabels}
                 frozenCourses={frozenCourses}
                 assignedCourses={assignedCourses}

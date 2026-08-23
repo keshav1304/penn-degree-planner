@@ -3,16 +3,14 @@
 use std::collections::{HashMap, HashSet};
 
 use degree_planner::cross_degree::{
-    self, crosses_undergrad_grad, enforce_claim_rules, is_graduate_degree, CrossDegreeState,
-    CrossDegreeSummary, CrossDegreeViolationKind, UNDERGRAD_GRAD_CU_LIMIT,
+    self, CrossDegreeState, CrossDegreeSummary, CrossDegreeViolationKind, UNDERGRAD_GRAD_CU_LIMIT,
+    crosses_undergrad_grad, enforce_claim_rules, is_graduate_degree,
 };
 use degree_planner::major::resolve_major;
 use degree_planner::overlap_planner::compute_overlap_plan;
 use degree_planner::penn_data::courses_data;
-use degree_planner::requirement::{
-    resolve_cross_degree_conflicts, validate_courses_for_degree,
-};
-use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+use degree_planner::requirement::{resolve_cross_degree_conflicts, validate_courses_for_degree};
+use degree_planner::scheduler::{DegreeInput, ScheduleInput, generate_schedule};
 
 const CU_EPS: f64 = 0.001;
 
@@ -21,10 +19,7 @@ fn catalog_cu_map() -> &'static HashMap<String, f64> {
 }
 
 fn unit_cu(courses: &[&str], cu: f64) -> HashMap<String, f64> {
-    courses
-        .iter()
-        .map(|c| (c.to_string(), cu))
-        .collect()
+    courses.iter().map(|c| (c.to_string(), cu)).collect()
 }
 
 fn mixed_cu_map() -> HashMap<String, f64> {
@@ -72,9 +67,7 @@ fn shared_undergrad_grad_cu_from_summary(
         .sum()
 }
 
-fn ug_ms_pair_count(
-    plan: &degree_planner::overlap_planner::OverlapPlan,
-) -> usize {
+fn ug_ms_pair_count(plan: &degree_planner::overlap_planner::OverlapPlan) -> usize {
     plan.pairs
         .iter()
         .filter(|pair| {

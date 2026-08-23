@@ -7,9 +7,7 @@ use degree_planner::cross_degree::{CrossDegreeState, CrossDegreeViolationKind};
 use degree_planner::major::resolve_major;
 use degree_planner::penn_data::courses_data;
 use degree_planner::requirement::{self, Requirement};
-use degree_planner::scheduler::{
-    generate_schedule, DegreeInput, FrozenCourse, ScheduleInput,
-};
+use degree_planner::scheduler::{DegreeInput, FrozenCourse, ScheduleInput, generate_schedule};
 
 fn major_input(school: &str, major: &str) -> DegreeInput {
     DegreeInput {
@@ -62,10 +60,10 @@ fn taken_alias_fulfills_listed_possibility() {
         validation.unfulfilled
     );
     assert!(
-        validation
-            .fulfilled
+        validation.fulfilled.iter().any(|m| m
+            .course_ids
             .iter()
-            .any(|m| m.course_ids.iter().any(|c| c == "BEPP 2110" || c == "ACCT 2110")),
+            .any(|c| c == "BEPP 2110" || c == "ACCT 2110")),
         "fulfilled course_ids should record the match: {:?}",
         validation.fulfilled
     );
@@ -74,11 +72,8 @@ fn taken_alias_fulfills_listed_possibility() {
         category: Some("Test".into()),
         possibilities: vec!["ACCT 2110".into()],
     };
-    let validation_rev = requirement::validate_courses_for_degree(
-        vec![reverse],
-        &vec!["BEPP 2110".into()],
-        cu_map,
-    );
+    let validation_rev =
+        requirement::validate_courses_for_degree(vec![reverse], &vec!["BEPP 2110".into()], cu_map);
     assert!(
         validation_rev.unfulfilled.is_empty(),
         "BEPP 2110 should fulfill ACCT 2110 listing"
@@ -176,7 +171,8 @@ fn mutex_warns_only_when_both_on_schedule() {
         "expected MutuallyExclusive when both on schedule"
     );
     assert!(
-        msgs.iter().any(|m| m.contains("CIS 4190") && m.contains("CIS 5190")),
+        msgs.iter()
+            .any(|m| m.contains("CIS 4190") && m.contains("CIS 5190")),
         "message should name both courses: {msgs:?}"
     );
     // Not stripped
@@ -266,9 +262,8 @@ fn missing_prereq_warns_without_adding_courses() {
         })
         .unwrap_or_default();
     assert!(
-        msgs.iter().any(|m| m.contains("CIS 3200")
-            && m.contains("CIS 1210")
-            && m.contains("CIS 2620")),
+        msgs.iter()
+            .any(|m| m.contains("CIS 3200") && m.contains("CIS 1210") && m.contains("CIS 2620")),
         "expected missing-prereq warning: {msgs:?}"
     );
     let codes = schedule_codes(&output);
@@ -278,11 +273,7 @@ fn missing_prereq_warns_without_adding_courses() {
     );
 
     let satisfied = generate_schedule(ScheduleInput {
-        taken: vec![
-            "CIS 3200".into(),
-            "CIS 1210".into(),
-            "CIS 2620".into(),
-        ],
+        taken: vec!["CIS 3200".into(), "CIS 1210".into(), "CIS 2620".into()],
         degrees: vec![major_input("WH", "WH_NOFL")],
         frozen: vec![],
         allow_summer: Some(false),

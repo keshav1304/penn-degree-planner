@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use degree_planner::course;
 use degree_planner::major::resolve_major;
 use degree_planner::requirement::{self, Requirement};
-use degree_planner::scheduler::{generate_schedule, DegreeInput, ScheduleInput};
+use degree_planner::scheduler::{DegreeInput, ScheduleInput, generate_schedule};
 
 const CORE: &str = "Electrical Engineering Core";
 
@@ -21,7 +21,10 @@ fn ms_ee_alone_has_five_core_slots() {
         .iter()
         .filter(|r| r.get_category() == CORE)
         .count();
-    assert_eq!(core_in_major, 5, "major definition should have 5 core singles");
+    assert_eq!(
+        core_in_major, 5,
+        "major definition should have 5 core singles"
+    );
 }
 
 #[test]

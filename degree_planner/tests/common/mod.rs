@@ -1,14 +1,19 @@
-//! Shared overlap-plan accuracy assertions for integration tests.
+//! Shared integration-test helpers.
 //!
-//! Used from `test_suite.rs` and `overlap_accuracy.rs` so existing dual
-//! computes (CIS+WH, EE+WH, …) gain matcher checks without a second search.
+//! Overlap-plan accuracy assertions plus schedule/dual-degree fixtures used
+//! by the themed test crates so dual computes (CIS+WH, EE+WH, …) gain matcher
+//! checks without a second search.
+
+#![allow(dead_code)]
+
+pub mod helpers;
 
 use std::collections::HashSet;
 
 use degree_planner::course;
 use degree_planner::course_relations;
-use degree_planner::overlap_planner::{hint_key, OverlapPlan, OverlapSlotRef};
-use degree_planner::requirement::{requirement_accepts_shared_course, DegreeValidationResult};
+use degree_planner::overlap_planner::{OverlapPlan, OverlapSlotRef, hint_key};
+use degree_planner::requirement::{DegreeValidationResult, requirement_accepts_shared_course};
 
 pub const MAX_SUGGESTED: usize = 12;
 
@@ -71,8 +76,7 @@ pub fn assert_overlap_plan_accuracy(
             opp.slots
         );
         assert!(
-            !opp.suggested_courses.is_empty()
-                && opp.suggested_courses.len() <= MAX_SUGGESTED,
+            !opp.suggested_courses.is_empty() && opp.suggested_courses.len() <= MAX_SUGGESTED,
             "{label}: suggested_courses empty or >{MAX_SUGGESTED}: {:?}",
             opp.suggested_courses
         );

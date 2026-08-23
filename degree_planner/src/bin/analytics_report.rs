@@ -7,12 +7,32 @@
 //!
 //! Set `DATABASE_URL` in a gitignored `.env` next to this crate's `Cargo.toml`
 //! (see `.env.example`). Shell-exported `DATABASE_URL` still wins over `.env`.
+//!
+//! Developer/test browser sessions listed in `EXCLUDED_SESSION_IDS` are left in
+//! Postgres but omitted from every report query.
 
 use std::env;
 use std::path::PathBuf;
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Row;
+
+/// Anonymous browser sessions omitted from reports. Matching rows stay in Postgres.
+const EXCLUDED_SESSION_IDS: &[&str] = &[
+    "d843a71d-55e5-49a9-a7db-622e19d18b57",
+    "3b00f97f-7c33-467d-addc-9effddd5a648",
+];
+
+fn excluded_session_ids() -> Vec<String> {
+    EXCLUDED_SESSION_IDS
+        .iter()
+        .map(|id| (*id).to_string())
+        .collect()
+}
+
+fn session_is_excluded(id: &str) -> bool {
+    EXCLUDED_SESSION_IDS.contains(&id)
+}
 
 fn load_local_env() {
     let manifest_env = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(".env");
@@ -56,7 +76,14 @@ async fn main() {
     }
 
     println!("Penn Degree Planner — schedule analytics");
-    println!("Window: last {days} day(s)\n");
+    println!("Window: last {days} day(s)");
+    if !EXCLUDED_SESSION_IDS.is_empty() {
+        println!(
+            "Omitting {} excluded session(s) from totals (rows remain in Postgres)",
+            EXCLUDED_SESSION_IDS.len()
+        );
+    }
+    println!();
 
     run("Overview", print_overview(&pool, days)).await;
     run("Sessions", print_session_overview(&pool, days)).await;
@@ -80,11 +107,16 @@ async fn main() {
     run("Recent generates", print_recent(&pool, 15)).await;
 
     if let Some(session_id) = parse_session(env::args().skip(1)) {
-        run(
-            "Session timeline",
-            print_one_session_timeline(&pool, &session_id),
-        )
-        .await;
+        if session_is_excluded(&session_id) {
+            println!("## Session timeline: {session_id}");
+            println!("  (omitted — this session is on the report exclusion list)\n");
+        } else {
+            run(
+                "Session timeline",
+                print_one_session_timeline(&pool, &session_id),
+            )
+            .await;
+        }
     }
 }
 
@@ -137,9 +169,11 @@ async fn print_session_overview(pool: &sqlx::PgPool, days: i32) -> Result<(), sq
           count(DISTINCT anon_session_id)::bigint AS distinct_sessions
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -183,7 +217,8 @@ async fn print_repeat_sessions(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
             max(created_at) AS last_at
           FROM schedule_generates
           WHERE created_at > now() - make_interval(days => $1)
-            AND anon_session_id IS NOT NULL
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND anon_session_id IS NOT NULL
           GROUP BY 1
         )
         SELECT
@@ -200,6 +235,7 @@ async fn print_repeat_sessions(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -214,6 +250,7 @@ async fn print_repeat_sessions(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
           to_char(max(created_at) AT TIME ZONE 'UTC', 'MM-DD HH24:MI') AS last_ts
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
           AND anon_session_id IS NOT NULL
         GROUP BY anon_session_id
         HAVING count(*) >= 2
@@ -222,6 +259,7 @@ async fn print_repeat_sessions(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -289,7 +327,8 @@ async fn print_session_changes(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
             lag(has_cu_overrides) OVER w AS prev_cu
           FROM schedule_generates
           WHERE created_at > now() - make_interval(days => $1)
-            AND anon_session_id IS NOT NULL
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND anon_session_id IS NOT NULL
           WINDOW w AS (PARTITION BY anon_session_id ORDER BY created_at, id)
         )
         SELECT
@@ -319,6 +358,7 @@ async fn print_session_changes(pool: &sqlx::PgPool, days: i32) -> Result<(), sql
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -455,9 +495,11 @@ async fn print_overview(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Erro
           count(DISTINCT date_trunc('day', created_at))::bigint AS active_days
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -505,11 +547,13 @@ async fn print_daily_volume(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::
           count(*) FILTER (WHERE ok)::bigint AS ok_n
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         GROUP BY 1
         ORDER BY 1
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -538,11 +582,13 @@ async fn print_time_patterns(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx:
           count(*)::bigint AS n
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         GROUP BY 1, 2
         ORDER BY 2
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -553,12 +599,14 @@ async fn print_time_patterns(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx:
           count(*)::bigint AS n
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         GROUP BY 1
         ORDER BY n DESC
         LIMIT 8
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -591,12 +639,15 @@ async fn print_degree_count_mix(pool: &sqlx::PgPool, days: i32) -> Result<(), sq
           jsonb_array_length(degrees) AS n_degrees,
           count(*)::bigint AS n
         FROM schedule_generates
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         GROUP BY 1
         ORDER BY 1
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -624,12 +675,15 @@ async fn print_top_schools(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::E
         SELECT d->>'school' AS school, count(*)::bigint AS n
         FROM schedule_generates,
              jsonb_array_elements(degrees) AS d
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         GROUP BY 1
         ORDER BY n DESC
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -657,13 +711,16 @@ async fn print_top_majors(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Er
           count(*)::bigint AS n
         FROM schedule_generates,
              jsonb_array_elements(degrees) AS d
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         GROUP BY 1, 2, 3
         ORDER BY n DESC
         LIMIT 25
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -688,13 +745,16 @@ async fn print_top_combos(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Er
         r#"
         SELECT degree_combo_key, count(*)::bigint AS n
         FROM schedule_generates
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         GROUP BY 1
         ORDER BY n DESC
         LIMIT 20
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -722,7 +782,9 @@ async fn print_cross_school(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::
             string_agg(DISTINCT d->>'school', '+' ORDER BY d->>'school') AS school_set
           FROM schedule_generates,
                jsonb_array_elements(degrees) AS d
-          WHERE created_at > now() - make_interval(days => $1) AND ok
+          WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
           GROUP BY id
           HAVING count(DISTINCT d->>'school') > 1
         ) t
@@ -732,6 +794,7 @@ async fn print_cross_school(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -775,10 +838,13 @@ async fn print_major_minor(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::E
           )::bigint AS multi_major_no_minor,
           count(*)::bigint AS total
         FROM schedule_generates
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -820,10 +886,13 @@ async fn print_concentrations(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx
             )
           )::bigint AS with_conc
         FROM schedule_generates
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -837,13 +906,16 @@ async fn print_concentrations(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx
         FROM schedule_generates,
              jsonb_array_elements(degrees) AS d,
              jsonb_array_elements_text(d->'concentrations') AS conc
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         GROUP BY 1, 2, 3
         ORDER BY n DESC
         LIMIT 20
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -886,9 +958,11 @@ async fn print_feature_flags(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx:
           coalesce(round(avg(frozen_count))::bigint, 0) AS avg_frozen
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -946,11 +1020,13 @@ async fn print_taken_frozen_buckets(pool: &sqlx::PgPool, days: i32) -> Result<()
           count(*)::bigint AS n
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         GROUP BY 1
         ORDER BY min(taken_count)
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -981,11 +1057,13 @@ async fn print_latency_by_complexity(pool: &sqlx::PgPool, days: i32) -> Result<(
           ) AS p95_ms
         FROM schedule_generates
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         GROUP BY 1
         ORDER BY 1
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -1017,10 +1095,13 @@ async fn print_plan_size(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Err
           )::float8 AS p50_cu,
           coalesce(round(avg(semester_count))::bigint, 0) AS avg_semesters
         FROM schedule_generates
-        WHERE created_at > now() - make_interval(days => $1) AND ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND ok
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_one(pool)
     .await?;
 
@@ -1046,13 +1127,16 @@ async fn print_failures(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Erro
         r#"
         SELECT degree_combo_key, count(*)::bigint AS n
         FROM schedule_generates
-        WHERE created_at > now() - make_interval(days => $1) AND NOT ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND NOT ok
         GROUP BY 1
         ORDER BY n DESC
         LIMIT 15
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -1061,13 +1145,16 @@ async fn print_failures(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Erro
         SELECT k AS error_kind, count(*)::bigint AS n
         FROM schedule_generates,
              unnest(error_kinds) AS k
-        WHERE created_at > now() - make_interval(days => $1) AND NOT ok
+        WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
+          AND NOT ok
         GROUP BY 1
         ORDER BY n DESC
         LIMIT 15
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -1101,11 +1188,13 @@ async fn print_violations(pool: &sqlx::PgPool, days: i32) -> Result<(), sqlx::Er
         FROM schedule_generates,
              unnest(violation_types) AS v
         WHERE created_at > now() - make_interval(days => $1)
+          AND (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         GROUP BY 1
         ORDER BY n DESC
         "#,
     )
     .bind(days)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 
@@ -1133,11 +1222,13 @@ async fn print_recent(pool: &sqlx::PgPool, limit: i64) -> Result<(), sqlx::Error
           left(coalesce(anon_session_id, ''), 8) AS session_short,
           degree_combo_key
         FROM schedule_generates
+        WHERE (anon_session_id IS NULL OR anon_session_id <> ALL($2::text[]))
         ORDER BY created_at DESC
         LIMIT $1
         "#,
     )
     .bind(limit)
+    .bind(excluded_session_ids())
     .fetch_all(pool)
     .await?;
 

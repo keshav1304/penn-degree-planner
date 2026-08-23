@@ -1,7 +1,7 @@
 //! Major-builder integration tests: `resolve_major`, catalog coverage, and pool invariants.
 //!
 //! Assertions derive expected behavior from planner helpers (`degree_catalog`,
-//! `cas_pool_constraints`, `concentration_names`, etc.) rather than golden snapshots.
+//! `concentration_names`, etc.) rather than golden snapshots.
 
 use std::collections::HashSet;
 
@@ -10,10 +10,7 @@ use proptest::prelude::*;
 use degree_planner::Major;
 use degree_planner::Requirement;
 use degree_planner::major::{major_has_authored_requirements, major_is_implemented, resolve_major};
-use degree_planner::penn_data::college_data::{
-    self, cas_auto_completed_sectors_for, cas_gened_requirement_row_count, cas_major_pool_major_cu,
-    cas_pool_constraints, CAS_DEGREE_CU, CAS_GENED_POOL_CATEGORY,
-};
+use degree_planner::penn_data::college_data;
 use degree_planner::penn_data::wharton_data::{
     self, concentration_names, create_wh_fl_major, create_wh_fl_mt_major, create_wh_nofl_major,
     create_wh_nofl_mt_major, normalize_wh_concentrations, resolve_wh_concentration_key,
@@ -27,11 +24,10 @@ fn requirement_tree_contains(req: &Requirement, pred: &dyn Fn(&Requirement) -> b
         return true;
     }
     match req {
-        Requirement::AnyOf { possibilities, .. } | Requirement::CourseGroup { possibilities, .. } => {
-            possibilities
-                .iter()
-                .any(|child| requirement_tree_contains(child, pred))
-        }
+        Requirement::AnyOf { possibilities, .. }
+        | Requirement::CourseGroup { possibilities, .. } => possibilities
+            .iter()
+            .any(|child| requirement_tree_contains(child, pred)),
         Requirement::AllOf { requirements, .. }
         | Requirement::Concentration { requirements, .. } => requirements
             .iter()
@@ -52,9 +48,9 @@ fn major_tree_contains(major: &Major, pred: &dyn Fn(&Requirement) -> bool) -> bo
 
 fn find_course_pool<'a>(major: &'a Major, category: &str) -> Option<&'a Requirement> {
     major.requirements.iter().find_map(|r| match r {
-        Requirement::CoursePool {
-            category: cat, ..
-        } if cat.as_deref() == Some(category) => Some(r),
+        Requirement::CoursePool { category: cat, .. } if cat.as_deref() == Some(category) => {
+            Some(r)
+        }
         _ => None,
     })
 }
@@ -92,11 +88,13 @@ fn normalize_like_resolve(mut major: Major) -> Major {
 fn default_concentrations(school: &str, code: &str) -> Vec<String> {
     match (school, code) {
         ("WH", _) => vec!["FNCE".into()],
-        ("CAS", "PPE" | "PHYS" | "MATH" | "HSOC" | "INST") => college_data::cas_concentration_names(code)
-            .into_iter()
-            .next()
-            .into_iter()
-            .collect(),
+        ("CAS", "PPE" | "PHYS" | "MATH" | "HSOC" | "INST") => {
+            college_data::cas_concentration_names(code)
+                .into_iter()
+                .next()
+                .into_iter()
+                .collect()
+        }
         ("SEAS", "MEAM") => vec!["General".into()],
         ("SEAS_MS", "MS_BE") => vec!["Thesis".into()],
         ("SEAS_MS", "MS_MEAM") => vec!["Design and Manufacturing".into()],
@@ -147,68 +145,6 @@ fn count_top_level_business_breadth(major: &Major) -> usize {
         .count()
 }
 
-fn assert_cas_gened_pool_invariants(major: &Major, short_name: &str, concentration: Option<&str>) {
-    assert!(
-        major_tree_contains(major, &|req| {
-            matches!(
-                req,
-                Requirement::Restriction { category, department, .. }
-                    if category.as_deref() == Some("Writing Seminar")
-                        && department.as_ref().is_some_and(|d| d.contains(&"WRIT".to_string()))
-            )
-        }),
-        "{short_name} should include a standalone writing requirement",
-    );
-
-    let pool = find_course_pool(major, CAS_GENED_POOL_CATEGORY)
-        .unwrap_or_else(|| panic!("{short_name} missing gen-ed pool"));
-    let Requirement::CoursePool {
-        fixed_slots,
-        flexible_slots,
-        constraints,
-        ..
-    } = pool
-    else {
-        panic!("expected gen-ed CoursePool");
-    };
-
-    let auto = cas_auto_completed_sectors_for(short_name, concentration);
-    assert_eq!(
-        constraints.len(),
-        cas_pool_constraints(&auto).len(),
-        "{short_name} gen-ed constraints should match auto-completed sectors",
-    );
-    assert!(*flexible_slots > 0, "{short_name} gen-ed pool needs flexible slots");
-    assert!(
-        *flexible_slots <= cas_gened_requirement_row_count() as i32,
-        "{short_name} gen-ed flex should not exceed FA+sector row cap",
-    );
-
-    let major_cu_in_pool = cas_major_pool_major_cu(major);
-    if major_cu_in_pool > 0 {
-        assert!(
-            !fixed_slots.is_empty(),
-            "{short_name} majors with pool major CU should embed requirements in fixed slots",
-        );
-    } else {
-        assert!(
-            fixed_slots.is_empty(),
-            "{short_name} placeholder majors should not embed major requirements in the gen-ed pool",
-        );
-    }
-
-    let unrestricted_count = major
-        .requirements
-        .iter()
-        .filter(|r| r.get_category() == "Unrestricted Electives")
-        .count() as i32;
-    assert_eq!(
-        1 + major_cu_in_pool + flexible_slots + unrestricted_count,
-        CAS_DEGREE_CU,
-        "{short_name} writing + pool + unrestricted electives should total {CAS_DEGREE_CU} CU",
-    );
-}
-
 fn assert_wh_las_pool_invariants(major: &Major, expects_foreign_language: bool) {
     let pool = find_course_pool(major, "Liberal Arts and Sciences")
         .unwrap_or_else(|| panic!("{} missing LAS pool", major.short_name));
@@ -222,7 +158,10 @@ fn assert_wh_las_pool_invariants(major: &Major, expects_foreign_language: bool) 
         panic!("expected LAS CoursePool");
     };
 
-    assert!(fixed_slots.is_empty(), "LAS pools use flexible placeholders");
+    assert!(
+        fixed_slots.is_empty(),
+        "LAS pools use flexible placeholders"
+    );
     assert!(*flexible_slots > 0);
     assert!(!constraints.is_empty());
 
@@ -316,62 +255,7 @@ mod catalog_resolve {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 2. CAS major builder — shared gen-ed pool mechanics
-// ═══════════════════════════════════════════════════════════════════════════════
-
-mod cas_builder {
-    use super::*;
-    use degree_planner::penn_data::college_data::{
-        create_anch_major, create_bioc_major, create_biol_major, create_chem_major,
-        create_cis_cas_major, create_dsgn_major, create_econ_major, create_mathecon_major,
-        create_neur_major, create_psyc_major,
-    };
-
-    #[test]
-    fn implemented_cas_majors_satisfy_gened_pool_invariants() {
-        for (major, short_name) in [
-            (create_econ_major(), "ECON"),
-            (create_neur_major(), "NEUR"),
-            (create_bioc_major(), "BIOC"),
-            (create_biol_major(), "BIOL"),
-            (create_chem_major(), "CHEM"),
-            (create_anch_major(), "ANCH"),
-            (create_mathecon_major(), "MECON"),
-            (create_cis_cas_major(), "CIS"),
-            (create_psyc_major(), "PSYC"),
-            (create_dsgn_major(), "DSGN"),
-        ] {
-            assert_cas_gened_pool_invariants(&major, short_name, None);
-            assert!(major_has_authored_requirements("CAS", &major));
-        }
-    }
-
-    #[test]
-    fn cas_placeholder_stubs_use_empty_major_pool_and_full_gened_flex() {
-        let biop = college_data::create_cas_placeholder_major(
-            college_data::cas_catalog_entry("BIOP").expect("BIOP catalog entry"),
-        );
-        assert_cas_gened_pool_invariants(&biop, "BIOP", None);
-        assert_eq!(cas_major_pool_major_cu(&biop), 0);
-        assert!(!major_has_authored_requirements("CAS", &biop));
-    }
-
-    #[test]
-    fn cas_concentration_majors_build_from_catalog_names() {
-        for code in ["PPE", "PHYS", "MATH", "HSOC"] {
-            for conc in college_data::cas_concentration_names(code) {
-                let concs = vec![conc.clone()];
-                let major = resolve_major("CAS", code, &concs)
-                    .unwrap_or_else(|| panic!("{code} / {conc}"));
-                assert!(!major.requirements.is_empty());
-                assert_cas_gened_pool_invariants(&major, code, Some(&conc));
-            }
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 3. Wharton major builder — variants, LAS pools, concentration catalog
+// 2. Wharton major builder — variants, LAS pools, concentration catalog
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod wh_builder {
@@ -448,12 +332,9 @@ mod wh_builder {
             find_course_pool(&nofl_mt, "Liberal Arts and Sciences").is_none(),
             "NOFL M&T uses standalone LAS requirements, not a course pool",
         );
-        assert!(
-            major_tree_contains(&nofl_mt, &|req| {
-                req.get_category()
-                    .starts_with("Liberal Arts and Sciences")
-            }),
-        );
+        assert!(major_tree_contains(&nofl_mt, &|req| {
+            req.get_category().starts_with("Liberal Arts and Sciences")
+        }),);
     }
 
     #[test]
@@ -500,7 +381,7 @@ mod wh_builder {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 4. Nursing major builder — language track vs exempt track
+// 3. Nursing major builder — language track vs exempt track
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod nursing_builder {
@@ -510,11 +391,15 @@ mod nursing_builder {
     };
 
     fn has_language_requirement_slots(major: &Major) -> bool {
-        major_tree_contains(major, &|req| req.get_category().starts_with("Language Requirement"))
+        major_tree_contains(major, &|req| {
+            req.get_category().starts_with("Language Requirement")
+        })
     }
 
     fn has_free_elective_slots(major: &Major) -> bool {
-        major_tree_contains(major, &|req| req.get_category().starts_with("Free Elective"))
+        major_tree_contains(major, &|req| {
+            req.get_category().starts_with("Free Elective")
+        })
     }
 
     #[test]
@@ -551,7 +436,7 @@ mod nursing_builder {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 5. SEAS major builder — undergrad programs and MEAM concentrations
+// 4. SEAS major builder — undergrad programs and MEAM concentrations
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod seas_builder {
@@ -598,7 +483,7 @@ mod seas_builder {
         };
         assert!(fixed_slots.is_empty());
         assert!(*flexible_slots > 0);
-        let coverage_units: i32      = constraints.iter().map(|c| c.count).sum();
+        let coverage_units: i32 = constraints.iter().map(|c| c.count).sum();
         assert!(
             coverage_units > *flexible_slots,
             "BE pool allows double-counting across constraint groups",

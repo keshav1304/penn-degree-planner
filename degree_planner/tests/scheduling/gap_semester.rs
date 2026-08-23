@@ -1,5 +1,5 @@
 use degree_planner::scheduler::{
-    generate_schedule, DegreeInput, FrozenCourse, ScheduleInput, ScheduleOutput, SemesterPlan,
+    DegreeInput, FrozenCourse, ScheduleInput, ScheduleOutput, SemesterPlan, generate_schedule,
 };
 
 fn cis_input(gap_semesters: Vec<&str>, frozen: Vec<FrozenCourse>) -> ScheduleInput {
@@ -78,7 +78,10 @@ fn enough_gaps_expand_past_year_four() {
     ));
     assert!(output.error.is_none(), "{:?}", output.error);
     assert!(
-        output.schedule.iter().any(|p| p.year >= 5 && term_item_count(p) > 0),
+        output
+            .schedule
+            .iter()
+            .any(|p| p.year >= 5 && term_item_count(p) > 0),
         "gapping years 1–3 should overflow into year 5+, schedule years: {:?}",
         output
             .schedule

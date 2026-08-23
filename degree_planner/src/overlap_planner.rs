@@ -696,29 +696,30 @@ fn course_is_explicit_option(course: &str, matcher: &CourseMatcher) -> bool {
     matches!(matcher, CourseMatcher::OneOf(v) if v.iter().any(|c| course_relations::equivalent(c, course)))
 }
 
-/// Lower is better. Prefer courses named directly on every open slot over broad attribute matches.
+/// Lower is better. Named-on-both beats named-on-one beats attribute-only.
 fn course_overlap_quality_score(course: &str, slot_refs: &[&OpenSlot]) -> usize {
-    let all_explicit = slot_refs
+    let named = slot_refs
         .iter()
-        .all(|s| course_is_explicit_option(course, &s.matcher));
-    if all_explicit {
-        return 0;
+        .filter(|s| course_is_explicit_option(course, &s.matcher))
+        .count();
+    if named == slot_refs.len() && named > 0 {
+        0
+    } else if named > 0 {
+        1
+    } else {
+        2
     }
+}
 
-    let base = slot_refs
+/// Lower is better. A pair is only as specific as its weakest slot, so
+/// SingleCourse+SingleCourse outranks SingleCourse+Free Elective.
+fn overlap_pair_score(course: &str, slot_refs: &[&OpenSlot]) -> usize {
+    let specificity = slot_refs
         .iter()
         .map(|s| s.matcher.specificity_score())
-        .min()
+        .max()
         .unwrap_or(usize::MAX);
-
-    if slot_refs
-        .iter()
-        .any(|s| course_is_explicit_option(course, &s.matcher))
-    {
-        return base / 4;
-    }
-
-    base
+    specificity.saturating_add(course_overlap_quality_score(course, slot_refs))
 }
 
 fn format_opportunity_explanation(slots: &[OverlapSlotRef]) -> String {
@@ -729,6 +730,13 @@ fn format_opportunity_explanation(slots: &[OverlapSlotRef]) -> String {
     format!("One course can satisfy: {}", parts.join(" + "))
 }
 
+
+/// Pool index of a flex-seat slot key like `19:p0`, or `None` for any other key.
+fn flex_seat_pool_index(slot_key: &str) -> Option<usize> {
+    let (pool, seat) = slot_key.split_once(":p")?;
+    seat.parse::<usize>().ok()?;
+    pool.parse().ok()
+}
 
 pub fn extract_open_slots(
     per_degree: &[DegreeValidationResult],
@@ -761,6 +769,24 @@ pub fn extract_open_slots(
                 });
             }
         }
+
+        // Flex seats (`:p`) carry no filter of their own — the real criteria live in
+        // the pool's coverage constraints (`:c`). While any constraint is unmet, the
+        // remaining seats are reserved for courses that help meet it, so offering
+        // them as Unrestricted overlap targets would record impossible savings
+        // (e.g. a CIS core "filling" a Wharton LAS seat). Only seats of a
+        // fully-covered pool are genuinely free.
+        let blocked_pools: HashSet<usize> = validation
+            .pool_coverage_info
+            .iter()
+            .filter(|p| p.constraints.iter().any(|c| !c.fulfilled))
+            .map(|p| p.pool_index)
+            .collect();
+        slots.retain(|s| {
+            s.degree_index != compact_index
+                || flex_seat_pool_index(&s.slot_key)
+                    .map_or(true, |pool| !blocked_pools.contains(&pool))
+        });
     }
 
     for (compact_index, major) in majors.iter().enumerate() {
@@ -1219,13 +1245,7 @@ pub fn compute_overlap_plan(
             if !can_claim_all(&course, &slot_refs, cross_state, cu_map) {
                 continue;
             }
-            let specificity = pair
-                .iter()
-                .map(|&i| open_slots[i].matcher.specificity_score())
-                .min()
-                .unwrap_or(usize::MAX);
-            let quality = course_overlap_quality_score(&course, &slot_refs);
-            let score = specificity.saturating_add(quality);
+            let score = overlap_pair_score(&course, &slot_refs);
             group_courses
                 .entry(pair)
                 .or_default()
@@ -1317,6 +1337,65 @@ pub fn compute_overlap_plan(
         hints_by_slot,
         pairs,
         slot_explanations,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn slot(label: &str, matcher: CourseMatcher) -> OpenSlot {
+        OpenSlot {
+            degree_index: 0,
+            slot_key: label.to_string(),
+            label: label.to_string(),
+            matcher,
+            consumption_group: None,
+            gened_attr: None,
+        }
+    }
+
+    fn named(course: &str) -> CourseMatcher {
+        CourseMatcher::OneOf(vec![course.to_string()])
+    }
+
+    fn free_elective() -> CourseMatcher {
+        CourseMatcher::Restriction {
+            department: None,
+            level: None,
+            max_level: None,
+            attr: None,
+            excluding: None,
+            no_school: None,
+        }
+    }
+
+    #[test]
+    fn named_single_course_pair_outranks_free_elective_pair() {
+        let cis_math = slot("Math and Natural Science", named("MATH 1400"));
+        let wh_foundations = slot("First-Year Foundations", named("MATH 1400"));
+        let cis_free = slot("Free Elective", free_elective());
+
+        let named_score = overlap_pair_score("MATH 1400", &[&cis_math, &wh_foundations]);
+        let free_score = overlap_pair_score("MATH 1400", &[&cis_free, &wh_foundations]);
+        assert!(
+            named_score < free_score,
+            "CIS MATH 1400 + WH foundations ({named_score}) should beat CIS free elective + WH foundations ({free_score})"
+        );
+    }
+
+    #[test]
+    fn named_pair_outranks_unrestricted_flex_pair() {
+        let cis_eng = slot("Engineering", named("CIS 1100"));
+        let las_flex = slot("Liberal Arts and Sciences", CourseMatcher::Unrestricted);
+        let las_named = slot("Liberal Arts and Sciences", named("CIS 1100"));
+
+        let named_score = overlap_pair_score("CIS 1100", &[&cis_eng, &las_named]);
+        let flex_score = overlap_pair_score("CIS 1100", &[&cis_eng, &las_flex]);
+        assert!(
+            named_score < flex_score,
+            "named+named ({named_score}) should beat named+unrestricted flex ({flex_score})"
+        );
     }
 }
 

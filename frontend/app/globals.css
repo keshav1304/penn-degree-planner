@@ -171,6 +171,7 @@ body {
     var(--col-courses-width)
     var(--col-schedule)
     minmax(var(--col-requirements-min), 1fr);
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--section-gap);
   flex: 1;
   min-height: 0;
@@ -412,6 +413,13 @@ body {
 .panel-schedule .panel-body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Cached grid while generate is in-flight: let pan/wheel reach the panel scroller. */
+.panel-schedule.is-refreshing .schedule-container.is-readonly [role="button"] {
+  pointer-events: none;
+  cursor: default;
 }
 
 /* Lets RequirementsPanel fill height and scroll its category list */
@@ -974,6 +982,7 @@ select {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  touch-action: pan-y;
 }
 
 .schedule-container.credits-collapsed .credits-received-body-wrap {

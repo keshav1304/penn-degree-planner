@@ -13,7 +13,7 @@ import { formatOverlapMemberLabel } from "@/lib/requirementText";
 const YEAR_NAMES = {};
 
 const ScheduleGrid = forwardRef(function ScheduleGrid({
-    scheduleData, requirementSlotLabels = {}, frozenCourses, assignedCourses,
+    scheduleData, dragDisabled = false, requirementSlotLabels = {}, frozenCourses, assignedCourses,
     onToggleFreeze, onMarkTaken, onUnmarkTaken, degrees,
     courseDegreesMap, courseRequirementLinks,
     crossDegreeViolationsByCourse = {},
@@ -236,6 +236,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                 key={`${groupId}-${idx}`}
                 id={`schedule-${year}-${sem}-${groupId}-${idx}`}
                 data={{ courseId: groupId, source: "schedule", fromYear: year, fromSemester: sem }}
+                disabled={dragDisabled}
             >
                 <div className={className} style={{ position: "relative" }}>
                     <div className="degree-bar-container">
@@ -301,6 +302,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                 key={`${slotId}-${idx}`}
                 id={`schedule-${year}-${sem}-${slotId}-${idx}`}
                 data={{ courseId: slotId, source: "schedule", fromYear: year, fromSemester: sem }}
+                disabled={dragDisabled}
             >
                 <div className={className} style={{ position: "relative" }}>
                     {renderDegreeBar(slotId)}
@@ -347,6 +349,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                 key={`${courseId}-${idx}`}
                 id={`schedule-${year}-${sem}-${courseId}-${idx}`}
                 data={{ courseId, source: "schedule", fromYear: year, fromSemester: sem }}
+                disabled={dragDisabled}
             >
                 <div className={className} style={{ position: "relative" }}>
                     {renderDegreeBar(courseId)}
@@ -374,7 +377,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
     return (
         <div
             ref={ref}
-            className={`schedule-container${creditsCollapsed ? " credits-collapsed" : ""}`}
+            className={`schedule-container${creditsCollapsed ? " credits-collapsed" : ""}${dragDisabled ? " is-readonly" : ""}`}
         >
             {scheduleWarningMessages.length > 0 && (
                 <div
@@ -416,6 +419,7 @@ const ScheduleGrid = forwardRef(function ScheduleGrid({
                                             key={`${a.courseId}-${idx}`}
                                             id={`schedule-0-Credits-${a.courseId}-${idx}`}
                                             data={{ courseId: a.courseId, source: "schedule", fromYear: 0, fromSemester: "Credits" }}
+                                            disabled={dragDisabled}
                                         >
                                             <div className="schedule-course assigned" style={{ position: "relative" }}>
                                                 {renderDegreeBar(a.courseId)}
