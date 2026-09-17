@@ -250,6 +250,37 @@ fn ee_wh_fl_mt_dual_degree_generates_valid_schedule() {
 }
 
 #[test]
+fn single_ai_schedule_finishes_in_four_years() {
+    let output = generate_schedule(ScheduleInput {
+        taken: vec![],
+        degrees: vec![DegreeInput {
+            major: "AI".into(),
+            school: "SEAS".into(),
+            kind: "major".to_string(),
+            concentrations: vec![],
+            concentration: None,
+        }],
+        frozen: vec![],
+        allow_summer: Some(false),
+        semester_cu_limits: None,
+        gap_semesters: vec![],
+        anon_session_id: None,
+    });
+    assert!(output.error.is_none(), "AI generate error: {:?}", output.error);
+    assert_schedule_respects_cu_limits(&output, "single AI");
+    let total_cu: f64 = output.schedule.iter().map(|p| p.total_cu).sum();
+    assert!(
+        (total_cu - 37.0).abs() < 0.01,
+        "AI should schedule 37 CU, got {total_cu:.1}"
+    );
+    assert!(
+        occupied_schedule_max_year(&output) <= 4,
+        "AI should finish in 4 years; occupied max year={}, total_cu={total_cu:.1}",
+        occupied_schedule_max_year(&output)
+    );
+}
+
+#[test]
 fn single_cis_schedule_has_no_cross_degree_summary() {
     let output = generate_schedule(ScheduleInput {
         taken: vec![],

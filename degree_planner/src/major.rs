@@ -343,7 +343,7 @@ pub fn normalize_degree_concentrations(school: &str, concentrations: &[String]) 
     }
 }
 
-/// Returns concentration options for the UI. Overlay-style majors (EE, MSE) include "None".
+/// Returns concentration options for the UI. Overlay-style majors (EE, MSE, CIS, CMPE, BE, AI) include "None".
 pub fn concentrations_for(school: &str, major: &str) -> Vec<String> {
     concentrations_for_program(school, major, "major")
 }
@@ -358,7 +358,7 @@ pub fn concentrations_for_program(school: &str, program: &str, kind: &str) -> Ve
         return minor_concentrations_for(school, program);
     }
 
-    let optional_overlay = school == "SEAS" && matches!(program, "EE" | "MSE" | "CIS" | "CMPE" | "BE");
+    let optional_overlay = school == "SEAS" && matches!(program, "EE" | "MSE" | "CIS" | "CMPE" | "BE" | "AI");
 
     let mut names = match school {
         "SEAS" => seas_data::concentration_names_for(program),

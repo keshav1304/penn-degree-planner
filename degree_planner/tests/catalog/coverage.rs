@@ -1284,6 +1284,51 @@ fn dmd_major_resolves_with_thirty_seven_cu() {
 }
 
 #[test]
+fn ai_major_is_thirty_seven_cu_with_twelve_ai_slots() {
+    use degree_planner::Requirement;
+
+    let ai = resolve_major("SEAS", "AI", &[]).expect("AI");
+    assert_eq!(ai.short_name, "AI");
+    assert_eq!(ai.name, "Artificial Intelligence");
+    assert_eq!(ai.requirements.len(), 37);
+
+    let core = ai
+        .requirements
+        .iter()
+        .filter(|r| {
+            matches!(
+                r,
+                Requirement::SingleCourse { category: Some(cat), .. }
+                    if cat.starts_with("Artificial Intelligence")
+            )
+        })
+        .count();
+    let electives = ai
+        .requirements
+        .iter()
+        .filter(|r| {
+            matches!(
+                r,
+                Requirement::SingleCourse { category: Some(cat), .. } if cat == "AI Electives"
+            )
+        })
+        .count();
+    assert_eq!(core, 6, "six named AI core categories");
+    assert_eq!(electives, 6, "six remaining AI electives, not a second 6+6 pile");
+
+    let concs = major::concentrations_for("SEAS", "AI");
+    assert_eq!(concs[0], "None");
+    assert!(concs.iter().any(|c| c == "Machine Learning"));
+    assert!(concs.iter().any(|c| c == "Robotics"));
+    assert!(concs.iter().any(|c| c == "Vision & Language"));
+    let overlay = ai.concentrations.as_ref().expect("optional overlay concentrations");
+    for name in ["Machine Learning", "Robotics", "Vision & Language"] {
+        assert_eq!(overlay.get(name).map(|r| r.len()), Some(4));
+    }
+    assert!(major::major_is_implemented("SEAS", "AI"));
+}
+
+#[test]
 fn be_major_general_electives_use_course_pool() {
     use degree_planner::Requirement;
 

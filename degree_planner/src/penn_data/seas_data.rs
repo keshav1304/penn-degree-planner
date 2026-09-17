@@ -50,6 +50,7 @@ pub fn concentration_names_for(major_code: &str) -> Vec<String> {
         "MEAM" => create_meam_major("General".to_string()).concentrations,
         "MSE" => create_mse_major().concentrations,
         "BE" => create_be_major().concentrations,
+        "AI" => create_ai_major().concentrations,
         _ => return vec![],
     };
     concentrations
@@ -784,90 +785,151 @@ pub fn create_dmd_major() -> Major {
     }
 }
 
-/// AI schedule template — one semester per top-level requirement, in list order.
-const AI_SCHEDULE: [Semester; 44] = [
-    Y1F, Y1F, Y1S, Y1S, Y2F,                                     // Engineering
-    Y1F, Y1S, Y2F, Y2S, Y2S, Y2F, Y2S, Y3F,                      // Math and Natural Science
-    Y3F, Y3S, Y2S, Y3S, Y3S, Y3S,                                // AI core
-    Y3S, Y3S, Y3S, Y3S, Y3S, Y3S,                                // AI Electives (set 1)
-    Y4F, Y4F, Y4F, Y4F, Y4F, Y4F,                                // AI Electives (set 2)
-    Y4F, Y4S,                                                     // Senior Design
-    Y3F, Y3S, Y4F,                                                // Technical Electives
-    Y2F, Y2S, Y3F, Y3S, Y4F, Y4S, Y4S,                           // General Electives
-    Y4S,                                                         // Free Elective
+/// Official AI BSE core categories: 1 CU each, then 6 remaining electives from
+/// leftover core-category courses or the extra ML / control / other lists.
+const AI_INTRO: &[&str] = &["CIS 2210", "CIS 4210", "CIS 5210", "ESE 2000"];
+const AI_ML: &[&str] = &["CIS 4190", "CIS 5190", "CIS 5200"];
+const AI_SIGNALS: &[&str] = &["ESE 2100", "ESE 2240"];
+const AI_OPTIMIZATION: &[&str] = &["ESE 3040", "ESE 4210"];
+const AI_VISION: &[&str] = &["CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810"];
+const AI_PROJECT: &[&str] = &[
+    "CIS 3500", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810",
+    "ESE 3060", "ESE 3600", "ESE 4210", "NETS 2120", "NETS 2130",
+];
+const AI_ML_ELECTIVES: &[&str] = &[
+    "CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250",
+    "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740",
+];
+const AI_OSC_ELECTIVES: &[&str] = &[
+    "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050",
+    "ESE 6060", "ESE 6180", "ESE 6190",
+];
+const AI_OTHER_ELECTIVES: &[&str] = &[
+    "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360",
+    "CIS 5800", "CIS 6500", "MEAM 4600", "MEAM 5200", "MEAM 6200", "MEAM 6230",
+    "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120",
 ];
 
+fn unique_codes(groups: &[&'static [&'static str]]) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    for group in groups {
+        for &code in *group {
+            if !out.contains(&code) {
+                out.push(code);
+            }
+        }
+    }
+    out
+}
+
+fn ai_overlay_concentration(name: &str, courses: &[&str]) -> (String, Vec<Requirement>) {
+    (name.to_string(), repeat_req(&single(name, courses), 4))
+}
+
+/// Optional overlay: 4 of the 6 AI electives, not extra CU.
+fn ai_concentrations() -> BTreeMap<String, Vec<Requirement>> {
+    BTreeMap::from([
+        ai_overlay_concentration(
+            "Machine Learning",
+            &["ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "CIS 6200", "CIS 6250"],
+        ),
+        ai_overlay_concentration(
+            "Robotics",
+            &["ESE 4210", "MEAM 5200", "ESE 6150", "MEAM 6200", "MEAM 6230", "ESE 6500"],
+        ),
+        ai_overlay_concentration(
+            "Vision & Language",
+            &[
+                "CIS 4810", "CIS 5810", "CIS 4300", "CIS 5300", "CIS 5800",
+                "CIS 6800", "CIS 6300", "ESE 6450",
+            ],
+        ),
+    ])
+}
+
+/// AI BSE per the Penn catalog: 37 CU, including 12 CU of AI (6 core categories + 6 electives).
 pub fn create_ai_major() -> Major {
-    return Major {
+    let elective_codes = unique_codes(&[
+        AI_INTRO,
+        AI_ML,
+        AI_SIGNALS,
+        AI_OPTIMIZATION,
+        AI_VISION,
+        AI_PROJECT,
+        AI_ML_ELECTIVES,
+        AI_OSC_ELECTIVES,
+        AI_OTHER_ELECTIVES,
+    ]);
+    let ai_elective = single("AI Electives", &elective_codes);
+
+    let (requirements, mut schedule_hints) = scheduled(vec![
+        // Computing
+        (Y1F, single("Engineering", &["CIS 1100"])),
+        (Y1S, single("Engineering", &["CIS 1200"])),
+        (Y2F, single("Engineering", &["CIS 1210"])),
+        (Y2F, single("Engineering", &["CIS 2450", "CIS 5450"])),
+        (Y3F, single("Engineering", &["CIS 3200"])),
+
+        // Math and Natural Science
+        (Y1F, single("Math and Natural Science", &["MATH 1400"])),
+        (Y1S, single("Math and Natural Science", &["MATH 1410", "MATH 1610"])),
+        (Y2F, single("Math and Natural Science", &["ESE 2030"])),
+        (Y1F, restriction(1).category("Math and Natural Science").attr(&["EUNS"]).into()),
+        (Y1S, single("Math and Natural Science", &["CIS 1600"])),
+        (Y2S, single("Math and Natural Science", &["ESE 3010", "STAT 4300"])),
+        (Y3F, single("Math and Natural Science", &["ESE 4020", "ESE 5420"])),
+
+        // AI core — one CU from each of the six categories
+        (Y1F, single("Artificial Intelligence - Introduction to AI", AI_INTRO)),
+        (Y3S, single("Artificial Intelligence - Machine Learning", AI_ML)),
+        (Y2F, single("Artificial Intelligence - Signals & Systems", AI_SIGNALS)),
+        (Y3F, single("Artificial Intelligence - Optimization & Control", AI_OPTIMIZATION)),
+        (Y3F, single("Artificial Intelligence - Vision & Language", AI_VISION)),
+        (Y2S, single("Artificial Intelligence - AI Project", AI_PROJECT)),
+
+        // Remaining 6 AI electives from leftover core-category courses or extra lists
+        (Y2S, ai_elective.clone()),
+        (Y3S, ai_elective.clone()),
+        (Y3S, ai_elective.clone()),
+        (Y4F, ai_elective.clone()),
+        (Y4F, ai_elective.clone()),
+        (Y4S, ai_elective.clone()),
+
+        // Senior Design
+        (Y4F, single("Senior Design", &["CIS 4000", "CIS 4100", "ESE 4500", "MEAM 4450", "BE 4950", "MSE 4950", "CBE 4000"])),
+        (Y4S, single("Senior Design", &["CIS 4010", "CIS 4110", "ESE 4510", "MEAM 4460", "BE 4960", "MSE 4960", "CBE 4590"])),
+
+        // Technical Electives
+        (Y2S, restriction(1).category("Technical Electives").attr(&["EUNG"]).into()),
+        (Y4F, restriction(1).category("Technical Electives").attr(&["EUNG"]).into()),
+        (Y4S, restriction(1).category("Technical Electives").attr(&["EUNG"]).into()),
+
+        // General Electives
+        (Y2S, single("General Electives", &["LAWM 5060", "CIS 4230", "CIS 5230"])),
+        (Y3S, single("General Electives", &[
+            "COGS 1001", "LING 0500", "LING 2500", "LING 3810",
+            "PHIL 1710", "PHIL 2640", "PHIL 4721", "PHIL 4840",
+            "PSYC 1210", "PSYC 1340", "PSYC 1230", "PSYC 1310", "PSYC 2737",
+        ])),
+        (Y1S, restriction(1).category("General Electives").attr(&["EUHS", "EUSS"]).into()),
+        (Y1S, restriction(1).category("General Electives").attr(&["EUHS", "EUSS"]).into()),
+        (Y2F, restriction(1).category("General Electives").attr(&["EUHS", "EUSS"]).into()),
+        (Y3F, restriction(1).category("General Electives").attr(&["EUHS", "EUSS", "EUTB"]).into()),
+        (Y4S, restriction(1).category("General Electives").attr(&["EUHS", "EUSS", "EUTB"]).into()),
+
+        // Free Elective
+        (Y3S, restriction(1).category("Free Elective").into()),
+    ]);
+
+    apply_seas_senior_design_fixed_hints(&mut schedule_hints);
+
+    Major {
         short_name: "AI".to_string(),
         name: "Artificial Intelligence".to_string(),
-        requirements: vec![
-            // Engineering
-            single("Engineering", &["CIS 1100"]),
-            single("Engineering", &["CIS 1200"]),
-            single("Engineering", &["CIS 1210"]),
-            single("Engineering", &["CIS 2450", "CIS 5450"]),
-            single("Engineering", &["CIS 3200"]),
-            
-            // Math and Natural Science
-            single("Math and Natural Science", &["MATH 1400"]),
-            single("Math and Natural Science", &["MATH 1410", "MATH 1610"]),
-            single("Math and Natural Science", &["ESE 2030"]),
-            restriction(1).category("Math and Natural Science").attr(&["EUNS"]).into(),
-            
-            single("Math and Natural Science", &["CIS 1600"]),
-            single("Math and Natural Science", &["ESE 3010", "STAT 4300"]),
-            single("Math and Natural Science", &["ESE 4020", "ESE 5420"]),
-
-            // AI
-            single("Artificial Intelligence - Introduction to AI", &["CIS 4210", "CIS 5210", "ESE 2000"]),
-            single("Artificial Intelligence - Machine Learning", &["CIS 4190", "CIS 5190", "CIS 5200"]),
-            single("Artificial Intelligence - Signals & Systems", &["ESE 2100", "ESE 2240"]),
-            single("Artificial Intelligence - Optimization & Control", &["ESE 3040", "ESE 4210"]),
-            single("Artificial Intelligence - Vision & Language", &["CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810"]),
-            single("Artificial Intelligence - AI Project", &["CIS 3500", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "ESE 3060", "ESE 3600", "ESE 4210", "NETS 2120", "NETS 2130"]),
-
-            single("AI Electives", &["CIS 4210", "CIS 5210", "ESE 2000", "CIS 4190", "CIS 5190", "CIS 5200", "ESE 2100", "ESE 2240", "ESE 3040", "ESE 4210", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "CIS 3500", "ESE 3060", "ESE 3600", "NETS 2120", "NETS 2130"]),
-            single("AI Electives", &["CIS 4210", "CIS 5210", "ESE 2000", "CIS 4190", "CIS 5190", "CIS 5200", "ESE 2100", "ESE 2240", "ESE 3040", "ESE 4210", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "CIS 3500", "ESE 3060", "ESE 3600", "NETS 2120", "NETS 2130"]),
-            single("AI Electives", &["CIS 4210", "CIS 5210", "ESE 2000", "CIS 4190", "CIS 5190", "CIS 5200", "ESE 2100", "ESE 2240", "ESE 3040", "ESE 4210", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "CIS 3500", "ESE 3060", "ESE 3600", "NETS 2120", "NETS 2130"]),
-            single("AI Electives", &["CIS 4210", "CIS 5210", "ESE 2000", "CIS 4190", "CIS 5190", "CIS 5200", "ESE 2100", "ESE 2240", "ESE 3040", "ESE 4210", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "CIS 3500", "ESE 3060", "ESE 3600", "NETS 2120", "NETS 2130"]),
-            single("AI Electives", &["CIS 4210", "CIS 5210", "ESE 2000", "CIS 4190", "CIS 5190", "CIS 5200", "ESE 2100", "ESE 2240", "ESE 3040", "ESE 4210", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "CIS 3500", "ESE 3060", "ESE 3600", "NETS 2120", "NETS 2130"]),
-            single("AI Electives", &["CIS 4210", "CIS 5210", "ESE 2000", "CIS 4190", "CIS 5190", "CIS 5200", "ESE 2100", "ESE 2240", "ESE 3040", "ESE 4210", "CIS 4300", "CIS 5300", "CIS 4810", "CIS 5810", "CIS 3500", "ESE 3060", "ESE 3600", "NETS 2120", "NETS 2130"]),
-
-            single("AI Electives", &["CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250", "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740", "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050", "ESE 6060", "ESE 6180", "ESE 6190", "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360", "CIS 5800", "CIS 6500", "MEAM 5200", "MEAM 6200", "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120"]),
-            single("AI Electives", &["CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250", "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740", "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050", "ESE 6060", "ESE 6180", "ESE 6190", "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360", "CIS 5800", "CIS 6500", "MEAM 5200", "MEAM 6200", "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120"]),
-            single("AI Electives", &["CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250", "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740", "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050", "ESE 6060", "ESE 6180", "ESE 6190", "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360", "CIS 5800", "CIS 6500", "MEAM 5200", "MEAM 6200", "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120"]),
-            single("AI Electives", &["CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250", "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740", "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050", "ESE 6060", "ESE 6180", "ESE 6190", "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360", "CIS 5800", "CIS 6500", "MEAM 5200", "MEAM 6200", "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120"]),
-            single("AI Electives", &["CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250", "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740", "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050", "ESE 6060", "ESE 6180", "ESE 6190", "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360", "CIS 5800", "CIS 6500", "MEAM 5200", "MEAM 6200", "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120"]),
-            single("AI Electives", &["CIS 3333", "CIS 4270", "CIS 5270", "CIS 6200", "CIS 6250", "ESE 4380", "ESE 5380", "ESE 5140", "ESE 5460", "ESE 6450", "ESE 6740", "ESE 3030", "ESE 5000", "ESE 5050", "ESE 5060", "ESE 6050", "ESE 6060", "ESE 6180", "ESE 6190", "BE 5210", "CIS 4120", "CIS 5120", "CIS 4500", "CIS 5500", "CIS 5360", "CIS 5800", "CIS 6500", "MEAM 5200", "MEAM 6200", "ESE 4040", "ESE 6150", "ESE 6500", "ESE 6510", "NETS 3120", "NETS 4120"]),
-
-            // Senior Design
-            single("Senior Design", &["CIS 4000", "CIS 4100", "ESE 4500", "MEAM 4450", "BE 4950", "MSE 4950", "CBE 4000"]),
-            single("Senior Design", &["CIS 4010", "CIS 4110", "ESE 4510", "MEAM 4460", "BE 4960", "MSE 4960", "CBE 4590"]),
-            
-            // Technical Electives
-            restriction(1).category("Technical Electives").attr(&["EUNG"]).into(),
-            restriction(1).category("Technical Electives").attr(&["EUNG"]).into(),
-            restriction(1).category("Technical Electives").attr(&["EUNG"]).into(),
-            
-            // General Electives
-            single("General Electives", &["LAWM 5060", "CIS 4230", "CIS 5230"]),
-            single("General Electives", &["COGS 1001", "LING 0500", "LING 2500", "LING 3810", "PHIL 1710", "PHIL 2640", "PHIL 4721", "PHIL 4840", "PSYC 1210", "PSYC 1340", "PSYC 1230", "PSYC 1310", "PSYC 2737"]),
-            restriction(1).category("General Electives").attr(&["EUHS", "EUSS"]).into(),
-            restriction(1).category("General Electives").attr(&["EUHS", "EUSS"]).into(),
-            restriction(1).category("General Electives").attr(&["EUHS", "EUSS"]).into(),
-            restriction(1).category("General Electives").attr(&["EUHS", "EUSS", "EUTB"]).into(),
-            restriction(1).category("General Electives").attr(&["EUHS", "EUSS", "EUTB"]).into(),
-            
-            // Free Elective
-            restriction(1).category("Free Elective").into()
-        ],
-        schedule_hints: seas_schedule_hints(&AI_SCHEDULE),
-        concentrations: Some(BTreeMap::from([
-            
-            
-        ])),
-    };
+        requirements,
+        schedule_hints,
+        concentrations: Some(ai_concentrations()),
+    }
 }
 
 /// CMPE schedule template — one semester per top-level requirement, in list order.

@@ -326,7 +326,7 @@ fn frozen_half_credit_named_courses_show_on_wharton_requirements() {
 fn overlay_concentration_named_courses_count_when_taken() {
     let mut failures: Vec<String> = Vec::new();
 
-    for program in ["EE", "MSE", "CIS", "CMPE", "BE"] {
+    for program in ["EE", "MSE", "CIS", "CMPE", "BE", "AI"] {
         for conc in concentrations_for("SEAS", program) {
             if conc == "None" {
                 continue;
