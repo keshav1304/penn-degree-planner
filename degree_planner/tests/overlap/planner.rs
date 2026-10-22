@@ -562,6 +562,7 @@ fn requirement_accepts_shared_course_for_explicit_or_pool() {
     let wh_single = Requirement::SingleCourse {
         category: Some("M&T Soph Course".into()),
         possibilities: vec!["MGMT 2370".into()],
+        cu: None,
     };
     let ee_anyof = Requirement::AnyOf {
         category: Some("Professional Electives".into()),
@@ -569,6 +570,7 @@ fn requirement_accepts_shared_course_for_explicit_or_pool() {
             Requirement::SingleCourse {
                 category: None,
                 possibilities: vec!["ESE 4000".into(), "MGMT 2370".into(), "OIDD 2360".into()],
+                cu: None,
             },
             Requirement::Restriction {
                 category: None,

@@ -3,7 +3,7 @@ use crate::Major;
 use crate::Requirement;
 use crate::penn_data::requirement_builders::{
     all_of, any_of, any_of_opt, attr_pool_constraint, attrs_pool_constraint, code,
-    course_group, course_pool, repeat_req, restriction, single, single_pool_constraint,
+    course_group, course_pool, repeat_req, restriction, single, single_cu, single_pool_constraint,
 };
 use crate::schedule_template::{
     schedule_hints_from_array, scheduled, insert_fixed_course_hints, ScheduleHint, Semester,
@@ -69,9 +69,9 @@ pub fn create_ee_major() -> Major {
                     restriction(1).category("Sub for ESE 1110").departments(&["ESE"]).excluding(&["ESE 1120", "ESE 2030", "ESE 3010", "ESE 4020"]).into(),
                 ])),
             (Y1S, single("Engineering", &["CIS 1200", "CIS 2400"])),
-            (Y2F, single("Engineering", &["ESE 2150"])),
-            (Y2F, single("Engineering", &["ESE 2180"])),
-            (Y2S, single("Engineering", &["ESE 2240"])),
+            (Y2F, single_cu("Engineering", &["ESE 2150"], 15)),
+            (Y2F, single_cu("Engineering", &["ESE 2180"], 15)),
+            (Y2S, single_cu("Engineering", &["ESE 2240"], 15)),
             
             // Intermediate or Advanced ESE Elective
             (Y2S, restriction(1).category("Intermediate or Advanced ESE Elective").departments(&["ESE"]).level(2000).excluding(&["ESE 3010", "ESE 4020", "ESE 2030"]).into()),
@@ -123,7 +123,7 @@ pub fn create_ee_major() -> Major {
                     ]),
                     code(&["PHYS 0170"]),
                 ])),
-            (Y1S, single("Math and Natural Science", &["ESE 1120"])),
+            (Y1S, single_cu("Math and Natural Science", &["ESE 1120"], 15)),
             (Y1S, single("Math and Natural Science", &["CHEM 1012", "EAS 0091", "BIOL 1121", "BIOL 1101"])),
             (Y3F, restriction(1).category("Math and Natural Science").attr(&["EUMA"]).into()),
             (Y3S, restriction(1).category("Math and Natural Science").attr(&["EUMA", "EUNS"]).into()),
@@ -252,9 +252,10 @@ const MEAM_SCHEDULE: [Semester; 32] = [
 
 fn with_concentration_category(req: Requirement) -> Requirement {
     match req {
-        Requirement::SingleCourse { possibilities, .. } => Requirement::SingleCourse {
+        Requirement::SingleCourse { possibilities, cu, .. } => Requirement::SingleCourse {
             category: Some("Concentration".to_string()),
             possibilities,
+            cu,
         },
         Requirement::CourseGroup {
             number,
@@ -953,7 +954,7 @@ pub fn create_cmpe_major() -> Major {
             single("Engineering", &["CIS 1100"]),
             single("Engineering", &["CIS 1200"]),
             single("Engineering", &["CIS 1210"]),
-            single("Engineering", &["ESE 2150"]),
+            single_cu("Engineering", &["ESE 2150"], 15),
             single("Engineering", &["CIS 2400"]),
             single("Engineering", &["ESE 3500"]),
             single("Engineering", &["ESE 3700"]),
@@ -989,7 +990,7 @@ pub fn create_cmpe_major() -> Major {
                     ]),
                     code(&["PHYS 0170"]),
                 ]),
-            single("Math and Natural Science", &["ESE 1120"]),
+            single_cu("Math and Natural Science", &["ESE 1120"], 15),
             single("Math and Natural Science", &["CHEM 1012", "EAS 0091", "BIOL 1121", "BIOL 1101", "PHYS 1240"]),
             restriction(1).category("Math and Natural Science").attr(&["EUMA", "EUNS"]).into(),
 

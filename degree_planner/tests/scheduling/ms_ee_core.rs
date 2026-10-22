@@ -74,6 +74,7 @@ fn normalize_single_course_schedule_ids() {
     let multi = Requirement::SingleCourse {
         category: Some(CORE.to_string()),
         possibilities: vec!["ESE 5090".into(), "ESE 5100".into()],
+        cu: None,
     };
     let mut mapped = requirement::MappedRequirement {
         requirement: multi,
@@ -91,6 +92,7 @@ fn normalize_single_course_schedule_ids() {
     let single = Requirement::SingleCourse {
         category: Some("Engineering".to_string()),
         possibilities: vec!["CIS 1100".into()],
+        cu: None,
     };
     let mut one = requirement::MappedRequirement {
         requirement: single,

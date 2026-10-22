@@ -28,9 +28,13 @@ pub enum Requirement {
     /// - `category` — panel grouping label; on nested children, often the area name
     ///   (e.g. "Artificial Intelligence").
     /// - `possibilities` — course codes that satisfy this slot; exactly one is needed.
+    /// - `cu` — optional slot size in tenths (`15` = 1.5 CU). `None` spends 1.0 CU,
+    ///   or the course's own CU when that is under 1.0.
     SingleCourse {
         category: Option<String>,
         possibilities: Vec<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cu: Option<i32>,
     },
 
     /// **Complete N of M child areas** — each child is typically a `SingleCourse` representing
@@ -1506,7 +1510,7 @@ impl Requirement {
         cross_filter: Option<(&CrossDegreeState, usize)>,
     ) -> Option<Vec<String>> {
         match self {
-            Requirement::SingleCourse { category, possibilities } => {
+            Requirement::SingleCourse { category, possibilities, .. } => {
                 for course_code in possibilities {
                     if course_suggestable(course_code, taken, cross_filter, cu_map) {
                         return Some(vec![course_code.clone()]);
@@ -2423,8 +2427,10 @@ pub fn validate_courses_for_degree(
     let mut fulfilled_requirements = Vec::new();
     let mut taken_mut = taken.clone();
     let mut requirements_not_fulfilled = Vec::new();
-    // SingleCourse slots consume min(catalog CU, 1.0): a 0.5 CU named course fills one
-    // slot, while a 2.0 CU course (BE 9990) can fill two sole-possibility slots.
+    // SingleCourse slots consume min(catalog CU, slot size). Slot size is 1.0 unless the
+    // requirement sets `cu` (ESE 2150 / 2180 / 2240 are 1.5). A 0.5 CU named course fills
+    // one slot; a 2.0 CU course (BE 9990) can fill two 1.0 sole-possibility slots.
+    // When the spend exhausts the course, it leaves the bag and cannot fill another slot.
     let mut remaining_cu = single_course_remaining_cu(&taken_mut, cu_map);
 
     // Preserve original major indices before sorting — identical requirements compare
@@ -2518,14 +2524,13 @@ pub fn validate_courses_for_degree(
                     &mut requirements_not_fulfilled,
                 );
             }
-            Requirement::SingleCourse { .. } => {
+            Requirement::SingleCourse { cu, .. } => {
                 if let Some(courses_fulfilling) =
                     req.fulfills_requirement(&taken_mut, &attributes, cu_map)
                 {
                     if courses_fulfilling.iter().all(|c| {
-                        consume_single_course_slot_cu(&mut remaining_cu, c, cu_map)
-                    })
-                    {
+                        consume_single_course_slot_cu(&mut remaining_cu, c, cu_map, cu)
+                    }) {
                         for c in &courses_fulfilling {
                             maybe_remove_exhausted_single_course(
                                 &mut taken_mut,
@@ -2619,16 +2624,21 @@ const SINGLE_COURSE_SLOT_CU: f64 = 1.0;
 /// Spend CU from `course` toward one SingleCourse slot.
 ///
 /// A named half-credit course (WH 1010, OIDD 2340, …) fulfills that slot with its
-/// catalog CU. Courses of 1.0+ CU spend 1.0 per slot so a 2.0 CU course (BE 9990)
-/// can fill two identical slots.
+/// catalog CU. Courses of 1.0+ CU spend the slot size (1.0, or `cu` tenths when set)
+/// so a 2.0 CU course (BE 9990) can fill two 1.0 slots, while a 1.5 CU slot uses up
+/// a 1.5 CU course.
 fn consume_single_course_slot_cu(
     remaining_cu: &mut HashMap<String, f64>,
     course: &str,
     cu_map: &HashMap<String, f64>,
+    slot_cu_tenths: Option<i32>,
 ) -> bool {
     let canon = course_relations::canonical(course);
     let catalog = lookup_course_cu(cu_map, course);
-    let slot_need = catalog.min(SINGLE_COURSE_SLOT_CU);
+    let slot_size = slot_cu_tenths
+        .map(|tenths| tenths as f64 / 10.0)
+        .unwrap_or(SINGLE_COURSE_SLOT_CU);
+    let slot_need = catalog.min(slot_size);
     let rem = remaining_cu.entry(canon).or_insert(0.0);
     if *rem + CU_EPS < slot_need {
         return false;

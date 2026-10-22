@@ -47,6 +47,7 @@ fn taken_alias_fulfills_listed_possibility() {
     let req = Requirement::SingleCourse {
         category: Some("Test".into()),
         possibilities: vec!["BEPP 2110".into()],
+        cu: None,
     };
     let cu_map = courses_data::cu_map();
     let validation = requirement::validate_courses_for_degree(
@@ -71,6 +72,7 @@ fn taken_alias_fulfills_listed_possibility() {
     let reverse = Requirement::SingleCourse {
         category: Some("Test".into()),
         possibilities: vec!["ACCT 2110".into()],
+        cu: None,
     };
     let validation_rev =
         requirement::validate_courses_for_degree(vec![reverse], &vec!["BEPP 2110".into()], cu_map);

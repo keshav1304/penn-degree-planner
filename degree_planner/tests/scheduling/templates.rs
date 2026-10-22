@@ -8,6 +8,7 @@ fn scheduled_requirements_receive_sequential_indices() {
             Requirement::SingleCourse {
                 category: None,
                 possibilities: vec!["CIS 1100".into()],
+                cu: None,
             },
         ),
         (
@@ -15,6 +16,7 @@ fn scheduled_requirements_receive_sequential_indices() {
             Requirement::SingleCourse {
                 category: None,
                 possibilities: vec!["CIS 1200".into()],
+                cu: None,
             },
         ),
     ]);

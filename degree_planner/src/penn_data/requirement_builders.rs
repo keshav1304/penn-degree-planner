@@ -94,9 +94,19 @@ impl From<RestrictionBuilder> for Requirement {
 // --- Requirement composers ---
 
 pub fn single(category: &str, courses: &[&str]) -> Requirement {
+    single_with_cu(category, courses, None)
+}
+
+/// Named-course slot with an explicit size in tenths (`15` = 1.5 CU).
+pub fn single_cu(category: &str, courses: &[&str], cu_tenths: i32) -> Requirement {
+    single_with_cu(category, courses, Some(cu_tenths))
+}
+
+fn single_with_cu(category: &str, courses: &[&str], cu: Option<i32>) -> Requirement {
     Requirement::SingleCourse {
         category: Some(category.to_string()),
         possibilities: courses.iter().map(|s| s.to_string()).collect(),
+        cu,
     }
 }
 
@@ -104,6 +114,7 @@ pub fn code(courses: &[&str]) -> Requirement {
     Requirement::SingleCourse {
         category: None,
         possibilities: courses.iter().map(|s| s.to_string()).collect(),
+        cu: None,
     }
 }
 

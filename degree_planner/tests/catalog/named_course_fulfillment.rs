@@ -125,6 +125,7 @@ fn synthetic_half_credit_single_course_fulfills() {
     let reqs = vec![Requirement::SingleCourse {
         category: Some("Named half-credit".into()),
         possibilities: vec!["TEST 0500".into()],
+        cu: None,
     }];
     let cu = HashMap::from([("TEST 0500".into(), 0.5)]);
     let result = validate_courses_for_degree(reqs, &vec!["TEST 0500".into()], &cu);
@@ -147,6 +148,7 @@ fn synthetic_two_cu_course_fills_two_single_course_slots() {
     let slot = Requirement::SingleCourse {
         category: Some("Thesis".into()),
         possibilities: vec!["TEST 2000".into()],
+        cu: None,
     };
     let reqs = vec![slot.clone(), slot];
     let cu = HashMap::from([("TEST 2000".into(), 2.0)]);
@@ -172,6 +174,7 @@ fn every_top_level_single_course_possibility_fulfills_when_taken() {
             let Requirement::SingleCourse {
                 possibilities,
                 category,
+                ..
             } = req
             else {
                 continue;
@@ -379,5 +382,53 @@ fn overlay_concentration_named_courses_count_when_taken() {
         failures.is_empty(),
         "overlay concentration named courses must count when taken:\n  {}",
         failures.join("\n  ")
+    );
+}
+
+#[test]
+fn ee_one_point_five_cu_core_does_not_fill_a_second_slot() {
+    // These courses are 1.5 CU. The named slot spends 1.5, so nothing is left for
+    // an elective or a professional slot.
+    let major = resolve_major("SEAS", "EE", &[]).expect("EE");
+    let taken = vec![
+        "ESE 1110".to_string(),
+        "ESE 1120".to_string(),
+        "ESE 2150".to_string(),
+        "ESE 2180".to_string(),
+        "ESE 2240".to_string(),
+    ];
+    let result = validate_courses_for_degree(major.requirements, &taken, cu_map());
+
+    let mut seen: HashMap<String, Vec<String>> = HashMap::new();
+    for mapped in &result.fulfilled {
+        for course in &mapped.course_ids {
+            seen.entry(course.clone())
+                .or_default()
+                .push(mapped.requirement.get_category());
+        }
+    }
+    for course in ["ESE 1120", "ESE 2150", "ESE 2180", "ESE 2240"] {
+        let rows = seen.get(course).map(Vec::as_slice).unwrap_or(&[]);
+        assert_eq!(
+            rows.len(),
+            1,
+            "{course} must fill exactly one EE slot, got {rows:?}"
+        );
+    }
+    assert_eq!(
+        seen.get("ESE 1120").map(Vec::as_slice),
+        Some(&["Math and Natural Science".to_string()][..]),
+    );
+    assert_eq!(
+        seen.get("ESE 2150").map(Vec::as_slice),
+        Some(&["Engineering".to_string()][..]),
+    );
+    assert_eq!(
+        seen.get("ESE 2180").map(Vec::as_slice),
+        Some(&["Engineering".to_string()][..]),
+    );
+    assert_eq!(
+        seen.get("ESE 2240").map(Vec::as_slice),
+        Some(&["Engineering".to_string()][..]),
     );
 }
