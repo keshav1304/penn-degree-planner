@@ -353,6 +353,40 @@ body {
   flex-shrink: 0;
 }
 
+.schedule-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.schedule-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.schedule-switcher-select {
+  max-width: 200px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border-glass);
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.schedule-switcher-more {
+  letter-spacing: 1px;
+  padding-inline: 8px;
+}
+
 .panel-header-actions {
   display: flex;
   align-items: center;
@@ -2526,6 +2560,15 @@ select {
     flex-wrap: wrap;
     padding-top: 8px;
     padding-bottom: 8px;
+  }
+
+  .schedule-header-title {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .schedule-switcher-select {
+    max-width: 160px;
   }
 
   .panel-schedule .panel-header-actions {

@@ -90,3 +90,48 @@ export function filterValidPlacements(placements) {
 export function filterFrozenPlacements(placements) {
   return (placements || []).filter((p) => isSchedulePlacementId(p.courseId));
 }
+
+/**
+ * Slot ids that are still on the plan: open suggestions, placed schedule slots,
+ * and overlap requirement blocks (`req:overlap:…`).
+ */
+export function collectOpenRequirementSlotIds(scheduleData) {
+  const ids = new Set();
+  if (!scheduleData) return ids;
+  scheduleData.degree_results?.forEach((result) => {
+    result.suggested_for_unfulfilled?.forEach((mapped) => {
+      mapped.course_ids?.forEach((id) => {
+        if (isSchedulableRequirementSlotId(id)) ids.add(id);
+      });
+    });
+  });
+  scheduleData.schedule?.forEach((plan) => {
+    plan.requirement_slots?.forEach((id) => {
+      if (isSchedulableRequirementSlotId(id)) ids.add(id);
+    });
+  });
+  scheduleData.overlap_schedule_groups?.forEach((group) => {
+    if (isOverlapScheduleGroupId(group.group_id)) ids.add(group.group_id);
+    group.members?.forEach((member) => {
+      if (isSchedulableRequirementSlotId(member.schedule_slot_id)) {
+        ids.add(member.schedule_slot_id);
+      }
+    });
+  });
+  return ids;
+}
+
+/**
+ * Drop frozen requirement blocks that the current schedule no longer has.
+ * Before a schedule exists, keep them — a reload restores pins before the
+ * cached grid is applied, and overlap blocks are not listed as suggestions.
+ */
+export function retainFrozenPlacements(placements, scheduleData) {
+  const frozen = filterFrozenPlacements(placements);
+  if (!Array.isArray(scheduleData?.schedule)) return frozen;
+  const open = collectOpenRequirementSlotIds(scheduleData);
+  return frozen.filter((placement) => {
+    if (!isRequirementSlotId(placement.courseId)) return true;
+    return open.has(placement.courseId);
+  });
+}

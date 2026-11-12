@@ -6,6 +6,7 @@ import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensor
 import DegreeSelector from "./components/DegreeSelector";
 import CourseSearch from "./components/CourseSearch";
 import ScheduleGrid from "./components/ScheduleGrid";
+import ScheduleSwitcher from "./components/ScheduleSwitcher";
 import RequirementsPanel from "./components/RequirementsPanel";
 import { API_BASE } from "@/lib/api";
 import { perfLog } from "@/lib/perfLog";
@@ -21,6 +22,7 @@ import {
   filterValidCourseCodes,
   filterValidPlacements,
   filterFrozenPlacements,
+  retainFrozenPlacements,
 } from "@/lib/courseUtils";
 import { getSlotLabel, getRequirementInstanceId } from "@/lib/requirementText";
 import { reqRowDomId, parseOverlapGroupSlots, overlapSlotsEqual, resolveOverlapSlotNav, poolConstraintInstanceId, requirementSlotScope } from "@/lib/requirementNav";
@@ -33,15 +35,24 @@ import { exportScheduleJpeg } from "@/lib/exportScheduleImage";
 import { exportScheduleExcel } from "@/lib/exportScheduleExcel";
 import { getOrCreateAnonSessionId } from "@/lib/anonSession";
 import {
-  clearCachedSchedule,
-  clearPlanPersistence,
+  activePlan,
+  addEmptyPlan,
+  cachedScheduleFor,
+  clampScheduleName,
+  deletePlan,
+  duplicatePlan,
+  duplicateScheduleName,
+  freshPlanLibrary,
   loadCachedCatalogs,
-  loadCachedSchedule,
-  loadSavedState,
+  loadPlanLibrary,
+  nextScheduleName,
+  renamePlan,
+  resetActivePlan,
   saveCachedCatalogs,
-  saveCachedSchedule,
-  savePlanState,
+  savePlanLibrary,
+  scheduleCacheFrom,
   scheduleInputKey,
+  upsertActivePlan,
 } from "@/lib/planPersistence";
 import { applyCatalogNamesToDegrees } from "@/lib/degreeDisplay";
 
@@ -67,11 +78,15 @@ export default function Home() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [planReady, setPlanReady] = useState(false);
+  const [activeScheduleId, setActiveScheduleId] = useState(null);
+  const [scheduleChoices, setScheduleChoices] = useState([]);
   const debounceRef = useRef(null);
   const scheduleRequestId = useRef(0);
   const exportMenuRef = useRef(null);
   const firstGenerateRef = useRef(true);
   const prevCuPolicyKey = useRef(null);
+  const libraryRef = useRef(null);
+  const cacheKeyRef = useRef(null);
 
   // Mouse (not Pointer): PointerSensor also captures touch and fights TouchSensor,
   // which blocks scrolling the cached grid while generate is in flight.
@@ -93,7 +108,6 @@ export default function Home() {
         typeof performance !== "undefined" ? performance.now() : Date.now()
     ) - bootstrapStart;
 
-    const saved = loadSavedState();
     const cachedCatalogs = loadCachedCatalogs();
     const cachedDegreeCatalog = cachedCatalogs?.degreeCatalog || [];
     const cachedMinorCatalog = cachedCatalogs?.minorCatalog || [];
@@ -104,6 +118,15 @@ export default function Home() {
       setConcentrationCatalog(cachedCatalogs.concentrationCatalog);
     }
 
+    let library = loadPlanLibrary();
+    if (!library) {
+      library = freshPlanLibrary();
+      savePlanLibrary(library);
+    }
+    libraryRef.current = library;
+    const saved = activePlan(library);
+    setActiveScheduleId(library.activeId);
+    setScheduleChoices(library.schedules.map((plan) => ({ id: plan.id, name: plan.name })));
     if (saved) {
       const takenCourses = filterValidCourseCodes(saved.takenCourses || []);
       const frozenCourses = filterFrozenPlacements(saved.frozenCourses || []);
@@ -123,7 +146,7 @@ export default function Home() {
       if (saved.allowSummer !== undefined) setAllowSummer(saved.allowSummer);
       if (saved.semesterCuLimits) setSemesterCuLimits(saved.semesterCuLimits);
       if (saved.gapSemesters) setGapSemesters(saved.gapSemesters);
-      const cached = loadCachedSchedule(scheduleInputKey({
+      const inputKey = scheduleInputKey({
         degrees,
         takenCourses,
         frozenCourses,
@@ -131,8 +154,13 @@ export default function Home() {
         allowSummer,
         semesterCuLimits,
         gapSemesters,
-      }));
-      if (cached) setScheduleData(cached);
+      });
+      const cached = cachedScheduleFor(saved, inputKey);
+      if (cached) {
+        cacheKeyRef.current = inputKey;
+        setScheduleData(cached);
+      }
+      prevCuPolicyKey.current = degreeCuPolicyKey(degrees);
     }
     setPlanReady(true);
     perfLog("bootstrap.localStorage", elapsed());
@@ -223,25 +251,58 @@ export default function Home() {
     }
   }, [planReady, cuPolicyKey]);
 
-  // Auto-save on changes
+  const currentPlanInputs = useCallback(() => ({
+    degrees: applyCatalogNamesToDegrees(degrees, degreeCatalog, minorCatalog),
+    takenCourses,
+    frozenCourses,
+    assignedCourses,
+    allowSummer,
+    semesterCuLimits,
+    gapSemesters,
+  }), [
+    degrees,
+    degreeCatalog,
+    minorCatalog,
+    takenCourses,
+    frozenCourses,
+    assignedCourses,
+    allowSummer,
+    semesterCuLimits,
+    gapSemesters,
+  ]);
+
+  const publishLibrary = useCallback((library) => {
+    libraryRef.current = library;
+    setActiveScheduleId(library.activeId);
+    setScheduleChoices(library.schedules.map((plan) => ({ id: plan.id, name: plan.name })));
+    savePlanLibrary(library);
+  }, []);
+
+  // Auto-save the active plan. Schedule cache is left as-is unless a generate stored one.
   useEffect(() => {
-    if (!planReady) return;
-    savePlanState({
-      degrees: applyCatalogNamesToDegrees(degrees, degreeCatalog, minorCatalog),
-      takenCourses,
-      frozenCourses,
-      assignedCourses,
-      allowSummer,
-      semesterCuLimits,
-      gapSemesters,
-    });
-  }, [planReady, degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters, degreeCatalog, minorCatalog]);
+    if (!planReady || !activeScheduleId || !libraryRef.current) return;
+    libraryRef.current = upsertActivePlan(
+      libraryRef.current,
+      activeScheduleId,
+      currentPlanInputs(),
+    );
+    savePlanLibrary(libraryRef.current);
+  }, [planReady, activeScheduleId, currentPlanInputs]);
 
   // Generate schedule when inputs change (debounced)
   const generateSchedule = useCallback(async () => {
     if (degrees.length === 0) {
       setScheduleData(null);
-      clearCachedSchedule();
+      cacheKeyRef.current = null;
+      if (libraryRef.current && activeScheduleId) {
+        libraryRef.current = upsertActivePlan(
+          libraryRef.current,
+          activeScheduleId,
+          undefined,
+          null,
+        );
+        savePlanLibrary(libraryRef.current);
+      }
       return;
     }
 
@@ -303,8 +364,18 @@ export default function Home() {
       const data = await response.json();
       if (requestId !== scheduleRequestId.current) return;
       setScheduleData(data);
-      if (Array.isArray(data?.schedule)) {
-        saveCachedSchedule(inputKey, data);
+      if (Array.isArray(data?.schedule) && libraryRef.current && activeScheduleId) {
+        const liveKey = scheduleInputKey(currentPlanInputs());
+        if (liveKey === inputKey) {
+          cacheKeyRef.current = inputKey;
+          libraryRef.current = upsertActivePlan(
+            libraryRef.current,
+            activeScheduleId,
+            undefined,
+            scheduleCacheFrom(inputKey, data),
+          );
+          savePlanLibrary(libraryRef.current);
+        }
       }
     } catch (err) {
       if (requestId !== scheduleRequestId.current) return;
@@ -313,7 +384,18 @@ export default function Home() {
     if (requestId === scheduleRequestId.current) {
       setLoading(false);
     }
-  }, [degrees, takenCourses, frozenCourses, assignedCourses, allowSummer, semesterCuLimits, gapSemesters, maxScheduleYear]);
+  }, [
+    degrees,
+    takenCourses,
+    frozenCourses,
+    assignedCourses,
+    allowSummer,
+    semesterCuLimits,
+    gapSemesters,
+    maxScheduleYear,
+    activeScheduleId,
+    currentPlanInputs,
+  ]);
 
   useEffect(() => {
     if (!planReady) return;
@@ -331,18 +413,7 @@ export default function Home() {
       return filtered.length === prev.length ? prev : filtered;
     });
     setFrozenCourses((prev) => {
-      const openSlotIds = new Set();
-      scheduleData?.degree_results?.forEach((result) => {
-        result.suggested_for_unfulfilled?.forEach((mapped) => {
-          mapped.course_ids?.forEach((id) => {
-            if (isSchedulableRequirementSlotId(id)) openSlotIds.add(id);
-          });
-        });
-      });
-      const filtered = filterFrozenPlacements(prev).filter(
-        (f) => !isRequirementSlotId(f.courseId)
-            || (isSchedulableRequirementSlotId(f.courseId) && openSlotIds.has(f.courseId))
-      );
+      const filtered = retainFrozenPlacements(prev, scheduleData);
       return filtered.length === prev.length ? prev : filtered;
     });
     setAssignedCourses((prev) => {
@@ -417,13 +488,128 @@ export default function Home() {
     });
   };
 
+  const applyStoredPlan = useCallback((plan) => {
+    const namedDegrees = applyCatalogNamesToDegrees(
+      plan?.degrees || [],
+      degreeCatalog,
+      minorCatalog,
+    );
+    const nextTaken = filterValidCourseCodes(plan?.takenCourses || []);
+    const nextFrozen = filterFrozenPlacements(plan?.frozenCourses || []);
+    const nextAssigned = filterValidPlacements(plan?.assignedCourses || []);
+    const nextSummer = Boolean(plan?.allowSummer);
+    const nextLimits = plan?.semesterCuLimits || {};
+    const nextGaps = plan?.gapSemesters || {};
+    prevCuPolicyKey.current = degreeCuPolicyKey(namedDegrees);
+    setDegrees(namedDegrees);
+    setTakenCourses(nextTaken);
+    setFrozenCourses(nextFrozen);
+    setAssignedCourses(nextAssigned);
+    setAllowSummer(nextSummer);
+    setSemesterCuLimits(nextLimits);
+    setGapSemesters(nextGaps);
+    const inputKey = scheduleInputKey({
+      degrees: namedDegrees,
+      takenCourses: nextTaken,
+      frozenCourses: nextFrozen,
+      assignedCourses: nextAssigned,
+      allowSummer: nextSummer,
+      semesterCuLimits: nextLimits,
+      gapSemesters: nextGaps,
+    });
+    const cached = cachedScheduleFor(plan, inputKey);
+    cacheKeyRef.current = cached ? inputKey : null;
+    setScheduleData(cached);
+  }, [degreeCatalog, minorCatalog]);
+
+  const flushActivePlan = useCallback(() => {
+    if (!libraryRef.current || !activeScheduleId) return;
+    const inputs = currentPlanInputs();
+    const inputKey = scheduleInputKey(inputs);
+    const cacheUpdate = scheduleData && cacheKeyRef.current === inputKey
+      ? scheduleCacheFrom(inputKey, scheduleData)
+      : undefined;
+    libraryRef.current = upsertActivePlan(
+      libraryRef.current,
+      activeScheduleId,
+      inputs,
+      cacheUpdate,
+    );
+    savePlanLibrary(libraryRef.current);
+  }, [activeScheduleId, currentPlanInputs, scheduleData]);
+
+  const switchSchedule = (nextId) => {
+    if (!nextId || nextId === activeScheduleId || !libraryRef.current) return;
+    flushActivePlan();
+    const plan = libraryRef.current.schedules.find((item) => item.id === nextId);
+    if (!plan) return;
+    scheduleRequestId.current += 1;
+    libraryRef.current = { ...libraryRef.current, activeId: nextId };
+    publishLibrary(libraryRef.current);
+    applyStoredPlan(plan);
+  };
+
+  const createSchedule = () => {
+    if (!libraryRef.current) return;
+    const suggestion = nextScheduleName(libraryRef.current.schedules);
+    const typed = window.prompt("Name this schedule", suggestion);
+    if (typed === null) return;
+    flushActivePlan();
+    const { library, plan } = addEmptyPlan(
+      libraryRef.current,
+      clampScheduleName(typed, suggestion),
+    );
+    scheduleRequestId.current += 1;
+    publishLibrary(library);
+    applyStoredPlan(plan);
+  };
+
+  const renameSchedule = () => {
+    const current = activePlan(libraryRef.current);
+    if (!current) return;
+    const typed = window.prompt("Rename schedule", current.name);
+    if (typed === null) return;
+    const library = renamePlan(libraryRef.current, current.id, typed);
+    publishLibrary(library);
+  };
+
+  const duplicateSchedule = () => {
+    if (!libraryRef.current || !activeScheduleId) return;
+    flushActivePlan();
+    const source = libraryRef.current.schedules.find((item) => item.id === activeScheduleId);
+    const { library, plan } = duplicatePlan(
+      libraryRef.current,
+      activeScheduleId,
+      duplicateScheduleName(source?.name),
+    );
+    if (!plan) return;
+    scheduleRequestId.current += 1;
+    publishLibrary(library);
+    applyStoredPlan(plan);
+  };
+
+  const deleteSchedule = () => {
+    const current = activePlan(libraryRef.current);
+    if (!current) return;
+    const confirmed = window.confirm(
+      `Delete “${current.name}”? This only removes it from this browser.`,
+    );
+    if (!confirmed) return;
+    const library = deletePlan(libraryRef.current, current.id);
+    const next = activePlan(library);
+    scheduleRequestId.current += 1;
+    publishLibrary(library);
+    applyStoredPlan(next);
+  };
+
   const clearAll = () => {
-    setDegrees([]);
-    setTakenCourses([]);
-    setFrozenCourses([]);
-    setAssignedCourses([]);
-    setScheduleData(null);
-    clearPlanPersistence();
+    if (!libraryRef.current || !activeScheduleId) return;
+    const library = resetActivePlan(libraryRef.current, activeScheduleId);
+    const next = activePlan(library);
+    scheduleRequestId.current += 1;
+    cacheKeyRef.current = null;
+    publishLibrary(library);
+    applyStoredPlan(next);
   };
 
   // ─── Drag & Drop handlers ───
@@ -828,7 +1014,11 @@ export default function Home() {
               <span className="header-feedback-label-full">📝 Feedback / Bug Report</span>
               <span className="header-feedback-label-short">📝 Feedback</span>
             </a>
-            <button className="btn btn-ghost btn-sm" onClick={clearAll}>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={clearAll}
+              title="Clear degrees, courses, and pins on this schedule"
+            >
               Clear All
             </button>
           </div>
@@ -866,7 +1056,18 @@ export default function Home() {
 
           <div className={`panel panel-schedule${scheduleDragDisabled ? " is-refreshing" : ""}`}>
             <div className="panel-header">
-              <h2>📅 Schedule</h2>
+              <div className="schedule-header-title">
+                <h2>📅 Schedule</h2>
+                <ScheduleSwitcher
+                  schedules={scheduleChoices}
+                  activeId={activeScheduleId}
+                  onSwitch={switchSchedule}
+                  onCreate={createSchedule}
+                  onRename={renameSchedule}
+                  onDuplicate={duplicateSchedule}
+                  onDelete={deleteSchedule}
+                />
+              </div>
               <div className="panel-header-actions">
                 <label className="summer-toggle">
                   <input
